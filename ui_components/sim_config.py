@@ -319,79 +319,84 @@ def render_machine_params(
                 "Estacionário  (ω = 0)": 3}[ref_label]
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # ── Saturação Magnética ───────────────────────────────────────────────
-    # Im_0: corrente de magnetização em vazio = Vfase / (wb · Lm)
-    # Usada para calcular o default de Im_sat (2 × Im_0) e para orientar o usuário.
-    _Vfase_sat = Vl / np.sqrt(3.0)
-    _wb_sat    = 2.0 * np.pi * f
-    _Lm_sat    = (Xm / (2.0 * np.pi * (f_ref if input_mode == "X" else f)))
-    _Im0_sat   = round(_Vfase_sat / (_wb_sat * _Lm_sat), 2) if _Lm_sat > 0 else 5.0
+    # ── Parâmetros Avançados (IAS/Industrial) ────────────────────────────
+    # Im_0: corrente de magnetização em vazio = Vfase / (wb·Lm)
+    _Vfase_sat      = Vl / np.sqrt(3.0)
+    _wb_sat         = 2.0 * np.pi * f
+    _Lm_sat         = Xm / (2.0 * np.pi * (f_ref if input_mode == "X" else f))
+    _Im0_sat        = round(_Vfase_sat / (_wb_sat * _Lm_sat), 2) if _Lm_sat > 0 else 5.0
     _Im_sat_default = round(2.0 * _Im0_sat, 1)
 
-    _pgroup("Saturação Magnética")
-    sat_enable = st.toggle(
-        "Ativar modelo de saturação (Froelich)",
-        value=False,
-        key=wk["sat_enable"],
-        disabled=dis,
-        help="Substitui $L_m$ constante por $L_m(i_m) = L_{m0}/(1 + |i_m|/I_{sat})$, "
-             "reduzindo a superestimação do torque de partida.",
-    )
-    Im_sat = _Im_sat_default
-    if sat_enable:
+    with st.expander("⚙️ Parâmetros Avançados (IAS/Industrial)", expanded=False):
+        # ── Saturação Magnética ──────────────────────────────────────────
+        _pgroup("Saturação Magnética")
+        sat_enable = st.checkbox(
+            "Ativar modelo de saturação (Froelich)",
+            value=False,
+            key=wk["sat_enable"],
+            disabled=dis,
+            help=(
+                "Substitui $L_m$ constante por $L_m(i_m) = L_{m0}/(1 + |i_m|/I_{sat})$. "
+                "Reduz a superestimação do torque de partida. "
+                "Desativado por padrão — use apenas com dados de ensaio de circuito aberto."
+            ),
+        )
         Im_sat = st.number_input(
             "Corrente de semi-saturação — $I_{sat}$ (A)",
             min_value=0.1, max_value=500.0,
             value=_Im_sat_default,
             step=0.1, format="%.1f",
             key=wk["Im_sat"],
+            disabled=dis or not sat_enable,
             help=(
-                f"Corrente de magnetização em que $L_m$ cai à metade do valor linear. "
-                f"$I_{{m0}}$ estimada = {_Im0_sat:.2f} A. "
-                f"Default = 2 × $I_{{m0}}$ = {_Im_sat_default:.1f} A (saturação moderada). "
-                "Reduza para saturação mais intensa (aumenta o efeito no torque de pico)."
+                f"Corrente de magnetização em que $L_m$ cai à metade de $L_{{m0}}$. "
+                f"$I_{{m0}}$ estimada = {_Im0_sat:.2f} A  |  "
+                f"Default = 2×$I_{{m0}}$ = {_Im_sat_default:.1f} A (saturação moderada). "
+                "Reduza para saturação mais intensa."
             ),
-            disabled=dis,
         )
-        _lm_ratio = 1.0 / (1.0 + _Im0_sat / Im_sat) if Im_sat > 0 else 1.0
-        st.caption(
-            f"$I_{{m0}}$ estimada = {_Im0_sat:.2f} A  ·  "
-            f"$L_m$ em regime ≈ {_lm_ratio*100:.0f}% de $L_{{m0}}$  ·  "
-            f"Aumento esperado de $t_{{max}}$ necessário: ×{1.0/_lm_ratio:.1f}"
-        )
-        st.warning(
-            f"Com saturação ativa, o torque médio de aceleração é reduzido. "
-            f"Use $t_{{max}}$ ≥ {round(2.0 / _lm_ratio, 1):.1f} s para garantir que o motor "
-            f"atinja regime antes do fim da simulação."
-        )
-    st.markdown('</div>', unsafe_allow_html=True)
+        if sat_enable:
+            _lm_ratio = 1.0 / (1.0 + _Im0_sat / Im_sat) if Im_sat > 0 else 1.0
+            st.caption(
+                f"$I_{{m0}}$ ≈ {_Im0_sat:.2f} A  ·  "
+                f"$L_m$ em regime ≈ {_lm_ratio * 100:.0f}% de $L_{{m0}}$  ·  "
+                f"$t_{{max}}$ sugerido: ≥ {round(2.0 / _lm_ratio, 1):.1f} s"
+            )
+            if _lm_ratio < 0.7:
+                st.warning(
+                    f"Saturação intensa ($L_m$ cai para {_lm_ratio*100:.0f}%). "
+                    f"Use $t_{{max}}$ ≥ {round(2.0 / _lm_ratio, 1):.1f} s para capturar o regime permanente."
+                )
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    # ── Impedância de Rede ────────────────────────────────────────────────
-    _pgroup("Impedância de Rede (Voltage Sag)")
-    rg1, rg2 = st.columns(2)
-    with rg1:
-        Rgrid = st.number_input(
-            "$R_{grid}$ (Ω/fase)",
-            min_value=0.0, max_value=10.0, value=0.0, step=0.001, format="%.3f",
-            key=wk["Rgrid"],
-            help="Resistência da linha de alimentação por fase. 0 = sem queda resistiva.",
-            disabled=dis,
-        )
-    with rg2:
-        Lgrid = st.number_input(
-            "$L_{grid}$ (mH/fase)",
-            min_value=0.0, max_value=100.0, value=0.0, step=0.01, format="%.3f",
-            key=wk["Lgrid"],
-            help="Indutância da linha de alimentação por fase (mH). 0 = sem queda indutiva.",
-            disabled=dis,
-        ) * 1e-3   # converte mH → H internamente
-    if Rgrid > 0 or Lgrid > 0:
-        _ibox(
-            f"Queda de tensão estimada em plena carga: "
-            f"$\\Delta V_R \\approx {Rgrid * _DEFAULTS['Rs'] / (_DEFAULTS['Rs'] + Rgrid) * 100:.1f}\\%$ (resistiva). "
-            "A tensão no terminal do motor será menor que $V_l$."
-        )
-    st.markdown('</div>', unsafe_allow_html=True)
+        # ── Impedância de Rede ───────────────────────────────────────────
+        _pgroup("Impedância de Rede (Voltage Sag)")
+        rg1, rg2 = st.columns(2)
+        with rg1:
+            Rgrid = st.number_input(
+                "$R_{grid}$ (Ω/fase)",
+                min_value=0.0, max_value=100.0, value=0.0, step=0.01, format="%.4f",
+                key=wk["Rgrid"],
+                disabled=dis,
+                help="Resistência da linha de alimentação por fase. 0 = sem queda resistiva.",
+            )
+        with rg2:
+            Lgrid = st.number_input(
+                "$L_{grid}$ (H/fase)",
+                min_value=0.0, max_value=1.0, value=0.0, step=0.0001, format="%.4f",
+                key=wk["Lgrid"],
+                disabled=dis,
+                help="Indutância da linha de alimentação por fase (H). 0 = sem queda indutiva.",
+            )
+        if Rgrid > 0 or Lgrid > 0:
+            _Zgrid_mag = float(np.sqrt(Rgrid**2 + (_wb_sat * Lgrid)**2))
+            _ibox(
+                f"Impedância de rede: $R_{{grid}}$ = {Rgrid:.4f} Ω  |  "
+                f"$X_{{grid}}$ = {_wb_sat*Lgrid:.4f} Ω  |  "
+                f"$|Z_{{grid}}|$ = {_Zgrid_mag:.4f} Ω. "
+                "A tensão no terminal do motor será menor que $V_l$."
+            )
+        st.markdown('</div>', unsafe_allow_html=True)
 
     mp = MachineParams(Vl=Vl, f=f, Rs=Rs, Rr=Rr, Xm=Xm, Xls=Xls, Xlr=Xlr, Rfe=Rfe, p=p, J=J, B=B,
                        input_mode=input_mode, f_ref=f_ref,

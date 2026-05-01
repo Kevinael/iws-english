@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import streamlit as st
 
-from core.EMS_PY import build_fns, run_simulation
 from ui.theme import apply_css
 from ui.clean_view import render_clean_view
 from viz.eqcircuit_plotter import render_circuit as _render_circuit_eqcircuit_plotter
@@ -27,6 +26,7 @@ from ui_components.sim_config import (
     render_experiment_config,
 )
 from ui_components.sim_results import render_results
+from ui_components.sim_runner import execute_simulation_flow
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -186,63 +186,10 @@ def main() -> None:
 
         # execução da simulação
         if run_clicked:
-            if not var_keys:
-                st.warning("Selecione ao menos uma grandeza para plotar antes de executar.")
-            elif exp_config.get("_invalid"):
-                st.error("Corrija os parâmetros do experimento antes de executar.")
-            else:
-                vfn, tfn, t_events = build_fns(exp_config, mp)
-                _tmax_run = (
-                    float(exp_config.get("_t_end_shutdown", tmax))
-                    if exp_config.get("exp_type") == "shutdown"
-                    else tmax
-                )
-                _deseq_a      = exp_config.get("deseq_a",      0.0)
-                _deseq_b      = exp_config.get("deseq_b",      0.0)
-                _deseq_c      = exp_config.get("deseq_c",      0.0)
-                _falta_fase_a = exp_config.get("falta_fase_a", False)
-                _falta_fase_b = exp_config.get("falta_fase_b", False)
-                _falta_fase_c = exp_config.get("falta_fase_c", False)
-                _t_deseq      = exp_config.get("t_deseq",      0.0)
-                if (
-                    (_deseq_a or _deseq_b or _deseq_c or _falta_fase_a or _falta_fase_b or _falta_fase_c)
-                    and _t_deseq > 0.0
-                ):
-                    t_events = t_events + [_t_deseq]
-
-                with st.spinner("Executando integração numérica..."):
-                    try:
-                        res = run_simulation(
-                            mp=mp, tmax=_tmax_run, h=h,
-                            voltage_fn=vfn, torque_fn=tfn,
-                            ref_code=ref_code,
-                            deseq_a=_deseq_a, deseq_b=_deseq_b, deseq_c=_deseq_c,
-                            falta_fase_a=_falta_fase_a, falta_fase_b=_falta_fase_b,
-                            falta_fase_c=_falta_fase_c, t_deseq=_t_deseq,
-                            clamp_wr_at_zero=(exp_config.get("exp_type") == "shutdown"),
-                            t_cutoff=exp_config.get("t_cutoff") if exp_config.get("exp_type") == "shutdown" else None,
-                        )
-                        st.session_state["pdf_bytes"]  = None
-                        st.session_state["sim_result"] = dict(
-                            res=res, var_keys=var_keys, var_labels=var_labels,
-                            t_events=t_events, dark=dark, mp=mp,
-                            exp_label=exp_config.get("exp_label", "Simulacao"),
-                            exp_type=exp_config.get("exp_type",   "dol"),
-                            exp_config=exp_config,
-                            tmax=tmax, h=h,
-                        )
-                        st.session_state["_sim_toast"] = (
-                            f"Simulação concluída — "
-                            f"n = {res['n'][-1]:.1f} RPM | "
-                            f"Te = {res['Te'][-1]:.2f} N·m"
-                        )
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Erro na simulação: {e}")
-                        st.info(
-                            "Verifique os parâmetros. Passos de integração muito grandes "
-                            "ou parâmetros fisicamente inválidos podem causar divergência numérica."
-                        )
+            execute_simulation_flow(
+                mp=mp, exp_config=exp_config, var_keys=var_keys, var_labels=var_labels,
+                tmax=tmax, h=h, ref_code=ref_code, dark=dark,
+            )
 
         # toast pós-simulação
         _toast = st.session_state.pop("_sim_toast", None)
