@@ -25,7 +25,7 @@ from ui_components.sim_config import (
     render_machine_params,
     render_experiment_config,
 )
-from ui_components.sim_results import render_results
+from ui_components.sim_results import render_results, render_ref_panel
 from ui_components.sim_runner import execute_simulation_flow
 
 
@@ -46,10 +46,6 @@ st.set_page_config(
 def _render_circuit(mp, dark: bool) -> None:
     from ui.theme import _palette
     _render_circuit_eqcircuit_plotter(mp, dark, _palette)
-
-
-_REF_COLORS = ["#e74c3c", "#3498db", "#2ecc71", "#f39c12", "#9b59b6"]
-_REF_DASHES = ["dash", "dot", "solid", "dash", "dot"]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -173,6 +169,9 @@ def main() -> None:
                 help="Remove todas as referências salvas",
             )
 
+        _REF_COLORS = ["#e74c3c", "#3498db", "#2ecc71", "#f39c12", "#9b59b6"]
+        _REF_DASHES = ["dash", "dot", "solid", "dash", "dot"]
+
         if save_ref and _can_save:
             new_ref = dict(st.session_state["sim_result"])
             _idx    = len(st.session_state["ref_list"])
@@ -197,43 +196,9 @@ def main() -> None:
         if _toast:
             st.success(_toast)
 
-        sr       = st.session_state.get("sim_result")
+        sr = st.session_state.get("sim_result")
+        render_ref_panel()
         ref_list = st.session_state["ref_list"]
-
-        # painel de referências salvas
-        if ref_list:
-            st.markdown('<p class="slabel">Referências Salvas</p>', unsafe_allow_html=True)
-            _dash_opts = {"Tracejado": "dash", "Pontilhado": "dot", "Sólido": "solid"}
-            _h1, _h2, _h3, _h4 = st.columns([5, 0.55, 1.5, 0.4])
-            _h2.caption("Cor")
-            _h3.caption("Linha")
-            for _i, _ref in enumerate(ref_list):
-                _c1, _c2, _c3, _c4 = st.columns([5, 0.55, 1.5, 0.4])
-                with _c1:
-                    st.markdown(
-                        f'<div style="padding:0.38rem 0.75rem;border-radius:6px;'
-                        f'background:rgba(128,128,128,0.08);font-size:0.88rem;'
-                        f'border-left:3px solid {_ref.get("color","#888")};">'
-                        f'<strong>{_ref.get("exp_label","Referência")}</strong></div>',
-                        unsafe_allow_html=True,
-                    )
-                with _c2:
-                    _ref["color"] = st.color_picker(
-                        "Cor", value=_ref.get("color", "#888888"),
-                        key=f"ref_color_{_i}", label_visibility="collapsed",
-                    )
-                with _c3:
-                    _cur = _ref.get("dash", "dash")
-                    _idx = list(_dash_opts.values()).index(_cur) if _cur in _dash_opts.values() else 0
-                    _sel = st.selectbox(
-                        "Linha", list(_dash_opts.keys()), index=_idx,
-                        key=f"ref_dash_{_i}", label_visibility="collapsed",
-                    )
-                    _ref["dash"] = _dash_opts[_sel]
-                with _c4:
-                    if st.button("✕", key=f"ref_del_{_i}", help="Remover esta referência"):
-                        st.session_state["ref_list"].pop(_i)
-                        st.rerun()
 
         if sr is not None:
             render_results(

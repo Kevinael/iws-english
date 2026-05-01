@@ -6,6 +6,122 @@ from viz.eqcircuit_plotter import build_figure as _build_circuit_figure
 from ui.theme import _palette
 
 
+def _compute_energy_pdf(res: dict, tarifa: float) -> dict:
+    """Calcula métricas econômicas, THD e FP para inclusão no PDF."""
+    t   = np.asarray(res["t"],   dtype=float)
+    Vqs = np.asarray(res["Vqs"], dtype=float)
+    Vds = np.asarray(res["Vds"], dtype=float)
+    iqs = np.asarray(res["iqs"], dtype=float)
+    ids = np.asarray(res["ids"], dtype=float)
+    P_in_inst   = (3.0 / 2.0) * (Vqs * iqs + Vds * ids)
+    E_j         = float(np.trapezoid(np.where(np.isfinite(P_in_inst), P_in_inst, 0.0), t))
+    E_kwh       = E_j / 3_600_000.0
+    custo_exp   = E_kwh * tarifa
+    P_in_ss     = float(res.get("P_in", 0.0))
+    P_in_ss_kw  = P_in_ss / 1000.0
+    custo_ano   = P_in_ss_kw * 8_760.0 * tarifa
+
+    # THD e FP na janela de regime permanente
+    thd_pct = 0.0
+    fp      = 0.0
+    try:
+        ss_start = int(res.get("_ss_start", 0))
+        ias_ss   = np.asarray(res["ias"][ss_start:], dtype=float)
+        t_ss     = t[ss_start:]
+        if len(ias_ss) >= 16:
+            dt_ss = float(t_ss[1] - t_ss[0]) if len(t_ss) > 1 else 1e-4
+            N     = len(ias_ss)
+            spec  = np.abs(np.fft.rfft(ias_ss)) / N
+            freqs = np.fft.rfftfreq(N, d=dt_ss)
+            f_fund = 60.0
+            mask_fund = (freqs > 0.5 * f_fund) & (freqs < 1.5 * f_fund)
+            if mask_fund.any():
+                A1 = float(spec[mask_fund].max())
+                mask_harm = freqs > 1.5 * f_fund
+                A_harm    = spec[mask_harm]
+                if A1 > 0 and len(A_harm) > 0:
+                    thd_pct = float(np.sqrt(np.sum(A_harm ** 2)) / A1 * 100.0)
+        Vqs_ss  = Vqs[ss_start:]
+        Vds_ss  = Vds[ss_start:]
+        Va_pk   = float(np.sqrt(np.mean(Vqs_ss ** 2 + Vds_ss ** 2)))
+        Va_rms  = Va_pk / np.sqrt(2.0)
+        ias_rms = float(res.get("ias_rms", 0.0))
+        S_ap    = 3.0 * Va_rms * ias_rms
+        if S_ap > 0 and np.isfinite(P_in_ss):
+            fp = float(np.clip(abs(P_in_ss) / S_ap, 0.0, 1.0))
+    except Exception:
+        pass
+
+    return {
+        "E_kwh": E_kwh, "custo_exp": custo_exp,
+        "P_in_ss_kw": P_in_ss_kw, "custo_ano": custo_ano,
+        "eta": float(res.get("eta", 0.0)),
+        "thd_pct": thd_pct, "fp": fp,
+    }
+
+
+def _build_fft_fig(res: dict, key: str = "ias") -> "matplotlib.figure.Figure":
+    """Espectro de amplitudes (FFT) em matplotlib para inclusão no PDF."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    ss_start = int(res.get("_ss_start", 0))
+    y = np.asarray(res.get(key, []), dtype=float)[ss_start:]
+    t = np.asarray(res["t"][ss_start:], dtype=float)
+
+    fig, ax = plt.subplots(figsize=(11, 3.0))
+    fig.patch.set_facecolor("white")
+    ax.set_facecolor("#f9fafc")
+
+    if len(y) < 4:
+        ax.text(0.5, 0.5, "Dados insuficientes para FFT",
+                transform=ax.transAxes, ha="center", va="center", fontsize=10)
+        return fig
+
+    dt   = float(t[1] - t[0]) if len(t) > 1 else 1e-3
+    N    = len(y)
+    yf   = np.abs(np.fft.rfft(y)) * 2.0 / N
+    freq = np.fft.rfftfreq(N, d=dt)
+    mask = freq <= 800
+    freq, yf = freq[mask], yf[mask]
+
+    ax.bar(freq, yf, width=freq[1] - freq[0] if len(freq) > 1 else 1.0,
+           color="#1d4ed8", alpha=0.8, linewidth=0)
+
+    # harmônicas ímpares (vermelho pontilhado)
+    f1_idx = int(np.argmax(yf[freq > 0.1])) + np.searchsorted(freq, 0.1) if (freq > 0.1).any() else 0
+    f1 = float(freq[f1_idx]) if f1_idx < len(freq) else 60.0
+    for k in [1, 3, 5, 7, 9]:
+        hf = f1 * k
+        if hf <= freq[-1]:
+            ax.axvline(hf, color="#dc2626", linewidth=0.9, linestyle=":", alpha=0.8)
+            ax.text(hf, ax.get_ylim()[1] * 0.85, f"{hf:.0f}",
+                    fontsize=6, color="#dc2626", ha="center")
+
+    # sidebands de barra quebrada (laranja tracejado)
+    alpha = float(res.get("_broken_bar_severity", 0.0))
+    s_val = float(res.get("s", 0.0))
+    if alpha > 0:
+        for sb_f, lbl in [
+            (f1 * (1 - 2 * abs(s_val)), f"(1-2s)f\n{f1*(1-2*abs(s_val)):.1f}Hz"),
+            (f1 * (1 + 2 * abs(s_val)), f"(1+2s)f\n{f1*(1+2*abs(s_val)):.1f}Hz"),
+        ]:
+            if 0 < sb_f <= freq[-1]:
+                ax.axvline(sb_f, color="#d97706", linewidth=1.2, linestyle="--")
+                ax.text(sb_f, ax.get_ylim()[1] * 0.65, lbl,
+                        fontsize=6, color="#d97706", ha="center")
+
+    ax.set_xlabel("Frequência (Hz)", fontsize=8)
+    ax.set_ylabel("Amplitude", fontsize=8)
+    ax.set_title(f"Espectro FFT — {key} (regime permanente)", fontsize=9)
+    ax.tick_params(labelsize=7)
+    ax.grid(True, color="#dde4f5", linewidth=0.4, linestyle="-")
+    ax.spines[["top", "right"]].set_visible(False)
+    fig.subplots_adjust(left=0.08, right=0.97, top=0.90, bottom=0.15)
+    return fig
+
+
 _DASH_MAP = {"dash": "--", "dot": ":", "solid": "-"}
 
 
@@ -104,7 +220,8 @@ def generate_pdf_report(exp_label: str, mp: MachineParams, res: dict,
                         var_labels: list | None = None,
                         t_events: list | None = None,
                         exp_type: str = "dol",
-                        ref_list: list | None = None) -> bytes:
+                        ref_list: list | None = None,
+                        energy_tariff: float = 0.75) -> bytes:
     """Gera o relatório técnico em PDF e retorna como bytes (stream).
 
     Estrutura:
@@ -294,7 +411,7 @@ def generate_pdf_report(exp_label: str, mp: MachineParams, res: dict,
     #                      destaques + regime + curvas para um resultado
     # ══════════════════════════════════════════════════════════════════════
     def _write_block(b_res, b_mp, b_exp_label, b_exp_type, b_t_events,
-                     b_var_keys, b_var_labels):
+                     b_var_keys, b_var_labels, b_tariff=0.75):
 
         # ── Identificação ──────────────────────────────────────────────────
         section_title(pdf, "Identificação do Experimento")
@@ -458,6 +575,129 @@ def generate_pdf_report(exp_label: str, mp: MachineParams, res: dict,
         ], col_widths=[110, 35, 25], col_aligns=["L", "R", "L"])
         pdf.ln(6)
 
+        # ── Análise Econômica ──────────────────────────────────────────────
+        if b_exp_type != "shutdown":
+            _em = _compute_energy_pdf(b_res, b_tariff)
+            ECON_MIN_HEIGHT = 60
+            if (pdf.h - pdf.b_margin) - pdf.get_y() < ECON_MIN_HEIGHT:
+                pdf.add_page()
+            section_title(pdf, "Análise Econômica (IAS Energy Conservation)")
+            pdf.set_fill_color(200, 210, 240)
+            pdf.set_text_color(20, 20, 80)
+            pdf.set_font("Helvetica", "B", 10)
+            for lbl, w in [("  Grandeza", 110), ("Valor", 45), ("Unidade", 15)]:
+                pdf.cell(w, 7, lbl, border=0, fill=True)
+            pdf.ln(7)
+            zebra_table(pdf, [
+                ("Energia consumida no experimento",        f"{_em['E_kwh']:.6f}",           "kWh"),
+                ("Custo do experimento",                    f"R$ {_em['custo_exp']:.4f}",     "-"),
+                ("Potência de entrada em regime",           f"{_em['P_in_ss_kw']:.3f}",       "kW"),
+                ("Rendimento em regime permanente",         f"{_em['eta']:.2f}",              "%"),
+                ("Energia anual projetada (8.760 h/ano)",   f"{_em['P_in_ss_kw']*8760:.1f}", "kWh/ano"),
+                ("Custo operacional anual projetado",       f"R$ {_em['custo_ano']:,.2f}",    "-"),
+            ], col_widths=[110, 45, 15], col_aligns=["L", "R", "L"])
+            pdf.set_font("Helvetica", "I", 8)
+            pdf.set_text_color(100, 100, 100)
+            pdf.cell(0, 5, f"  Tarifa utilizada: R$ {b_tariff:.2f}/kWh  |  "
+                           "Projecao baseada em operacao continua de 8.760 h/ano.",
+                     border=0, ln=True)
+            pdf.ln(4)
+
+            # ── Qualidade de Energia (THD + FP) ───────────────────────────
+            _thd = _em.get("thd_pct", 0.0)
+            _fp  = _em.get("fp", 0.0)
+            if _thd > 0 or _fp > 0:
+                QE_MIN_HEIGHT = 40
+                if (pdf.h - pdf.b_margin) - pdf.get_y() < QE_MIN_HEIGHT:
+                    pdf.add_page()
+                section_title(pdf, "Qualidade de Energia")
+                pdf.set_fill_color(200, 210, 240)
+                pdf.set_text_color(20, 20, 80)
+                pdf.set_font("Helvetica", "B", 10)
+                for lbl, w in [("  Grandeza", 110), ("Valor", 45), ("Unidade", 15)]:
+                    pdf.cell(w, 7, lbl, border=0, fill=True)
+                pdf.ln(7)
+                _thd_status = "OK (< 5%)" if _thd <= 5.0 else "ELEVADO (> 5% — IEEE 519)"
+                _fp_status  = "OK (>= 0.85)" if _fp >= 0.85 else "BAIXO (< 0.85)"
+                zebra_table(pdf, [
+                    ("Fator de Potência (FP)",                  f"{_fp:.4f}",         f"  {_fp_status}"),
+                    ("THD de corrente (i[sub]as[/sub])",        f"{_thd:.2f} %",      f"  {_thd_status}"),
+                ], col_widths=[110, 45, 15], col_aligns=["L", "R", "L"])
+                pdf.set_font("Helvetica", "I", 8)
+                pdf.set_text_color(100, 100, 100)
+                pdf.cell(0, 5, "  THD via FFT de ias (regime permanente). FP = Pin / Saparente.",
+                         border=0, ln=True)
+                pdf.ln(4)
+
+        # ── Análise Térmica ────────────────────────────────────────────────
+        _temp_arr = b_res.get("Temp")
+        if _temp_arr is not None and len(_temp_arr) > 0:
+            _T_arr  = np.asarray(_temp_arr, dtype=float)
+            _T_max  = float(np.nanmax(_T_arr))
+            _T_fin  = float(_T_arr[-1]) if np.isfinite(_T_arr[-1]) else _T_max
+            _T_amb  = float(getattr(b_mp, "T_amb", 25.0))
+            _Rth    = float(getattr(b_mp, "Rth",   1.5))
+            _Cth    = float(getattr(b_mp, "Cth",   200.0))
+
+            # status da classe de isolação (IEC 60085)
+            if _T_max <= 130:
+                _iso_status = "OK — Classe B (<=130°C)"
+            elif _T_max <= 155:
+                _iso_status = "ATENÇÃO — Classe F (<=155°C)"
+            elif _T_max <= 180:
+                _iso_status = "CRÍTICO — Classe H (<=180°C)"
+            else:
+                _iso_status = "PERIGO — Acima de Classe H (>180°C)"
+
+            THERM_MIN_HEIGHT = 50
+            if (pdf.h - pdf.b_margin) - pdf.get_y() < THERM_MIN_HEIGHT:
+                pdf.add_page()
+            section_title(pdf, "Análise Térmica (Modelo de 1ª Ordem)")
+            pdf.set_fill_color(200, 210, 240)
+            pdf.set_text_color(20, 20, 80)
+            pdf.set_font("Helvetica", "B", 10)
+            for lbl, w in [("  Grandeza", 110), ("Valor", 45), ("Unidade", 15)]:
+                pdf.cell(w, 7, lbl, border=0, fill=True)
+            pdf.ln(7)
+            zebra_table(pdf, [
+                ("Temperatura máxima atingida",            f"{_T_max:.1f}",          "°C"),
+                ("Temperatura ao final da simulação",      f"{_T_fin:.1f}",          "°C"),
+                ("Elevação acima de T[sub]amb[/sub]",      f"{_T_max - _T_amb:.1f}", "°C"),
+                ("Temperatura ambiente (T[sub]amb[/sub])", f"{_T_amb:.1f}",          "°C"),
+                ("Resistência térmica (R[sub]th[/sub])",   f"{_Rth:.2f}",            "K/W"),
+                ("Capacitância térmica (C[sub]th[/sub])",  f"{_Cth:.1f}",            "J/K"),
+                ("Constante de tempo (tau[sub]th[/sub])",  f"{_Rth * _Cth:.0f}",    "s"),
+                ("Status de isolação (IEC 60085)",         _iso_status,              "-"),
+            ], col_widths=[110, 45, 15], col_aligns=["L", "R", "L"])
+            pdf.ln(4)
+
+        # ── Assinatura de Corrente (FFT) ───────────────────────────────────
+        _fft_key = next((k for k in ("ias", "ibs", "ics") if k in b_res), None)
+        if _fft_key is not None and int(b_res.get("_ss_start", 0)) < len(b_res["t"]) - 4:
+            _alpha = float(b_res.get("_broken_bar_severity", 0.0))
+            FFT_MIN_HEIGHT = 75
+            if (pdf.h - pdf.b_margin) - pdf.get_y() < FFT_MIN_HEIGHT:
+                pdf.add_page()
+            _fft_title = "Assinatura de Corrente (FFT)"
+            if _alpha > 0:
+                _fft_title += f"  —  Barra Quebrada ativa (alfa={_alpha:.2f})"
+            section_title(pdf, _fft_title)
+            pdf.ln(2)
+            _mpl_to_pdf(_build_fft_fig(b_res, key=_fft_key), width_mm=170)
+            pdf.set_font("Helvetica", "I", 8)
+            pdf.set_text_color(80, 80, 80)
+            _fft_caption = "Linhas vermelhas: harmonicas impares (1a, 3a, 5a, 7a, 9a)."
+            if _alpha > 0:
+                _s = float(b_res.get("s", 0.0))
+                _fft_caption += (
+                    f"  Linhas laranjas: sidebands de barra quebrada "
+                    f"(1+/-2s)f = {b_mp.f*(1-2*abs(_s)):.1f} Hz / {b_mp.f*(1+2*abs(_s)):.1f} Hz  "
+                    f"(s={_s*100:.2f}%)."
+                )
+            pdf.cell(0, 5, _fft_caption,
+                     border=0, align="C", new_x="LMARGIN", new_y="NEXT")
+            pdf.ln(4)
+
         # ── Curvas Características ─────────────────────────────────────────
         b_chunks = _make_chunks(b_var_keys, b_var_labels)
         for pg, (ck, cl) in enumerate(b_chunks):
@@ -482,22 +722,24 @@ def generate_pdf_report(exp_label: str, mp: MachineParams, res: dict,
 
     # ── Bloco: Simulação Atual ─────────────────────────────────────────────
     _block_banner("Simulação Atual")
-    _write_block(res, mp, exp_label, exp_type, t_events, var_keys, var_labels)
+    _write_block(res, mp, exp_label, exp_type, t_events, var_keys, var_labels,
+                 b_tariff=energy_tariff)
 
     # ── Bloco: cada Referência ─────────────────────────────────────────────
     for ref_i, r in enumerate(ref_list or []):
         ref_res = r.get("res")
         if ref_res is None:
             continue
-        ref_mp        = r.get("mp", mp)
-        ref_label     = r.get("exp_label", f"Referência {ref_i+1}")
-        ref_exp_type  = r.get("exp_type", "dol")
-        ref_t_events  = r.get("t_events", [])
-        ref_var_keys  = r.get("var_keys") or var_keys
-        ref_var_labels= r.get("var_labels") or var_labels
+        ref_mp         = r.get("mp", mp)
+        ref_label      = r.get("exp_label", f"Referência {ref_i+1}")
+        ref_exp_type   = r.get("exp_type", "dol")
+        ref_t_events   = r.get("t_events", [])
+        ref_var_keys   = r.get("var_keys") or var_keys
+        ref_var_labels = r.get("var_labels") or var_labels
+        ref_tariff     = r.get("energy_tariff", energy_tariff)
         _block_banner(f"Referência {ref_i+1} — {ref_label}")
         _write_block(ref_res, ref_mp, ref_label, ref_exp_type, ref_t_events,
-                     ref_var_keys, ref_var_labels)
+                     ref_var_keys, ref_var_labels, b_tariff=ref_tariff)
 
     # ── Seção Final: Gráficos Sobrepostos ─────────────────────────────────
     if ref_list:

@@ -61,10 +61,12 @@ _PLOT_CFG: dict[str, Any] = {
 # ─────────────────────────────────────────────────────────────────────────────
 
 def compute_energy_metrics(res: dict, tarifa_brl_kwh: float) -> dict:
-    """Calcula energia consumida, rendimento médio e custo operacional.
+    """Calcula energia consumida, rendimento médio, custo operacional, THD e FP.
 
     Integra P_in = (3/2)·(Vqs·iqs + Vds·ids) sobre todo o intervalo de simulação.
     O rendimento é calculado na janela de regime permanente.
+    THD = sqrt(Σ Ak² k≥2) / A1 × 100% via FFT de ias na janela de regime permanente.
+    FP = P_in_ss / S_aparente onde S = 3 × Va_rms × ias_rms.
 
     Returns dict com:
         E_total_kwh   — energia total consumida no experimento (kWh)
@@ -73,6 +75,8 @@ def compute_energy_metrics(res: dict, tarifa_brl_kwh: float) -> dict:
         custo_ano_brl — custo operacional anual projetado (R$)
         eta_ss        — rendimento em regime permanente (%)
         P_in_ss_kw    — potência de entrada em regime (kW)
+        thd_pct       — THD de ias em regime permanente (%)
+        fp            — Fator de Potência em regime permanente (adimensional)
     """
     t   = np.asarray(res["t"],   dtype=float)
     Vqs = np.asarray(res["Vqs"], dtype=float)
@@ -81,8 +85,7 @@ def compute_energy_metrics(res: dict, tarifa_brl_kwh: float) -> dict:
     ids = np.asarray(res["ids"], dtype=float)
 
     P_in_inst = (3.0 / 2.0) * (Vqs * iqs + Vds * ids)  # W instantâneo
-    dt = float(t[1] - t[0]) if len(t) > 1 else 0.0
-    E_total_j   = float(np.trapz(np.where(np.isfinite(P_in_inst), P_in_inst, 0.0), t))
+    E_total_j   = float(np.trapezoid(np.where(np.isfinite(P_in_inst), P_in_inst, 0.0), t))
     E_total_kwh = E_total_j / 3_600_000.0
     custo_exp_brl = E_total_kwh * tarifa_brl_kwh
 
@@ -97,6 +100,42 @@ def compute_energy_metrics(res: dict, tarifa_brl_kwh: float) -> dict:
     E_ano_kwh     = P_in_ss_kw * horas_op_ano
     custo_ano_brl = E_ano_kwh * tarifa_brl_kwh
 
+    # ── THD de ias na janela de regime permanente ──────────────────────────
+    thd_pct = 0.0
+    fp      = 0.0
+    try:
+        ias_ss = np.asarray(res["ias"][ss_start:], dtype=float)
+        t_ss   = t[ss_start:]
+        if len(ias_ss) >= 16:
+            dt_ss = float(t_ss[1] - t_ss[0]) if len(t_ss) > 1 else 1e-4
+            N     = len(ias_ss)
+            spec  = np.abs(np.fft.rfft(ias_ss)) / N
+            freqs = np.fft.rfftfreq(N, d=dt_ss)
+            # fundamental: bin mais próximo de 60 Hz (ou 50 Hz) — usar maior pico abaixo de 2×f
+            f_fund_approx = float(res.get("_f_fund", 60.0)) if "_f_fund" in res else 60.0
+            mask_fund = (freqs > 0.5 * f_fund_approx) & (freqs < 1.5 * f_fund_approx)
+            if mask_fund.any():
+                A1 = float(spec[mask_fund].max())
+                # harmônicas: todos os bins acima de 1,5×f_fund (excluindo DC e fundamental)
+                mask_harm = freqs > 1.5 * f_fund_approx
+                A_harm    = spec[mask_harm]
+                if A1 > 0 and len(A_harm) > 0:
+                    thd_pct = float(np.sqrt(np.sum(A_harm ** 2)) / A1 * 100.0)
+
+        # ── Fator de Potência ──────────────────────────────────────────────
+        # Va_rms: fase a — tensão de linha / sqrt(3). Vqs, Vds são componentes qd0.
+        # |Va| = sqrt(Vqs² + Vds²) / sqrt(2) em pico→RMS assumindo balanço
+        Vqs_ss  = Vqs[ss_start:]
+        Vds_ss  = Vds[ss_start:]
+        Va_pk   = float(np.sqrt(np.mean(Vqs_ss ** 2 + Vds_ss ** 2)))
+        Va_rms  = Va_pk / np.sqrt(2.0)
+        ias_rms = float(res.get("ias_rms", 0.0))
+        S_ap    = 3.0 * Va_rms * ias_rms
+        if S_ap > 0 and np.isfinite(P_in_ss):
+            fp = float(np.clip(abs(P_in_ss) / S_ap, 0.0, 1.0))
+    except Exception:
+        pass
+
     return {
         "E_total_kwh":   E_total_kwh,
         "custo_exp_brl": custo_exp_brl,
@@ -104,6 +143,8 @@ def compute_energy_metrics(res: dict, tarifa_brl_kwh: float) -> dict:
         "custo_ano_brl": custo_ano_brl,
         "eta_ss":        eta_ss,
         "P_in_ss_kw":    P_in_ss_kw,
+        "thd_pct":       thd_pct,
+        "fp":            fp,
     }
 
 
@@ -173,6 +214,40 @@ def _kpis_destaque(
             ("Corrente RMS de Geracao",     f"{ias_rms:.{d}f}",      "A"),
         ]
 
+    elif exp_type == "voltage_sag":
+        _tevs  = t_events or []
+        # t_end do sag é o último evento registrado (t_sag, t_end)
+        t_sag_start = _tevs[0] if len(_tevs) >= 1 else 0.0
+        t_sag_end   = _tevs[1] if len(_tevs) >= 2 else (t_sag_start + 0.1)
+        t_arr       = np.asarray(res["t"])
+        idx_sag     = int(np.searchsorted(t_arr, t_sag_start))
+        idx_rec     = int(np.searchsorted(t_arr, t_sag_end))
+
+        # profundidade do afundamento: tensão de linha durante o sag
+        Vqs_sag = np.asarray(res["Vqs"])
+        Vds_sag = np.asarray(res["Vds"])
+        Va_pre  = float(np.sqrt(np.mean(Vqs_sag[:max(1,idx_sag)]**2 + Vds_sag[:max(1,idx_sag)]**2))) if idx_sag > 0 else 1.0
+        Va_dur  = float(np.sqrt(np.mean(Vqs_sag[idx_sag:idx_rec]**2 + Vds_sag[idx_sag:idx_rec]**2))) if idx_rec > idx_sag else Va_pre
+        depth_pct = (1.0 - Va_dur / Va_pre) * 100.0 if Va_pre > 0 else 0.0
+
+        # corrente de re-partida após recuperação
+        ias_arr   = np.abs(np.asarray(res["ias"]))
+        ias_restart = float(np.max(ias_arr[idx_rec:])) if idx_rec < len(ias_arr) else 0.0
+
+        # duração do transitório de recuperação: tempo até |ias| cair abaixo de 1,5×ias_rms
+        ias_rms_val = float(res.get("ias_rms", 1.0))
+        thresh_rec  = 1.5 * ias_rms_val if ias_rms_val > 0 else ias_restart * 0.5
+        above       = np.where(ias_arr[idx_rec:] > thresh_rec)[0]
+        t_trans     = float(t_arr[idx_rec + above[-1]] - t_arr[idx_rec]) if len(above) > 0 else 0.0
+
+        items = [
+            ("Profundidade do Afundamento",     f"{depth_pct:.{d}f}",    "%"),
+            ("Corrente de Re-Partida (pico)",   f"{ias_restart:.{d}f}",  "A"),
+            ("Corrente de Pico (inicial)",       f"{ias_pk:.{d}f}",       "A"),
+            ("Duração do Transitório",          f"{t_trans:.{d}f}",      "s"),
+            ("Velocidade Final",                f"{n_ss:.{d}f}",         "RPM"),
+        ]
+
     elif exp_type == "shutdown":
         _tevs   = t_events or []
         t_cut   = _tevs[1] if len(_tevs) > 1 else (_tevs[0] if _tevs else 0.0)
@@ -202,6 +277,55 @@ def _kpis_destaque(
 # RENDERIZAÇÃO DE RESULTADOS
 # ─────────────────────────────────────────────────────────────────────────────
 
+_REF_COLORS = ["#e74c3c", "#3498db", "#2ecc71", "#f39c12", "#9b59b6"]
+_REF_DASHES = ["dash", "dot", "solid", "dash", "dot"]
+
+
+def render_ref_panel() -> None:
+    """Painel de gerenciamento de referências salvas.
+
+    Lê e escreve diretamente em st.session_state["ref_list"].
+    Deve ser chamado antes de render_results para que as edições de cor/dash
+    estejam disponíveis na renderização dos gráficos.
+    """
+    ref_list = st.session_state.get("ref_list", [])
+    if not ref_list:
+        return
+
+    st.markdown('<p class="slabel">Referências Salvas</p>', unsafe_allow_html=True)
+    _dash_opts = {"Tracejado": "dash", "Pontilhado": "dot", "Sólido": "solid"}
+    _h1, _h2, _h3, _h4 = st.columns([5, 0.55, 1.5, 0.4])
+    _h2.caption("Cor")
+    _h3.caption("Linha")
+    for _i, _ref in enumerate(ref_list):
+        _c1, _c2, _c3, _c4 = st.columns([5, 0.55, 1.5, 0.4])
+        with _c1:
+            st.markdown(
+                f'<div style="padding:0.38rem 0.75rem;border-radius:6px;'
+                f'background:rgba(128,128,128,0.08);font-size:0.88rem;'
+                f'border-left:3px solid {_ref.get("color","#888")};">'
+                f'<strong>{_ref.get("exp_label","Referência")}</strong></div>',
+                unsafe_allow_html=True,
+            )
+        with _c2:
+            _ref["color"] = st.color_picker(
+                "Cor", value=_ref.get("color", "#888888"),
+                key=f"ref_color_{_i}", label_visibility="collapsed",
+            )
+        with _c3:
+            _cur = _ref.get("dash", "dash")
+            _idx = list(_dash_opts.values()).index(_cur) if _cur in _dash_opts.values() else 0
+            _sel = st.selectbox(
+                "Linha", list(_dash_opts.keys()), index=_idx,
+                key=f"ref_dash_{_i}", label_visibility="collapsed",
+            )
+            _ref["dash"] = _dash_opts[_sel]
+        with _c4:
+            if st.button("✕", key=f"ref_del_{_i}", help="Remover esta referência"):
+                st.session_state["ref_list"].pop(_i)
+                st.rerun()
+
+
 def render_results(
     res: dict[str, Any],
     var_keys: list[str],
@@ -227,6 +351,37 @@ def render_results(
         for col, (lbl, val, unit) in zip(cols, destaques):
             col.metric(f"{lbl} ({unit})", val)
         st.write("")
+
+    # ── Recomendação de Proteção Térmica (Trip Class) ────────────────────
+    if exp_type in ("dol", "yd", "comp", "soft", "voltage_sag"):
+        try:
+            _n_arr    = np.asarray(res["n"], dtype=float)
+            _t_arr    = np.asarray(res["t"], dtype=float)
+            _n_sync   = mp.f / mp.p * 60.0  # RPM síncrona
+            _thresh_n = 0.95 * _n_sync
+            _above    = np.where(_n_arr >= _thresh_n)[0]
+            if len(_above) > 0:
+                _t_start_idx  = int(_above[0])
+                _t_accel      = float(_t_arr[_t_start_idx])
+                if _t_accel < 10.0:
+                    _trip_class = 10
+                    _trip_msg   = f"Classe 10 — partida em **{_t_accel:.2f} s** (< 10 s)"
+                    _trip_fn    = st.success
+                elif _t_accel < 20.0:
+                    _trip_class = 20
+                    _trip_msg   = f"Classe 20 — partida em **{_t_accel:.2f} s** (10–20 s)"
+                    _trip_fn    = st.warning
+                else:
+                    _trip_class = 30
+                    _trip_msg   = f"Classe 30 — partida em **{_t_accel:.2f} s** (> 20 s)"
+                    _trip_fn    = st.error
+                _trip_fn(
+                    f"Recomendação de Proteção: Relé de Sobrecarga Classe {_trip_class} — "
+                    f"{_trip_msg}. "
+                    f"(Referência IEC 60947-4-1 / NEMA ICS 2)"
+                )
+        except Exception:
+            pass
 
     d = decimals
 
@@ -444,7 +599,7 @@ def render_results(
 
             _render_plotly(fig_fft, div_id="ems-fft-results")
 
-    # ── Análise Econômica ─────────────────────────────────────────────────
+    # ── Análise Econômica + Qualidade de Energia ─────────────────────────
     if exp_type != "shutdown":
         _em = compute_energy_metrics(res, energy_tariff)
         st.divider()
@@ -465,6 +620,127 @@ def render_results(
                 f"R$ {energy_tariff:.2f}/kWh. Energia calculada integrando $P_{{in}} = \\frac{{3}}{{2}}(V_{{qs}}i_{{qs}} + V_{{ds}}i_{{ds}})$."
             )
 
+        # ── Qualidade de Energia (THD + FP) ──────────────────────────────
+        _thd = _em.get("thd_pct", 0.0)
+        _fp  = _em.get("fp", 0.0)
+        if _thd > 0 or _fp > 0:
+            st.markdown('<p class="slabel">Qualidade de Energia</p>', unsafe_allow_html=True)
+            with st.expander("Ver indicadores de qualidade de energia", expanded=False):
+                _qe1, _qe2 = st.columns(2)
+                _qe1.metric("Fator de Potência (FP)", f"{_fp:.3f}")
+                _qe2.metric("THD de Corrente $i_{{as}}$", f"{_thd:.2f} %")
+
+                _sat_active = float(res.get("_broken_bar_severity", 0.0)) > 0 or getattr(mp, "sat_enable", False)
+                if _thd > 5.0:
+                    if _sat_active:
+                        st.warning(
+                            f"THD elevado ({_thd:.1f}%) — provável contribuição da **saturação magnética** "
+                            f"gerando harmônicas de corrente na rede. Considere filtro passivo ou ativo."
+                        )
+                    else:
+                        st.warning(
+                            f"THD de corrente acima de 5% ({_thd:.1f}%). "
+                            f"Verifique distorções na tensão de alimentação ou carga não-linear."
+                        )
+                else:
+                    st.info(f"THD dentro do limite recomendado pela IEEE 519 (< 5%).")
+
+                if _fp < 0.85:
+                    st.warning(
+                        f"Fator de Potência baixo ({_fp:.3f} < 0,85). "
+                        f"Considere banco de capacitores para correção."
+                    )
+
+                st.caption(
+                    "THD calculado via FFT de $i_{{as}}$ na janela de regime permanente. "
+                    "FP = P_in / S_aparente, onde S = 3 × Va_rms × Ias_rms."
+                )
+
+    # ── Análise Térmica ───────────────────────────────────────────────────
+    _temp_arr = res.get("Temp")
+    if _temp_arr is not None and len(_temp_arr) > 0:
+        _T_arr = np.asarray(_temp_arr, dtype=float)
+        _T_max = float(np.nanmax(_T_arr))
+        _T_fin = float(_T_arr[-1]) if np.isfinite(_T_arr[-1]) else _T_max
+        _T_amb = float(getattr(mp, "T_amb", 25.0))
+
+        st.divider()
+        st.markdown('<p class="slabel">Análise Térmica</p>', unsafe_allow_html=True)
+
+        # ── classes de isolação (IEC 60085) ──────────────────────────────
+        # Classe B: 130°C, F: 155°C, H: 180°C, N: 200°C
+        _ISO_CLASSES = [("B", 130), ("F", 155), ("H", 180), ("N", 200)]
+        _iso_label = "N (>200°C — CRÍTICO)"
+        _iso_limit = 200
+        for _cls, _lim in _ISO_CLASSES:
+            if _T_max <= _lim:
+                _iso_label = f"Classe {_cls} ({_lim}°C)"
+                _iso_limit = _lim
+                break
+
+        _tc1, _tc2, _tc3 = st.columns(3)
+        _tc1.metric("Temperatura Máxima", f"{_T_max:.1f} °C")
+        _tc2.metric("Temperatura Final",  f"{_T_fin:.1f} °C")
+        _tc3.metric("Elevação de Temperatura", f"{_T_max - _T_amb:.1f} °C acima de T_amb")
+
+        # ── alerta de sobreaquecimento ────────────────────────────────────
+        _CLASS_F_LIMIT = 155.0
+        if _T_max > 180.0:
+            st.error(
+                f"⚠ SOBREAQUECIMENTO CRÍTICO: T_max = {_T_max:.1f}°C excede a Classe H "
+                f"(180°C). Risco iminente de queima do isolamento (IEC 60085). "
+                f"Reduza a carga ou use motor de maior potência."
+            )
+        elif _T_max > _CLASS_F_LIMIT:
+            st.error(
+                f"⚠ Sobreaquecimento: T_max = {_T_max:.1f}°C excede o limite da Classe F "
+                f"({_CLASS_F_LIMIT}°C — IEC 60085). Risco de degradação prematura do isolamento."
+            )
+        elif _T_max > 130.0:
+            st.warning(
+                f"T_max = {_T_max:.1f}°C excede a Classe B (130°C). "
+                f"Verifique se o motor é de Classe F ou superior."
+            )
+        else:
+            st.success(f"Temperatura dentro do limite da Classe B/F ({_T_max:.1f}°C ≤ 130°C).")
+
+        with st.expander("Ver curva de temperatura", expanded=False):
+            import plotly.graph_objects as _go_th
+            _t_arr_plot = np.asarray(res["t"], dtype=float)
+            _fig_th = _go_th.Figure()
+            _fig_th.add_trace(_go_th.Scatter(
+                x=_t_arr_plot, y=_T_arr, mode="lines", name="Temperatura (°C)",
+                line=dict(color="#ef4444", width=2),
+            ))
+            # linhas de referência das classes de isolação
+            for _cls_n, _cls_lim in [("Classe B", 130), ("Classe F", 155), ("Classe H", 180)]:
+                _fig_th.add_hline(
+                    y=_cls_lim, line_dash="dot", line_color="#94a3b8", line_width=1,
+                    annotation_text=_cls_n, annotation_position="bottom right",
+                    annotation_font_size=9,
+                )
+            _fig_th.add_hline(
+                y=_T_amb, line_dash="dash", line_color="#64748b", line_width=1,
+                annotation_text=f"T_amb={_T_amb:.0f}°C", annotation_position="bottom right",
+                annotation_font_size=9,
+            )
+            _fig_th.update_layout(
+                xaxis_title="Tempo (s)",
+                yaxis_title="Temperatura (°C)",
+                height=300,
+                margin=dict(l=50, r=20, t=20, b=40),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(249,250,252,1)",
+            )
+            st.plotly_chart(_fig_th, use_container_width=True, config=_PLOT_CFG,
+                            key="ems-thermal-plot")
+            st.caption(
+                f"Modelo de 1ª ordem: τ = R_th·C_th = "
+                f"{getattr(mp,'Rth',1.5)*getattr(mp,'Cth',200.0):.0f} s. "
+                f"Limites IEC 60085: Classe B=130°C, F=155°C, H=180°C."
+            )
+
     st.write("")
 
     # botão PDF
@@ -477,6 +753,7 @@ def render_results(
                 var_keys, var_labels, t_events,
                 exp_type=exp_type,
                 ref_list=ref_list,
+                energy_tariff=energy_tariff,
             )
     if st.session_state.get("pdf_bytes"):
         st.download_button(

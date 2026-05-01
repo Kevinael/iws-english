@@ -83,6 +83,17 @@ class MachineParams:
     Rgrid: float = 0.0    # Ω por fase
     Lgrid: float = 0.0    # H por fase
 
+    # ── Modelo Térmico ────────────────────────────────────────────────────
+    # dT/dt = (P_joule + P_fe) / Cth  −  (T − T_amb) / (Rth · Cth)
+    # Defaults estimados para MIT ~3 cv (classe B/F, carcaça fechada):
+    #   Rth = 1.5 K/W   (resistência térmica total → ambiente)
+    #   Cth = 200 J/K   (capacitância térmica total do enrolamento)
+    #   T_amb = 25 °C
+    # Com esses valores: τ_th = Rth·Cth = 300 s (5 min) — típico para motores ~3 cv.
+    Rth:   float = 1.5    # K/W
+    Cth:   float = 200.0  # J/K
+    T_amb: float = 25.0   # °C
+
     # ── Modo de entrada dos parâmetros magnéticos ──────────────────────────
     input_mode: str   = "X"    # "X" = reatâncias (Ω)  |  "L" = indutâncias (H)
     f_ref:      float = 60.0   # frequência em que Xm/Xls/Xlr foram ensaiados (Hz)
@@ -157,6 +168,19 @@ def voltage_soft_starter(t, Vl_nominal, Vl_initial, t_start_ramp, t_full):
     return Vl_nominal
 
 
+def voltage_sag(t, Vl_nominal, sag_magnitude, t_start, t_end):
+    """Afundamento de tensão retangular: Vl cai para sag_magnitude×Vl em [t_start, t_end).
+
+    Args:
+        sag_magnitude: fração da tensão nominal durante o sag (ex: 0.5 = 50% de Vl).
+        t_start:       instante de início do afundamento (s).
+        t_end:         instante de retorno à tensão nominal (s).
+    """
+    if t_start <= t < t_end:
+        return Vl_nominal * sag_magnitude
+    return Vl_nominal
+
+
 def torque_step(t, Tl_before, Tl_after, t_switch):
     return Tl_after if t >= t_switch else Tl_before
 
@@ -196,7 +220,21 @@ def _xml_from_lm(Lm: float, wb: float, Xls_a: float, Xlr_a: float) -> float:
 # BLOCO D — RHS DO ODE
 # ═══════════════════════════════════════════════════════════════════════════
 #
-# Estados: [PSIqs, PSIds, PSIqr, PSIdr, wr, tetar]   (6 estados — ordem mantida)
+# Estados: [PSIqs, PSIds, PSIqr, PSIdr, wr, tetar, Temp]   (7 estados)
+#
+# ── Modelo Térmico (7º estado) ────────────────────────────────────────────
+# EDO galvânica de 1ª ordem (modelo de parâmetros concentrados):
+#
+#   dT/dt = (P_joule(t) + P_fe(t)) / Cth  −  (T(t) − T_amb) / (Rth · Cth)
+#
+# P_joule = Rs·(ias² + ibs² + ics²)  +  Rr·(iar² + ibr² + icr²)
+#         = Rs·(3/2)·(iqs² + ids²)   +  Rr·(3/2)·(iqr² + idr²)
+#         (equivalência dq sob balanço, fator 3/2 da transformada amplitude-invariante)
+#
+# P_fe    = 3·|V_fe|²/Rfe  ≈  wb·|PSIm|² / Rfe   (aproximação p/ carga quase-estacionária)
+#         ← usamos a potência dq de forma vetorial para manter dimensionamento correto
+#
+# T(0) = T_amb  (condição inicial — motor em equilíbrio térmico com o ambiente)
 #
 # ── Modelo com Rfe ─────────────────────────────────────────────────────────
 # Rfe é colocado em paralelo com Lm no circuito dq.
@@ -293,8 +331,13 @@ def _make_rhs(mp: MachineParams, voltage_fn, torque_fn, ref_code: int,
     # Quando Rfe → ∞, rfe_coef → 0 e o modelo degenera no caso sem perdas.
     rfe_coef = wb / Rfe if Rfe > 0.0 else 0.0
 
+    # térmico
+    Rth   = mp.Rth
+    Cth   = mp.Cth
+    T_amb = mp.T_amb
+
     def rhs(t: float, y: list) -> list:
-        PSIqs, PSIds, PSIqr, PSIdr, wr, _tetar = y
+        PSIqs, PSIds, PSIqr, PSIdr, wr, _tetar, Temp = y
 
         # ── fonte de tensão ──────────────────────────────────────────────
         Vl_a = voltage_fn(t)
@@ -382,7 +425,14 @@ def _make_rhs(mp: MachineParams, voltage_fn, torque_fn, ref_code: int,
         dwr  = (p / (2.0 * J)) * (Te - Tl_a) - (B / J) * wr
         dtetar = wr
 
-        return [dPSIqs, dPSIds, dPSIqr, dPSIdr, dwr, dtetar]
+        # ── modelo térmico (7º estado) ────────────────────────────────────
+        # P_joule: perdas ôhmicas em dq (fator 3/2 da transformada amplitude-invariante)
+        P_joule = (3.0 / 2.0) * (Rs * (iqs ** 2 + ids ** 2) + Rr_cur * (iqr ** 2 + idr ** 2))
+        # P_fe: perdas no ferro — wb·|PSIm|² / Rfe (forma dq, consistente com o modelo Rfe)
+        P_fe_th = wb * (PSImq ** 2 + PSImd ** 2) / Rfe if Rfe > 0.0 else 0.0
+        dTemp = (P_joule + P_fe_th) / Cth - (Temp - T_amb) / (Rth * Cth)
+
+        return [dPSIqs, dPSIds, dPSIqr, dPSIdr, dwr, dtetar, dTemp]
 
     return rhs
 
@@ -417,7 +467,7 @@ def _solve(rhs, t_values, y0, mp: MachineParams, clamp_wr_at_zero: bool, t_cutof
             mask = ~np.isfinite(arr[:, i])
             arr[:, i] = np.where(mask, arr[:, i - 1], arr[:, i])
 
-    y_history = np.full((6, N), np.nan)
+    y_history = np.full((7, N), np.nan)
 
     if not clamp_wr_at_zero:
         if t_cutoff is not None and t_cutoff < tmax:
@@ -695,10 +745,11 @@ def run_simulation(
 
     rr_fn = make_broken_bar_rr_fn(mp.Rr, broken_bar_severity, mp.wb)
     rhs = _make_rhs(mp, voltage_fn, torque_fn, ref_code, deseq, t_deseq, deseq_active, rr_fn)
-    y0  = [0.0] * 6
+    # 7 estados: [PSIqs, PSIds, PSIqr, PSIdr, wr, tetar, Temp]
+    y0  = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, mp.T_amb]
     y_history = _solve(rhs, t_values, y0, mp, clamp_wr_at_zero, t_cutoff=t_cutoff)
 
-    PSIqs, PSIds, PSIqr, PSIdr, wr_e, tetar = y_history
+    PSIqs, PSIds, PSIqr, PSIdr, wr_e, tetar, Temp_arr = y_history
     tetae = mp.wb * t_values
 
     # tensões e correntes vetorizadas
@@ -716,15 +767,16 @@ def run_simulation(
     n_rpm  = wr_e * 60.0 / (np.pi * mp.p)
 
     arr = {
-        "t":   t_values,
-        "wr":  wr_mec,
-        "n":   n_rpm,
-        "Te":  Te,
-        "ids": ids, "iqs": iqs, "idr": idr, "iqr": iqr,
-        "ias": ias, "ibs": ibs, "ics": ics,
-        "iar": iar, "ibr": ibr, "icr": icr,
-        "Va":  Va,  "Vb":  Vb,  "Vc":  Vc,
-        "Vds": Vds, "Vqs": Vqs,
+        "t":    t_values,
+        "wr":   wr_mec,
+        "n":    n_rpm,
+        "Te":   Te,
+        "ids":  ids,  "iqs": iqs,  "idr": idr, "iqr": iqr,
+        "ias":  ias,  "ibs": ibs,  "ics": ics,
+        "iar":  iar,  "ibr": ibr,  "icr": icr,
+        "Va":   Va,   "Vb":  Vb,   "Vc":  Vc,
+        "Vds":  Vds,  "Vqs": Vqs,
+        "Temp": np.where(np.isfinite(Temp_arr), Temp_arr, mp.T_amb),
         "_broken_bar_severity": broken_bar_severity,
     }
     arr.update(_compute_steady_state(arr, mp))
@@ -804,6 +856,16 @@ def build_fns(config: dict, mp: MachineParams):
         vfn = lambda t, _Vl=mp.Vl, _tc=t_cut: _Vl if t < _tc else 0.0
         tfn = lambda t, _Tl=Tl, _tc=tc: torque_step(t, 0.0, _Tl, _tc)
         t_ev = [tc, t_cut]
+
+    elif exp == "voltage_sag":
+        Tl      = config["Tl_final"]
+        tc      = config.get("t_carga", 0.0)
+        mag     = config["sag_magnitude"]
+        t_sag   = config["t_start_sag"]
+        t_end   = config["t_start_sag"] + config["t_duration_sag"]
+        vfn = lambda t, _Vl=mp.Vl, _m=mag, _ts=t_sag, _te=t_end: voltage_sag(t, _Vl, _m, _ts, _te)
+        tfn = lambda t, _Tl=Tl, _tc=tc: torque_step(t, 0.0, _Tl, _tc)
+        t_ev = sorted(set(v for v in [tc, t_sag, t_end] if v > 0))
 
     else:
         vfn = lambda t: mp.Vl

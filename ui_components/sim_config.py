@@ -98,6 +98,15 @@ _WK: dict[str, str] = {
     # gêmeo digital e análise econômica
     "broken_bar_severity":  "wi_broken_bar_severity",
     "energy_tariff":        "wi_energy_tariff",
+    # voltage sag
+    "sag_magnitude":        "wi_sag_magnitude",
+    "t_start_sag":          "wi_t_start_sag",
+    "t_duration_sag":       "wi_t_duration_sag",
+    "sag_Tl":               "wi_sag_Tl",
+    # modelo térmico
+    "Rth":                  "wi_Rth",
+    "Cth":                  "wi_Cth",
+    "T_amb":                "wi_T_amb",
 }
 
 
@@ -117,17 +126,25 @@ _INPUT_MODE_LABELS: list[str] = [
 
 _PRESETS: dict[str, dict[str, Any]] = {
     "Padrão": {
+        # Krause (2002) — motor de indução 220 V / 60 Hz / 4 polos / ~3 cv
+        # Im0 ≈ 4.86 A  →  Im_sat = 2×Im0 ≈ 9.7 A (saturação moderada em partida)
+        # Rfe = 500 Ω: perdas no ferro ≈ 3×(127²/500) ≈ 97 W (~3.2% de potência nominal)
         "Vl": 220.0, "f": 60.0, "Rs": 0.435, "Rr": 0.816,
         "input_mode": "Reatâncias (Ω)  —  medidas em $f_{ref}$",
         "f_ref": 60.0, "Xm": 26.13, "Xls": 0.754, "Xlr": 0.754, "Rfe": 500.0,
         "p": 4, "J": 0.089, "B": 0.005,
+        "Im_sat": 9.7,
         "exp_type": "Partida Direta (DOL)",
     },
     "Usta (2024)": {
+        # Motor de laboratório 220 V / 50 Hz / 4 polos / ~0.37 kW
+        # Im0 = (220/√3) / Xm = 127/60.98 ≈ 2.08 A  →  Im_sat = 2×Im0 ≈ 4.2 A
+        # Rfe = 800 Ω: motor pequeno com menor volume de ferro — perdas relativas menores
         "Vl": 220.0, "f": 50.0, "Rs": 2.65, "Rr": 2.85,
         "input_mode": "Reatâncias (Ω)  —  medidas em $f_{ref}$",
-        "f_ref": 50.0, "Xm": 60.98, "Xls": 4.43, "Xlr": 5.69, "Rfe": 500.0,
+        "f_ref": 50.0, "Xm": 60.98, "Xls": 4.43, "Xlr": 5.69, "Rfe": 800.0,
         "p": 4, "J": 0.025, "B": 0.001,
+        "Im_sat": 4.2,
         "exp_type": "Pulso de Carga (aplica e retira)",
         "Tl_pulso": 0.0, "Tl_pulso_abs": 10.0, "t_pulso_on": 0.6, "t_pulso_off": 0.8,
         "tmax": 1.0,
@@ -250,6 +267,7 @@ def render_machine_params(
                 "input_mode": wk["input_mode"], "f_ref": wk["f_ref"],
                 "Xm": wk["Xm"], "Xls": wk["Xls"], "Xlr": wk["Xlr"],
                 "Rfe": wk["Rfe"], "p": wk["p"], "J": wk["J"], "B": wk["B"],
+                "Im_sat": wk["Im_sat"],
                 "exp_type": wk["exp_type"],
                 "Tl_pulso": wk["Tl_pulso"],
                 "Tl_pulso_abs": wk["Tl_pulso_abs"],
@@ -415,10 +433,59 @@ def render_machine_params(
         )
         st.markdown('</div>', unsafe_allow_html=True)
 
+        # ── Modelagem Térmica ────────────────────────────────────────────
+        _pgroup("🌡 Modelagem Térmica")
+        _ibox(
+            "Modelo de 1ª ordem: "
+            "<i>dT/dt = (P<sub>joule</sub> + P<sub>fe</sub>) / C<sub>th</sub> "
+            "− (T − T<sub>amb</sub>) / (R<sub>th</sub> · C<sub>th</sub>)</i>. "
+            "Defaults para MIT ~3 cv: τ<sub>th</sub> = R<sub>th</sub>·C<sub>th</sub> = 300 s."
+        )
+        _th1, _th2 = st.columns(2)
+        with _th1:
+            # τ_th hint: calculado a partir dos defaults para orientar o usuário
+            Rth = st.number_input(
+                "$R_{th}$ (K/W)",
+                min_value=0.01, max_value=100.0, value=1.5, step=0.1, format="%.2f",
+                key=wk["Rth"],
+                disabled=dis,
+                help=(
+                    "Resistência térmica total motor→ambiente. "
+                    "Motores fechados (TEFC) ~1–3 K/W; abertos (DRIP) ~0.5–1.5 K/W."
+                ),
+            )
+        with _th2:
+            Cth = st.number_input(
+                "$C_{th}$ (J/K)",
+                min_value=1.0, max_value=50000.0, value=200.0, step=10.0, format="%.1f",
+                key=wk["Cth"],
+                disabled=dis,
+                help=(
+                    "Capacitância térmica do conjunto estator+rotor. "
+                    "~100–500 J/K para motores de 1–10 cv."
+                ),
+            )
+        T_amb = st.number_input(
+            "Temperatura ambiente $T_{amb}$ (°C)",
+            min_value=-20.0, max_value=60.0, value=25.0, step=1.0, format="%.1f",
+            key=wk["T_amb"],
+            disabled=dis,
+            help="Temperatura inicial do motor = temperatura do ambiente. Padrão IEC: 40°C.",
+        )
+        _tau_th = Rth * Cth
+        st.caption(
+            f"Constante de tempo térmica: τ = R·C = **{_tau_th:.0f} s** "
+            f"({_tau_th/60:.1f} min)  —  motor atinge 63% do aquecimento em regime em ~{_tau_th:.0f} s."
+        )
+        if _tau_th < 30:
+            st.warning("τ < 30 s — motor aquece muito rapidamente. Verifique Rth e Cth.")
+        st.markdown('</div>', unsafe_allow_html=True)
+
     mp = MachineParams(Vl=Vl, f=f, Rs=Rs, Rr=Rr, Xm=Xm, Xls=Xls, Xlr=Xlr, Rfe=Rfe, p=p, J=J, B=B,
                        input_mode=input_mode, f_ref=f_ref,
                        sat_enable=sat_enable, Im_sat=Im_sat,
-                       Rgrid=Rgrid, Lgrid=Lgrid)
+                       Rgrid=Rgrid, Lgrid=Lgrid,
+                       Rth=Rth, Cth=Cth, T_amb=T_amb)
     _validate_params(mp)
 
     st.write("")
@@ -460,6 +527,7 @@ def render_experiment_config(
         "Pulso de Carga (aplica e retira)":            "pulso_carga",
         "Operação como Gerador":                       "gerador",
         "Desligamento (Corte de Alimentação)":         "shutdown",
+        "Afundamento de Tensão (Voltage Sag)":         "voltage_sag",
     }
     exp_label = st.selectbox("Tipo de Experimento", list(exp_options.keys()), key=wk["exp_type"])
     exp_type  = exp_options[exp_label]
@@ -609,6 +677,42 @@ def render_experiment_config(
             "O torque eletromagnético decai em milissegundos (transitório elétrico); "
             "a velocidade segue a equação mecânica acima."
         )
+
+    elif exp_type == "voltage_sag":
+        sg1, sg2 = st.columns(2)
+        with sg1:
+            sag_mag = st.slider(
+                "Tensão durante o sag — $V_{sag}$ (% de $V_l$)",
+                min_value=5, max_value=95, value=50, step=5,
+                key=wk["sag_magnitude"],
+                help="Percentual da tensão nominal durante o afundamento. 50% = sag de 0.5 pu.",
+            ) / 100.0
+        with sg2:
+            config["Tl_final"] = st.number_input(
+                "Torque de carga — $T_l$ (N·m)",
+                value=80.0, min_value=0.0,
+                key=wk["sag_Tl"],
+                help="Carga mecânica aplicada desde o início da simulação.",
+            )
+            config["t_carga"] = 0.0
+        t_start_sag    = st.number_input("Início do sag — $t_{sag}$ (s)",    value=0.5, min_value=0.0, step=0.05, format="%.3f", key=wk["t_start_sag"])
+        t_duration_sag = st.number_input("Duração do sag — $\\Delta t_{sag}$ (s)", value=0.1, min_value=0.01, max_value=5.0, step=0.01, format="%.3f", key=wk["t_duration_sag"])
+        t_end_sag = t_start_sag + t_duration_sag
+        config["sag_magnitude"]  = sag_mag
+        config["t_start_sag"]    = t_start_sag
+        config["t_duration_sag"] = t_duration_sag
+        _Vsag_line = mp.Vl * sag_mag
+        _ibox(
+            f"Tensão cai de <strong>{mp.Vl:.1f} V</strong> para "
+            f"<strong>{_Vsag_line:.1f} V ({sag_mag*100:.0f}%)</strong> "
+            f"em <i>t</i> = {t_start_sag:.3f} s durante {t_duration_sag*1000:.0f} ms "
+            f"(retorno em {t_end_sag:.3f} s). "
+            "O transitório de re-partida pós-sag é o principal evento de interesse."
+        )
+        if t_duration_sag < 0.02:
+            st.warning("Duração < 20 ms — sag sub-transitório; reduza o passo $h$ para capturar o transitório.")
+        if sag_mag <= 0.1:
+            st.warning("Sag profundo (≤ 10%) — o motor pode desacelerar significativamente e a corrente de re-partida pode superar a corrente de rotor bloqueado.")
 
     st.markdown('</div>', unsafe_allow_html=True)
 
