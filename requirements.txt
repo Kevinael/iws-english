@@ -1,0 +1,16 @@
+# requirements.txt — Simulador de Máquinas Elétricas (EMS)
+# Dependências para execução do simulador de máquina de indução trifásica.
+#
+# Instalação:
+#   pip install -r requirements.txt
+#
+# Versões mínimas recomendadas (testadas com Python 3.9+)
+
+numpy>=1.23.0
+scipy>=1.9.0
+matplotlib>=3.6.0
+streamlit>=1.32.0
+plotly>=5.18.0
+schemdraw>=0.19.0
+fpdf2>=2.7.0
+kaleido>=0.2.1
