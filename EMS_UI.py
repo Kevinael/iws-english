@@ -142,7 +142,7 @@ def main() -> None:
         col_params, col_circuit = st.columns([1, 1], gap="large")
 
         with col_params:
-            mp, ref_code = render_machine_params(dark, experiment_mode, _WK)
+            mp, ref_code, energy_tariff = render_machine_params(dark, experiment_mode, _WK)
 
         with col_circuit:
             st.markdown('<p class="slabel">Circuito Equivalente Monofásico</p>', unsafe_allow_html=True)
@@ -189,6 +189,7 @@ def main() -> None:
             execute_simulation_flow(
                 mp=mp, exp_config=exp_config, var_keys=var_keys, var_labels=var_labels,
                 tmax=tmax, h=h, ref_code=ref_code, dark=dark,
+                energy_tariff=energy_tariff,
             )
 
         # toast pós-simulação
@@ -248,6 +249,7 @@ def main() -> None:
                 ref_list=ref_list,
                 primary_color=None,
                 is_mobile=is_mobile,
+                energy_tariff=sr.get("energy_tariff", 0.75),
             )
 
     # ── ABA TEORIA ────────────────────────────────────────────────────────

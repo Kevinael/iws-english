@@ -17,6 +17,7 @@ import plotly.graph_objects as go
 from core.EMS_PY import MachineParams
 from viz.plotly_charts import build_fig_stacked, build_fig_sidebyside, build_fig_overlay
 from viz.pdf_report import generate_pdf_report
+from core.harmonica_analysis import build_fig_fft
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -53,6 +54,57 @@ _PLOT_CFG: dict[str, Any] = {
         "width": 1200,
     },
 }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MÉTRICAS DE ENERGIA E ANÁLISE ECONÔMICA
+# ─────────────────────────────────────────────────────────────────────────────
+
+def compute_energy_metrics(res: dict, tarifa_brl_kwh: float) -> dict:
+    """Calcula energia consumida, rendimento médio e custo operacional.
+
+    Integra P_in = (3/2)·(Vqs·iqs + Vds·ids) sobre todo o intervalo de simulação.
+    O rendimento é calculado na janela de regime permanente.
+
+    Returns dict com:
+        E_total_kwh   — energia total consumida no experimento (kWh)
+        custo_exp_brl — custo do experimento (R$)
+        horas_op_ano  — horas de operação projetadas por ano (baseado no perfil)
+        custo_ano_brl — custo operacional anual projetado (R$)
+        eta_ss        — rendimento em regime permanente (%)
+        P_in_ss_kw    — potência de entrada em regime (kW)
+    """
+    t   = np.asarray(res["t"],   dtype=float)
+    Vqs = np.asarray(res["Vqs"], dtype=float)
+    Vds = np.asarray(res["Vds"], dtype=float)
+    iqs = np.asarray(res["iqs"], dtype=float)
+    ids = np.asarray(res["ids"], dtype=float)
+
+    P_in_inst = (3.0 / 2.0) * (Vqs * iqs + Vds * ids)  # W instantâneo
+    dt = float(t[1] - t[0]) if len(t) > 1 else 0.0
+    E_total_j   = float(np.trapz(np.where(np.isfinite(P_in_inst), P_in_inst, 0.0), t))
+    E_total_kwh = E_total_j / 3_600_000.0
+    custo_exp_brl = E_total_kwh * tarifa_brl_kwh
+
+    # regime permanente
+    ss_start    = int(res.get("_ss_start", 0))
+    eta_ss      = float(res.get("eta", 0.0))
+    P_in_ss     = float(res.get("P_in", 0.0))
+    P_in_ss_kw  = P_in_ss / 1000.0
+
+    # projeção anual: assume perfil de carga contínua (24 h × 365 d) baseado em P_in_ss
+    horas_op_ano  = 8_760.0
+    E_ano_kwh     = P_in_ss_kw * horas_op_ano
+    custo_ano_brl = E_ano_kwh * tarifa_brl_kwh
+
+    return {
+        "E_total_kwh":   E_total_kwh,
+        "custo_exp_brl": custo_exp_brl,
+        "horas_op_ano":  horas_op_ano,
+        "custo_ano_brl": custo_ano_brl,
+        "eta_ss":        eta_ss,
+        "P_in_ss_kw":    P_in_ss_kw,
+    }
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -163,8 +215,9 @@ def render_results(
     ref_list: list | None = None,
     primary_color: str | None = None,
     is_mobile: bool = False,
+    energy_tariff: float = 0.75,
 ) -> None:
-    """KPIs + gráficos + botão PDF."""
+    """KPIs + gráficos + análise econômica + FFT + botão PDF."""
     st.divider()
 
     destaques = _kpis_destaque(res, exp_type, mp, decimals, t_events)
@@ -347,6 +400,70 @@ def render_results(
             ref_list=chart_ref_list, primary_color=primary_color,
             compact=is_mobile)
         _render_plotly(_apply_zoom(fig_overlay), div_id="ems-overlay")
+
+    st.write("")
+
+    # ── Assinatura de Corrente (FFT) + diagnóstico de barra quebrada ──────
+    _ac_keys = [k for k in var_keys if k in ("ias", "ibs", "ics", "iar", "ibr", "icr")]
+    if _ac_keys:
+        st.divider()
+        st.markdown('<p class="slabel">Assinatura de Corrente (FFT)</p>', unsafe_allow_html=True)
+        with st.expander("Ver espectro de amplitudes", expanded=False):
+            _fft_var = st.selectbox(
+                "Variável para análise espectral",
+                options=_ac_keys,
+                format_func=lambda k: next((l for kk, l in zip(var_keys, var_labels) if kk == k), k),
+                key="fft_var_select_results",
+            )
+            _fft_lbl = _strip_latex(
+                next((l for kk, l in zip(var_keys, var_labels) if kk == _fft_var), _fft_var)
+            )
+            fig_fft = build_fig_fft(res, dark_plot, key=_fft_var, label=_fft_lbl)
+
+            # ── sidebands de barra quebrada ──────────────────────────────
+            _alpha = float(res.get("_broken_bar_severity", 0.0))
+            if _alpha > 0:
+                _s_val  = float(res.get("s", 0.0))
+                _f_fund = mp.f
+                _sb_lo  = _f_fund * (1.0 - 2.0 * abs(_s_val))
+                _sb_hi  = _f_fund * (1.0 + 2.0 * abs(_s_val))
+                for _freq, _lbl in [(_sb_lo, f"(1−2s)f={_sb_lo:.1f}Hz"), (_sb_hi, f"(1+2s)f={_sb_hi:.1f}Hz")]:
+                    fig_fft.add_vline(
+                        x=_freq, line_dash="dash", line_color="#f59e0b", line_width=1.5,
+                        annotation_text=_lbl,
+                        annotation_font_color="#f59e0b",
+                        annotation_font_size=9,
+                    )
+                st.caption(
+                    f"⚠ Barra quebrada ativa (α={_alpha:.2f}) — "
+                    f"componentes laterais destacadas em **(1±2s)f**: "
+                    f"{_sb_lo:.1f} Hz e {_sb_hi:.1f} Hz (s={_s_val*100:.2f}%)."
+                )
+            else:
+                st.caption("Linhas vermelhas tracejadas: harmônicas ímpares (1ª, 3ª, 5ª, 7ª, 9ª).")
+
+            _render_plotly(fig_fft, div_id="ems-fft-results")
+
+    # ── Análise Econômica ─────────────────────────────────────────────────
+    if exp_type != "shutdown":
+        _em = compute_energy_metrics(res, energy_tariff)
+        st.divider()
+        st.markdown('<p class="slabel">Análise Econômica (IAS Energy Conservation)</p>', unsafe_allow_html=True)
+        with st.expander("Ver análise de energia e custo operacional", expanded=False):
+            _ec1, _ec2, _ec3 = st.columns(3)
+            _ec1.metric("Energia no Experimento",    f"{_em['E_total_kwh']:.5f} kWh")
+            _ec2.metric("Custo do Experimento",      f"R$ {_em['custo_exp_brl']:.4f}")
+            _ec3.metric("Potência Entrada (regime)", f"{_em['P_in_ss_kw']:.3f} kW")
+
+            _ec4, _ec5, _ec6 = st.columns(3)
+            _ec4.metric("Rendimento em Regime",      f"{_em['eta_ss']:.2f} %")
+            _ec5.metric("Custo Operacional Anual",   f"R$ {_em['custo_ano_brl']:,.2f}")
+            _ec6.metric("Energia Anual Projetada",   f"{_em['P_in_ss_kw'] * _em['horas_op_ano']:,.1f} kWh/ano")
+
+            st.caption(
+                f"Projeção anual baseada em operação contínua (8.760 h/ano) à tarifa de "
+                f"R$ {energy_tariff:.2f}/kWh. Energia calculada integrando $P_{{in}} = \\frac{{3}}{{2}}(V_{{qs}}i_{{qs}} + V_{{ds}}i_{{ds}})$."
+            )
 
     st.write("")
 

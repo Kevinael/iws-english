@@ -10,6 +10,7 @@ deseq_a, deseq_b, deseq_c, falta_fase_a, falta_fase_b, falta_fase_c
 como parâmetros de run_simulation em EMS_PY.py.
 """
 from __future__ import annotations
+import math
 import numpy as np
 
 
@@ -40,6 +41,31 @@ def abc_voltages_deseq(t, Vl: float, f: float,
     if scalar:
         return float(Va[0]), float(Vb[0]), float(Vc[0])
     return Va, Vb, Vc
+
+
+# ── Modelo de Barra Quebrada ─────────────────────────────────────────────────
+
+def make_broken_bar_rr_fn(Rr_nominal: float, severity: float, wb: float):
+    """Retorna função Rr(t, s) que modula a resistência do rotor ao dobro da freq. de escorregamento.
+
+    Modelo: Rr(t) = Rr0 · (1 + α · cos(2·s·ωb·t))
+
+    Args:
+        Rr_nominal: resistência nominal do rotor (Ω).
+        severity:   α — amplitude da oscilação (0 = saudável, 0.1 = 10% de quebra).
+        wb:         frequência angular base (rad/s).
+
+    Returns:
+        Callable[[float, float], float] — (t, slip) → Rr efetivo.
+        Se severity == 0, retorna None (sinal para desativar o modelo).
+    """
+    if severity == 0.0:
+        return None
+
+    def _rr_fn(t: float, slip: float) -> float:
+        return Rr_nominal * (1.0 + severity * math.cos(2.0 * slip * wb * t))
+
+    return _rr_fn
 
 
 # ── Bloco de UI ─────────────────────────────────────────────────────────────

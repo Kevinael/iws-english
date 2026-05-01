@@ -91,10 +91,13 @@ _WK: dict[str, str] = {
     "tmax":         "wi_tmax",
     "h":            "wi_h",
     # modelos avançados
-    "sat_enable":   "wi_sat_enable",
-    "Im_sat":       "wi_Im_sat",
-    "Rgrid":        "wi_Rgrid",
-    "Lgrid":        "wi_Lgrid",
+    "sat_enable":           "wi_sat_enable",
+    "Im_sat":               "wi_Im_sat",
+    "Rgrid":                "wi_Rgrid",
+    "Lgrid":                "wi_Lgrid",
+    # gêmeo digital e análise econômica
+    "broken_bar_severity":  "wi_broken_bar_severity",
+    "energy_tariff":        "wi_energy_tariff",
 }
 
 
@@ -398,6 +401,20 @@ def render_machine_params(
             )
         st.markdown('</div>', unsafe_allow_html=True)
 
+        # ── Análise Econômica ────────────────────────────────────────────
+        _pgroup("Análise Econômica")
+        energy_tariff = st.number_input(
+            "Tarifa de energia elétrica (R$/kWh)",
+            min_value=0.01, max_value=5.0, value=0.75, step=0.01, format="%.2f",
+            key=wk["energy_tariff"],
+            disabled=dis,
+            help=(
+                "Tarifa média usada para projetar o custo operacional anual com base "
+                "no perfil de carga simulado. Valor típico industrial: R$0,60–0,90/kWh."
+            ),
+        )
+        st.markdown('</div>', unsafe_allow_html=True)
+
     mp = MachineParams(Vl=Vl, f=f, Rs=Rs, Rr=Rr, Xm=Xm, Xls=Xls, Xlr=Xlr, Rfe=Rfe, p=p, J=J, B=B,
                        input_mode=input_mode, f_ref=f_ref,
                        sat_enable=sat_enable, Im_sat=Im_sat,
@@ -412,7 +429,7 @@ def render_machine_params(
     if input_mode == "X":
         st.caption(f"Indutâncias calculadas a {f_ref:.0f} Hz → $L_m$ = {mp.Lm*1000:.4f} mH  |  $L_{{ls}}$ = {mp.Lls*1000:.4f} mH  |  $L_{{lr}}$ = {mp.Llr*1000:.4f} mH")
 
-    return mp, ref_code
+    return mp, ref_code, energy_tariff
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -495,6 +512,29 @@ def render_experiment_config(
             f"e em $t_{{carga}}$ o torque muda para <strong>{config['Tl_final']:.2f} N·m</strong> "
             f"({pct_fin:.1f}%) — <strong>{sinal} de {abs(delta):.2f} N·m</strong>."
         )
+        # ── Gêmeo Digital: Barra Quebrada ─────────────────────────────
+        st.write("")
+        with st.expander("🔩 Gêmeo Digital — Falha de Barra Quebrada", expanded=False):
+            _ibox(
+                "Modela a falha introduzindo oscilação em $R_r$ à freq. de escorregamento: "
+                "$R_r(t) = R_r \\cdot (1 + \\alpha \\cdot \\cos(2s\\omega_b t))$. "
+                "A assinatura espectral da corrente exibirá componentes laterais em $(1 \\pm 2s)f$."
+            )
+            broken_bar_severity = st.slider(
+                "Severidade da falha — $\\alpha$",
+                min_value=0.0, max_value=0.5, value=0.0, step=0.01,
+                format="%.2f",
+                key=wk["broken_bar_severity"],
+                help="0 = motor saudável. 0.1 = 10% de variação em Rr (≈1 barra quebrada). 0.3+ = falha grave.",
+            )
+            if broken_bar_severity > 0:
+                st.caption(
+                    f"α = {broken_bar_severity:.2f} — componentes laterais esperados em "
+                    f"$(1 \\pm 2s)f$ Hz. Use a análise FFT para verificar a assinatura."
+                )
+                if broken_bar_severity >= 0.3:
+                    st.warning("Severidade elevada (α ≥ 0.3) — pode causar oscilações visíveis no torque.")
+            config["broken_bar_severity"] = broken_bar_severity
 
     elif exp_type == "pulso_carga":
         Tl_base = st.number_input("Torque de base — $T_{base}$ (N·m)", value=40.0, min_value=0.0, key=wk["Tl_pulso"])

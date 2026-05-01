@@ -23,7 +23,7 @@ import warnings
 import numpy as np
 from scipy.integrate import solve_ivp
 from dataclasses import dataclass, field
-from core.desequilibrio_falta import abc_voltages_deseq
+from core.desequilibrio_falta import abc_voltages_deseq, make_broken_bar_rr_fn
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -266,8 +266,14 @@ def _xml_from_lm(Lm: float, wb: float, Xls_a: float, Xlr_a: float) -> float:
 # Para Lgrid/Lls << 1 o erro é de segunda ordem.
 
 def _make_rhs(mp: MachineParams, voltage_fn, torque_fn, ref_code: int,
-              deseq: tuple, t_deseq: float, deseq_active: bool):
-    """Fecha o RHS sobre os parâmetros — retorna função rhs(t, y) pronta para solve_ivp."""
+              deseq: tuple, t_deseq: float, deseq_active: bool,
+              rr_fn=None):
+    """Fecha o RHS sobre os parâmetros — retorna função rhs(t, y) pronta para solve_ivp.
+
+    Args:
+        rr_fn: opcional — callable(t, slip) → Rr efetivo para modelo de barra quebrada.
+               None significa Rr constante (comportamento padrão).
+    """
     Xls_a = mp.Xls_a;  Xlr_a = mp.Xlr_a
     Rs    = mp.Rs;      Rr    = mp.Rr;    wb = mp.wb
     p     = mp.p;       J     = mp.J;     B  = mp.B
@@ -359,10 +365,15 @@ def _make_rhs(mp: MachineParams, voltage_fn, torque_fn, ref_code: int,
         # ── equações de estado de Krause (referencial genérico ω_ref) ────
         slip_ref = (w_ref - wr) / wb
 
+        # barra quebrada: Rr modulado por cos(2·s·wb·t) se rr_fn ativo
+        ws_mec = wb / (p / 2.0)
+        slip_inst = (ws_mec - wr) / ws_mec if ws_mec != 0.0 else 0.0
+        Rr_cur = rr_fn(t, slip_inst) if rr_fn is not None else Rr
+
         dPSIqs = wb * (Vqs_eff - (w_ref / wb) * PSIds + (Rs / Xls_a) * (PSImq - PSIqs))
         dPSIds = wb * (Vds_eff + (w_ref / wb) * PSIqs + (Rs / Xls_a) * (PSImd - PSIds))
-        dPSIqr = wb * (-slip_ref * PSIdr + (Rr / Xlr_a) * (PSImq - PSIqr))
-        dPSIdr = wb * ( slip_ref * PSIqr + (Rr / Xlr_a) * (PSImd - PSIdr))
+        dPSIqr = wb * (-slip_ref * PSIdr + (Rr_cur / Xlr_a) * (PSImq - PSIqr))
+        dPSIdr = wb * ( slip_ref * PSIqr + (Rr_cur / Xlr_a) * (PSImd - PSIdr))
 
         # ── torque e mecânica ─────────────────────────────────────────────
         # Convenção amplitude-invariante (fator 3/2) conforme Krause eq. 6.6-2
@@ -655,6 +666,7 @@ def run_simulation(
     t_deseq: float = 0.0,
     clamp_wr_at_zero: bool = False,
     t_cutoff: float | None = None,
+    broken_bar_severity: float = 0.0,
 ) -> dict:
     """Integra o modelo Krause via solve_ivp e devolve as séries temporais.
 
@@ -681,7 +693,8 @@ def run_simulation(
     deseq_active = (deseq_a != 0.0 or deseq_b != 0.0 or deseq_c != 0.0
                     or falta_fase_a or falta_fase_b or falta_fase_c)
 
-    rhs = _make_rhs(mp, voltage_fn, torque_fn, ref_code, deseq, t_deseq, deseq_active)
+    rr_fn = make_broken_bar_rr_fn(mp.Rr, broken_bar_severity, mp.wb)
+    rhs = _make_rhs(mp, voltage_fn, torque_fn, ref_code, deseq, t_deseq, deseq_active, rr_fn)
     y0  = [0.0] * 6
     y_history = _solve(rhs, t_values, y0, mp, clamp_wr_at_zero, t_cutoff=t_cutoff)
 
@@ -712,6 +725,7 @@ def run_simulation(
         "iar": iar, "ibr": ibr, "icr": icr,
         "Va":  Va,  "Vb":  Vb,  "Vc":  Vc,
         "Vds": Vds, "Vqs": Vqs,
+        "_broken_bar_severity": broken_bar_severity,
     }
     arr.update(_compute_steady_state(arr, mp))
     return arr

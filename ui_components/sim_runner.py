@@ -23,6 +23,7 @@ def execute_simulation_flow(
     h: float,
     ref_code: int,
     dark: bool,
+    energy_tariff: float = 0.75,
 ) -> None:
     """Valida, integra e salva o resultado em st.session_state["sim_result"].
 
@@ -61,6 +62,7 @@ def execute_simulation_flow(
 
     with st.spinner("Executando integração numérica..."):
         try:
+            _broken_bar = float(exp_config.get("broken_bar_severity", 0.0))
             res = run_simulation(
                 mp=mp, tmax=_tmax_run, h=h,
                 voltage_fn=vfn, torque_fn=tfn,
@@ -70,6 +72,7 @@ def execute_simulation_flow(
                 falta_fase_c=_falta_fase_c, t_deseq=_t_deseq,
                 clamp_wr_at_zero=(exp_config.get("exp_type") == "shutdown"),
                 t_cutoff=exp_config.get("t_cutoff") if exp_config.get("exp_type") == "shutdown" else None,
+                broken_bar_severity=_broken_bar,
             )
             st.session_state["pdf_bytes"]  = None
             st.session_state["sim_result"] = dict(
@@ -79,6 +82,7 @@ def execute_simulation_flow(
                 exp_type=exp_config.get("exp_type",   "dol"),
                 exp_config=exp_config,
                 tmax=tmax, h=h,
+                energy_tariff=energy_tariff,
             )
             st.session_state["_sim_toast"] = (
                 f"Simulação concluída — "
