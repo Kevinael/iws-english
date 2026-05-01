@@ -488,19 +488,21 @@ def render_machine_params(
             Rth=0.0, Cth=0.0,
         )
         if not _th_override:
+            _rth_fmt = f"{_mp_preview.Rth:.6f}" if _mp_preview.Rth < 0.01 else f"{_mp_preview.Rth:.4f}"
             st.caption(
-                f"Auto: **Rth ≈ {_mp_preview.Rth:.4f} K/W**  |  "
+                f"Auto: **Rth ≈ {_rth_fmt} K/W**  |  "
                 f"**Cth ≈ {_mp_preview.Cth:.1f} J/K**  |  "
                 f"τ = {_mp_preview.Rth * _mp_preview.Cth:.0f} s  |  "
                 f"T_regime ≈ {_mp_preview.T_amb + _mp_preview.Rth * max(_mp_preview.Cth / _mp_preview.Rth * 0.01, 1.0):.0f} °C (estimativa)"
             )
         _th1, _th2 = st.columns(2)
         with _th1:
+            _rth_preview = max(round(_mp_preview.Rth, 6), 0.0001)
             Rth = st.number_input(
                 "$R_{th}$ (K/W)",
-                min_value=0.01, max_value=100.0,
-                value=round(_mp_preview.Rth, 4) if not _th_override else 1.5,
-                step=0.01, format="%.4f",
+                min_value=0.0001, max_value=100.0,
+                value=_rth_preview if not _th_override else 1.5,
+                step=0.0001, format="%.6f",
                 key=wk["Rth"],
                 disabled=dis or not _th_override,
                 help=(
@@ -509,16 +511,17 @@ def render_machine_params(
                 ),
             )
         with _th2:
+            _cth_preview = min(max(round(_mp_preview.Cth, 1), 1.0), 5_000_000.0)
             Cth = st.number_input(
                 "$C_{th}$ (J/K)",
-                min_value=1.0, max_value=50000.0,
-                value=round(_mp_preview.Cth, 1) if not _th_override else 200.0,
+                min_value=1.0, max_value=5_000_000.0,
+                value=_cth_preview if not _th_override else 200.0,
                 step=10.0, format="%.1f",
                 key=wk["Cth"],
                 disabled=dis or not _th_override,
                 help=(
                     "Capacitância térmica do conjunto estator+rotor. "
-                    "~100–500 J/K para motores de 1–10 cv."
+                    "~100–500 J/K para motores de 1–10 cv; >100 kJ/K para grandes motores."
                 ),
             )
         T_amb = st.number_input(
