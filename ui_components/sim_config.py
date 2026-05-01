@@ -199,34 +199,37 @@ def render_machine_selector(dark: bool) -> None:
     ct_theme, _ = st.columns([1, 6])
     with ct_theme:
         st.toggle("Modo Escuro", value=dark, key="dark_mode")
-    st.markdown('<p class="slabel">Seleção de Equipamento</p>', unsafe_allow_html=True)
-    st.markdown("### Escolha o equipamento para simular")
+
+    # apenas máquinas disponíveis são exibidas
+    available = [m for m in MACHINES if not m["disabled"]]
+
+    st.markdown('<p class="slabel">Simulador de Máquinas Elétricas</p>', unsafe_allow_html=True)
+    st.markdown("### Selecione o equipamento")
     st.write("")
 
-    cards_html = '<div class="machine-grid">'
-    for m in MACHINES:
-        active   = st.session_state.get("selected_machine") == m["key"]
-        disabled = m["disabled"]
-        cls      = "mcard" + (" active" if active else "") + (" disabled" if disabled else "")
-        tag_cls  = "mcard-tag" + (" soon" if disabled else "")
+    # grade centralizada: CSS "machine-grid-solo" para 1 card centrado
+    cards_html = '<div class="machine-grid-solo">'
+    for m in available:
+        active  = st.session_state.get("selected_machine") == m["key"]
+        cls     = "mcard mcard-solo" + (" active" if active else "")
         cards_html += (
             f'<div class="{cls}">'
             f'  <span class="mcard-icon">{m["icon"]}</span>'
             f'  <div class="mcard-name">{m["name"]}</div>'
-            f'  <span class="{tag_cls}">{m["tag"]}</span>'
+            f'  <span class="mcard-tag">{m["tag"]}</span>'
             f'</div>'
         )
     cards_html += '</div>'
     st.markdown(cards_html, unsafe_allow_html=True)
     st.write("")
 
-    cols = st.columns(4, gap="medium")
-    for i, m in enumerate(MACHINES):
-        with cols[i]:
-            if not m["disabled"]:
-                if st.button("Selecionar", key=f"sel_{m['key']}", width='stretch'):
-                    st.session_state["selected_machine"] = m["key"]
-                    st.rerun()
+    # botão centralizado
+    _, btn_col, _ = st.columns([2, 1, 2])
+    for m in available:
+        with btn_col:
+            if st.button("Iniciar Simulação", key=f"sel_{m['key']}", use_container_width=True):
+                st.session_state["selected_machine"] = m["key"]
+                st.rerun()
 
 
 # ─────────────────────────────────────────────────────────────────────────────

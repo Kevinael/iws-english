@@ -50,7 +50,27 @@ def apply_css(dark: bool) -> None:
         color: {c["text"]}; letter-spacing: -0.02em;
     }}
 
-    /* ── cartões de seleção de máquina ── */
+    /* ── grade de máquinas disponíveis (card único, centralizado) ── */
+    .machine-grid-solo {{
+        display: flex;
+        justify-content: center;
+        margin: 1.8rem 0 1.2rem 0;
+    }}
+    .mcard-solo {{
+        max-width: 320px;
+        width: 100%;
+        padding: 2.8rem 2.4rem 2.2rem !important;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.14), 0 1px 6px rgba(0,0,0,0.08) !important;
+    }}
+    .mcard-solo .mcard-icon {{
+        font-size: 3.6rem !important;
+        margin-bottom: 1rem !important;
+    }}
+    .mcard-solo .mcard-name {{
+        font-size: 1.8rem !important;
+    }}
+
+    /* ── cartões de seleção de máquina (grade multi-coluna, uso futuro) ── */
     .machine-grid {{
         display: grid;
         grid-template-columns: repeat(4, 1fr);
@@ -106,22 +126,23 @@ def apply_css(dark: bool) -> None:
         color: {c["accent"]}; margin-bottom: .4rem;
     }}
 
-    /* ── grupo de parâmetros ── */
+    /* ── grupo de parâmetros (flat design: sombra suave, sem borda rígida) ── */
     .pgroup {{
         background: {c["surface"]};
-        border: 1px solid {c["border"]};
-        border-radius: 12px;
-        padding: 1.6rem 1.4rem 1rem;
-        margin-bottom: 1rem;
+        border: none;
+        border-radius: 14px;
+        padding: 1.4rem 1.4rem 0.9rem;
+        margin-bottom: 0.9rem;
         overflow: visible !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.10), 0 1px 8px rgba(0,0,0,0.06);
     }}
     .pgroup-title {{
-        font-size: .76rem; font-weight: 700;
+        font-size: .74rem; font-weight: 700;
         letter-spacing: .08em; text-transform: uppercase;
-        color: {c["accent"]};
-        padding-bottom: .5rem;
-        border-bottom: 1px solid {c["border"]};
-        margin-bottom: .85rem;
+        color: {c["muted"]};
+        padding-bottom: .45rem;
+        border-bottom: 1px solid {c["border"]}55;
+        margin-bottom: .8rem;
     }}
 
     /* ── caixa informativa ── */
@@ -136,12 +157,13 @@ def apply_css(dark: bool) -> None:
         margin: .6rem 0 .4rem 0;
     }}
 
-    /* ── metricas ── */
+    /* ── metricas (flat: sem borda, sombra suave) ── */
     [data-testid="stMetric"] {{
         background: {c["surface"]};
-        border: 1px solid {c["border"]};
-        border-radius: 10px;
+        border: none;
+        border-radius: 12px;
         padding: .85rem 1.1rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.09), 0 1px 6px rgba(0,0,0,0.05);
     }}
     [data-testid="stMetricLabel"] p {{
         font-size: .78rem !important; font-weight: 500 !important;
@@ -365,6 +387,16 @@ def apply_css(dark: bool) -> None:
         .tcard li {{
             font-size: 0.85rem !important;
             line-height: 1.7 !important;
+        }}
+    }}
+
+    /* ── Tablet portrait (768–1024px) ── */
+    @media (min-width: 769px) and (max-width: 1024px) {{
+        .app-title {{
+            font-size: 3.2rem !important;
+        }}
+        .machine-grid {{
+            grid-template-columns: repeat(2, 1fr) !important;
         }}
     }}
 
