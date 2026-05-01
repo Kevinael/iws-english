@@ -104,6 +104,7 @@ _WK: dict[str, str] = {
     "t_duration_sag":       "wi_t_duration_sag",
     "sag_Tl":               "wi_sag_Tl",
     # modelo térmico
+    "th_override":          "wi_th_override",
     "Rth":                  "wi_Rth",
     "Cth":                  "wi_Cth",
     "T_amb":                "wi_T_amb",
@@ -439,16 +440,44 @@ def render_machine_params(
             "Modelo de 1ª ordem: "
             "<i>dT/dt = (P<sub>joule</sub> + P<sub>fe</sub>) / C<sub>th</sub> "
             "− (T − T<sub>amb</sub>) / (R<sub>th</sub> · C<sub>th</sub>)</i>. "
-            "Defaults para MIT ~3 cv: τ<sub>th</sub> = R<sub>th</sub>·C<sub>th</sub> = 300 s."
+            "Por padrão R<sub>th</sub> e C<sub>th</sub> são calculados automaticamente "
+            "para ΔT = 105 K (Classe B) e τ = 300 s."
         )
+        _th_override = st.checkbox(
+            "Sobrescrever parâmetros térmicos manualmente",
+            value=False,
+            key=wk["th_override"],
+            disabled=dis,
+            help=(
+                "Quando desmarcado, Rth e Cth são estimados automaticamente "
+                "a partir dos parâmetros elétricos do motor. "
+                "Marque apenas se você tiver valores medidos por ensaio térmico."
+            ),
+        )
+        # Preview dos valores auto-calculados (sempre visível)
+        _mp_preview = MachineParams(
+            Vl=Vl, f=f, Rs=Rs, Rr=Rr, Xm=Xm, Xls=Xls, Xlr=Xlr, Rfe=Rfe,
+            p=p, J=J, B=B, input_mode=input_mode, f_ref=f_ref,
+            sat_enable=sat_enable, Im_sat=Im_sat,
+            Rgrid=Rgrid, Lgrid=Lgrid,
+            Rth=0.0, Cth=0.0,
+        )
+        if not _th_override:
+            st.caption(
+                f"Auto: **Rth ≈ {_mp_preview.Rth:.4f} K/W**  |  "
+                f"**Cth ≈ {_mp_preview.Cth:.1f} J/K**  |  "
+                f"τ = {_mp_preview.Rth * _mp_preview.Cth:.0f} s  |  "
+                f"T_regime ≈ {_mp_preview.T_amb + _mp_preview.Rth * max(_mp_preview.Cth / _mp_preview.Rth * 0.01, 1.0):.0f} °C (estimativa)"
+            )
         _th1, _th2 = st.columns(2)
         with _th1:
-            # τ_th hint: calculado a partir dos defaults para orientar o usuário
             Rth = st.number_input(
                 "$R_{th}$ (K/W)",
-                min_value=0.01, max_value=100.0, value=1.5, step=0.1, format="%.2f",
+                min_value=0.01, max_value=100.0,
+                value=round(_mp_preview.Rth, 4) if not _th_override else 1.5,
+                step=0.01, format="%.4f",
                 key=wk["Rth"],
-                disabled=dis,
+                disabled=dis or not _th_override,
                 help=(
                     "Resistência térmica total motor→ambiente. "
                     "Motores fechados (TEFC) ~1–3 K/W; abertos (DRIP) ~0.5–1.5 K/W."
@@ -457,9 +486,11 @@ def render_machine_params(
         with _th2:
             Cth = st.number_input(
                 "$C_{th}$ (J/K)",
-                min_value=1.0, max_value=50000.0, value=200.0, step=10.0, format="%.1f",
+                min_value=1.0, max_value=50000.0,
+                value=round(_mp_preview.Cth, 1) if not _th_override else 200.0,
+                step=10.0, format="%.1f",
                 key=wk["Cth"],
-                disabled=dis,
+                disabled=dis or not _th_override,
                 help=(
                     "Capacitância térmica do conjunto estator+rotor. "
                     "~100–500 J/K para motores de 1–10 cv."
@@ -475,17 +506,20 @@ def render_machine_params(
         _tau_th = Rth * Cth
         st.caption(
             f"Constante de tempo térmica: τ = R·C = **{_tau_th:.0f} s** "
-            f"({_tau_th/60:.1f} min)  —  motor atinge 63% do aquecimento em regime em ~{_tau_th:.0f} s."
+            f"({_tau_th/60:.1f} min)."
         )
         if _tau_th < 30:
             st.warning("τ < 30 s — motor aquece muito rapidamente. Verifique Rth e Cth.")
+        # Quando não há override, passa 0.0 → __post_init__ calcula automaticamente
+        _Rth_mp = Rth if _th_override else 0.0
+        _Cth_mp = Cth if _th_override else 0.0
         st.markdown('</div>', unsafe_allow_html=True)
 
     mp = MachineParams(Vl=Vl, f=f, Rs=Rs, Rr=Rr, Xm=Xm, Xls=Xls, Xlr=Xlr, Rfe=Rfe, p=p, J=J, B=B,
                        input_mode=input_mode, f_ref=f_ref,
                        sat_enable=sat_enable, Im_sat=Im_sat,
                        Rgrid=Rgrid, Lgrid=Lgrid,
-                       Rth=Rth, Cth=Cth, T_amb=T_amb)
+                       Rth=_Rth_mp, Cth=_Cth_mp, T_amb=T_amb)
     _validate_params(mp)
 
     st.write("")
