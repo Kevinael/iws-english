@@ -316,8 +316,8 @@ def render_machine_params(
     _pgroup("Dados Elétricos")
     Vl = st.number_input("Tensão de linha RMS — $V_l$ (V)",               min_value=50.0,  max_value=15000.0, value=_DEFAULTS["Vl"],  step=1.0,   key=wk["Vl"],  disabled=dis)
     f  = st.number_input("Frequência da rede — $f$ (Hz)",                min_value=1.0,   max_value=400.0,   value=_DEFAULTS["f"],   step=1.0,   key=wk["f"],   disabled=dis)
-    Rs = st.number_input("Resistência do estator — $R_s$ (Ω)",           min_value=0.001, max_value=100.0,   value=_DEFAULTS["Rs"],  step=0.001, key=wk["Rs"],  format="%.3f", disabled=dis)
-    Rr = st.number_input("Resistência do rotor — $R_r$ (Ω)",             min_value=0.001, max_value=100.0,   value=_DEFAULTS["Rr"],  step=0.001, key=wk["Rr"],  format="%.3f", disabled=dis)
+    Rs = st.number_input("Resistência do estator — $R_s$ (Ω)",           min_value=0.0001, max_value=100.0,   value=_DEFAULTS["Rs"],  step=0.001, key=wk["Rs"],  format="%.3f", disabled=dis)
+    Rr = st.number_input("Resistência do rotor — $R_r$ (Ω)",             min_value=0.0001, max_value=100.0,   value=_DEFAULTS["Rr"],  step=0.001, key=wk["Rr"],  format="%.3f", disabled=dis)
 
     input_mode_label = st.radio(
         "Modo de entrada dos parâmetros magnéticos",
@@ -337,9 +337,9 @@ def render_machine_params(
             help="Frequência em que $X_m$, $X_{ls}$ e $X_{lr}$ foram medidos (tipicamente 50 Hz ou 60 Hz).",
             disabled=dis,
         )
-        Xm  = st.number_input("Reatância de magnetização — $X_m$ (Ω)",            min_value=0.1,   max_value=500.0,   value=_DEFAULTS["Xm"],  step=0.01,  key=wk["Xm"],  format="%.2f", disabled=dis)
-        Xls = st.number_input("Reatância de dispersão do estator — $X_{ls}$ (Ω)", min_value=0.001, max_value=50.0,    value=_DEFAULTS["Xls"], step=0.001, key=wk["Xls"], format="%.3f", disabled=dis)
-        Xlr = st.number_input("Reatância de dispersão do rotor — $X_{lr}$ (Ω)",   min_value=0.001, max_value=50.0,    value=_DEFAULTS["Xlr"], step=0.001, key=wk["Xlr"], format="%.3f", disabled=dis)
+        Xm  = st.number_input("Reatância de magnetização — $X_m$ (Ω)",            min_value=0.0001,   max_value=500.0,   value=_DEFAULTS["Xm"],  step=0.01,  key=wk["Xm"],  format="%.2f", disabled=dis)
+        Xls = st.number_input("Reatância de dispersão do estator — $X_{ls}$ (Ω)", min_value=0.0001, max_value=50.0,    value=_DEFAULTS["Xls"], step=0.001, key=wk["Xls"], format="%.3f", disabled=dis)
+        Xlr = st.number_input("Reatância de dispersão do rotor — $X_{lr}$ (Ω)",   min_value=0.0001, max_value=50.0,    value=_DEFAULTS["Xlr"], step=0.001, key=wk["Xlr"], format="%.3f", disabled=dis)
     else:
         f_ref  = 60.0
         _wb_ref = 2.0 * 3.141592653589793 * 60.0
@@ -354,7 +354,7 @@ def render_machine_params(
     # ── Mecânicos ─────────────────────────────────────────────────────────
     _pgroup("Dados Mecânicos e Referencial")
     p = st.selectbox("Número de polos — $p$", options=[2, 4, 6, 8, 10, 12], index=1, key=wk["p"], disabled=dis)
-    J = st.number_input("Momento de inércia — $J$ (kg·m²)",               min_value=0.001, max_value=100.0, value=_DEFAULTS["J"], step=0.001, key=wk["J"], format="%.3f", disabled=dis)
+    J = st.number_input("Momento de inércia — $J$ (kg·m²)",               min_value=0.0001, max_value=100.0, value=_DEFAULTS["J"], step=0.001, key=wk["J"], format="%.3f", disabled=dis)
     B = st.number_input("Coeficiente de atrito viscoso — $B$ (N·m·s/rad)", min_value=0.0,   max_value=10.0,  value=_DEFAULTS["B"], step=0.001, key=wk["B"], format="%.3f", disabled=dis)
     ref_label = st.selectbox(
         "Referencial da Transformada de Park",
@@ -390,7 +390,7 @@ def render_machine_params(
         )
         Im_sat = st.number_input(
             "Corrente de semi-saturação — $I_{sat}$ (A)",
-            min_value=0.1, max_value=500.0,
+            min_value=0.0001, max_value=500.0,
             value=_Im_sat_default,
             step=0.1, format="%.1f",
             key=wk["Im_sat"],
@@ -449,7 +449,7 @@ def render_machine_params(
         _pgroup("Análise Econômica")
         energy_tariff = st.number_input(
             "Tarifa de energia elétrica (R$/kWh)",
-            min_value=0.01, max_value=5.0, value=0.75, step=0.01, format="%.2f",
+            min_value=0.0001, max_value=5.0, value=0.75, step=0.01, format="%.2f",
             key=wk["energy_tariff"],
             disabled=dis,
             help=(
@@ -603,26 +603,26 @@ def render_experiment_config(
 
     elif exp_type == "yd":
         config["Tl_final"] = st.number_input("Torque de carga — $T_l$ (N·m)", value=80.0, min_value=0.0, key="wi_yd_Tl_final")
-        config["t_2"]      = st.number_input("Instante de comutação Y → D — $t_2$ (s)", value=0.5, min_value=0.01, key="wi_yd_t2")
+        config["t_2"]      = st.number_input("Instante de comutação Y → D — $t_2$ (s)", value=0.5, min_value=0.0001, key="wi_yd_t2")
         config["t_carga"]  = st.number_input("Instante de aplicação da carga — $t_{carga}$ (s)", value=1.0, min_value=0.0, key="wi_yd_t_carga")
         _ibox("A tensão em estrela é reduzida a V<sub>l</sub>&thinsp;/&thinsp;√3. A comutação para triângulo ocorre no instante t<sub>2</sub>.")
 
     elif exp_type == "comp":
         config["Tl_final"]      = st.number_input("Torque de carga — $T_l$ (N·m)", value=80.0, min_value=0.0, key="wi_comp_Tl_final")
         config["voltage_ratio"] = st.slider("Tap do autotransformador — $k$ (%)", 10, 95, 50, key="wi_comp_tap") / 100.0
-        config["t_2"]           = st.number_input("Instante de comutação — $t_2$ (s)", value=0.5, min_value=0.01, key="wi_comp_t2")
+        config["t_2"]           = st.number_input("Instante de comutação — $t_2$ (s)", value=0.5, min_value=0.0001, key="wi_comp_t2")
         config["t_carga"]       = st.number_input("Instante de aplicação da carga — $t_{carga}$ (s)", value=1.0, min_value=0.0, key="wi_comp_t_carga")
         _ibox(f"Tensão inicial = {config['voltage_ratio']*100:.0f}% de V<sub>l</sub> nominal.")
 
     elif exp_type == "soft":
         config["voltage_ratio"] = st.slider("Tensão inicial do Soft-Starter — $V_0$ (%)", 10, 90, 50, key="wi_soft_v0") / 100.0
         config["t_2"]           = st.number_input("Início da rampa de tensão — $t_2$ (s)", value=0.9, min_value=0.0, key="wi_soft_t2")
-        config["t_pico"]        = st.number_input("Tempo para atingir tensão nominal — $t_{pico}$ (s)", value=5.0, min_value=0.1, key="wi_soft_t_pico")
+        config["t_pico"]        = st.number_input("Tempo para atingir tensão nominal — $t_{pico}$ (s)", value=5.0, min_value=0.0001, key="wi_soft_t_pico")
         config["Tl_final"]      = st.number_input("Torque de carga — $T_l$ (N·m)", value=80.0, min_value=0.0, key="wi_soft_Tl_final")
         config["t_carga"]       = st.number_input("Instante de aplicação da carga — $t_{carga}$ (s)", value=1.0, min_value=0.0, key="wi_soft_t_carga")
 
     elif exp_type == "carga":
-        Tl_nom = st.number_input("Torque nominal de referência — $T_{nom}$ (N·m)", value=80.0, min_value=0.1, key="wi_carga_Tl_nom")
+        Tl_nom = st.number_input("Torque nominal de referência — $T_{nom}$ (N·m)", value=80.0, min_value=0.0001, key="wi_carga_Tl_nom")
         c_ini, c_fin = st.columns(2)
         with c_ini:
             pct_ini = st.number_input("Carga inicial (%)", value=0.0, min_value=0.0,
@@ -670,7 +670,7 @@ def render_experiment_config(
         Tl_base = st.number_input("Torque de base — $T_{base}$ (N·m)", value=40.0, min_value=0.0, key=wk["Tl_pulso"])
         st.caption("Carga já presente no eixo antes e após o pulso. Use 0 para partida em vazio.")
         if Tl_base == 0.0:
-            Tl_pulso = st.number_input("Torque durante o pulso — $T_{pulso}$ (N·m)", value=80.0, min_value=0.01, key=wk["Tl_pulso_abs"])
+            Tl_pulso = st.number_input("Torque durante o pulso — $T_{pulso}$ (N·m)", value=80.0, min_value=0.0001, key=wk["Tl_pulso_abs"])
             st.caption("Torque aplicado no intervalo $[t_{on},\\, t_{off})$. Fora desse intervalo o motor opera em vazio.")
         else:
             pct      = st.number_input("Variação durante o pulso (%)", value=50.0, key="wi_pct_pulso")
@@ -711,7 +711,7 @@ def render_experiment_config(
     elif exp_type == "shutdown":
         config["Tl_final"]  = st.number_input("Torque de carga — $T_l$ (N·m)", value=80.0, min_value=0.0, key="wi_sd_Tl_final")
         config["t_carga"]   = st.number_input("Instante de aplicação da carga — $t_{carga}$ (s)", value=0.3, min_value=0.0, key="wi_sd_t_carga")
-        config["t_cutoff"]  = st.number_input("Instante de desligamento — $t_{des}$ (s)", value=1.5, min_value=0.1, key="wi_sd_t_cutoff")
+        config["t_cutoff"]  = st.number_input("Instante de desligamento — $t_{des}$ (s)", value=1.5, min_value=0.0001, key="wi_sd_t_cutoff")
         if config["t_carga"] >= config["t_cutoff"]:
             st.error(f"t_carga ({config['t_carga']:.2f} s) deve ser menor que t_des ({config['t_cutoff']:.2f} s). Aplique a carga antes do desligamento.")
             config["_invalid"] = True
@@ -758,7 +758,7 @@ def render_experiment_config(
             )
             config["t_carga"] = 0.0
         t_start_sag    = st.number_input("Início do sag — $t_{sag}$ (s)",    value=0.5, min_value=0.0, step=0.05, format="%.3f", key=wk["t_start_sag"])
-        t_duration_sag = st.number_input("Duração do sag — $\\Delta t_{sag}$ (s)", value=0.1, min_value=0.01, max_value=5.0, step=0.01, format="%.3f", key=wk["t_duration_sag"])
+        t_duration_sag = st.number_input("Duração do sag — $\\Delta t_{sag}$ (s)", value=0.1, min_value=0.0001, max_value=5.0, step=0.01, format="%.3f", key=wk["t_duration_sag"])
         t_end_sag = t_start_sag + t_duration_sag
         config["sag_magnitude"]  = sag_mag
         config["t_start_sag"]    = t_start_sag
@@ -817,7 +817,7 @@ def render_experiment_config(
 
     tc1, tc2 = st.columns(2)
     with tc1:
-        tmax = st.number_input("Tempo total — $t_{max}$ (s)", min_value=0.1, max_value=3600.0, value=2.0, step=0.1, format="%.1f", key=wk["tmax"])
+        tmax = st.number_input("Tempo total — $t_{max}$ (s)", min_value=0.0001, max_value=3600.0, value=2.0, step=0.1, format="%.1f", key=wk["tmax"])
 
         _etype = config.get("exp_type", "")
         if _etype == "dol":
