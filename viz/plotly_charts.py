@@ -203,3 +203,115 @@ def build_fig_overlay(res, var_keys, var_labels, dark, t_events, decimals=2,
         yaxis2=y2_cfg if has_right else {},
     )
     return fig
+
+
+def build_fig_torque_speed(
+    res: dict,
+    P_nom_kw: float,
+    f: float,
+    p: int,
+    dark: bool = False,
+) -> go.Figure:
+    """Conjugado eletromagnético vs. velocidade do rotor.
+
+    Traça a trajetória dinâmica completa da partida até o regime permanente e
+    sobrepõe referências nominais de projeto (velocidade síncrona e torque nominal).
+
+    Args:
+        res: dicionário de resultados do solver (campos "n" em RPM, "Te" em N·m).
+        P_nom_kw: potência mecânica nominal do motor em kW.
+        f: frequência nominal em Hz.
+        p: número de polos.
+        dark: True para tema escuro.
+    """
+    pt = _plot_theme(dark)
+
+    rpm_array = np.asarray(res["n"],  dtype=float)
+    te_array  = np.asarray(res["Te"], dtype=float)
+
+    # Ponto de operação: última amostra válida
+    valid_mask   = np.isfinite(rpm_array) & np.isfinite(te_array)
+    rpm_op       = float(rpm_array[valid_mask][-1]) if valid_mask.any() else float(rpm_array[-1])
+    torque_op    = float(te_array[valid_mask][-1])  if valid_mask.any() else float(te_array[-1])
+
+    # Referências nominais
+    n_sync       = 120.0 * f / p                           # RPM síncrona
+    n_nom        = n_sync * (1.0 - 0.03)                   # RPM nominal (s = 3%)
+    omega_nom    = n_nom * 2.0 * np.pi / 60.0              # rad/s
+    torque_nom   = (P_nom_kw * 1000.0) / omega_nom         # N·m
+
+    col_traj  = "#60a5fa" if dark else "#1d4ed8"   # azul
+    col_op    = "#f59e0b"                           # âmbar — destaque
+    col_ref   = "#6b7280"                           # cinza — linhas de referência
+
+    fig = go.Figure()
+
+    # Trajetória dinâmica
+    fig.add_trace(go.Scatter(
+        x=rpm_array, y=te_array,
+        mode="lines",
+        name="Trajetoria Dinamica",
+        line=dict(color=col_traj, width=1.8),
+        hovertemplate="<b>Trajetoria</b><br>n = %{x:.1f} RPM<br>Te = %{y:.2f} N·m<extra></extra>",
+    ))
+
+    # Ponto de operação em regime permanente
+    fig.add_trace(go.Scatter(
+        x=[rpm_op], y=[torque_op],
+        mode="markers",
+        name="Ponto de Operacao (Regime)",
+        marker=dict(symbol="star", size=14, color=col_op,
+                    line=dict(color=col_op, width=1)),
+        hovertemplate=(
+            "<b>Regime Permanente</b><br>"
+            "n = %{x:.1f} RPM<br>"
+            "Te = %{y:.2f} N·m<extra></extra>"
+        ),
+    ))
+
+    # Linha de referência: torque nominal estimado
+    fig.add_hline(
+        y=torque_nom,
+        line=dict(color=col_ref, width=1.2, dash="dash"),
+        annotation_text=f"Torque Nominal Est. ({torque_nom:.1f} N·m)",
+        annotation_position="top left",
+        annotation_font=dict(size=10, color=col_ref),
+    )
+
+    # Linha de referência: velocidade síncrona
+    fig.add_vline(
+        x=n_sync,
+        line=dict(color=col_ref, width=1.2, dash="dot"),
+        annotation_text=f"Vel. Sincrona ({n_sync:.0f} RPM)",
+        annotation_position="top right",
+        annotation_font=dict(size=10, color=col_ref),
+    )
+
+    fig.update_layout(
+        height=380,
+        paper_bgcolor=pt["paper_bg"],
+        plot_bgcolor=pt["plot_bg"],
+        font=dict(family="Inter, system-ui", size=11, color=pt["fg"]),
+        margin=dict(l=60, r=20, t=40, b=50),
+        hovermode="closest",
+        legend=dict(
+            orientation="h", yanchor="bottom", y=1.01,
+            xanchor="right", x=1,
+            font=dict(size=10), bgcolor="rgba(0,0,0,0)",
+        ),
+        xaxis=dict(
+            title="Velocidade do Rotor (RPM)",
+            showgrid=True, gridcolor=pt["grid"], gridwidth=0.4,
+            tickfont=dict(size=10, color=pt["fg"]),
+            zeroline=False,
+        ),
+        yaxis=dict(
+            title="Conjugado Eletromagnetico Te (N·m)",
+            showgrid=True, gridcolor=pt["grid"], gridwidth=0.4,
+            zeroline=True, zerolinecolor=pt["grid"],
+            tickfont=dict(size=10, color=pt["fg"]),
+            exponentformat="none", autorange=True,
+        ),
+        uirevision="ts-chart",
+    )
+    return fig

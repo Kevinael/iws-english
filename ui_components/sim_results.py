@@ -15,7 +15,7 @@ import streamlit as st
 import plotly.graph_objects as go
 
 from core.EMS_PY import MachineParams
-from viz.plotly_charts import build_fig_stacked, build_fig_sidebyside, build_fig_overlay
+from viz.plotly_charts import build_fig_stacked, build_fig_sidebyside, build_fig_overlay, build_fig_torque_speed
 from viz.pdf_report import generate_pdf_report
 from core.harmonica_analysis import build_fig_fft
 
@@ -579,6 +579,20 @@ def render_results(
                     ref_list=chart_ref_list, primary_color=primary_color,
                     compact=is_mobile)
                 _render_plotly(_apply_zoom(fig_overlay), div_id="ems-overlay")
+
+            # Conjugado vs. Velocidade
+            st.write("")
+            st.markdown('<p class="slabel">Conjugado vs. Velocidade</p>', unsafe_allow_html=True)
+            _P_mec_ss = float(res.get("P_mec", 0.0))
+            _P_nom_kw = max(_P_mec_ss / 1000.0, 0.5)
+            _fig_ts = build_fig_torque_speed(
+                res=res,
+                P_nom_kw=_P_nom_kw,
+                f=mp.f,
+                p=mp.p,
+                dark=dark_plot,
+            )
+            st.plotly_chart(_fig_ts, use_container_width=True)
 
     # ══════════════════════════════════════════════════════════════════════
     # ABA 3 — DIAGNÓSTICO E FALHAS
