@@ -11,59 +11,39 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import streamlit as st
-import streamlit.components.v1 as components
+import streamlit.components.v1 as _components
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # UTILITÁRIOS
 # ─────────────────────────────────────────────────────────────────────────────
 
+_MATHJAX_SCRIPT = """
+<script>
+window.MathJax = {
+    tex: {
+        inlineMath:  [['$','$'],['\\\\(','\\\\)']],
+        displayMath: [['$$','$$'],['\\\\[','\\\\]']]
+    },
+    options: { skipHtmlTags: ['script','noscript','style','textarea','pre'] }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" async></script>
+"""
+
 def _inject_mathjax() -> None:
-    """Injeta MathJax + MutationObserver para re-renderizar LaTeX dinâmico."""
-    components.html(
-        """
-        <script>
-        (function () {
-            var par = window.parent;
-            if (par.document.getElementById('mathjax-script')) {
-                if (par.MathJax && par.MathJax.typesetPromise)
-                    par.MathJax.typesetPromise();
-                return;
-            }
-            par.MathJax = {
-                tex: {
-                    inlineMath:  [['$','$'], ['\\\\(','\\\\)']],
-                    displayMath: [['$$','$$'], ['\\\\[','\\\\]']]
-                },
-                options: { skipHtmlTags: ['script','noscript','style','textarea','pre'] },
-                startup: {
-                    ready() {
-                        par.MathJax.startup.defaultReady();
-                        var obs = new par.MutationObserver(function () {
-                            par.MathJax.typesetPromise && par.MathJax.typesetPromise();
-                        });
-                        obs.observe(par.document.body, { childList: true, subtree: true });
-                    }
-                }
-            };
-            var s = par.document.createElement('script');
-            s.id  = 'mathjax-script';
-            s.src = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js';
-            s.async = true;
-            par.document.head.appendChild(s);
-        })();
-        </script>
-        """,
-        height=0,
-    )
+    """Sem efeito — MathJax é carregado dentro de cada components.html."""
+    pass
 
 
 def _b64(fname: str) -> str:
-    p = Path(__file__).parent / fname
-    if not p.exists():
-        return ""
-    with open(p, "rb") as f:
-        return base64.b64encode(f.read()).decode()
+    # Tenta primeiro relativo à raiz do projeto (pai de ui/), depois relativo a ui/
+    for base in (Path(__file__).parent.parent, Path(__file__).parent):
+        p = base / fname
+        if p.exists():
+            with open(p, "rb") as f:
+                return base64.b64encode(f.read()).decode()
+    return ""
 
 
 def _img(fname: str, pct: str = "100%") -> str:
@@ -114,42 +94,65 @@ def _torque_ref(s: float) -> float:
 _P  = 'style="font-size:.92rem;line-height:1.8;margin:.45rem 0;"'
 _LI = 'style="font-size:.92rem;line-height:1.9;"'
 
-def _card(title: str, body: str) -> None:
-    st.markdown(
-        f'<div class="tcard"><h4>{title}</h4>{body}</div>',
-        unsafe_allow_html=True,
-    )
+def _render_html(html: str, height: int = 400) -> None:
+    """Renderiza HTML com MathJax embutido via components.html (iframe auto-contido)."""
+    full = f"""<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8">
+<style>
+  body {{font-family: "Inter", "Segoe UI", sans-serif; font-size:.92rem;
+         line-height:1.8; color:#1f2937; margin:0; padding:.5rem 1rem 1rem;}}
+  h4   {{font-size:1.05rem; margin:.4rem 0 .8rem; color:#1e3a8a;}}
+  .eq  {{overflow-x:auto; text-align:center; margin:.7rem 0;}}
+  img  {{max-width:100%; border-radius:8px; display:block; margin:.2rem auto;}}
+  .side-pair {{display:flex; gap:2rem; align-items:flex-start; flex-wrap:wrap;}}
+  .side-img  {{flex:0 0 46%; min-width:200px;}}
+  .side-txt  {{flex:1; min-width:200px;}}
+  .warn,.tc-warn {{background:#fef3c7;border-left:4px solid #f59e0b;padding:.5rem .8rem;
+                   border-radius:4px;margin:.5rem 0;font-size:.88rem;}}
+  .info          {{background:#dbeafe;border-left:4px solid #3b82f6;padding:.5rem .8rem;
+                   border-radius:4px;margin:.5rem 0;}}
+  .crit          {{background:#fee2e2;border-left:4px solid #ef4444;padding:.5rem .8rem;
+                   border-radius:4px;margin:.5rem 0;}}
+  .tc-up   {{color:#15803d;font-weight:600;}}
+  .tc-down {{color:#b91c1c;font-weight:600;}}
+  ul,ol  {{padding-left:1.4rem;}}
+  li     {{margin:.15rem 0;}}
+</style>
+{_MATHJAX_SCRIPT}
+</head><body>
+{html}
+</body></html>"""
+    _components.html(full, height=height, scrolling=True)
 
 
-def _card_side(title: str, fname: str, body: str, *, img_right: bool = False) -> None:
-    img_div = f'<div style="flex:0 0 46%;min-width:200px;">{_img(fname)}</div>'
-    txt_div = f'<div style="flex:1;min-width:200px;padding-top:.1rem;">{body}</div>'
+def _card(title: str, body: str, height: int = 300) -> None:
+    _render_html(f'<h4>{title}</h4>{body}', height=height)
+
+
+def _card_side(title: str, fname: str, body: str, *,
+               img_right: bool = False, height: int = 420) -> None:
+    img_div = f'<div class="side-img">{_img(fname)}</div>'
+    txt_div = f'<div class="side-txt">{body}</div>'
     pair    = f'{txt_div}{img_div}' if img_right else f'{img_div}{txt_div}'
-    st.markdown(
-        f'<div class="tcard">'
-        f'<h4 style="margin-bottom:.9rem;">{title}</h4>'
-        f'<div class="tcard-side-pair" style="display:flex;gap:2rem;align-items:flex-start;flex-wrap:wrap;">'
-        f'{pair}</div></div>',
-        unsafe_allow_html=True,
+    _render_html(
+        f'<h4>{title}</h4><div class="side-pair">{pair}</div>',
+        height=height,
     )
 
 
-def _card_top(title: str, fname: str, body: str, *, pct: str = "88%") -> None:
-    st.markdown(
-        f'<div class="tcard">'
-        f'<h4 style="margin-bottom:.9rem;">{title}</h4>'
-        f'<div style="text-align:center;margin-bottom:1.1rem;">{_img(fname, pct)}</div>'
-        f'{body}'
-        f'</div>',
-        unsafe_allow_html=True,
+def _card_top(title: str, fname: str, body: str, *,
+              pct: str = "88%", height: int = 500) -> None:
+    _render_html(
+        f'<h4>{title}</h4>'
+        f'<div style="text-align:center;margin-bottom:1rem;">{_img(fname, pct)}</div>'
+        f'{body}',
+        height=height,
     )
 
 
 def _eq(latex: str) -> str:
-    return (
-        f'<div style="overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;'
-        f'text-align:center;margin:.7rem 0;">$${latex}$$</div>'
-    )
+    return f'<div class="eq">$${latex}$$</div>'
 
 
 # ─────────────────────────────────────────────────────────────────────────────
