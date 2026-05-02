@@ -126,7 +126,7 @@ _INPUT_MODE_LABELS: list[str] = [
 ]
 
 _PRESETS: dict[str, dict[str, Any]] = {
-    "Padrão — Krause 3 HP (2.2 kW) 220 V/60 Hz": {
+    "Padrão — Krause 3 HP (2.2 kW / 12 N·m) 220 V/60 Hz": {
         # Krause (2002) — motor de indução 220 V / 60 Hz / 4 polos / ~3 cv
         # Im0 ≈ 4.86 A  →  Im_sat = 2×Im0 ≈ 9.7 A (saturação moderada em partida)
         # Rfe = 400 Ω: perdas no ferro ≈ 3×(127²/400) ≈ 121 W (~5.5% de potência nominal)
@@ -139,7 +139,7 @@ _PRESETS: dict[str, dict[str, Any]] = {
         "exp_type": "Partida Direta (DOL)",
         "Tl_final": 12.0,
     },
-    "Usta (2024) — 0.37 kW 220 V/50 Hz": {
+    "Usta (2024) — 0.37 kW (2.4 N·m) 220 V/50 Hz": {
         # Motor de laboratório 220 V / 50 Hz / 4 polos / ~0.37 kW
         # Im0 = (220/√3) / Xm = 127/60.98 ≈ 2.08 A  →  Im_sat = 2×Im0 ≈ 4.2 A
         # Rfe = 800 Ω: motor pequeno com menor volume de ferro — perdas relativas menores
@@ -154,7 +154,7 @@ _PRESETS: dict[str, dict[str, Any]] = {
         "tmax": 1.0,
         "Tl_final": 2.4,
     },
-    "Krause 50 HP (37 kW) — 460 V/60 Hz": {
+    "Krause 50 HP (37 kW / 202 N·m) — 460 V/60 Hz": {
         # Krause (2002) — motor industrial médio porte, 460 V / 60 Hz / 4 polos / 50 cv
         # Im0 = (460/√3) / Xm = 265.6/13.08 ≈ 20.3 A  →  Im_sat = 2×Im0 ≈ 14.5 A (ajustado)
         # Rfe = 150 Ω: núcleo maior, perdas absolutas maiores mas Rfe menor
@@ -167,7 +167,7 @@ _PRESETS: dict[str, dict[str, Any]] = {
         "exp_type": "Partida Direta (DOL)",
         "Tl_final": 202.0,
     },
-    "Krause 2250 HP (1678 kW) — 2300 V/60 Hz": {
+    "Krause 2250 HP (1678 kW / 9180 N·m) — 2300 V/60 Hz": {
         # Krause (2002) — motor de grande porte, média tensão, 2300 V / 60 Hz / 4 polos
         # Im0 = (2300/√3) / Xm = 1328/13.04 ≈ 101.8 A  →  Im_sat ≈ 75 A (saturação moderada)
         # Rfe = 80 Ω: núcleo de grande volume, alta corrente de excitação
