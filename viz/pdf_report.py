@@ -205,8 +205,16 @@ def _build_pdf_page_fig(res: dict, var_keys: list, var_labels: list,
                     label=f"Regime RMS: {y_ss_rms:.2f}")
             ax.legend(fontsize=7, loc="upper right", framealpha=0.8)
 
-    fig.subplots_adjust(left=0.10, right=0.97, top=0.95, bottom=0.08,
+    fig.subplots_adjust(left=0.10, right=0.80, top=0.95, bottom=0.08,
                         hspace=0.75)
+    for ax in axes:
+        ax.tick_params(labelsize=14)
+        ax.set_xlabel(ax.get_xlabel(), fontsize=14)
+        ax.set_ylabel(ax.get_ylabel(), fontsize=14)
+        legend = ax.get_legend()
+        if legend is not None:
+            legend.set_bbox_to_anchor((1.02, 1))
+            legend.set_loc("upper left")
     return fig
 
 
@@ -427,7 +435,7 @@ def generate_pdf_report(exp_label: str, mp: MachineParams, res: dict,
                  border=0, ln=True)
         pdf.cell(50, 7, "  Frequência nominal:", border=0)
         pdf.cell(0, 7,
-                 f"{b_mp.f:.1f} Hz  |  n_s = {b_mp.n_sync:.1f} RPM",
+                 f"{b_mp.f:.1f} Hz",
                  border=0, ln=True)
         pdf.ln(5)
 
@@ -561,12 +569,8 @@ def generate_pdf_report(exp_label: str, mp: MachineParams, res: dict,
             ("Torque eletromagnético de regime (T[sub]e[/sub])",      f"{b_res['Te_ss']:.4f}",                      "N.m"),
             ("Torque eletromagnético máximo (T[sub]e,max[/sub])",     f"{float(np.max(b_res['Te'])):.4f}",          "N.m"),
             ("Escorregamento (s)",                                     f"{s_*100:.3f}",                              "%"),
-            ("Corrente RMS fase A (i[sub]as,rms[/sub])",              f"{b_res['ias_rms']:.4f}",                    "A"),
-            ("Corrente RMS fase B (i[sub]bs,rms[/sub])",              f"{b_res['ibs_rms']:.4f}",                    "A"),
-            ("Corrente RMS fase C (i[sub]cs,rms[/sub])",              f"{b_res['ics_rms']:.4f}",                    "A"),
-            ("Corrente de pico fase A (i[sub]as,pk[/sub])",           f"{float(np.max(np.abs(b_res['ias']))):.4f}", "A"),
-            ("Corrente de pico fase B (i[sub]bs,pk[/sub])",           f"{float(np.max(np.abs(b_res['ibs']))):.4f}", "A"),
-            ("Corrente de pico fase C (i[sub]cs,pk[/sub])",           f"{float(np.max(np.abs(b_res['ics']))):.4f}", "A"),
+            ("Corrente de linha RMS (i[sub]as,rms[/sub])",            f"{b_res['ias_rms']:.4f}",                    "A"),
+            ("Corrente de pico (i[sub]as,pk[/sub])",                  f"{float(np.max(np.abs(b_res['ias']))):.4f}", "A"),
             ("Potência de entrada (P[sub]in[/sub])",                  vi, ui),
             ("Potência no entreferro (P[sub]gap[/sub])",              vg, ug),
             ("Potência mecânica (P[sub]mec[/sub])",                   vm, um),
@@ -594,12 +598,12 @@ def generate_pdf_report(exp_label: str, mp: MachineParams, res: dict,
                 ("Potência de entrada em regime",           f"{_em['P_in_ss_kw']:.3f}",       "kW"),
                 ("Rendimento em regime permanente",         f"{_em['eta']:.2f}",              "%"),
                 ("Energia anual projetada (8.760 h/ano)",   f"{_em['P_in_ss_kw']*8760:.1f}", "kWh/ano"),
-                ("Custo operacional anual projetado",       f"R$ {_em['custo_ano']:,.2f}",    "-"),
+                ("Custo operacional anual projetado",       "R$ " + f"{_em['custo_ano']:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),    "-"),
             ], col_widths=[110, 45, 15], col_aligns=["L", "R", "L"])
             pdf.set_font("Helvetica", "I", 8)
             pdf.set_text_color(100, 100, 100)
             pdf.cell(0, 5, f"  Tarifa utilizada: R$ {b_tariff:.2f}/kWh  |  "
-                           "Projecao baseada em operacao continua de 8.760 h/ano.",
+                           "Projeção baseada em operação contínua de 8.760 h/ano.",
                      border=0, ln=True)
             pdf.ln(4)
 
@@ -664,7 +668,7 @@ def generate_pdf_report(exp_label: str, mp: MachineParams, res: dict,
                 ("Temperatura ao final da simulação",      f"{_T_fin:.1f}",          "°C"),
                 ("Elevação acima de T[sub]amb[/sub]",      f"{_T_max - _T_amb:.1f}", "°C"),
                 ("Temperatura ambiente (T[sub]amb[/sub])", f"{_T_amb:.1f}",          "°C"),
-                ("Resistência térmica (R[sub]th[/sub])",   f"{_Rth:.2f}",            "K/W"),
+                ("Resistência térmica (R[sub]th[/sub])",   f"{_Rth:.2e}",            "K/W"),
                 ("Capacitância térmica (C[sub]th[/sub])",  f"{_Cth:.1f}",            "J/K"),
                 ("Constante de tempo (tau[sub]th[/sub])",  f"{_Rth * _Cth:.0f}",    "s"),
                 ("Status de isolação (IEC 60085)",         _iso_status,              "-"),

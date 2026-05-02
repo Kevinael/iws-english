@@ -465,8 +465,8 @@ def render_machine_params(
             "Modelo de 1ª ordem: "
             "<i>dT/dt = (P<sub>joule</sub> + P<sub>fe</sub>) / C<sub>th</sub> "
             "− (T − T<sub>amb</sub>) / (R<sub>th</sub> · C<sub>th</sub>)</i>. "
-            "Por padrão R<sub>th</sub> e C<sub>th</sub> são calculados automaticamente "
-            "para ΔT = 105 K (Classe B) e τ = 300 s."
+            "Por padrão R<sub>th</sub> e C<sub>th</sub> são estimados automaticamente "
+            "por engenharia de materiais: massa do motor × c<sub>p</sub> do aço (460 J/kg·K)."
         )
         _th_override = st.checkbox(
             "Sobrescrever parâmetros térmicos manualmente",
@@ -487,43 +487,48 @@ def render_machine_params(
             Rgrid=Rgrid, Lgrid=Lgrid,
             Rth=0.0, Cth=0.0,
         )
-        if not _th_override:
-            _rth_fmt = f"{_mp_preview.Rth:.6f}" if _mp_preview.Rth < 0.01 else f"{_mp_preview.Rth:.4f}"
-            st.caption(
-                f"Auto: **Rth ≈ {_rth_fmt} K/W**  |  "
-                f"**Cth ≈ {_mp_preview.Cth:.1f} J/K**  |  "
-                f"τ = {_mp_preview.Rth * _mp_preview.Cth:.0f} s  |  "
-                f"T_regime ≈ {_mp_preview.T_amb + _mp_preview.Rth * max(_mp_preview.Cth / _mp_preview.Rth * 0.01, 1.0):.0f} °C (estimativa)"
-            )
         _th1, _th2 = st.columns(2)
-        with _th1:
-            _rth_preview = max(round(_mp_preview.Rth, 6), 0.0001)
-            Rth = st.number_input(
-                "$R_{th}$ (K/W)",
-                min_value=0.0001, max_value=100.0,
-                value=_rth_preview if not _th_override else 1.5,
-                step=0.0001, format="%.6f",
-                key=wk["Rth"],
-                disabled=dis or not _th_override,
-                help=(
-                    "Resistência térmica total motor→ambiente. "
-                    "Motores fechados (TEFC) ~1–3 K/W; abertos (DRIP) ~0.5–1.5 K/W."
-                ),
+        if not _th_override:
+            # Modo automático: exibe métricas calculadas pelo __post_init__
+            _tau_auto = _mp_preview.Rth * _mp_preview.Cth
+            _th1.metric("Rth calculado (K/W)", f"{_mp_preview.Rth:.4e}")
+            _th2.metric("Cth calculado (J/K)", f"{_mp_preview.Cth:,.0f}")
+            st.caption(
+                f"τ = Rth × Cth = **{_tau_auto:.0f} s** ({_tau_auto/60:.1f} min)  |  "
+                f"Massa estimada ≈ {_mp_preview.Cth / 460:.0f} kg"
             )
-        with _th2:
-            _cth_preview = min(max(round(_mp_preview.Cth, 1), 1.0), 5_000_000.0)
-            Cth = st.number_input(
-                "$C_{th}$ (J/K)",
-                min_value=1.0, max_value=5_000_000.0,
-                value=_cth_preview if not _th_override else 200.0,
-                step=10.0, format="%.1f",
-                key=wk["Cth"],
-                disabled=dis or not _th_override,
-                help=(
-                    "Capacitância térmica do conjunto estator+rotor. "
-                    "~100–500 J/K para motores de 1–10 cv; >100 kJ/K para grandes motores."
-                ),
-            )
+            # valores que serão usados no display de τ abaixo
+            Rth = _mp_preview.Rth
+            Cth = _mp_preview.Cth
+        else:
+            with _th1:
+                _rth_preview = max(round(_mp_preview.Rth, 6), 0.00001)
+                Rth = st.number_input(
+                    "$R_{th}$ (K/W)",
+                    min_value=0.00001, max_value=100.0,
+                    value=_rth_preview,
+                    step=0.0001, format="%.6f",
+                    key=wk["Rth"],
+                    disabled=dis,
+                    help=(
+                        "Resistência térmica total motor→ambiente. "
+                        "Motores fechados (TEFC) ~1–3 K/W; abertos (DRIP) ~0.5–1.5 K/W."
+                    ),
+                )
+            with _th2:
+                _cth_preview = min(max(round(_mp_preview.Cth, 1), 1.0), 10_000_000.0)
+                Cth = st.number_input(
+                    "$C_{th}$ (J/K)",
+                    min_value=1.0, max_value=10_000_000.0,
+                    value=_cth_preview,
+                    step=100.0, format="%.1f",
+                    key=wk["Cth"],
+                    disabled=dis,
+                    help=(
+                        "Capacitância térmica do conjunto estator+rotor. "
+                        "~500–5000 J/K para motores de 1–10 cv; >100 kJ/K para grandes motores."
+                    ),
+                )
         T_amb = st.number_input(
             "Temperatura ambiente $T_{amb}$ (°C)",
             min_value=-20.0, max_value=60.0, value=25.0, step=1.0, format="%.1f",
@@ -844,14 +849,7 @@ def render_experiment_config(
 
         h = st.number_input("Passo de integração — $h$ (s)", min_value=0.000001, max_value=0.1, value=0.0001, step=0.000001, format="%.6f", key=wk["h"])
         n_steps = int(tmax / h)
-        t_est_s = n_steps * 1.0e-4
-        if t_est_s < 1:
-            est_str = "< 1 s"
-        elif t_est_s < 60:
-            est_str = f"~{t_est_s:.0f} s"
-        else:
-            est_str = f"~{t_est_s/60:.1f} min"
-        st.caption(f"Total de passos: {n_steps:,}  ·  Tempo estimado: {est_str}")
+        st.caption(f"Total de passos: {n_steps:,}")
         if n_steps > 100_000:
             st.warning("Número elevado de passos. A simulação pode demorar vários segundos.")
         h_max_rec = 1.0 / (20.0 * mp.f)
