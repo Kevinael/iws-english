@@ -130,47 +130,55 @@ _PRESETS: dict[str, dict[str, Any]] = {
         # Krause (2002) — motor de indução 220 V / 60 Hz / 4 polos / ~3 cv
         # Im0 ≈ 4.86 A  →  Im_sat = 2×Im0 ≈ 9.7 A (saturação moderada em partida)
         # Rfe = 400 Ω: perdas no ferro ≈ 3×(127²/400) ≈ 121 W (~5.5% de potência nominal)
+        # T_nom = P_nom / ω_r = 2200 / (1746×π/30) ≈ 12 N·m
         "Vl": 220.0, "f": 60.0, "Rs": 0.435, "Rr": 0.816,
         "input_mode": "Reatâncias (Ω)  —  medidas em $f_{ref}$",
         "f_ref": 60.0, "Xm": 26.13, "Xls": 0.754, "Xlr": 0.754, "Rfe": 400.0,
         "p": 4, "J": 0.089, "B": 0.005,
         "sat_enable": True, "Im_sat": 9.7,
         "exp_type": "Partida Direta (DOL)",
+        "Tl_final": 12.0,
     },
     "Usta (2024) — 0.37 kW 220 V/50 Hz": {
         # Motor de laboratório 220 V / 50 Hz / 4 polos / ~0.37 kW
         # Im0 = (220/√3) / Xm = 127/60.98 ≈ 2.08 A  →  Im_sat = 2×Im0 ≈ 4.2 A
         # Rfe = 800 Ω: motor pequeno com menor volume de ferro — perdas relativas menores
+        # T_nom = 370 / (1455×π/30) ≈ 2.4 N·m
         "Vl": 220.0, "f": 50.0, "Rs": 2.65, "Rr": 2.85,
         "input_mode": "Reatâncias (Ω)  —  medidas em $f_{ref}$",
         "f_ref": 50.0, "Xm": 60.98, "Xls": 4.43, "Xlr": 5.69, "Rfe": 800.0,
         "p": 4, "J": 0.025, "B": 0.001,
         "sat_enable": False, "Im_sat": 4.2,
         "exp_type": "Pulso de Carga (aplica e retira)",
-        "Tl_pulso": 0.0, "Tl_pulso_abs": 10.0, "t_pulso_on": 0.6, "t_pulso_off": 0.8,
+        "Tl_pulso": 0.0, "Tl_pulso_abs": 2.4, "t_pulso_on": 0.6, "t_pulso_off": 0.8,
         "tmax": 1.0,
+        "Tl_final": 2.4,
     },
     "Krause 50 HP (37 kW) — 460 V/60 Hz": {
         # Krause (2002) — motor industrial médio porte, 460 V / 60 Hz / 4 polos / 50 cv
         # Im0 = (460/√3) / Xm = 265.6/13.08 ≈ 20.3 A  →  Im_sat = 2×Im0 ≈ 14.5 A (ajustado)
         # Rfe = 150 Ω: núcleo maior, perdas absolutas maiores mas Rfe menor
+        # T_nom = 37000 / (1746×π/30) ≈ 202 N·m
         "Vl": 460.0, "f": 60.0, "Rs": 0.087, "Rr": 0.228,
         "input_mode": "Reatâncias (Ω)  —  medidas em $f_{ref}$",
         "f_ref": 60.0, "Xm": 13.08, "Xls": 0.302, "Xlr": 0.302, "Rfe": 150.0,
         "p": 4, "J": 1.662, "B": 0.0,
         "sat_enable": True, "Im_sat": 14.5,
         "exp_type": "Partida Direta (DOL)",
+        "Tl_final": 202.0,
     },
     "Krause 2250 HP (1678 kW) — 2300 V/60 Hz": {
         # Krause (2002) — motor de grande porte, média tensão, 2300 V / 60 Hz / 4 polos
         # Im0 = (2300/√3) / Xm = 1328/13.04 ≈ 101.8 A  →  Im_sat ≈ 75 A (saturação moderada)
         # Rfe = 80 Ω: núcleo de grande volume, alta corrente de excitação
+        # T_nom = 1678000 / (1746×π/30) ≈ 9180 N·m
         "Vl": 2300.0, "f": 60.0, "Rs": 0.029, "Rr": 0.022,
         "input_mode": "Reatâncias (Ω)  —  medidas em $f_{ref}$",
         "f_ref": 60.0, "Xm": 13.04, "Xls": 0.226, "Xlr": 0.226, "Rfe": 80.0,
         "p": 4, "J": 63.87, "B": 0.0,
         "sat_enable": True, "Im_sat": 75.0,
         "exp_type": "Partida Direta (DOL)",
+        "Tl_final": 9180.0,
     },
 }
 
@@ -295,6 +303,7 @@ def render_machine_params(
                 "Rfe": wk["Rfe"], "p": wk["p"], "J": wk["J"], "B": wk["B"],
                 "sat_enable": wk["sat_enable"], "Im_sat": wk["Im_sat"],
                 "exp_type": wk["exp_type"],
+                "Tl_final": wk["Tl_final"],
                 "Tl_pulso": wk["Tl_pulso"],
                 "Tl_pulso_abs": wk["Tl_pulso_abs"],
                 "t_pulso_on": wk["t_pulso_on"],
