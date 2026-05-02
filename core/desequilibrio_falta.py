@@ -124,9 +124,11 @@ def render_desequilibrio_ui(config: dict, tmax: float = 2.0) -> None:
             st.warning("Uma fase em falta: operação bifásica — correntes muito elevadas. "
                        "Reduza o tempo de simulação.")
 
+        _tmax_deseq = float(tmax) if tmax > 0.0 else None
+        _val_deseq  = min(1.0, float(tmax) - 0.1) if (tmax > 0.0 and tmax <= 1.0) else 1.0
         t_deseq = st.number_input(
             "Instante de início do desequilíbrio (s)",
-            min_value=0.0, max_value=float(tmax), value=1.0, step=0.1, format="%.2f",
+            min_value=0.0, max_value=_tmax_deseq, value=_val_deseq, step=0.1, format="%.2f",
             help="O desequilíbrio começa a atuar neste instante. Use 0 para aplicar desde o início.",
         )
 

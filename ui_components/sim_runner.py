@@ -40,11 +40,31 @@ def execute_simulation_flow(
 
     vfn, tfn, t_events = build_fns(exp_config, mp)
 
-    _tmax_run = (
-        float(exp_config.get("_t_end_shutdown", tmax))
-        if exp_config.get("exp_type") == "shutdown"
-        else tmax
-    )
+    _exp_type = exp_config.get("exp_type", "")
+
+    if _exp_type == "shutdown":
+        _tmax_run = float(exp_config.get("_t_end_shutdown", tmax))
+    elif tmax <= 0.0:
+        # Cálculo automático: tempo do último evento + acomodação mecânica por inércia
+        if _exp_type == "dol":
+            _t_last = exp_config.get("t_carga", 1.0)
+        elif _exp_type in ("yd", "comp"):
+            _t_last = max(exp_config.get("t_2", 0.5), exp_config.get("t_carga", 1.0))
+        elif _exp_type == "soft":
+            _t_last = max(exp_config.get("t_pico", 5.0), exp_config.get("t_carga", 1.0))
+        elif _exp_type in ("carga", "pulso_carga"):
+            _t_last = exp_config.get("t_retirada", exp_config.get("t_carga", 1.0))
+        elif _exp_type == "gerador":
+            _t_last = exp_config.get("t_2", 1.0)
+        elif _exp_type == "voltage_sag":
+            _t_last = exp_config.get("t_start_sag", 0.5) + exp_config.get("t_duration_sag", 0.1)
+        else:
+            _t_last = 1.0
+        # Acomodação mecânica: clamp(15 * J, 2, 30) segundos
+        _t_acomo = float(min(max(15.0 * mp.J, 2.0), 30.0))
+        _tmax_run = _t_last + _t_acomo
+    else:
+        _tmax_run = tmax
 
     _deseq_a      = exp_config.get("deseq_a",      0.0)
     _deseq_b      = exp_config.get("deseq_b",      0.0)
