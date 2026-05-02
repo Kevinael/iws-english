@@ -124,23 +124,23 @@ class MachineParams:
             _Vfase = (self.Vl / np.sqrt(3.0))
             _Im0   = _Vfase / (self.wb * self.Lm) if self.Lm > 0 else 5.0
             self.Im_sat = 2.0 * _Im0
-        # Rth/Cth automáticos: estimativa termodinâmica baseada em massa e material
+        # Rth/Cth automáticos: circuito equivalente em T para s = 3% (escorregamento nominal)
         if self.Rth == 0.0 or self.Cth == 0.0:
-            _Vfase        = self.Vl / np.sqrt(3.0)
-            _I_rated      = _Vfase / np.sqrt(
-                (self.Rs + self.Rr) ** 2 + (self.Xls_a + self.Xlr_a) ** 2
-            )
-            _P_cu         = (self.Rs + self.Rr) * (_I_rated * 0.5) ** 2 * 3.0
-            _P_perdas_tot = max(_P_cu, 10.0)
+            _s_nom      = 0.03
+            _Vfase      = self.Vl / math.sqrt(3.0)
+            _Z_rotor    = complex(self.Rr / _s_nom, self.Xlr_a)
+            _Z_mag      = complex(0.0, self.Xml)
+            _Z_paralelo = (_Z_rotor * _Z_mag) / (_Z_rotor + _Z_mag)
+            _Z_total    = complex(self.Rs, self.Xls_a) + _Z_paralelo
+            _I_estator  = _Vfase / abs(_Z_total)
+            _I_rotor    = _I_estator * abs(_Z_mag / (_Z_rotor + _Z_mag))
+            _P_perdas   = max(3.0 * (self.Rs * _I_estator**2 + self.Rr * _I_rotor**2), 10.0)
+            _P_mec_kw   = max((3.0 * _I_rotor**2 * (self.Rr / _s_nom) * (1.0 - _s_nom)) / 1000.0, 0.5)
+            _massa      = _P_mec_kw * 15.0
             if self.Rth == 0.0:
-                self.Rth = max(105.0 / _P_perdas_tot, 1e-4)
+                self.Rth = 105.0 / _P_perdas
             if self.Cth == 0.0:
-                # Potência mecânica via escorregamento nominal ~3%
-                _s_nom    = 0.03
-                _P_mec    = 3.0 * (_I_rated ** 2) * self.Rr * (1.0 - _s_nom) / max(_s_nom, 1e-6)
-                _P_mec_kw = max(_P_mec / 1000.0, 0.1)
-                _massa    = _P_mec_kw * 13.5          # ~13,5 kg/kW (média industrial 12–15)
-                self.Cth  = max(_massa * 460.0, 50.0) # cp aço ≈ 460 J/(kg·K)
+                self.Cth = _massa * 460.0
 
     @property
     def n_sync(self) -> float:
