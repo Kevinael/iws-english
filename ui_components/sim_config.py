@@ -110,6 +110,7 @@ _WK: dict[str, str] = {
     "Cth":                  "wi_Cth",
     "T_amb":                "wi_T_amb",
     # estimador de placa
+    "param_source": "wi_param_source",
     "Pn_kW":    "wi_Pn_kW",
     "N_nom":    "wi_N_nom",
     "rend":     "wi_rend",
@@ -132,7 +133,11 @@ _DEFAULTS: dict[str, float | int] = dict(
 _INPUT_MODE_LABELS: list[str] = [
     "Reatâncias (Ω)  —  medidas em $f_{ref}$",
     "Indutâncias (H)  —  independentes de frequência",
-    "Dados de Placa (Estimador)",
+]
+
+_PARAM_SOURCE_LABELS: list[str] = [
+    "Inserir parâmetros manualmente",
+    "Estimar por dados de placa (Nameplate)",
 ]
 
 _PRESETS: dict[str, dict[str, Any]] = {
@@ -331,51 +336,28 @@ def render_machine_params(
 
     dis = experiment_mode
 
-    # ── Elétricos ─────────────────────────────────────────────────────────
-    _pgroup("Dados Elétricos")
-    Vl = st.number_input("Tensão de linha RMS — $V_l$ (V)",               min_value=50.0,  max_value=15000.0, value=_DEFAULTS["Vl"],  step=1.0,   key=wk["Vl"],  disabled=dis)
-    f  = st.number_input("Frequência da rede — $f$ (Hz)",                min_value=1.0,   max_value=400.0,   value=_DEFAULTS["f"],   step=1.0,   key=wk["f"],   disabled=dis)
-    Rs = st.number_input("Resistência do estator — $R_s$ (Ω)",           min_value=0.0001, max_value=100.0,   value=_DEFAULTS["Rs"],  step=0.001, key=wk["Rs"],  format="%.3f", disabled=dis)
-    Rr = st.number_input("Resistência do rotor — $R_r$ (Ω)",             min_value=0.0001, max_value=100.0,   value=_DEFAULTS["Rr"],  step=0.001, key=wk["Rr"],  format="%.3f", disabled=dis)
-
-    input_mode_label = st.radio(
-        "Modo de entrada dos parâmetros magnéticos",
-        _INPUT_MODE_LABELS,
+    # ── Seleção da fonte de parâmetros ────────────────────────────────────
+    param_source_label = st.radio(
+        "Fonte dos parâmetros do motor",
+        _PARAM_SOURCE_LABELS,
         index=0,
-        key=wk["input_mode"],
+        key=wk["param_source"],
         disabled=dis,
         horizontal=True,
     )
-    if input_mode_label.startswith("Reatâncias"):
-        input_mode = "X"
-    elif input_mode_label.startswith("Indutâncias"):
-        input_mode = "L"
-    else:
-        input_mode = "PLACA"
-    input_mode_original = input_mode  # preservar antes de qualquer sobrescrita
+    use_placa = param_source_label.startswith("Estimar")
+    input_mode_original = "PLACA" if use_placa else "MANUAL"
+    Cth_placa: float | None = None
 
-    Cth_placa: float | None = None  # preenchido apenas no modo PLACA
+    if use_placa:
+        # ══════════════════════════════════════════════════════════════════
+        # MODO PLACA — todos os parâmetros deduzidos da nameplate
+        # ══════════════════════════════════════════════════════════════════
+        _pgroup("Dados de Rede")
+        Vl = st.number_input("Tensão de linha RMS — $V_l$ (V)", min_value=50.0, max_value=15000.0, value=_DEFAULTS["Vl"], step=1.0, key=wk["Vl"], disabled=dis)
+        f  = st.number_input("Frequência da rede — $f$ (Hz)",   min_value=1.0,  max_value=400.0,   value=_DEFAULTS["f"],  step=1.0, key=wk["f"],  disabled=dis)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    if input_mode == "X":
-        f_ref = st.number_input(
-            "Frequência de referência dos ensaios — $f_{ref}$ (Hz)",
-            min_value=1.0, max_value=400.0, value=60.0, step=1.0,
-            key=wk["f_ref"],
-            help="Frequência em que $X_m$, $X_{ls}$ e $X_{lr}$ foram medidos (tipicamente 50 Hz ou 60 Hz).",
-            disabled=dis,
-        )
-        Xm  = st.number_input("Reatância de magnetização — $X_m$ (Ω)",            min_value=0.0001,   max_value=500.0,   value=_DEFAULTS["Xm"],  step=0.01,  key=wk["Xm"],  format="%.2f", disabled=dis)
-        Xls = st.number_input("Reatância de dispersão do estator — $X_{ls}$ (Ω)", min_value=0.0001, max_value=50.0,    value=_DEFAULTS["Xls"], step=0.001, key=wk["Xls"], format="%.3f", disabled=dis)
-        Xlr = st.number_input("Reatância de dispersão do rotor — $X_{lr}$ (Ω)",   min_value=0.0001, max_value=50.0,    value=_DEFAULTS["Xlr"], step=0.001, key=wk["Xlr"], format="%.3f", disabled=dis)
-    elif input_mode == "L":
-        f_ref  = 60.0
-        _wb_ref = 2.0 * 3.141592653589793 * 60.0
-        Xm  = st.number_input("Indutância de magnetização — $L_m$ (H)",            min_value=1e-6, max_value=10.0, value=round(_DEFAULTS["Xm"]  / _wb_ref, 6), step=0.0001, key=wk["Xm_L"],  format="%.6f", disabled=dis)
-        Xls = st.number_input("Indutância de dispersão do estator — $L_{ls}$ (H)", min_value=1e-6, max_value=1.0,  value=round(_DEFAULTS["Xls"] / _wb_ref, 6), step=0.0001, key=wk["Xls_L"], format="%.6f", disabled=dis)
-        Xlr = st.number_input("Indutância de dispersão do rotor — $L_{lr}$ (H)",   min_value=1e-6, max_value=1.0,  value=round(_DEFAULTS["Xlr"] / _wb_ref, 6), step=0.0001, key=wk["Xlr_L"], format="%.6f", disabled=dis)
-    else:  # PLACA
-        f_ref = f  # parâmetros estimados são reatâncias em f
-        # ── Inputs de placa ───────────────────────────────────────────────
         _pgroup("Dados de Placa (Nameplate)")
         Pn_kW = st.number_input(
             "Potência nominal no eixo (kW)",
@@ -387,16 +369,16 @@ def render_machine_params(
             "Velocidade nominal (RPM)",
             min_value=1.0, max_value=60000.0, value=1746.0, step=1.0, format="%.0f",
             key=wk["N_nom"], disabled=dis,
-            help="Rotação em plena carga nominal (valor da placa). O número de polos é deduzido automaticamente.",
+            help="Rotação em plena carga nominal. O número de polos é deduzido automaticamente.",
         )
         rend_placa = st.number_input(
-            "Rendimento nominal (ex: 0.91)",
+            "Rendimento nominal η (ex: 0.91)",
             min_value=0.01, max_value=0.999, value=0.85, step=0.01, format="%.3f",
             key=wk["rend"], disabled=dis,
             help="Eficiência em plena carga — η = P_eixo / P_elétrica.",
         )
         fp_placa = st.number_input(
-            "Fator de potência nominal (ex: 0.85)",
+            "Fator de potência nominal cos(φ) (ex: 0.85)",
             min_value=0.01, max_value=0.999, value=0.85, step=0.01, format="%.3f",
             key=wk["fp_placa"], disabled=dis,
             help="cos(φ) em plena carga nominal.",
@@ -420,27 +402,17 @@ def render_machine_params(
         )
         st.markdown('</div>', unsafe_allow_html=True)
 
-        resultado = estimate_params(
-            Vl, f, 0, Pn_kW, N_nom, rend_placa, fp_placa, Ip_In, Tp_Tn,
-            is_delta=is_delta,
-        )
+        resultado = estimate_params(Vl, f, 0, Pn_kW, N_nom, rend_placa, fp_placa, Ip_In, Tp_Tn, is_delta=is_delta)
 
         if not resultado["success"]:
-            st.error(
-                f"⚠️ Dados de placa inconsistentes: {resultado['error']}  "
-                "Verifique os valores inseridos. Parâmetros padrão (Krause 3 HP) serão usados."
-            )
-            # Fallback seguro — valores Krause 3 HP
+            st.error(f"⚠️ Dados de placa inconsistentes: {resultado['error']}  Parâmetros padrão (Krause 3 HP) serão usados.")
             Rs, Rr, Xm, Xls, Xlr = 0.435, 0.816, 26.13, 0.754, 0.754
-            input_mode = "X"
         else:
-            Rs        = resultado["Rs"]
-            Rr        = resultado["Rr"]
-            Xm        = resultado["Xm"]
-            Xls       = resultado["Xls"]
-            Xlr       = resultado["Xlr"]
+            Rs, Rr  = resultado["Rs"],  resultado["Rr"]
+            Xm      = resultado["Xm"]
+            Xls     = resultado["Xls"]
+            Xlr     = resultado["Xlr"]
             Cth_placa = resultado["Cth"]
-            input_mode = "X"  # MachineParams recebe reatâncias em f
 
             ligacao = "Triângulo (Δ)" if is_delta else "Estrela (Y)"
             with st.expander("ℹ️ Como esses parâmetros foram estimados?", expanded=True):
@@ -463,24 +435,65 @@ def render_machine_params(
                 c2.metric("Escorregamento sₙ (Estimado)",   f"{resultado['s_n']*100:.2f}%")
                 c3.metric("Corrente nominal Iₙ (Estimado)", f"{resultado['In_lin']:.2f} A")
                 c4.metric("Torque nominal Tₙ (Estimado)",   f"{resultado['Tn']:.2f} N·m")
-
                 c5, c6, c7, c8 = st.columns(4)
                 c5.metric("Corrente partida Iₚ (Estimado)", f"{resultado['Ip_fase']:.2f} A")
                 c6.metric("Torque partida Tₚ (Estimado)",   f"{resultado['Tp']:.2f} N·m")
                 c7.metric("Zₖ (Estimado)",                  f"{resultado['Zk']:.4f} Ω")
                 c8.metric("Xₖ (Estimado)",                  f"{resultado['Xk']:.4f} Ω")
-
                 st.markdown("**Parâmetros do circuito equivalente estimados:**")
                 p1, p2, p3, p4, p5 = st.columns(5)
-                p1.metric("Rₛ (Estimado)",   f"{Rs:.4f} Ω")
-                p2.metric("Rᵣ (Estimado)",   f"{Rr:.4f} Ω")
-                p3.metric("Xₘ (Estimado)",   f"{Xm:.4f} Ω")
-                p4.metric("Xls (Estimado)",  f"{Xls:.4f} Ω")
-                p5.metric("Xlr (Estimado)",  f"{Xlr:.4f} Ω")
+                p1.metric("Rₛ (Estimado)",  f"{Rs:.4f} Ω")
+                p2.metric("Rᵣ (Estimado)",  f"{Rr:.4f} Ω")
+                p3.metric("Xₘ (Estimado)",  f"{Xm:.4f} Ω")
+                p4.metric("Xls (Estimado)", f"{Xls:.4f} Ω")
+                p5.metric("Xlr (Estimado)", f"{Xlr:.4f} Ω")
 
-    Rfe = st.number_input("Resistência de perdas no ferro — $R_{fe}$ (Ω)", min_value=10.0, max_value=10000.0, value=_DEFAULTS["Rfe"], step=10.0, key=wk["Rfe"], format="%.1f", disabled=dis)
-    st.caption("$R_{fe}$ afeta tanto a dinâmica do ODE (correntes de perda no ferro) quanto o balanço de potências em regime permanente.")
-    st.markdown('</div>', unsafe_allow_html=True)
+        # Parâmetros fixos para MachineParams no modo placa
+        f_ref      = f
+        input_mode = "X"
+        Rfe        = _DEFAULTS["Rfe"]
+
+    else:
+        # ══════════════════════════════════════════════════════════════════
+        # MODO MANUAL — parâmetros inseridos diretamente pelo usuário
+        # ══════════════════════════════════════════════════════════════════
+        _pgroup("Dados Elétricos")
+        Vl = st.number_input("Tensão de linha RMS — $V_l$ (V)",               min_value=50.0,   max_value=15000.0, value=_DEFAULTS["Vl"],  step=1.0,   key=wk["Vl"],  disabled=dis)
+        f  = st.number_input("Frequência da rede — $f$ (Hz)",                 min_value=1.0,    max_value=400.0,   value=_DEFAULTS["f"],   step=1.0,   key=wk["f"],   disabled=dis)
+        Rs = st.number_input("Resistência do estator — $R_s$ (Ω)",            min_value=0.0001, max_value=100.0,   value=_DEFAULTS["Rs"],  step=0.001, key=wk["Rs"],  format="%.3f", disabled=dis)
+        Rr = st.number_input("Resistência do rotor — $R_r$ (Ω)",              min_value=0.0001, max_value=100.0,   value=_DEFAULTS["Rr"],  step=0.001, key=wk["Rr"],  format="%.3f", disabled=dis)
+
+        input_mode_label = st.radio(
+            "Formato dos parâmetros magnéticos",
+            _INPUT_MODE_LABELS,
+            index=0,
+            key=wk["input_mode"],
+            disabled=dis,
+            horizontal=True,
+        )
+        input_mode = "X" if input_mode_label.startswith("Reatâncias") else "L"
+
+        if input_mode == "X":
+            f_ref = st.number_input(
+                "Frequência de referência dos ensaios — $f_{ref}$ (Hz)",
+                min_value=1.0, max_value=400.0, value=60.0, step=1.0,
+                key=wk["f_ref"],
+                help="Frequência em que $X_m$, $X_{ls}$ e $X_{lr}$ foram medidos (tipicamente 50 Hz ou 60 Hz).",
+                disabled=dis,
+            )
+            Xm  = st.number_input("Reatância de magnetização — $X_m$ (Ω)",            min_value=0.0001, max_value=500.0, value=_DEFAULTS["Xm"],  step=0.01,  key=wk["Xm"],  format="%.2f", disabled=dis)
+            Xls = st.number_input("Reatância de dispersão do estator — $X_{ls}$ (Ω)", min_value=0.0001, max_value=50.0,  value=_DEFAULTS["Xls"], step=0.001, key=wk["Xls"], format="%.3f", disabled=dis)
+            Xlr = st.number_input("Reatância de dispersão do rotor — $X_{lr}$ (Ω)",   min_value=0.0001, max_value=50.0,  value=_DEFAULTS["Xlr"], step=0.001, key=wk["Xlr"], format="%.3f", disabled=dis)
+        else:
+            f_ref   = 60.0
+            _wb_ref = 2.0 * 3.141592653589793 * 60.0
+            Xm  = st.number_input("Indutância de magnetização — $L_m$ (H)",            min_value=1e-6, max_value=10.0, value=round(_DEFAULTS["Xm"]  / _wb_ref, 6), step=0.0001, key=wk["Xm_L"],  format="%.6f", disabled=dis)
+            Xls = st.number_input("Indutância de dispersão do estator — $L_{ls}$ (H)", min_value=1e-6, max_value=1.0,  value=round(_DEFAULTS["Xls"] / _wb_ref, 6), step=0.0001, key=wk["Xls_L"], format="%.6f", disabled=dis)
+            Xlr = st.number_input("Indutância de dispersão do rotor — $L_{lr}$ (H)",   min_value=1e-6, max_value=1.0,  value=round(_DEFAULTS["Xlr"] / _wb_ref, 6), step=0.0001, key=wk["Xlr_L"], format="%.6f", disabled=dis)
+
+        Rfe = st.number_input("Resistência de perdas no ferro — $R_{fe}$ (Ω)", min_value=10.0, max_value=10000.0, value=_DEFAULTS["Rfe"], step=10.0, key=wk["Rfe"], format="%.1f", disabled=dis)
+        st.caption("$R_{fe}$ afeta tanto a dinâmica do ODE (correntes de perda no ferro) quanto o balanço de potências em regime permanente.")
+        st.markdown('</div>', unsafe_allow_html=True)
 
     # ── Mecânicos ─────────────────────────────────────────────────────────
     _pgroup("Dados Mecânicos e Referencial")
