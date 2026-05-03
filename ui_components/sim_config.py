@@ -328,6 +328,7 @@ def render_machine_params(
             for key, widget_key in _wk_preset.items():
                 if key in pdata:
                     st.session_state[widget_key] = pdata[key]
+            st.session_state[wk["param_source"]] = _PARAM_SOURCE_LABELS[0]
             st.session_state["_reset_preset_select"] = True
             st.rerun()
 
