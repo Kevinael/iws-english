@@ -356,6 +356,11 @@ def render_machine_params(
         _pgroup("Dados de Rede")
         Vl = st.number_input("Tensão de linha RMS — $V_l$ (V)", min_value=50.0, max_value=15000.0, value=_DEFAULTS["Vl"], step=1.0, key=wk["Vl"], disabled=dis)
         f  = st.number_input("Frequência da rede — $f$ (Hz)",   min_value=1.0,  max_value=400.0,   value=_DEFAULTS["f"],  step=1.0, key=wk["f"],  disabled=dis)
+        is_delta = st.checkbox(
+            "Ligação em Triângulo (Δ) — desmarque para Estrela (Y)",
+            value=False, key=wk["is_delta"], disabled=dis,
+            help="Afeta a tensão de fase e a corrente de fase usadas no cálculo do circuito equivalente.",
+        )
         st.markdown('</div>', unsafe_allow_html=True)
 
         _pgroup("Dados de Placa (Nameplate)")
@@ -394,11 +399,6 @@ def render_machine_params(
             min_value=0.1, max_value=5.0, value=1.5, step=0.1, format="%.2f",
             key=wk["Tp_Tn"], disabled=dis,
             help="Torque de partida (s=1) em múltiplos do torque nominal (tipicamente 1.0–2.0 para NEMA B).",
-        )
-        is_delta = st.checkbox(
-            "Ligação em Triângulo (Δ) — desmarque para Estrela (Y)",
-            value=False, key=wk["is_delta"], disabled=dis,
-            help="Afeta a tensão de fase e a corrente de fase usadas no cálculo do circuito equivalente.",
         )
         st.markdown('</div>', unsafe_allow_html=True)
 
