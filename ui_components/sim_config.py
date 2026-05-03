@@ -406,7 +406,7 @@ def render_machine_params(
         resultado = estimate_params(Vl, f, 0, Pn_kW, N_nom, rend_placa, fp_placa, Ip_In, Tp_Tn, is_delta=is_delta)
 
         if not resultado["success"]:
-            st.error(f"⚠️ Dados de placa inconsistentes: {resultado['error']}  Parâmetros padrão (Krause 3 HP) serão usados.")
+            st.error(f"Dados de placa inconsistentes: {resultado['error']}  Parâmetros padrão (Krause 3 HP) serão usados.")
             Rs, Rr, Xm, Xls, Xlr = 0.435, 0.816, 26.13, 0.754, 0.754
         else:
             Rs, Rr  = resultado["Rs"],  resultado["Rr"]
@@ -416,7 +416,7 @@ def render_machine_params(
             Cth_placa = resultado["Cth"]
 
             ligacao = "Triângulo (Δ)" if is_delta else "Estrela (Y)"
-            with st.expander("ℹ️ Como esses parâmetros foram estimados?", expanded=True):
+            with st.expander("Como esses parâmetros foram estimados?", expanded=True):
                 st.info(
                     f"**Método:** IEEE circuito equivalente em T — regime permanente.\n\n"
                     f"**Ligação assumida:** {ligacao}  "
@@ -519,7 +519,7 @@ def render_machine_params(
     _Im0_sat        = round(_Vfase_sat / (_wb_sat * _Lm_sat), 2) if _Lm_sat > 0 else 5.0
     _Im_sat_default = round(2.0 * _Im0_sat, 1)
 
-    with st.expander("⚙️ Parâmetros Avançados (IAS/Industrial)", expanded=False):
+    with st.expander("Parâmetros Avançados (IAS/Industrial)", expanded=False):
         # ── Saturação Magnética ──────────────────────────────────────────
         _pgroup("Saturação Magnética")
         sat_enable = st.checkbox(
@@ -605,7 +605,7 @@ def render_machine_params(
         st.markdown('</div>', unsafe_allow_html=True)
 
         # ── Modelagem Térmica ────────────────────────────────────────────
-        _pgroup("🌡 Modelagem Térmica")
+        _pgroup("Modelagem Térmica")
         _ibox(
             "Modelo de 1ª ordem: "
             "<i>dT/dt = (P<sub>joule</sub> + P<sub>fe</sub>) / C<sub>th</sub> "
@@ -798,7 +798,7 @@ def render_experiment_config(
         )
         # ── Gêmeo Digital: Barra Quebrada ─────────────────────────────
         st.write("")
-        with st.expander("🔩 Gêmeo Digital — Falha de Barra Quebrada", expanded=False):
+        with st.expander("Gemeo Digital — Falha de Barra Quebrada", expanded=False):
             _ibox(
                 "Modela a falha introduzindo oscilação em $R_r$ à freq. de escorregamento: "
                 "$R_r(t) = R_r \\cdot (1 + \\alpha \\cdot \\cos(2s\\omega_b t))$. "
@@ -885,10 +885,10 @@ def render_experiment_config(
         _ibox(
             "A tensão cai a zero em <i>t<sub>des</sub></i>, simulando abertura do contator ou falta de rede. "
             "A carga mecânica permanece ativa e freia o rotor até a parada completa (ω<sub>r</sub> travado em 0).<br><br>"
-            f"⏱ <strong>Tempo de parada analítico (pós-corte): {_t_stop_mec:.2f} s</strong>"
+            f"<strong>Tempo de parada analítico (pós-corte): {_t_stop_mec:.2f} s</strong>"
             f" &nbsp;— calculado por "
             f"t<sub>stop</sub> = (J/B)·ln(1 + B·ω₀/T<sub>L</sub>)<br>"
-            f"⏱ <strong>t<sub>end</sub> automático: {_t_end_sd:.2f} s</strong>"
+            f"<strong>t<sub>end</sub> automático: {_t_end_sd:.2f} s</strong>"
             f" &nbsp;(t<sub>des</sub> + t<sub>stop</sub> × 1,2 — 20% de margem)<br>"
             "O torque eletromagnético decai em milissegundos (transitório elétrico); "
             "a velocidade segue a equação mecânica acima."

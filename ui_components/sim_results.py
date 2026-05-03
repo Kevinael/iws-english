@@ -321,7 +321,7 @@ def render_ref_panel() -> None:
             )
             _ref["dash"] = _dash_opts[_sel]
         with _c4:
-            if st.button("✕", key=f"ref_del_{_i}", help="Remover esta referência"):
+            if st.button("x", key=f"ref_del_{_i}", help="Remover esta referência"):
                 st.session_state["ref_list"].pop(_i)
                 st.rerun()
 
@@ -627,7 +627,7 @@ def render_results(
                         annotation_font_size=9,
                     )
                 st.caption(
-                    f"⚠ Barra quebrada ativa (α={_alpha:.2f}) — "
+                    f"Barra quebrada ativa (alfa={_alpha:.2f}) — "
                     f"componentes laterais em **(1±2s)f**: "
                     f"{_sb_lo:.1f} Hz e {_sb_hi:.1f} Hz (s={_s_val*100:.2f}%)."
                 )
@@ -714,12 +714,12 @@ def render_results(
 
             if _T_max > 180.0:
                 st.error(
-                    f"⚠ SOBREAQUECIMENTO CRÍTICO: T_max = {_T_max:.1f}°C excede a Classe H "
+                    f"SOBREAQUECIMENTO CRITICO: T_max = {_T_max:.1f}°C excede a Classe H "
                     f"(180°C). Risco iminente de queima do isolamento (IEC 60085)."
                 )
             elif _T_max > 155.0:
                 st.error(
-                    f"⚠ Sobreaquecimento: T_max = {_T_max:.1f}°C excede o limite da Classe F "
+                    f"Sobreaquecimento: T_max = {_T_max:.1f}°C excede o limite da Classe F "
                     f"(155°C — IEC 60085). Risco de degradação prematura do isolamento."
                 )
             elif _T_max > 130.0:
