@@ -131,7 +131,18 @@ def estimate_params(
         I_mu = In_fase * math.sqrt(max(1.0 - fp ** 2, 1e-6))
         Xm   = max(E1 / I_mu - Xls, 1e-3)
 
-        # ── 8. Inércia térmica — heurística NEMA/IEC TEFC (premissa 7) ────
+        # ── 8. Resistência de perdas no ferro — heurística de distribuição ──
+        # Sem ensaio a vazio não é possível isolar Pfe das demais perdas.
+        # Heurística estatística NEMA/IEC: perdas no núcleo ≈ 20% das perdas
+        # totais em regime nominal (faixa típica: 15–25% para motores TEFC).
+        # Pfe é então referida à tensão no entreferro E1 (não a Vf) para
+        # manter consistência com o modelo de circuito equivalente em T.
+        P_perdas_totais = max(P_in - Pn_W, 1.0)        # W — perdas totais
+        P_fe_total  = P_perdas_totais * 0.20            # W — 20% para o ferro
+        P_fe_fase   = P_fe_total / 3.0                  # W por fase
+        Rfe = (E1 ** 2) / P_fe_fase                     # Ω — por fase
+
+        # ── 9. Inércia térmica — heurística NEMA/IEC TEFC ─────────────────
         # Regra industrial: 15 kg por kW instalado (carcaça + enrolamentos + rotor).
         # Cp do aço ≈ 460 J/(kg·K) — valor dominante da massa ativa.
         Massa = Pn_kW * 15.0                            # kg
@@ -144,8 +155,10 @@ def estimate_params(
             "Xm":      round(Xm,      4),
             "Xls":     round(Xls,     5),
             "Xlr":     round(Xlr,     5),
+            "Rfe":     round(Rfe,     2),
             "Cth":     round(Cth,     1),
             "Massa":   round(Massa,   1),
+            "P_fe_total": round(P_fe_total, 1),
             # grandezas intermediárias para o card de transparência
             "p_est":   p_est,
             "n_s":     round(n_s,     1),

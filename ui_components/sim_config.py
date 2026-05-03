@@ -408,11 +408,13 @@ def render_machine_params(
         if not resultado["success"]:
             st.error(f"Dados de placa inconsistentes: {resultado['error']}  Parâmetros padrão (Krause 3 HP) serão usados.")
             Rs, Rr, Xm, Xls, Xlr = 0.435, 0.816, 26.13, 0.754, 0.754
+            Rfe = _DEFAULTS["Rfe"]
         else:
-            Rs, Rr  = resultado["Rs"],  resultado["Rr"]
-            Xm      = resultado["Xm"]
-            Xls     = resultado["Xls"]
-            Xlr     = resultado["Xlr"]
+            Rs, Rr    = resultado["Rs"],  resultado["Rr"]
+            Xm        = resultado["Xm"]
+            Xls       = resultado["Xls"]
+            Xlr       = resultado["Xlr"]
+            Rfe       = resultado["Rfe"]
             Cth_placa = resultado["Cth"]
 
             ligacao = "Triângulo (Δ)" if is_delta else "Estrela (Y)"
@@ -426,7 +428,8 @@ def render_machine_params(
                     f"- Fator de potência na partida: cos(φₚ) = 0,20\n"
                     f"- Tensão no entreferro: $E_1 \\approx V_f - I_n \\cdot |Z_s|$ "
                     f"= {resultado['E1']:.2f} V (queda estatórica subtraída)\n"
-                    f"- $R_{{fe}}$ não estimado — use o valor padrão (500 Ω)\n\n"
+                    f"- $R_{{fe}}$ estimado por heurística: perdas no ferro ≈ 20% das perdas totais "
+                    f"({resultado['P_fe_total']:.1f} W) referidas a $E_1$ → $R_{{fe}}$ = {Rfe:.1f} Ω\n\n"
                     f"**Premissa térmica (NEMA MG-1 / IEC 60034 — TEFC):**  \n"
                     f"Massa ≈ {resultado['Massa']:.0f} kg (15 kg/kW) "
                     f"× $c_p$ aço (460 J/kg·K) → $C_{{th}}$ = {resultado['Cth']:,.0f} J/K."
@@ -442,17 +445,17 @@ def render_machine_params(
                 c7.metric("Zₖ (Estimado)",                  f"{resultado['Zk']:.4f} Ω")
                 c8.metric("Xₖ (Estimado)",                  f"{resultado['Xk']:.4f} Ω")
                 st.markdown("**Parâmetros do circuito equivalente estimados:**")
-                p1, p2, p3, p4, p5 = st.columns(5)
+                p1, p2, p3, p4, p5, p6 = st.columns(6)
                 p1.metric("Rₛ (Estimado)",  f"{Rs:.4f} Ω")
                 p2.metric("Rᵣ (Estimado)",  f"{Rr:.4f} Ω")
                 p3.metric("Xₘ (Estimado)",  f"{Xm:.4f} Ω")
                 p4.metric("Xls (Estimado)", f"{Xls:.4f} Ω")
                 p5.metric("Xlr (Estimado)", f"{Xlr:.4f} Ω")
+                p6.metric("Rfe (Estimado)", f"{Rfe:.1f} Ω")
 
         # Parâmetros fixos para MachineParams no modo placa
         f_ref      = f
         input_mode = "X"
-        Rfe        = _DEFAULTS["Rfe"]
 
     else:
         # ══════════════════════════════════════════════════════════════════
