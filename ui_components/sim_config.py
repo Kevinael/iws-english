@@ -421,7 +421,7 @@ def render_machine_params(
         st.markdown('</div>', unsafe_allow_html=True)
 
         resultado = estimate_params(
-            Vl, f, p, Pn_kW, N_nom, rend_placa, fp_placa, Ip_In, Tp_Tn,
+            Vl, f, 0, Pn_kW, N_nom, rend_placa, fp_placa, Ip_In, Tp_Tn,
             is_delta=is_delta,
         )
 
