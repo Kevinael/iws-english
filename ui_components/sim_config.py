@@ -187,13 +187,14 @@ _PRESETS: dict[str, dict[str, Any]] = {
         # Im0 = (2300/√3) / Xm = 1328/13.04 ≈ 101.8 A  →  Im_sat ≈ 75 A (saturação moderada)
         # Rfe = 80 Ω: núcleo de grande volume, alta corrente de excitação
         # T_nom = 1678000 / (1746×π/30) ≈ 9180 N·m
+        # t_carga = 8 s: J = 63.87 kg·m² exige ~6–8 s para atingir 95% de n_s em DOL
         "Vl": 2300.0, "f": 60.0, "Rs": 0.029, "Rr": 0.022,
         "input_mode": "Reatâncias (Ω)  —  medidas em $f_{ref}$",
         "f_ref": 60.0, "Xm": 13.04, "Xls": 0.226, "Xlr": 0.226, "Rfe": 80.0,
-        "p": 4, "J": 63.87, "B": 0.0,
+        "p": 4, "J": 63.87, "B": 0.05,
         "sat_enable": True, "Im_sat": 75.0,
         "exp_type": "Partida Direta (DOL)",
-        "Tl_final": 9180.0,
+        "Tl_final": 9180.0, "t_carga": 8.0,
     },
 }
 
@@ -323,6 +324,7 @@ def render_machine_params(
                 "Tl_pulso_abs": wk["Tl_pulso_abs"],
                 "t_pulso_on": wk["t_pulso_on"],
                 "t_pulso_off": wk["t_pulso_off"],
+                "t_carga": wk["t_carga"],
                 "tmax": wk["tmax"],
             }
             for key, widget_key in _wk_preset.items():

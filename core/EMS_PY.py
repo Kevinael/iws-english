@@ -785,6 +785,13 @@ def run_simulation(
     wr_mec = wr_e / (mp.p / 2.0)
     n_rpm  = wr_e * 60.0 / (np.pi * mp.p)
 
+    # Motores não podem inverter o sentido de rotação por conta própria: clamp wr ≥ 0.
+    # Em modo gerador (wr pode ser negativo no sinal de Tl) este clamp não se aplica,
+    # mas run_simulation não distingue — o clamp é conservador e fisicamente seguro
+    # para todos os experimentos de motor (DOL, Y/D, soft, carga, shutdown).
+    wr_mec = np.maximum(wr_mec, 0.0)
+    n_rpm  = np.maximum(n_rpm,  0.0)
+
     arr = {
         "t":    t_values,
         "wr":   wr_mec,
