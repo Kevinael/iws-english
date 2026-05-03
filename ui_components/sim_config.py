@@ -22,6 +22,7 @@ import streamlit as st
 
 from core.EMS_PY import MachineParams
 from core.desequilibrio_falta import render_desequilibrio_ui
+from core.param_estimator import estimate_params
 from ui.theme import _palette
 
 
@@ -108,6 +109,14 @@ _WK: dict[str, str] = {
     "Rth":                  "wi_Rth",
     "Cth":                  "wi_Cth",
     "T_amb":                "wi_T_amb",
+    # estimador de placa
+    "Pn_kW":    "wi_Pn_kW",
+    "N_nom":    "wi_N_nom",
+    "rend":     "wi_rend",
+    "fp_placa": "wi_fp_placa",
+    "Ip_In":    "wi_Ip_In",
+    "Tp_Tn":    "wi_Tp_Tn",
+    "is_delta": "wi_is_delta",
 }
 
 
@@ -123,6 +132,7 @@ _DEFAULTS: dict[str, float | int] = dict(
 _INPUT_MODE_LABELS: list[str] = [
     "Reatâncias (Ω)  —  medidas em $f_{ref}$",
     "Indutâncias (H)  —  independentes de frequência",
+    "Dados de Placa (Estimador)",
 ]
 
 _PRESETS: dict[str, dict[str, Any]] = {
@@ -336,7 +346,15 @@ def render_machine_params(
         disabled=dis,
         horizontal=True,
     )
-    input_mode = "X" if input_mode_label.startswith("Reatâncias") else "L"
+    if input_mode_label.startswith("Reatâncias"):
+        input_mode = "X"
+    elif input_mode_label.startswith("Indutâncias"):
+        input_mode = "L"
+    else:
+        input_mode = "PLACA"
+    input_mode_original = input_mode  # preservar antes de qualquer sobrescrita
+
+    Cth_placa: float | None = None  # preenchido apenas no modo PLACA
 
     if input_mode == "X":
         f_ref = st.number_input(
@@ -349,12 +367,116 @@ def render_machine_params(
         Xm  = st.number_input("Reatância de magnetização — $X_m$ (Ω)",            min_value=0.0001,   max_value=500.0,   value=_DEFAULTS["Xm"],  step=0.01,  key=wk["Xm"],  format="%.2f", disabled=dis)
         Xls = st.number_input("Reatância de dispersão do estator — $X_{ls}$ (Ω)", min_value=0.0001, max_value=50.0,    value=_DEFAULTS["Xls"], step=0.001, key=wk["Xls"], format="%.3f", disabled=dis)
         Xlr = st.number_input("Reatância de dispersão do rotor — $X_{lr}$ (Ω)",   min_value=0.0001, max_value=50.0,    value=_DEFAULTS["Xlr"], step=0.001, key=wk["Xlr"], format="%.3f", disabled=dis)
-    else:
+    elif input_mode == "L":
         f_ref  = 60.0
         _wb_ref = 2.0 * 3.141592653589793 * 60.0
         Xm  = st.number_input("Indutância de magnetização — $L_m$ (H)",            min_value=1e-6, max_value=10.0, value=round(_DEFAULTS["Xm"]  / _wb_ref, 6), step=0.0001, key=wk["Xm_L"],  format="%.6f", disabled=dis)
         Xls = st.number_input("Indutância de dispersão do estator — $L_{ls}$ (H)", min_value=1e-6, max_value=1.0,  value=round(_DEFAULTS["Xls"] / _wb_ref, 6), step=0.0001, key=wk["Xls_L"], format="%.6f", disabled=dis)
         Xlr = st.number_input("Indutância de dispersão do rotor — $L_{lr}$ (H)",   min_value=1e-6, max_value=1.0,  value=round(_DEFAULTS["Xlr"] / _wb_ref, 6), step=0.0001, key=wk["Xlr_L"], format="%.6f", disabled=dis)
+    else:  # PLACA
+        f_ref = f  # parâmetros estimados são reatâncias em f
+        # ── Inputs de placa ───────────────────────────────────────────────
+        _pgroup("Dados de Placa (Nameplate)")
+        Pn_kW = st.number_input(
+            "Potência nominal no eixo (kW)",
+            min_value=0.01, max_value=10000.0, value=2.2, step=0.1, format="%.2f",
+            key=wk["Pn_kW"], disabled=dis,
+            help="Potência mecânica nominal na flange do motor (valor da placa).",
+        )
+        N_nom = st.number_input(
+            "Velocidade nominal (RPM)",
+            min_value=1.0, max_value=60000.0, value=1746.0, step=1.0, format="%.0f",
+            key=wk["N_nom"], disabled=dis,
+            help="Rotação em plena carga nominal (valor da placa). O número de polos é deduzido automaticamente.",
+        )
+        rend_placa = st.number_input(
+            "Rendimento nominal (ex: 0.91)",
+            min_value=0.01, max_value=0.999, value=0.85, step=0.01, format="%.3f",
+            key=wk["rend"], disabled=dis,
+            help="Eficiência em plena carga — η = P_eixo / P_elétrica.",
+        )
+        fp_placa = st.number_input(
+            "Fator de potência nominal (ex: 0.85)",
+            min_value=0.01, max_value=0.999, value=0.85, step=0.01, format="%.3f",
+            key=wk["fp_placa"], disabled=dis,
+            help="cos(φ) em plena carga nominal.",
+        )
+        Ip_In = st.number_input(
+            "Relação corrente de partida / nominal  (Ip/In)",
+            min_value=1.0, max_value=15.0, value=6.0, step=0.1, format="%.1f",
+            key=wk["Ip_In"], disabled=dis,
+            help="Corrente de partida DOL em múltiplos da corrente nominal (tipicamente 5–8 para NEMA B).",
+        )
+        Tp_Tn = st.number_input(
+            "Relação torque de partida / nominal  (Tp/Tn)",
+            min_value=0.1, max_value=5.0, value=1.5, step=0.1, format="%.2f",
+            key=wk["Tp_Tn"], disabled=dis,
+            help="Torque de partida (s=1) em múltiplos do torque nominal (tipicamente 1.0–2.0 para NEMA B).",
+        )
+        is_delta = st.checkbox(
+            "Ligação em Triângulo (Δ) — desmarque para Estrela (Y)",
+            value=False, key=wk["is_delta"], disabled=dis,
+            help="Afeta a tensão de fase e a corrente de fase usadas no cálculo do circuito equivalente.",
+        )
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        resultado = estimate_params(
+            Vl, f, p, Pn_kW, N_nom, rend_placa, fp_placa, Ip_In, Tp_Tn,
+            is_delta=is_delta,
+        )
+
+        if not resultado["success"]:
+            st.error(
+                f"⚠️ Dados de placa inconsistentes: {resultado['error']}  "
+                "Verifique os valores inseridos. Parâmetros padrão (Krause 3 HP) serão usados."
+            )
+            # Fallback seguro — valores Krause 3 HP
+            Rs, Rr, Xm, Xls, Xlr = 0.435, 0.816, 26.13, 0.754, 0.754
+            input_mode = "X"
+        else:
+            Rs        = resultado["Rs"]
+            Rr        = resultado["Rr"]
+            Xm        = resultado["Xm"]
+            Xls       = resultado["Xls"]
+            Xlr       = resultado["Xlr"]
+            Cth_placa = resultado["Cth"]
+            input_mode = "X"  # MachineParams recebe reatâncias em f
+
+            ligacao = "Triângulo (Δ)" if is_delta else "Estrela (Y)"
+            with st.expander("ℹ️ Como esses parâmetros foram estimados?", expanded=True):
+                st.info(
+                    f"**Método:** IEEE circuito equivalente em T — regime permanente.\n\n"
+                    f"**Ligação assumida:** {ligacao}  "
+                    f"| **Polos deduzidos da placa:** {resultado['p_est']}\n\n"
+                    f"**Premissas elétricas:**\n"
+                    f"- Distribuição NEMA B: $X_{{ls}}$ = 40% · $X_k$, $X_{{lr}}$ = 60% · $X_k$\n"
+                    f"- Fator de potência na partida: cos(φₚ) = 0,20\n"
+                    f"- Tensão no entreferro: $E_1 \\approx V_f - I_n \\cdot |Z_s|$ "
+                    f"= {resultado['E1']:.2f} V (queda estatórica subtraída)\n"
+                    f"- $R_{{fe}}$ não estimado — use o valor padrão (500 Ω)\n\n"
+                    f"**Premissa térmica (NEMA MG-1 / IEC 60034 — TEFC):**  \n"
+                    f"Massa ≈ {resultado['Massa']:.0f} kg (15 kg/kW) "
+                    f"× $c_p$ aço (460 J/kg·K) → $C_{{th}}$ = {resultado['Cth']:,.0f} J/K."
+                )
+                c1, c2, c3, c4 = st.columns(4)
+                c1.metric("Vel. síncrona (Estimado)",       f"{resultado['n_s']:.1f} RPM")
+                c2.metric("Escorregamento sₙ (Estimado)",   f"{resultado['s_n']*100:.2f}%")
+                c3.metric("Corrente nominal Iₙ (Estimado)", f"{resultado['In_lin']:.2f} A")
+                c4.metric("Torque nominal Tₙ (Estimado)",   f"{resultado['Tn']:.2f} N·m")
+
+                c5, c6, c7, c8 = st.columns(4)
+                c5.metric("Corrente partida Iₚ (Estimado)", f"{resultado['Ip_fase']:.2f} A")
+                c6.metric("Torque partida Tₚ (Estimado)",   f"{resultado['Tp']:.2f} N·m")
+                c7.metric("Zₖ (Estimado)",                  f"{resultado['Zk']:.4f} Ω")
+                c8.metric("Xₖ (Estimado)",                  f"{resultado['Xk']:.4f} Ω")
+
+                st.markdown("**Parâmetros do circuito equivalente estimados:**")
+                p1, p2, p3, p4, p5 = st.columns(5)
+                p1.metric("Rₛ (Estimado)",   f"{Rs:.4f} Ω")
+                p2.metric("Rᵣ (Estimado)",   f"{Rr:.4f} Ω")
+                p3.metric("Xₘ (Estimado)",   f"{Xm:.4f} Ω")
+                p4.metric("Xls (Estimado)",  f"{Xls:.4f} Ω")
+                p5.metric("Xlr (Estimado)",  f"{Xlr:.4f} Ω")
 
     Rfe = st.number_input("Resistência de perdas no ferro — $R_{fe}$ (Ω)", min_value=10.0, max_value=10000.0, value=_DEFAULTS["Rfe"], step=10.0, key=wk["Rfe"], format="%.1f", disabled=dis)
     st.caption("$R_{fe}$ afeta tanto a dinâmica do ODE (correntes de perda no ferro) quanto o balanço de potências em regime permanente.")
@@ -552,9 +674,13 @@ def render_machine_params(
         )
         if _tau_th < 30:
             st.warning("τ < 30 s — motor aquece muito rapidamente. Verifique Rth e Cth.")
-        # Quando não há override, passa 0.0 → __post_init__ calcula automaticamente
+        # Quando não há override, passa 0.0 → __post_init__ calcula automaticamente.
+        # Exceção: modo Placa — Cth_placa (heurística NEMA/IEC) sobrepõe o auto-cálculo.
         _Rth_mp = Rth if _th_override else 0.0
-        _Cth_mp = Cth if _th_override else 0.0
+        if input_mode_original == "PLACA" and Cth_placa is not None and not _th_override:
+            _Cth_mp = Cth_placa
+        else:
+            _Cth_mp = Cth if _th_override else 0.0
         st.markdown('</div>', unsafe_allow_html=True)
 
     mp = MachineParams(Vl=Vl, f=f, Rs=Rs, Rr=Rr, Xm=Xm, Xls=Xls, Xlr=Xlr, Rfe=Rfe, p=p, J=J, B=B,
