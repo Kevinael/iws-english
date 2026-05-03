@@ -240,7 +240,7 @@ def _xml_from_lm(Lm: float, wb: float, Xls_a: float, Xlr_a: float) -> float:
 # BLOCO D — RHS DO ODE
 # ═══════════════════════════════════════════════════════════════════════════
 #
-# Estados: [PSIqs, PSIds, PSIqr, PSIdr, wr, tetar, Temp]   (7 estados)
+# Estados: [PSIqs, PSIds, PSIqr, PSIdr, wr, tetar, Temp, theta_slip]   (8 estados)
 #
 # ── Modelo Térmico (7º estado) ────────────────────────────────────────────
 # EDO galvânica de 1ª ordem (modelo de parâmetros concentrados):
@@ -359,7 +359,7 @@ def _make_rhs(mp: MachineParams, voltage_fn, torque_fn, ref_code: int,
     T_amb = mp.T_amb
 
     def rhs(t: float, y: list) -> list:
-        PSIqs, PSIds, PSIqr, PSIdr, wr, _tetar, Temp = y
+        PSIqs, PSIds, PSIqr, PSIdr, wr, _tetar, Temp, theta_slip = y
 
         # ── fonte de tensão ──────────────────────────────────────────────
         Vl_a = voltage_fn(t)
@@ -428,10 +428,8 @@ def _make_rhs(mp: MachineParams, voltage_fn, torque_fn, ref_code: int,
         # ── equações de estado de Krause (referencial genérico ω_ref) ────
         slip_ref = (w_ref - wr) / wb
 
-        # barra quebrada: Rr modulado por cos(2·s·wb·t) se rr_fn ativo
-        ws_mec = wb / (p / 2.0)
-        slip_inst = (ws_mec - wr) / ws_mec if ws_mec != 0.0 else 0.0
-        Rr_cur = rr_fn(t, slip_inst) if rr_fn is not None else Rr
+        # barra quebrada: Rr modulado por cos(2·theta_slip) com fase integrada exata
+        Rr_cur = rr_fn(theta_slip) if rr_fn is not None else Rr
 
         dPSIqs = wb * (Vqs_eff - (w_ref / wb) * PSIds + (Rs / Xls_a) * (PSImq - PSIqs))
         dPSIds = wb * (Vds_eff + (w_ref / wb) * PSIqs + (Rs / Xls_a) * (PSImd - PSIds))
@@ -452,7 +450,8 @@ def _make_rhs(mp: MachineParams, voltage_fn, torque_fn, ref_code: int,
         P_fe_th = wb * (PSImq ** 2 + PSImd ** 2) / Rfe if Rfe > 0.0 else 0.0
         dTemp = (P_joule + P_fe_th) / Cth - (Temp - T_amb) / (Rth * Cth)
 
-        return [dPSIqs, dPSIds, dPSIqr, dPSIdr, dwr, dtetar, dTemp]
+        d_theta_slip = wb - wr
+        return [dPSIqs, dPSIds, dPSIqr, dPSIdr, dwr, dtetar, dTemp, d_theta_slip]
 
     return rhs
 
@@ -464,7 +463,7 @@ def _make_rhs(mp: MachineParams, voltage_fn, torque_fn, ref_code: int,
 def _solve(rhs, t_values, y0, mp: MachineParams, clamp_wr_at_zero: bool, t_cutoff=None):
     """Integra o ODE; suporta restart em t_cutoff e clamp de wr=0 no shutdown.
 
-    Retorna y_history shape (6, N).
+    Retorna y_history shape (8, N).
     """
     tmax     = float(t_values[-1])
     max_step = 1.0 / (MAX_STEP_FACTOR * mp.f)
@@ -487,7 +486,7 @@ def _solve(rhs, t_values, y0, mp: MachineParams, clamp_wr_at_zero: bool, t_cutof
             mask = ~np.isfinite(arr[:, i])
             arr[:, i] = np.where(mask, arr[:, i - 1], arr[:, i])
 
-    y_history = np.full((7, N), np.nan)
+    y_history = np.full((8, N), np.nan)
 
     if not clamp_wr_at_zero:
         if t_cutoff is not None and t_cutoff < tmax:
@@ -765,11 +764,11 @@ def run_simulation(
 
     rr_fn = make_broken_bar_rr_fn(mp.Rr, broken_bar_severity, mp.wb)
     rhs = _make_rhs(mp, voltage_fn, torque_fn, ref_code, deseq, t_deseq, deseq_active, rr_fn)
-    # 7 estados: [PSIqs, PSIds, PSIqr, PSIdr, wr, tetar, Temp]
-    y0  = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, mp.T_amb]
+    # 8 estados: [PSIqs, PSIds, PSIqr, PSIdr, wr, tetar, Temp, theta_slip]
+    y0  = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, mp.T_amb, 0.0]
     y_history = _solve(rhs, t_values, y0, mp, clamp_wr_at_zero, t_cutoff=t_cutoff)
 
-    PSIqs, PSIds, PSIqr, PSIdr, wr_e, tetar, Temp_arr = y_history
+    PSIqs, PSIds, PSIqr, PSIdr, wr_e, tetar, Temp_arr, _theta_slip_arr = y_history
     tetae = mp.wb * t_values
 
     # tensões e correntes vetorizadas

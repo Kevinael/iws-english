@@ -62,8 +62,8 @@ def make_broken_bar_rr_fn(Rr_nominal: float, severity: float, wb: float):
     if severity == 0.0:
         return None
 
-    def _rr_fn(t: float, slip: float) -> float:
-        return Rr_nominal * (1.0 + severity * math.cos(2.0 * slip * wb * t))
+    def _rr_fn(theta_slip: float) -> float:
+        return Rr_nominal * (1.0 + severity * math.cos(2.0 * theta_slip))
 
     return _rr_fn
 
