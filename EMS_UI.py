@@ -196,6 +196,7 @@ def main() -> None:
                 primary_color=None,
                 is_mobile=is_mobile,
                 energy_tariff=sr.get("energy_tariff", 0.75),
+                exp_config=sr.get("exp_config"),
             )
 
     # ── ABA TEORIA ────────────────────────────────────────────────────────

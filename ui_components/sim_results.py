@@ -18,6 +18,7 @@ from core.EMS_PY import MachineParams
 from viz.plotly_charts import build_fig_stacked, build_fig_sidebyside, build_fig_overlay, build_fig_torque_speed
 from viz.pdf_report import generate_pdf_report
 from core.harmonica_analysis import build_fig_fft
+from core.sim_diagnostics import generate_insights
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -340,6 +341,7 @@ def render_results(
     primary_color: str | None = None,
     is_mobile: bool = False,
     energy_tariff: float = 0.75,
+    exp_config: dict | None = None,
 ) -> None:
     """KPIs + gráficos + análise econômica + FFT + botão PDF."""
     st.divider()
@@ -672,6 +674,33 @@ def render_results(
                     "THD calculado via FFT de $i_{{as}}$ na janela de regime permanente. "
                     "FP = P_in / S_aparente, onde S = 3 × Va_rms × Ias_rms."
                 )
+
+        # ── Diagnóstico Técnico do Especialista ──────────────────────────
+        st.divider()
+        with st.expander("Diagnostico Tecnico do Especialista", expanded=True):
+            try:
+                _cfg       = exp_config or {}
+                _load_torq = float(_cfg.get("Tl_final", 0.0))
+                _tmax_diag = float(res["t"][-1]) if len(res.get("t", [])) > 0 else 0.0
+                _insights  = generate_insights(
+                    res=res,
+                    mp=mp,
+                    load_torque=_load_torq,
+                    tmax=_tmax_diag,
+                    exp_type=exp_type,
+                )
+                if not _insights:
+                    st.info(
+                        "Nenhum insight disponivel para este tipo de experimento "
+                        "ou os dados de regime permanente nao foram detectados."
+                    )
+                else:
+                    _level_fn = {"info": st.info, "warning": st.warning, "error": st.error}
+                    for _ins in _insights:
+                        _fn = _level_fn.get(_ins.level, st.info)
+                        _fn(f"**{_ins.title}** — {_ins.body}")
+            except Exception as _exc:
+                st.warning(f"Diagnostico indisponivel: {_exc}")
 
     # ══════════════════════════════════════════════════════════════════════
     # ABA 4 — GESTÃO DE ATIVOS (ROI / TÉRMICA)
