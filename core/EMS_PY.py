@@ -101,8 +101,9 @@ class MachineParams:
     Lm:    float = field(init=False)  # Lm linear (= Lm0 para saturação)
     Lls:   float = field(init=False)
     Llr:   float = field(init=False)
-    Xls_a: float = field(init=False)
-    Xlr_a: float = field(init=False)
+    Xls_a:     float = field(init=False)
+    Xlr_a:     float = field(init=False)
+    Xls_a_eff: float = field(init=False)  # Xls_a + Lgrid·wb (absorve rede no estator)
 
     def __post_init__(self) -> None:
         self.wb = 2.0 * np.pi * self.f
@@ -141,6 +142,11 @@ class MachineParams:
                 self.Rth = 105.0 / _P_perdas
             if self.Cth == 0.0:
                 self.Cth = _massa * 460.0
+        # Xls_a_eff absorve Lgrid em série com Lls (exato, sem Picard)
+        # Xml é recalculado com Xls_a_eff para consistência com o RHS
+        self.Xls_a_eff = self.Xls_a + self.Lgrid * self.wb
+        _Xm_a_eff = self.wb * self.Lm
+        self.Xml  = 1.0 / (1.0 / _Xm_a_eff + 1.0 / self.Xls_a_eff + 1.0 / self.Xlr_a)
 
     @property
     def n_sync(self) -> float:
@@ -326,20 +332,22 @@ def _make_rhs(mp: MachineParams, voltage_fn, torque_fn, ref_code: int,
         rr_fn: opcional — callable(t, slip) → Rr efetivo para modelo de barra quebrada.
                None significa Rr constante (comportamento padrão).
     """
-    Xls_a = mp.Xls_a;  Xlr_a = mp.Xlr_a
-    Rs    = mp.Rs;      Rr    = mp.Rr;    wb = mp.wb
-    p     = mp.p;       J     = mp.J;     B  = mp.B
+    Xls_a = mp.Xls_a_eff;  Xlr_a = mp.Xlr_a   # Xls_a_eff absorve Lgrid
+    Rs    = mp.Rs;          Rr    = mp.Rr;    wb = mp.wb
+    p     = mp.p;           J     = mp.J;     B  = mp.B
     Rfe   = mp.Rfe
 
     # saturação
     sat    = mp.sat_enable
     Lm0    = mp.Lm
     Im_sat = mp.Im_sat
+    # pré-calcular constantes da solução quadrática de Froelich (fora do rhs)
+    K     = 1.0 / Xls_a + 1.0 / Xlr_a
+    Wb_L0 = wb * Lm0
 
-    # rede
-    Rgrid = mp.Rgrid
-    Lgrid = mp.Lgrid
-    use_grid = (Rgrid != 0.0 or Lgrid != 0.0)
+    # rede (Lgrid já absorvido em Xls_a_eff — apenas queda resistiva permanece)
+    Rgrid    = mp.Rgrid
+    use_grid = (Rgrid != 0.0)
 
     # Rfe: pré-calcula o coeficiente de correção (= wb/Rfe se Rfe > 0)
     # Quando Rfe → ∞, rfe_coef → 0 e o modelo degenera no caso sem perdas.
@@ -367,21 +375,27 @@ def _make_rhs(mp: MachineParams, voltage_fn, torque_fn, ref_code: int,
         elif ref_code == 2: w_ref = wr
         else:               w_ref = 0.0
 
-        # ── saturação: Lm e Xml dependem de |im| atual ───────────────────
-        # Lei dos nós no nó de magnetização (referencial genérico):
-        #   imq = iqs_lin + iqr_lin   e   imd = ids_lin + idr_lin
-        # onde as correntes lineares usam Xml(Lm0) como estimativa de bootstrap.
-        # Isso evita a circularidade Xml ↔ im e é O(h) exato para LSODA.
+        # ── saturação: solução fechada (quadrática) de Froelich ─────────────
+        # A interseção entre a curva Lm(im) = Lm0/(1+im/Im_sat) e o estado
+        # atual é uma equação quadrática em u = 1+im_mag/Im_sat com raiz exata,
+        # eliminando o bootstrap e tornando Xml_cur C¹ nos estados — o Jacobiano
+        # numérico do LSODA passa a refletir a derivada correta.
         if sat:
-            Xml_lin  = _xml_from_lm(Lm0, wb, Xls_a, Xlr_a)
-            PSImq_0  = Xml_lin * (PSIqs / Xls_a + PSIqr / Xlr_a)
-            PSImd_0  = Xml_lin * (PSIds / Xls_a + PSIdr / Xlr_a)
-            # correntes de magnetização: lei de Kirchhoff no nó de Lm
-            imq_0    = PSImq_0 / (wb * Lm0) if Lm0 > 0 else 0.0
-            imd_0    = PSImd_0 / (wb * Lm0) if Lm0 > 0 else 0.0
-            im_mag   = math.sqrt(imq_0 ** 2 + imd_0 ** 2)
-            Lm_cur   = _lm_saturado(im_mag, Lm0, Im_sat)
-            Xml_cur  = _xml_from_lm(Lm_cur, wb, Xls_a, Xlr_a)
+            Sq    = PSIqs / Xls_a + PSIqr / Xlr_a
+            Sd    = PSIds / Xls_a + PSIdr / Xlr_a
+            S_mag = math.sqrt(Sq * Sq + Sd * Sd)
+            if S_mag < 1e-15 or Im_sat <= 0.0:
+                Xml_cur = _xml_from_lm(Lm0, wb, Xls_a, Xlr_a)
+            else:
+                # C1·u² + C2·u + C3 = 0  (disc > 0 sempre: C3 < 0)
+                C1   = Im_sat
+                C2   = Im_sat * (Wb_L0 * K - 1.0) - S_mag
+                C3   = -Im_sat * Wb_L0 * K
+                disc = C2 * C2 - 4.0 * C1 * C3
+                u    = (-C2 + math.sqrt(disc)) / (2.0 * C1)
+                im_mag  = Im_sat * max(u - 1.0, 0.0)
+                Lm_cur  = _lm_saturado(im_mag, Lm0, Im_sat)
+                Xml_cur = _xml_from_lm(Lm_cur, wb, Xls_a, Xlr_a)
         else:
             Xml_cur = _xml_from_lm(Lm0, wb, Xls_a, Xlr_a)
 
@@ -403,18 +417,10 @@ def _make_rhs(mp: MachineParams, voltage_fn, torque_fn, ref_code: int,
         idr = (PSIdr - PSImd) / Xlr_a
 
         # ── queda de tensão na rede ───────────────────────────────────────
+        # Lgrid já absorvido em Xls_a_eff — apenas queda resistiva Rgrid
         if use_grid:
-            # Tensão efetiva no terminal do motor (queda resistiva)
             Vqs_eff = Vqs_src - Rgrid * iqs
             Vds_eff = Vds_src - Rgrid * ids
-
-            if Lgrid != 0.0:
-                # Aproximação de Picard: d(iqs)/dt ≈ dPSIqs_0 / Xls_a
-                # onde dPSIqs_0 é o RHS puro sem Lgrid (consistente com Krause)
-                dPSIqs_0 = wb * (Vqs_eff - (w_ref / wb) * PSIds + (Rs / Xls_a) * (PSImq - PSIqs))
-                dPSIds_0 = wb * (Vds_eff + (w_ref / wb) * PSIqs + (Rs / Xls_a) * (PSImd - PSIds))
-                Vqs_eff -= (Lgrid / Xls_a) * dPSIqs_0
-                Vds_eff -= (Lgrid / Xls_a) * dPSIds_0
         else:
             Vqs_eff = Vqs_src
             Vds_eff = Vds_src
@@ -594,10 +600,10 @@ def _reconstruct_currents(PSIqs, PSIds, PSIqr, PSIdr, tetae, tetar, mp: MachineP
     dinâmica do ODE mas não a reconstrução de saída (o erro é pequeno em
     regime, onde im ≈ constante).
     """
-    PSImq = mp.Xml * (PSIqs / mp.Xls_a + PSIqr / mp.Xlr_a)
-    PSImd = mp.Xml * (PSIds / mp.Xls_a + PSIdr / mp.Xlr_a)
-    ids = (PSIds - PSImd) / mp.Xls_a
-    iqs = (PSIqs - PSImq) / mp.Xls_a
+    PSImq = mp.Xml * (PSIqs / mp.Xls_a_eff + PSIqr / mp.Xlr_a)
+    PSImd = mp.Xml * (PSIds / mp.Xls_a_eff + PSIdr / mp.Xlr_a)
+    ids = (PSIds - PSImd) / mp.Xls_a_eff
+    iqs = (PSIqs - PSImq) / mp.Xls_a_eff
     idr = (PSIdr - PSImd) / mp.Xlr_a
     iqr = (PSIqr - PSImq) / mp.Xlr_a
 
