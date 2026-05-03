@@ -144,11 +144,11 @@ def render_circuit(mp: Any, dark: bool, palette_fn: Callable[[bool], dict[str, s
     import streamlit as st
 
     bg_hex = "#0d1117" if dark else "#ffffff"
-    fig = build_figure(mp, dark, palette_fn)
-
-    buf = io.BytesIO()
-    fig.savefig(buf, format="png", dpi=150, facecolor=bg_hex, bbox_inches="tight")
-    plt.close(fig)
+    with matplotlib.rc_context({"mathtext.fontset": "dejavusans", "text.usetex": False}):
+        fig = build_figure(mp, dark, palette_fn)
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", dpi=150, facecolor=bg_hex, bbox_inches="tight")
+        plt.close(fig)
     buf.seek(0)
 
     st.image(buf, width='stretch')

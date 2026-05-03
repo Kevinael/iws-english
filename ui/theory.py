@@ -9,6 +9,7 @@ from pathlib import Path
 import numpy as np
 import matplotlib
 matplotlib.use("Agg")
+matplotlib.rcParams.update({"mathtext.fontset": "dejavusans", "text.usetex": False})
 import matplotlib.pyplot as plt
 import streamlit as st
 
