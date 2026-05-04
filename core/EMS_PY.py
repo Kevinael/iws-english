@@ -22,10 +22,9 @@ import math
 import warnings
 import numpy as np
 from scipy.integrate import solve_ivp
-from dataclasses import dataclass, field
-from core.desequilibrio_falta import abc_voltages_deseq, make_broken_bar_rr_fn
-from core.thermal import estimate_rth_cth, dTemp_dt
+from core.desequilibrio_falta import make_broken_bar_rr_fn
 from core.transforms import abc_voltages, clarke_park_transform
+from core.machine_model import MachineParams, _make_rhs
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -42,119 +41,14 @@ MAX_STEP_FACTOR = 20.0    # max_step = 1/(MAX_STEP_FACTOR · f) → ≥20 passos
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# BLOCO A — MODELO MATEMÁTICO
+# BLOCOS A-D → core/machine_model.py
 # ═══════════════════════════════════════════════════════════════════════════
-
-@dataclass
-class MachineParams:
-    # ── Elétricos ──────────────────────────────────────────────────────────
-    Vl:    float = 220.0
-    f:     float = 60.0
-    Rs:    float = 0.435
-    Rr:    float = 0.816
-    Xm:    float = 26.13
-    Xls:   float = 0.754
-    Xlr:   float = 0.754
-    # Rfe — paralelo com Lm; presente tanto no balanço de potências (como antes)
-    # quanto na dinâmica do ODE (correntes de perda no ferro i_feq/i_fed).
-    # Use Rfe → ∞ (ex: 1e9) para desativar o efeito dinâmico sem alterar a UI.
-    Rfe:   float = 500.0
-
-    # ── Mecânicos ──────────────────────────────────────────────────────────
-    p:     int   = 4
-    J:     float = 0.089
-    B:     float = 0.005
-
-    # ── Saturação magnética (modelo de Froelich) ───────────────────────────
-    # sat_enable : ativa/desativa o modelo não-linear de Lm
-    # Im_sat     : corrente de magnetização (A) em que Lm cai à metade do valor linear
-    #              (parâmetro de Froelich)
-    # Lm0        : Lm sem saturação — preenchido em __post_init__ a partir de Xm/f_ref
-    #              pode ser sobrescrito pelo usuário para ajuste fino
-    sat_enable: bool  = False
-    # Im_sat = None → calculado em __post_init__ como 2 × Im0 (corrente de magnetização
-    # em vazio); evita que o default hardcoded cause saturação excessiva para máquinas
-    # com Im0 diferente do motor de referência.
-    Im_sat:     float = 0.0    # 0 → auto (2 × Im0); qualquer valor > 0 é usado diretamente
-
-    # ── Impedância de rede ─────────────────────────────────────────────────
-    # Rgrid / Lgrid: resistência e indutância da linha de alimentação (por fase).
-    # A queda de tensão é calculada no RHS e subtaída da v_fonte antes da
-    # transformada Clarke-Park: v_motor = v_fonte - Rgrid·is - Lgrid·dis/dt
-    # Use Rgrid=0, Lgrid=0 (default) para o modelo sem rede.
-    Rgrid: float = 0.0    # Ω por fase
-    Lgrid: float = 0.0    # H por fase
-
-    # ── Modelo Térmico ────────────────────────────────────────────────────
-    # dT/dt = (P_joule + P_fe) / Cth  −  (T − T_amb) / (Rth · Cth)
-    # Rth=0.0 → auto: calibrado para T_regime = T_amb + 50 K (operação nominal TEFC)
-    # Cth=0.0 → auto: τ_th = 300 s (independente do porte)
-    Rth:   float = 0.0    # K/W  (0 = calcular automaticamente em __post_init__)
-    Cth:   float = 0.0    # J/K  (0 = calcular automaticamente em __post_init__)
-    T_amb: float = 25.0   # °C
-
-    # ── Modo de entrada dos parâmetros magnéticos ──────────────────────────
-    input_mode: str   = "X"    # "X" = reatâncias (Ω)  |  "L" = indutâncias (H)
-    f_ref:      float = 60.0   # frequência em que Xm/Xls/Xlr foram ensaiados (Hz)
-
-    # ── Derivados (calculados em __post_init__) ────────────────────────────
-    Xml:   float = field(init=False)
-    wb:    float = field(init=False)
-    Lm:    float = field(init=False)  # Lm linear (= Lm0 para saturação)
-    Lls:   float = field(init=False)
-    Llr:   float = field(init=False)
-    Xls_a:     float = field(init=False)
-    Xlr_a:     float = field(init=False)
-    Xls_a_eff: float = field(init=False)  # Xls_a + Lgrid·wb (absorve rede no estator)
-
-    def __post_init__(self) -> None:
-        self.wb = 2.0 * np.pi * self.f
-        if self.input_mode == "L":
-            self.Lm  = self.Xm
-            self.Lls = self.Xls
-            self.Llr = self.Xlr
-        else:
-            _wb_ref  = 2.0 * np.pi * self.f_ref
-            self.Lm  = self.Xm  / _wb_ref
-            self.Lls = self.Xls / _wb_ref
-            self.Llr = self.Xlr / _wb_ref
-        self.Xls_a = self.wb * self.Lls
-        self.Xlr_a = self.wb * self.Llr
-        _Xm_a      = self.wb * self.Lm
-        self.Xml   = 1.0 / (1.0 / _Xm_a + 1.0 / self.Xls_a + 1.0 / self.Xlr_a)
-        # Im_sat automático: 2 × corrente de magnetização em vazio (Im0 = Vfase / (wb·Lm))
-        if self.Im_sat == 0.0:
-            _Vfase = (self.Vl / np.sqrt(3.0))
-            _Im0   = _Vfase / (self.wb * self.Lm) if self.Lm > 0 else 5.0
-            self.Im_sat = 2.0 * _Im0
-        # Rth/Cth automáticos: circuito equivalente em T no escorregamento nominal
-        # Usa wb·Lm como reatância de magnetização (ramo paralelo puro do circuito T),
-        # não Xml (que é o Thevenin do paralelo Xm//Xls//Xlr — incorreto aqui).
-        if self.Rth == 0.0 or self.Cth == 0.0:
-            _Xm_a_th = self.wb * self.Lm   # reatância de magnetização pura
-            _Rth_est, _Cth_est = estimate_rth_cth(
-                Vl=self.Vl, Rs=self.Rs, Rr=self.Rr,
-                Xls_a=self.Xls_a, Xlr_a=self.Xlr_a, Xm_a=_Xm_a_th,
-            )
-            if self.Rth == 0.0:
-                self.Rth = _Rth_est
-            if self.Cth == 0.0:
-                self.Cth = _Cth_est
-        # Xls_a_eff absorve Lgrid em série com Lls (exato, sem Picard)
-        # Xml é recalculado com Xls_a_eff para consistência com o RHS
-        self.Xls_a_eff = self.Xls_a + self.Lgrid * self.wb
-        _Xm_a_eff = self.wb * self.Lm
-        self.Xml  = 1.0 / (1.0 / _Xm_a_eff + 1.0 / self.Xls_a_eff + 1.0 / self.Xlr_a)
-
-    @property
-    def n_sync(self) -> float:
-        return 120.0 * self.f / self.p
-
+# MachineParams, _make_rhs e auxiliares importados de core.machine_model
+# Fontes de tensao/torque e build_fns permanecem abaixo (Bloco B)
 
 # ═══════════════════════════════════════════════════════════════════════════
 # BLOCO B — FONTES DE TENSAO E TORQUE
 # ═══════════════════════════════════════════════════════════════════════════
-# Transformadas em core/transforms.py (abc_voltages, clarke_park_transform)
 
 def voltage_reduced_start(t, Vl_nominal, Vl_reduced, t_switch):
     return Vl_nominal if t >= t_switch else Vl_reduced
@@ -169,13 +63,7 @@ def voltage_soft_starter(t, Vl_nominal, Vl_initial, t_start_ramp, t_full):
 
 
 def voltage_sag(t, Vl_nominal, sag_magnitude, t_start, t_end):
-    """Afundamento de tensão retangular: Vl cai para sag_magnitude×Vl em [t_start, t_end).
-
-    Args:
-        sag_magnitude: fração da tensão nominal durante o sag (ex: 0.5 = 50% de Vl).
-        t_start:       instante de início do afundamento (s).
-        t_end:         instante de retorno à tensão nominal (s).
-    """
+    """Afundamento de tensao retangular: Vl cai para sag_magnitude*Vl em [t_start, t_end)."""
     if t_start <= t < t_end:
         return Vl_nominal * sag_magnitude
     return Vl_nominal
@@ -188,210 +76,6 @@ def torque_step(t, Tl_before, Tl_after, t_switch):
 def torque_pulse(t, Tl_base, Tl_pulso, t_on, t_off):
     """Tl_base fora do pulso; Tl_pulso em [t_on, t_off)."""
     return Tl_pulso if t_on <= t < t_off else Tl_base
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# BLOCO C — AUXILIARES DO MODELO ESTENDIDO
-# ═══════════════════════════════════════════════════════════════════════════
-
-def _lm_saturado(im_mag: float, Lm0: float, Im_sat: float) -> float:
-    """Modelo de Froelich: Lm = Lm0 / (1 + |im| / Im_sat).
-
-    • im_mag → 0  : Lm → Lm0  (região linear)
-    • im_mag = Im_sat : Lm = Lm0 / 2
-    • im_mag → ∞  : Lm → 0    (saturação total)
-
-    Retorna sempre um valor positivo; Im_sat deve ser > 0.
-    """
-    if Im_sat <= 0.0:
-        return Lm0
-    return Lm0 / (1.0 + im_mag / Im_sat)
-
-
-def _xml_from_lm(Lm: float, wb: float, Xls_a: float, Xlr_a: float) -> float:
-    """Reatância mútua resultante dado Lm (recalculada quando Lm varia)."""
-    Xm_a = wb * Lm
-    if Xm_a <= 0.0:
-        return 0.0
-    return 1.0 / (1.0 / Xm_a + 1.0 / Xls_a + 1.0 / Xlr_a)
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# BLOCO D — RHS DO ODE
-# ═══════════════════════════════════════════════════════════════════════════
-#
-# Estados: [PSIqs, PSIds, PSIqr, PSIdr, wr, tetar, Temp, theta_slip]   (8 estados)
-#
-# ── Modelo Térmico (7º estado) ────────────────────────────────────────────
-# EDO galvânica de 1ª ordem (modelo de parâmetros concentrados):
-#
-#   dT/dt = (P_joule(t) + P_fe(t)) / Cth  −  (T(t) − T_amb) / (Rth · Cth)
-#
-# P_joule = Rs·(ias² + ibs² + ics²)  +  Rr·(iar² + ibr² + icr²)
-#         = Rs·(3/2)·(iqs² + ids²)   +  Rr·(3/2)·(iqr² + idr²)
-#         (equivalência dq sob balanço, fator 3/2 da transformada amplitude-invariante)
-#
-# P_fe    = 3·|V_fe|²/Rfe  ≈  wb·|PSIm|² / Rfe   (aproximação p/ carga quase-estacionária)
-#         ← usamos a potência dq de forma vetorial para manter dimensionamento correto
-#
-# T(0) = T_amb  (condição inicial — motor em equilíbrio térmico com o ambiente)
-#
-# ── Modelo com Rfe ─────────────────────────────────────────────────────────
-# Rfe é colocado em paralelo com Lm no circuito dq.
-# A tensão nos terminais de Lm é a derivada do fluxo de magnetização:
-#
-#   V_mq = dPSImq/dt    V_md = dPSImd/dt
-#
-# No referencial síncrono (ω_ref = wb) o fluxo de magnetização gira a wb,
-# logo sua derivada aproximada em estado quasi-estacionário é:
-#
-#   dPSImq/dt ≈ wb·PSImd   (componente em quadratura → derivada = componente d × wb)
-#   dPSImd/dt ≈ −wb·PSImq
-#
-# Isso é exatamente o que aparece nos termos de acoplamento ω·Ψ das equações
-# de Krause; portanto as correntes de perda no ferro são:
-#
-#   i_feq =  wb·PSImd / Rfe      (componente q da corrente no Rfe)
-#   i_fed = −wb·PSImq / Rfe      (componente d da corrente no Rfe)
-#
-# Essas correntes reduzem a corrente disponível para magnetização pura (Lm),
-# modificando os fluxos de enlace equivalentes que excitam o circuito.
-# A modificação é introduzida substituindo PSImq/PSImd calculados com os
-# estados puros por versões "corrigidas" que subtraem a contribuição de i_fe:
-#
-#   PSImq_eff = PSImq − Xml·(i_feq / wb)   →   (divide por wb para obter Wb)
-#   PSImd_eff = PSImd − Xml·(i_fed / wb)
-#
-# Para referencial rotórico (ω_ref = wr) e estacionário (ω_ref = 0),
-# a velocidade de rotação do fluxo de magnetização muda; usamos ω_ref no lugar de wb.
-# Quando ω_ref = 0 (estacionário), Rfe não produz perda (correntes DC não geram perdas
-# no ferro), então a correção é zero — fisicamente correto.
-#
-# ── Modelo com Zgrid ──────────────────────────────────────────────────────
-# A tensão no terminal do motor é:
-#
-#   v_motor = v_fonte − Rgrid·is_abc − Lgrid·d(is_abc)/dt
-#
-# Para evitar elevar a ordem do sistema (is_abc é função algébrica dos estados),
-# expressamos d(is_abc)/dt em termos das derivadas dos fluxos (que são os estados):
-#
-#   ids = (PSIds − PSImd) / Xls_a   →   d(ids)/dt = (dPSIds − dPSImd) / Xls_a
-#
-# Isso cria acoplamento implícito (dPSI aparece em ambos os lados).
-# Resolvemos analiticamente reformulando as equações dq do estator:
-#
-#   dPSIds = wb·(Vds_motor + (ω_ref/wb)·PSIqs − Rs·ids)          (forma genérica de Krause)
-#
-# Com Lgrid ≠ 0, Vds_motor = Vds_fonte − Rgrid·ids − Lgrid·d(ids)/dt
-# Substituindo d(ids)/dt:
-#
-#   dPSIds = wb·[Vds_fonte − Rgrid·ids − Lgrid/Xls_a·(dPSIds − dPSImd_via_dPSI) + ...]
-#
-# Para manter o código legível e numericamente estável, adotamos a aproximação
-# de primeira ordem: d(ids)/dt ≈ (ids(t) − ids(t−h)) / h — mas isso requereria
-# estado extra ou passo anterior.
-# Optamos pela forma IMPLÍCITA ESTÁTICA: substituímos d(ids)/dt pelo seu
-# valor calculado exclusivamente com os estados atuais (sem memória), que é a
-# equação de Krause sem Lgrid dividida por Xls_a. Isso equivale a um passo de
-# Picard e é suficientemente preciso para Lgrid/Lls << 1 (linha fraca):
-#
-#   d(ids)/dt ≈ dPSIds_0 / Xls_a   onde dPSIds_0 é o RHS sem Lgrid
-#
-# O resultado é um fator de correção multiplicativo na tensão efetiva:
-#
-#   Vds_eff = Vds_fonte − Rgrid·ids − (Lgrid/Xls_a)·dPSIds_0
-#
-# Para Lgrid/Lls << 1 o erro é de segunda ordem.
-
-def _make_rhs(mp: MachineParams, voltage_fn, torque_fn, ref_code: int,
-              deseq: tuple, t_deseq: float, deseq_active: bool,
-              rr_fn=None):
-    """Fecha o RHS sobre os parâmetros — retorna função rhs(t, y) pronta para solve_ivp.
-
-    Args:
-        rr_fn: opcional — callable(t, slip) → Rr efetivo para modelo de barra quebrada.
-               None significa Rr constante (comportamento padrão).
-    """
-    Xls_a = mp.Xls_a_eff;  Xlr_a = mp.Xlr_a   # Xls_a_eff absorve Lgrid
-    Xml   = mp.Xml
-    Rs    = mp.Rs;          Rr    = mp.Rr;    wb = mp.wb
-    p     = mp.p;           J     = mp.J;     B  = mp.B
-    Rfe   = mp.Rfe
-
-    # rede (Lgrid já absorvido em Xls_a_eff — apenas queda resistiva permanece)
-    Rgrid    = mp.Rgrid
-    use_grid = (Rgrid != 0.0)
-
-    # térmico
-    Rth   = mp.Rth
-    Cth   = mp.Cth
-    T_amb = mp.T_amb
-
-    def rhs(t: float, y: list) -> list:
-        PSIqs, PSIds, PSIqr, PSIdr, wr, _tetar, Temp, theta_slip = y
-
-        # ── fonte de tensão ──────────────────────────────────────────────
-        Vl_a = voltage_fn(t)
-        if deseq_active and t >= t_deseq:
-            Va, Vb, Vc = abc_voltages_deseq(t, Vl_a, mp.f, *deseq)
-        else:
-            Va, Vb, Vc = abc_voltages(t, Vl_a, mp.f)
-        tetae      = wb * t
-        Vds_src, Vqs_src = clarke_park_transform(Va, Vb, Vc, tetae)
-
-        # ── referencial ──────────────────────────────────────────────────
-        if   ref_code == 1: w_ref = wb
-        elif ref_code == 2: w_ref = wr
-        else:               w_ref = 0.0
-
-        # ── fluxos e correntes de enlace ─────────────────────────────────
-        PSImq = Xml * (PSIqs / Xls_a + PSIqr / Xlr_a)
-        PSImd = Xml * (PSIds / Xls_a + PSIdr / Xlr_a)
-
-        # correntes de estator e rotor
-        iqs = (PSIqs - PSImq) / Xls_a
-        ids = (PSIds - PSImd) / Xls_a
-        iqr = (PSIqr - PSImq) / Xlr_a
-        idr = (PSIdr - PSImd) / Xlr_a
-
-        # ── queda de tensão na rede ───────────────────────────────────────
-        # Lgrid já absorvido em Xls_a_eff — apenas queda resistiva Rgrid
-        if use_grid:
-            Vqs_eff = Vqs_src - Rgrid * iqs
-            Vds_eff = Vds_src - Rgrid * ids
-        else:
-            Vqs_eff = Vqs_src
-            Vds_eff = Vds_src
-
-        # ── equações de estado de Krause (referencial genérico ω_ref) ────
-        slip_ref = (w_ref - wr) / wb
-
-        # barra quebrada: Rr modulado por cos(2·theta_slip) com fase integrada exata
-        Rr_cur = rr_fn(theta_slip) if rr_fn is not None else Rr
-
-        dPSIqs = wb * (Vqs_eff - (w_ref / wb) * PSIds + (Rs / Xls_a) * (PSImq - PSIqs))
-        dPSIds = wb * (Vds_eff + (w_ref / wb) * PSIqs + (Rs / Xls_a) * (PSImd - PSIds))
-        dPSIqr = wb * (-slip_ref * PSIdr + (Rr_cur / Xlr_a) * (PSImq - PSIqr))
-        dPSIdr = wb * ( slip_ref * PSIqr + (Rr_cur / Xlr_a) * (PSImd - PSIdr))
-
-        # ── torque e mecânica ─────────────────────────────────────────────
-        # Convenção amplitude-invariante (fator 3/2) conforme Krause eq. 6.6-2
-        Te   = (3.0 / 2.0) * (p / 2.0) * (1.0 / wb) * (PSIds * iqs - PSIqs * ids)
-        Tl_a = torque_fn(t)
-        dwr  = (p / (2.0 * J)) * (Te - Tl_a) - (B / J) * wr
-        dtetar = wr
-
-        # ── modelo térmico (7º estado) ────────────────────────────────────
-        # P_joule: perdas ôhmicas em dq (fator 3/2 da transformada amplitude-invariante)
-        P_joule = (3.0 / 2.0) * (Rs * (iqs ** 2 + ids ** 2) + Rr_cur * (iqr ** 2 + idr ** 2))
-        # P_fe: perdas no ferro — wb·|PSIm|² / Rfe (forma dq, consistente com o modelo Rfe)
-        P_fe_th = wb * (PSImq ** 2 + PSImd ** 2) / Rfe if Rfe > 0.0 else 0.0
-        dTemp   = dTemp_dt(Temp, P_joule, P_fe_th, Rth, Cth, T_amb)
-
-        d_theta_slip = wb - wr
-        return [dPSIqs, dPSIds, dPSIqr, dPSIdr, dwr, dtetar, dTemp, d_theta_slip]
-
-    return rhs
 
 
 # ═══════════════════════════════════════════════════════════════════════════
