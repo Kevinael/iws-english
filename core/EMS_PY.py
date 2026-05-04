@@ -86,7 +86,7 @@ class MachineParams:
 
     # ── Modelo Térmico ────────────────────────────────────────────────────
     # dT/dt = (P_joule + P_fe) / Cth  −  (T − T_amb) / (Rth · Cth)
-    # Rth=0.0 → auto: calibrado para T_regime = T_amb + 105 K (ΔT Classe B)
+    # Rth=0.0 → auto: calibrado para T_regime = T_amb + 50 K (operação nominal TEFC)
     # Cth=0.0 → auto: τ_th = 300 s (independente do porte)
     Rth:   float = 0.0    # K/W  (0 = calcular automaticamente em __post_init__)
     Cth:   float = 0.0    # J/K  (0 = calcular automaticamente em __post_init__)

@@ -10,7 +10,11 @@ Modelo:
   dT/dt = (P_joule + P_fe) / Cth  −  (T − T_amb) / (Rth · Cth)
   T_regime = T_amb + Rth · (P_joule + P_fe)   (equilíbrio térmico)
 
-O Rth é calibrado para ΔT = 105 K em regime nominal (Classe B IEC 60034-1).
+O Rth é calibrado para ΔT = 50 K em carga nominal — alvo típico de operação
+de motores TEFC bem dimensionados (T_regime ≈ 75°C com T_amb = 25°C).
+Esse valor é representativo do que se mede em campo; 105 K (Classe B) é o
+limite de projeto, não a condição normal de operação.
+
 O Cth é estimado a partir da massa do motor: Cth = massa × cp_aço (460 J/kg·K).
 A massa é proxy da potência mecânica: massa ≈ P_mec_kW × 15 kg/kW.
 
@@ -22,8 +26,9 @@ from __future__ import annotations
 import math
 
 
-# Constante de projeto: ΔT máximo para isolação Classe B (IEC 60034-1, Tab. 1)
-_DELTA_T_CLASSE_B: float = 105.0   # K
+# ΔT de operação nominal típico para motores TEFC bem dimensionados
+# (75°C em regime com T_amb=25°C); 105 K (Classe B) é o limite de projeto.
+_DELTA_T_NOMINAL: float = 50.0   # K
 
 # Calor específico do aço (J/kg·K) — usado para estimar Cth a partir da massa
 _CP_ACO: float = 460.0             # J/(kg·K)
@@ -70,7 +75,7 @@ def estimate_rth_cth(
 
     massa = P_mec_kw * _KG_POR_KW
 
-    Rth = _DELTA_T_CLASSE_B / P_perdas
+    Rth = _DELTA_T_NOMINAL / P_perdas
     Cth = massa * _CP_ACO
 
     return Rth, Cth
