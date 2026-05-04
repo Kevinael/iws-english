@@ -24,6 +24,7 @@ import numpy as np
 from scipy.integrate import solve_ivp
 from dataclasses import dataclass, field
 from core.desequilibrio_falta import abc_voltages_deseq, make_broken_bar_rr_fn
+from core.thermal import estimate_rth_cth, dTemp_dt
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -125,23 +126,19 @@ class MachineParams:
             _Vfase = (self.Vl / np.sqrt(3.0))
             _Im0   = _Vfase / (self.wb * self.Lm) if self.Lm > 0 else 5.0
             self.Im_sat = 2.0 * _Im0
-        # Rth/Cth automáticos: circuito equivalente em T para s = 3% (escorregamento nominal)
+        # Rth/Cth automáticos: circuito equivalente em T no escorregamento nominal
+        # Usa wb·Lm como reatância de magnetização (ramo paralelo puro do circuito T),
+        # não Xml (que é o Thevenin do paralelo Xm//Xls//Xlr — incorreto aqui).
         if self.Rth == 0.0 or self.Cth == 0.0:
-            _s_nom      = 0.03
-            _Vfase      = self.Vl / math.sqrt(3.0)
-            _Z_rotor    = complex(self.Rr / _s_nom, self.Xlr_a)
-            _Z_mag      = complex(0.0, self.Xml)
-            _Z_paralelo = (_Z_rotor * _Z_mag) / (_Z_rotor + _Z_mag)
-            _Z_total    = complex(self.Rs, self.Xls_a) + _Z_paralelo
-            _I_estator  = _Vfase / abs(_Z_total)
-            _I_rotor    = _I_estator * abs(_Z_mag / (_Z_rotor + _Z_mag))
-            _P_perdas   = max(3.0 * (self.Rs * _I_estator**2 + self.Rr * _I_rotor**2), 10.0)
-            _P_mec_kw   = max((3.0 * _I_rotor**2 * (self.Rr / _s_nom) * (1.0 - _s_nom)) / 1000.0, 0.5)
-            _massa      = _P_mec_kw * 15.0
+            _Xm_a_th = self.wb * self.Lm   # reatância de magnetização pura
+            _Rth_est, _Cth_est = estimate_rth_cth(
+                Vl=self.Vl, Rs=self.Rs, Rr=self.Rr,
+                Xls_a=self.Xls_a, Xlr_a=self.Xlr_a, Xm_a=_Xm_a_th,
+            )
             if self.Rth == 0.0:
-                self.Rth = 105.0 / _P_perdas
+                self.Rth = _Rth_est
             if self.Cth == 0.0:
-                self.Cth = _massa * 460.0
+                self.Cth = _Cth_est
         # Xls_a_eff absorve Lgrid em série com Lls (exato, sem Picard)
         # Xml é recalculado com Xls_a_eff para consistência com o RHS
         self.Xls_a_eff = self.Xls_a + self.Lgrid * self.wb
@@ -406,7 +403,7 @@ def _make_rhs(mp: MachineParams, voltage_fn, torque_fn, ref_code: int,
         P_joule = (3.0 / 2.0) * (Rs * (iqs ** 2 + ids ** 2) + Rr_cur * (iqr ** 2 + idr ** 2))
         # P_fe: perdas no ferro — wb·|PSIm|² / Rfe (forma dq, consistente com o modelo Rfe)
         P_fe_th = wb * (PSImq ** 2 + PSImd ** 2) / Rfe if Rfe > 0.0 else 0.0
-        dTemp = (P_joule + P_fe_th) / Cth - (Temp - T_amb) / (Rth * Cth)
+        dTemp   = dTemp_dt(Temp, P_joule, P_fe_th, Rth, Cth, T_amb)
 
         d_theta_slip = wb - wr
         return [dPSIqs, dPSIds, dPSIqr, dPSIdr, dwr, dtetar, dTemp, d_theta_slip]
