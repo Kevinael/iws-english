@@ -92,8 +92,6 @@ _WK: dict[str, str] = {
     "tmax":         "wi_tmax",
     "h":            "wi_h",
     # modelos avançados
-    "sat_enable":           "wi_sat_enable",
-    "Im_sat":               "wi_Im_sat",
     "Rgrid":                "wi_Rgrid",
     "Lgrid":                "wi_Lgrid",
     # gêmeo digital e análise econômica
@@ -143,27 +141,23 @@ _PARAM_SOURCE_LABELS: list[str] = [
 _PRESETS: dict[str, dict[str, Any]] = {
     "Padrão — Krause 3 HP (2.2 kW / 12 N·m) 220 V/60 Hz": {
         # Krause (2002) — motor de indução 220 V / 60 Hz / 4 polos / ~3 cv
-        # Im0 ≈ 4.86 A  →  Im_sat = 2×Im0 ≈ 9.7 A (saturação moderada em partida)
         # Rfe = 400 Ω: perdas no ferro ≈ 3×(127²/400) ≈ 121 W (~5.5% de potência nominal)
         # T_nom = P_nom / ω_r = 2200 / (1746×π/30) ≈ 12 N·m
         "Vl": 220.0, "f": 60.0, "Rs": 0.435, "Rr": 0.816,
         "input_mode": "Reatâncias (Ω)  —  medidas em $f_{ref}$",
         "f_ref": 60.0, "Xm": 26.13, "Xls": 0.754, "Xlr": 0.754, "Rfe": 400.0,
         "p": 4, "J": 0.089, "B": 0.005,
-        "sat_enable": True, "Im_sat": 9.7,
         "exp_type": "Partida Direta (DOL)",
         "Tl_final": 12.0,
     },
     "Usta (2024) — 0.37 kW (2.4 N·m) 220 V/50 Hz": {
         # Motor de laboratório 220 V / 50 Hz / 4 polos / ~0.37 kW
-        # Im0 = (220/√3) / Xm = 127/60.98 ≈ 2.08 A  →  Im_sat = 2×Im0 ≈ 4.2 A
         # Rfe = 800 Ω: motor pequeno com menor volume de ferro — perdas relativas menores
         # T_nom = 370 / (1455×π/30) ≈ 2.4 N·m
         "Vl": 220.0, "f": 50.0, "Rs": 2.65, "Rr": 2.85,
         "input_mode": "Reatâncias (Ω)  —  medidas em $f_{ref}$",
         "f_ref": 50.0, "Xm": 60.98, "Xls": 4.43, "Xlr": 5.69, "Rfe": 800.0,
         "p": 4, "J": 0.025, "B": 0.001,
-        "sat_enable": False, "Im_sat": 4.2,
         "exp_type": "Pulso de Carga (aplica e retira)",
         "Tl_pulso": 0.0, "Tl_pulso_abs": 2.4, "t_pulso_on": 0.6, "t_pulso_off": 0.8,
         "tmax": 1.0,
@@ -171,20 +165,17 @@ _PRESETS: dict[str, dict[str, Any]] = {
     },
     "Krause 50 HP (37 kW / 202 N·m) — 460 V/60 Hz": {
         # Krause (2002) — motor industrial médio porte, 460 V / 60 Hz / 4 polos / 50 cv
-        # Im0 = (460/√3) / Xm = 265.6/13.08 ≈ 20.3 A  →  Im_sat = 2×Im0 ≈ 14.5 A (ajustado)
         # Rfe = 150 Ω: núcleo maior, perdas absolutas maiores mas Rfe menor
         # T_nom = 37000 / (1746×π/30) ≈ 202 N·m
         "Vl": 460.0, "f": 60.0, "Rs": 0.087, "Rr": 0.228,
         "input_mode": "Reatâncias (Ω)  —  medidas em $f_{ref}$",
         "f_ref": 60.0, "Xm": 13.08, "Xls": 0.302, "Xlr": 0.302, "Rfe": 150.0,
         "p": 4, "J": 1.662, "B": 0.0,
-        "sat_enable": True, "Im_sat": 14.5,
         "exp_type": "Partida Direta (DOL)",
         "Tl_final": 202.0,
     },
     "Krause 2250 HP (1678 kW / 9180 N·m) — 2300 V/60 Hz": {
         # Krause (2002) — motor de grande porte, média tensão, 2300 V / 60 Hz / 4 polos
-        # Im0 = (2300/√3) / Xm = 1328/13.04 ≈ 101.8 A  →  Im_sat ≈ 75 A (saturação moderada)
         # Rfe = 80 Ω: núcleo de grande volume, alta corrente de excitação
         # T_nom = 1678000 / (1746×π/30) ≈ 9180 N·m
         # t_carga = 8 s: J = 63.87 kg·m² exige ~6–8 s para atingir 95% de n_s em DOL
@@ -192,7 +183,6 @@ _PRESETS: dict[str, dict[str, Any]] = {
         "input_mode": "Reatâncias (Ω)  —  medidas em $f_{ref}$",
         "f_ref": 60.0, "Xm": 13.04, "Xls": 0.226, "Xlr": 0.226, "Rfe": 80.0,
         "p": 4, "J": 63.87, "B": 0.05,
-        "sat_enable": True, "Im_sat": 75.0,
         "exp_type": "Partida Direta (DOL)",
         "Tl_final": 9180.0, "t_carga": 8.0,
     },
@@ -317,7 +307,6 @@ def render_machine_params(
                 "input_mode": wk["input_mode"], "f_ref": wk["f_ref"],
                 "Xm": wk["Xm"], "Xls": wk["Xls"], "Xlr": wk["Xlr"],
                 "Rfe": wk["Rfe"], "p": wk["p"], "J": wk["J"], "B": wk["B"],
-                "sat_enable": wk["sat_enable"], "Im_sat": wk["Im_sat"],
                 "exp_type": wk["exp_type"],
                 "Tl_final": wk["Tl_final"],
                 "Tl_pulso": wk["Tl_pulso"],
@@ -518,54 +507,7 @@ def render_machine_params(
 
     # ── Parâmetros Avançados (IAS/Industrial) ────────────────────────────
     # Im_0: corrente de magnetização em vazio = Vfase / (wb·Lm)
-    _Vfase_sat      = Vl / np.sqrt(3.0)
-    _wb_sat         = 2.0 * np.pi * f
-    _Lm_sat         = Xm / (2.0 * np.pi * (f_ref if input_mode == "X" else f))
-    _Im0_sat        = round(_Vfase_sat / (_wb_sat * _Lm_sat), 2) if _Lm_sat > 0 else 5.0
-    _Im_sat_default = round(2.0 * _Im0_sat, 1)
-
     with st.expander("Parâmetros Avançados (IAS/Industrial)", expanded=False):
-        # ── Saturação Magnética ──────────────────────────────────────────
-        _pgroup("Saturação Magnética")
-        sat_enable = st.checkbox(
-            "Ativar modelo de saturação (Froelich)",
-            value=False,
-            key=wk["sat_enable"],
-            disabled=dis,
-            help=(
-                "Substitui $L_m$ constante por $L_m(i_m) = L_{m0}/(1 + |i_m|/I_{sat})$. "
-                "Reduz a superestimação do torque de partida. "
-                "Desativado por padrão — use apenas com dados de ensaio de circuito aberto."
-            ),
-        )
-        Im_sat = st.number_input(
-            "Corrente de semi-saturação — $I_{sat}$ (A)",
-            min_value=0.0001, max_value=500.0,
-            value=_Im_sat_default,
-            step=0.1, format="%.1f",
-            key=wk["Im_sat"],
-            disabled=dis or not sat_enable,
-            help=(
-                f"Corrente de magnetização em que $L_m$ cai à metade de $L_{{m0}}$. "
-                f"$I_{{m0}}$ estimada = {_Im0_sat:.2f} A  |  "
-                f"Default = 2×$I_{{m0}}$ = {_Im_sat_default:.1f} A (saturação moderada). "
-                "Reduza para saturação mais intensa."
-            ),
-        )
-        if sat_enable:
-            _lm_ratio = 1.0 / (1.0 + _Im0_sat / Im_sat) if Im_sat > 0 else 1.0
-            st.caption(
-                f"$I_{{m0}}$ ≈ {_Im0_sat:.2f} A  ·  "
-                f"$L_m$ em regime ≈ {_lm_ratio * 100:.0f}% de $L_{{m0}}$  ·  "
-                f"$t_{{max}}$ sugerido: ≥ {round(2.0 / _lm_ratio, 1):.1f} s"
-            )
-            if _lm_ratio < 0.7:
-                st.warning(
-                    f"Saturação intensa ($L_m$ cai para {_lm_ratio*100:.0f}%). "
-                    f"Use $t_{{max}}$ ≥ {round(2.0 / _lm_ratio, 1):.1f} s para capturar o regime permanente."
-                )
-        st.markdown('</div>', unsafe_allow_html=True)
-
         # ── Impedância de Rede ───────────────────────────────────────────
         _pgroup("Impedância de Rede (Voltage Sag)")
         rg1, rg2 = st.columns(2)
@@ -586,10 +528,11 @@ def render_machine_params(
                 help="Indutância da linha de alimentação por fase (H). 0 = sem queda indutiva.",
             )
         if Rgrid > 0 or Lgrid > 0:
-            _Zgrid_mag = float(np.sqrt(Rgrid**2 + (_wb_sat * Lgrid)**2))
+            _wb = 2.0 * np.pi * f
+            _Zgrid_mag = float(np.sqrt(Rgrid**2 + (_wb * Lgrid)**2))
             _ibox(
                 f"Impedância de rede: $R_{{grid}}$ = {Rgrid:.4f} Ω  |  "
-                f"$X_{{grid}}$ = {_wb_sat*Lgrid:.4f} Ω  |  "
+                f"$X_{{grid}}$ = {_wb*Lgrid:.4f} Ω  |  "
                 f"$|Z_{{grid}}|$ = {_Zgrid_mag:.4f} Ω. "
                 "A tensão no terminal do motor será menor que $V_l$."
             )
@@ -633,7 +576,6 @@ def render_machine_params(
         _mp_preview = MachineParams(
             Vl=Vl, f=f, Rs=Rs, Rr=Rr, Xm=Xm, Xls=Xls, Xlr=Xlr, Rfe=Rfe,
             p=p, J=J, B=B, input_mode=input_mode, f_ref=f_ref,
-            sat_enable=sat_enable, Im_sat=Im_sat,
             Rgrid=Rgrid, Lgrid=Lgrid,
             Rth=0.0, Cth=0.0,
         )
@@ -704,7 +646,6 @@ def render_machine_params(
 
     mp = MachineParams(Vl=Vl, f=f, Rs=Rs, Rr=Rr, Xm=Xm, Xls=Xls, Xlr=Xlr, Rfe=Rfe, p=p, J=J, B=B,
                        input_mode=input_mode, f_ref=f_ref,
-                       sat_enable=sat_enable, Im_sat=Im_sat,
                        Rgrid=Rgrid, Lgrid=Lgrid,
                        Rth=_Rth_mp, Cth=_Cth_mp, T_amb=T_amb)
     _validate_params(mp)
