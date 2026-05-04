@@ -25,6 +25,7 @@ from scipy.integrate import solve_ivp
 from dataclasses import dataclass, field
 from core.desequilibrio_falta import abc_voltages_deseq, make_broken_bar_rr_fn
 from core.thermal import estimate_rth_cth, dTemp_dt
+from core.transforms import abc_voltages, clarke_park_transform
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -151,27 +152,9 @@ class MachineParams:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# BLOCO B — TRANSFORMADAS E FONTES
+# BLOCO B — FONTES DE TENSAO E TORQUE
 # ═══════════════════════════════════════════════════════════════════════════
-
-def abc_voltages(t, Vl, f):
-    """Tensões abc balanceadas (amplitude-invariante; t pode ser escalar ou array)."""
-    tetae = 2.0 * np.pi * f * t
-    Va = np.sqrt(2.0 / 3.0) * Vl * np.sin(tetae)
-    Vb = np.sqrt(2.0 / 3.0) * Vl * np.sin(tetae - 2.0 * np.pi / 3.0)
-    Vc = np.sqrt(2.0 / 3.0) * Vl * np.sin(tetae + 2.0 * np.pi / 3.0)
-    return Va, Vb, Vc
-
-
-def clarke_park_transform(Va, Vb, Vc, tetae):
-    """Clarke (amplitude-invariante, fator √(2/3)) + Park: abc → dq síncrono."""
-    k   = np.sqrt(3.0 / 2.0)
-    Vaf = k * (Va - 0.5 * Vb - 0.5 * Vc)
-    Vbt = k * (np.sqrt(3.0) / 2.0 * Vb - np.sqrt(3.0) / 2.0 * Vc)
-    Vds =  np.cos(tetae) * Vaf + np.sin(tetae) * Vbt
-    Vqs = -np.sin(tetae) * Vaf + np.cos(tetae) * Vbt
-    return Vds, Vqs
-
+# Transformadas em core/transforms.py (abc_voltages, clarke_park_transform)
 
 def voltage_reduced_start(t, Vl_nominal, Vl_reduced, t_switch):
     return Vl_nominal if t >= t_switch else Vl_reduced
