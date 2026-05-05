@@ -107,12 +107,12 @@ def generate_insights(
     if not steady:
         insights.append(Insight(
             level="warning",
-            title="Regime Mecanico Nao Atingido",
+            title="Regime Mecânico Não Atingido",
             body=(
-                f"O tempo de simulacao configurado (tmax = {tmax:.2f} s) foi insuficiente "
-                f"para que o rotor atingisse a estabilidade mecanica. A derivada da velocidade "
+                f"O tempo de simulação configurado (tmax = {tmax:.2f} s) foi insuficiente "
+                f"para que o rotor atingisse a estabilidade mecânica. A derivada da velocidade "
                 f"angular ainda era significativa no instante final. Recomenda-se aumentar "
-                f"tmax ou verificar se o torque de carga excede o torque maximo do motor "
+                f"tmax ou verificar se o torque de carga excede o torque máximo do motor "
                 f"(risco de travamento do rotor)."
             ),
         ))
@@ -130,16 +130,16 @@ def generate_insights(
         if abs(Te_ss) > 0.01:
             insights.append(Insight(
                 level="info",
-                title="Balanco de Torques em Regime Permanente",
+                title="Balanço de Torques em Regime Permanente",
                 body=(
-                    f"Em regime permanente (n = {n_ss:.1f} RPM), a equacao de Newton-Euler "
-                    f"J·(domega/dt) = Te - T_L - B·omega_m = 0 e satisfeita. "
-                    f"O torque eletromagnetico de regime (Te = {Te_ss:.3f} N·m) excede o "
+                    f"Em regime permanente (n = {n_ss:.1f} RPM), a equação de Newton-Euler "
+                    f"J·(dω/dt) = Te − T_L − B·ωm = 0 é satisfeita. "
+                    f"O torque eletromagnético de regime (Te = {Te_ss:.3f} N·m) excede o "
                     f"torque de carga aplicado (T_L = {load_torque:.3f} N·m) pela parcela de "
-                    f"atrito viscoso e ventilacao: B·omega_m = {T_atrito:.4f} N·m "
-                    f"(B = {mp.B:.4f} N·m·s/rad). Esta diferenca algebrica nao e um erro "
-                    f"numerico — e o torque exato exigido para vencer as perdas mecanicas "
-                    f"na rotacao de equilibrio."
+                    f"atrito viscoso e ventilação: B·ωm = {T_atrito:.4f} N·m "
+                    f"(B = {mp.B:.4f} N·m·s/rad). Esta diferença algébrica não é um erro "
+                    f"numérico — é o torque exato exigido para vencer as perdas mecânicas "
+                    f"na rotação de equilíbrio."
                 ),
             ))
 
@@ -181,14 +181,14 @@ def _check_acceleration_margin(
     if ratio >= 2.0:
         insights.append(Insight(
             level="info",
-            title="Ampla Reserva de Conjugado de Aceleracao",
+            title="Ampla Reserva de Conjugado de Aceleração",
             body=(
-                f"O torque eletromagnetico de pico durante o transiente de partida "
-                f"(Te_max = {Te_max:.2f} N·m) representa {ratio:.1f}x o torque de carga "
-                f"(T_L = {load_torque:.2f} N·m). A condicao J·(domega/dt) = Te - T_L - B·omega > 0 "
-                f"foi largamente satisfeita, garantindo aceleracao positiva do rotor em "
-                f"toda a trajetoria de partida. O motor possui ampla reserva cinetica "
-                f"(pull-out safety margin), caracteristica de partida segura."
+                f"O torque eletromagnético de pico durante o transitório de partida "
+                f"(Te_max = {Te_max:.2f} N·m) representa {ratio:.1f}× o torque de carga "
+                f"(T_L = {load_torque:.2f} N·m). A condição J·(dω/dt) = Te − T_L − B·ω > 0 "
+                f"foi amplamente satisfeita, garantindo aceleração positiva do rotor em "
+                f"toda a trajetória de partida. O motor apresenta ampla reserva cinética "
+                f"(pull-out safety margin), característica de partida segura."
             ),
         ))
     elif ratio >= 1.2:
@@ -196,12 +196,12 @@ def _check_acceleration_margin(
             level="warning",
             title="Margem de Conjugado Reduzida — Partida Moderada",
             body=(
-                f"O torque de pico (Te_max = {Te_max:.2f} N·m) foi apenas {ratio:.2f}x o "
-                f"torque de carga (T_L = {load_torque:.2f} N·m). A margem de aceleracao "
-                f"J·alpha = Te - T_L - B·omega_m foi positiva, porem estreita. "
-                f"Perturbacoes na tensao de alimentacao ou variacao de carga durante a "
-                f"partida podem resultar em aceleracao insuficiente e tempo de partida "
-                f"prolongado, aproximando-se do limite de atuacao do rele termico."
+                f"O torque de pico (Te_max = {Te_max:.2f} N·m) foi apenas {ratio:.2f}× o "
+                f"torque de carga (T_L = {load_torque:.2f} N·m). A margem de aceleração "
+                f"J·α = Te − T_L − B·ωm foi positiva, porém estreita. "
+                f"Perturbações na tensão de alimentação ou variação de carga durante a "
+                f"partida podem resultar em aceleração insuficiente e tempo de partida "
+                f"prolongado, aproximando-se do limite de atuação do relé térmico."
             ),
         ))
     else:
@@ -209,13 +209,13 @@ def _check_acceleration_margin(
             level="error",
             title="RISCO DE TRAVAMENTO DO ROTOR — Partida Pesada",
             body=(
-                f"O torque de pico eletromagnetico (Te_max = {Te_max:.2f} N·m) foi inferior "
-                f"a 1,2x o torque de carga (T_L = {load_torque:.2f} N·m), resultando em "
-                f"ratio = {ratio:.2f}. A equacao de aceleracao J·(domega/dt) = Te - T_L foi "
-                f"marginalmente positiva ou negativa em parte da trajetoria, caracterizando "
-                f"uma 'partida pesada'. O rotor operou proximas ao ponto de pull-out, "
-                f"com risco iminente de travamento (stall). Verifique se a carga e "
-                f"compativel com o motor ou adote partida suave/estrela-triangulo."
+                f"O torque de pico eletromagnético (Te_max = {Te_max:.2f} N·m) foi inferior "
+                f"a 1,2× o torque de carga (T_L = {load_torque:.2f} N·m), resultando em "
+                f"razão = {ratio:.2f}. A equação de aceleração J·(dω/dt) = Te − T_L foi "
+                f"marginalmente positiva ou negativa em parte da trajetória, caracterizando "
+                f"uma partida pesada. O rotor operou próximo ao ponto de pull-out, "
+                f"com risco iminente de travamento (stall). Verifique se a carga é "
+                f"compatível com o motor ou adote partida suave/estrela-triângulo."
             ),
         ))
 
@@ -235,31 +235,31 @@ def _check_slip_overload(
     if s_ss > S_CRITICO:
         insights.append(Insight(
             level="error",
-            title="SOBRECARGA SEVERA — Escorregamento Critico",
+            title="SOBRECARGA SEVERA — Escorregamento Crítico",
             body=(
-                f"O escorregamento de regime permanente calculado e s = {s_ss*100:.2f}%, "
-                f"muito acima do nominal tipico de motores NEMA B (1–3%). "
+                f"O escorregamento de regime permanente calculado é s = {s_ss*100:.2f}%, "
+                f"muito acima do valor nominal típico de motores NEMA B (1–3%). "
                 f"Para induzir o torque demandado (Te_ss = {Te_ss:.2f} N·m) a esta "
-                f"velocidade (n = {n_ss:.1f} RPM vs. n_s = {n_sync:.1f} RPM sincrona), "
-                f"o campo magnetico girante induziu correntes no rotor muito elevadas "
-                f"pela lei de Faraday (E_r proporcional a s·omega_s·Psi). "
-                f"Isso resulta em perdas Joule no rotor P_Joule_r = s·P_gap desproporcio"
-                f"nais, aquecimento acelerado do enrolamento e risco iminente de atuacao "
-                f"do rele de sobrecarga termico (IEC 60947-4-1). "
+                f"velocidade (n = {n_ss:.1f} RPM vs. n_s = {n_sync:.1f} RPM síncrona), "
+                f"o campo magnético girante induziu correntes no rotor muito elevadas "
+                f"pela lei de Faraday (E_r proporcional a s·ωs·Ψ). "
+                f"Isso resulta em perdas Joule no rotor P_Joule_r = s·P_gap desproporcionais, "
+                f"aquecimento acelerado do enrolamento e risco iminente de atuação "
+                f"do relé de sobrecarga térmico (IEC 60947-4-1). "
                 f"Revise o dimensionamento do motor para esta carga."
             ),
         ))
     elif s_ss > S_ALERTA:
         insights.append(Insight(
             level="warning",
-            title="Escorregamento Elevado — Operacao Fora da Zona Nominal",
+            title="Escorregamento Elevado — Operação Fora da Zona Nominal",
             body=(
-                f"O escorregamento de regime permanente e s = {s_ss*100:.2f}%, acima do "
-                f"valor tipico de projeto (< 5% para motores de uso geral). "
-                f"O motor opera fora da regiao de maxima eficiencia da curva Te x n. "
-                f"As perdas Joule no rotor (P_Joule_r = s·P_gap) sao elevadas, "
+                f"O escorregamento de regime permanente é s = {s_ss*100:.2f}%, acima do "
+                f"valor típico de projeto (< 5% para motores de uso geral). "
+                f"O motor opera fora da região de máxima eficiência da curva Te × n. "
+                f"As perdas Joule no rotor (P_Joule_r = s·P_gap) são elevadas, "
                 f"reduzindo o rendimento e aumentando a temperatura do enrolamento. "
-                f"Considere um motor de potencia superior ou reducao da carga mecanica."
+                f"Considere um motor de potência superior ou redução da carga mecânica."
             ),
         ))
     elif s_ss < 0:
@@ -268,13 +268,13 @@ def _check_slip_overload(
     elif s_ss < 0.001 and Te_ss > 0:
         insights.append(Insight(
             level="info",
-            title="Operacao em Regime de Alta Eficiencia",
+            title="Operação em Regime de Alta Eficiência",
             body=(
-                f"O escorregamento de regime e s = {s_ss*100:.3f}%, indicando operacao "
-                f"proxima ao ponto de sincronismo. As perdas Joule no rotor "
-                f"(P_Joule_r = s·P_gap) sao minimas, caracteristica de operacao de "
-                f"alta eficiencia. Este comportamento e esperado em motores de alto "
-                f"rendimento (premium efficiency, IE3/IE4) ou em condicao de leve carga."
+                f"O escorregamento de regime é s = {s_ss*100:.3f}%, indicando operação "
+                f"próxima ao ponto de sincronismo. As perdas Joule no rotor "
+                f"(P_Joule_r = s·P_gap) são mínimas, característica de operação de "
+                f"alta eficiência. Este comportamento é esperado em motores de alto "
+                f"rendimento (premium efficiency, IE3/IE4) ou em condição de leve carga."
             ),
         ))
 
@@ -290,15 +290,15 @@ def _check_underload(
     if 0 < s_ss < S_SUBCARGA:
         insights.append(Insight(
             level="warning",
-            title="Motor em Subcarga — Fator de Potencia Degradado",
+            title="Motor em Subcarga — Fator de Potência Degradado",
             body=(
                 f"O escorregamento s = {s_ss*100:.3f}% indica que o motor opera com "
-                f"carga muito inferior a sua potencia nominal. Em subcarga, a corrente "
-                f"de magnetizacao (I_m = E1/Xm) permanece praticamente constante e "
-                f"representa uma fracao elevada da corrente total, resultando em "
-                f"fator de potencia baixo e rendimento reduzido. "
-                f"Considere substituir por um motor de menor potencia nominal para "
-                f"operar mais proximo do ponto de projeto."
+                f"carga muito inferior à sua potência nominal. Em subcarga, a corrente "
+                f"de magnetização (I_m = E1/Xm) permanece praticamente constante e "
+                f"representa uma fração elevada da corrente total, resultando em "
+                f"fator de potência baixo e rendimento reduzido. "
+                f"Considere substituir por um motor de menor potência nominal para "
+                f"operar mais próximo do ponto de projeto."
             ),
         ))
 

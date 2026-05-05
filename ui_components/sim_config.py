@@ -744,7 +744,7 @@ def render_experiment_config(
         )
         # ── Gêmeo Digital: Barra Quebrada ─────────────────────────────
         st.write("")
-        with st.expander("Gemeo Digital — Falha de Barra Quebrada", expanded=False):
+        with st.expander("Gêmeo Digital — Falha de Barra Quebrada", expanded=False):
             _ibox(
                 "Modela a falha introduzindo oscilação em $R_r$ à freq. de escorregamento: "
                 "$R_r(t) = R_r \\cdot (1 + \\alpha \\cdot \\cos(2s\\omega_b t))$. "

@@ -180,13 +180,13 @@ def _kpis_destaque(
             t_ev  = _tevs[1] if len(_tevs) > 1 else (_tevs[0] if _tevs else 0.0)
             idx   = int(np.searchsorted(res["t"], t_ev))
             ias_pk2 = float(np.max(np.abs(res["ias"][idx:]))) if idx < len(res["t"]) else 0.0
-            items.insert(1, ("Corrente de Pico pos-comutacao Y→D", f"{ias_pk2:.{d}f}", "A"))
+            items.insert(1, ("Corrente de Pico Pós-Comutação Y→D", f"{ias_pk2:.{d}f}", "A"))
         elif exp_type == "comp":
             _tevs      = t_events or []
             t_ev_comp  = _tevs[0] if _tevs else 0.0
             idx_comp   = int(np.searchsorted(res["t"], t_ev_comp))
             ias_pk2_comp = float(np.max(np.abs(res["ias"][idx_comp:]))) if idx_comp < len(res["t"]) else 0.0
-            items.insert(1, ("Corrente de Pico pos-comutacao AT", f"{ias_pk2_comp:.{d}f}", "A"))
+            items.insert(1, ("Corrente de Pico Pós-Comutação AT", f"{ias_pk2_comp:.{d}f}", "A"))
 
     elif exp_type == "carga":
         _tevs_c    = t_events or []
@@ -209,10 +209,10 @@ def _kpis_destaque(
         lbl_p = "kW" if abs(P_out) >= 1000 else "W"
         val_p = P_out / 1000 if abs(P_out) >= 1000 else P_out
         items = [
-            ("Potencia Gerada para a Rede", f"{val_p:.{d}f}",        lbl_p),
+            ("Potência Gerada para a Rede", f"{val_p:.{d}f}",        lbl_p),
             ("Escorregamento",              f"{s_val*100:.{d}f}",    "%"),
             ("Rendimento",                  f"{eta:.{d}f}",          "%"),
-            ("Corrente RMS de Geracao",     f"{ias_rms:.{d}f}",      "A"),
+            ("Corrente RMS de Geração",     f"{ias_rms:.{d}f}",      "A"),
         ]
 
     elif exp_type == "voltage_sag":
@@ -677,7 +677,7 @@ def render_results(
 
         # ── Diagnóstico Técnico do Especialista ──────────────────────────
         st.divider()
-        with st.expander("Diagnostico Tecnico do Especialista", expanded=True):
+        with st.expander("Diagnóstico Técnico do Especialista", expanded=True):
             try:
                 _cfg       = exp_config or {}
                 _load_torq = float(_cfg.get("Tl_final", 0.0))
@@ -691,8 +691,8 @@ def render_results(
                 )
                 if not _insights:
                     st.info(
-                        "Nenhum insight disponivel para este tipo de experimento "
-                        "ou os dados de regime permanente nao foram detectados."
+                        "Nenhum insight disponível para este tipo de experimento "
+                        "ou os dados de regime permanente não foram detectados."
                     )
                 else:
                     _level_fn = {"info": st.info, "warning": st.warning, "error": st.error}
@@ -700,7 +700,7 @@ def render_results(
                         _fn = _level_fn.get(_ins.level, st.info)
                         _fn(f"**{_ins.title}** — {_ins.body}")
             except Exception as _exc:
-                st.warning(f"Diagnostico indisponivel: {_exc}")
+                st.warning(f"Diagnóstico indisponível: {_exc}")
 
     # ══════════════════════════════════════════════════════════════════════
     # ABA 4 — GESTÃO DE ATIVOS (ROI / TÉRMICA)

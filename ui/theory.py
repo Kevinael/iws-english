@@ -199,6 +199,56 @@ def _render_tab_circuitos() -> None:
 
     st.divider()
 
+    # 1d-ii. Referencial da Transformada de Park
+    _h4("Referencial da Transformada de Park — Escolha do Eixo de Rotação")
+    st.markdown(
+        "A transformada de Park projeta as grandezas trifásicas $abc$ em dois eixos "
+        "ortogonais $dq$ que giram a uma velocidade angular de referência $\\omega_{ref}$. "
+        "A escolha de $\\omega_{ref}$ define o **referencial** e altera a aparência das "
+        "formas de onda — sem alterar a física da máquina."
+    )
+    st.markdown("Os três referenciais disponíveis no simulador são:")
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        _h4("Síncrono ($\\omega_{ref} = \\omega_e$)")
+        st.markdown(
+            "Os eixos $dq$ giram junto com o campo magnético girante do estator. "
+            "Em regime permanente, todas as grandezas — tensões, correntes e fluxos — "
+            "tornam-se **valores contínuos (DC)**. É o referencial padrão do simulador "
+            "e o mais utilizado em controle vetorial."
+        )
+        _eq(r"V_{qs} = \text{const.},\quad V_{ds} = 0 \;\text{(regime)}")
+        _div_warn("Recomendado para análise de regime permanente e diagnóstico de torque.")
+    with col2:
+        _h4("Rotórico ($\\omega_{ref} = \\omega_r$)")
+        st.markdown(
+            "Os eixos giram solidários ao rotor. As grandezas rotóricas tornam-se DC; "
+            "as estatóricas oscilam à frequência de escorregamento $f_r = s \\cdot f_e$. "
+            "Útil para análise de falhas no rotor, como barras quebradas, "
+            "onde $s$ é o parâmetro de interesse."
+        )
+        _eq(r"f_r = s\,f_e \quad \Rightarrow \quad \omega_{ref} = \omega_r")
+        _div_warn("Indicado para estudos de falhas rotóricas e análise espectral de corrente.")
+    with col3:
+        _h4("Estacionário ($\\omega_{ref} = 0$)")
+        st.markdown(
+            "Os eixos $\\alpha\\beta$ são fixos no espaço. Nenhuma grandeza é DC — "
+            "estator e rotor oscilam às suas frequências naturais ($f_e$ e $f_r$). "
+            "É o referencial de Clarke, base de estratégias de controle sem sensor "
+            "de posição (sensorless)."
+        )
+        _eq(r"\omega_{ref} = 0 \;\Rightarrow\; \text{eixos } \alpha\beta \text{ estacionários}")
+        _div_warn("Útil para visualização das correntes em coordenadas estacionárias.")
+
+    st.markdown(
+        "As equações de estado do modelo mudam apenas nos termos de acoplamento entre "
+        "eixos (termos $\\omega_{ref}\\,\\psi$). A solução é matematicamente equivalente "
+        "nos três referenciais — a escolha afeta apenas a interpretação das formas de onda."
+    )
+
+    st.divider()
+
     # 1e. Gaiola Dupla
     _h4("Circuito com Gaiola de Esquilo Dupla")
     col_txt, col_img = st.columns([1, 1])
@@ -878,6 +928,130 @@ def _render_tab_sensibilidade() -> None:
         _div_warn(f"**Atenção — calibrações extremas:** {item['warn']}")
         st.write("")
 
+    st.divider()
+    st.markdown("### Modo de Entrada dos Parâmetros Magnéticos — Reatâncias vs. Indutâncias")
+    _h4("Reatâncias $X$ (Ω) vs. Indutâncias $L$ (H)")
+    st.markdown(
+        "Os parâmetros magnéticos $X_m$, $X_{ls}$ e $X_{lr}$ podem ser inseridos de duas formas "
+        "equivalentes. A escolha depende da fonte dos dados disponíveis."
+    )
+
+    col_x, col_l = st.columns(2)
+    with col_x:
+        _h4("Modo Reatâncias (Ω)")
+        st.markdown(
+            "Os valores são fornecidos como reatâncias medidas em uma frequência de referência "
+            "$f_{ref}$. É o formato padrão de relatórios de ensaio e catálogos de fabricantes."
+        )
+        _eq(r"X = 2\pi\,f_{ref}\,L")
+        st.markdown(
+            "**$f_{ref}$** deve ser a frequência na qual os parâmetros foram medidos — "
+            "normalmente a frequência nominal da máquina (50 Hz ou 60 Hz). "
+            "O simulador converte internamente para indutâncias:"
+        )
+        _eq(r"L = \frac{X}{2\pi\,f_{ref}}")
+        _div_warn(
+            "Se $f_{ref}$ for diferente de $f$ da rede, as reatâncias efetivas na simulação "
+            "serão recalculadas corretamente — $L$ é invariante, $X$ escala com $f$."
+        )
+    with col_l:
+        _h4("Modo Indutâncias (H)")
+        st.markdown(
+            "Os valores são fornecidos diretamente como indutâncias, independentes de frequência. "
+            "Indicado quando os parâmetros provêm de identificação paramétrica, "
+            "simulação de elementos finitos (FEM) ou medição por pontes de impedância."
+        )
+        _eq(r"X_m(f) = 2\pi\,f\,L_m")
+        st.markdown(
+            "As indutâncias são inseridas uma única vez e permanecem válidas para qualquer "
+            "frequência de operação — o simulador recalcula as reatâncias automaticamente "
+            "a cada mudança de $f$."
+        )
+        _div_warn(
+            "Prefira este modo ao operar fora da frequência nominal ou ao comparar "
+            "máquinas de diferentes frequências com o mesmo conjunto de parâmetros."
+        )
+
+    st.divider()
+    st.markdown("### Parâmetros Térmicos")
+    _h4("$R_{th}$ — Resistência Térmica (K/W)")
+    st.markdown(
+        "Representa a resistência ao fluxo de calor entre o enrolamento e o ambiente externo. "
+        "Define a temperatura de regime em função das perdas totais:"
+    )
+    _eq(r"\Delta T_{regime} = R_{th}\,(P_{cu} + P_{fe})")
+    st.markdown(
+        "No modo automático, $R_{th}$ é estimado a partir dos parâmetros elétricos impondo "
+        "uma elevação de temperatura nominal $\\Delta T = 50\\;$K — valor típico de motores "
+        "TEFC (Totally Enclosed Fan Cooled) em operação nominal, correspondendo a "
+        "$T_{regime} \\approx 75\\;$°C com $T_{amb} = 25\\;$°C."
+    )
+    _div_warn(
+        "Valores baixos de $R_{th}$ indicam motor com boa refrigeração (carcaça grande, "
+        "ventilação forçada). Valores altos indicam motor fechado de pequeno porte ou "
+        "com ventilação comprometida — temperatura de regime mais elevada."
+    )
+
+    st.write("")
+    _h4("$C_{th}$ — Capacidade Térmica (J/K)")
+    st.markdown(
+        "Representa a energia necessária para elevar a temperatura do motor em 1 K. "
+        "Governa a **velocidade de aquecimento** — a constante de tempo térmica é:"
+    )
+    _eq(r"\tau_{th} = R_{th}\,C_{th}")
+    st.markdown(
+        "No modo automático, a capacidade térmica é estimada pela massa equivalente do motor, "
+        "assumindo aço com calor específico $c_p = 460\\;$J/(kg·K) e uma regra industrial "
+        "de $15\\;$kg/kW de potência nominal:"
+    )
+    _eq(r"C_{th} \approx \underbrace{15\,P_{nom}}_{\text{massa estimada (kg)}} \times 460\;\frac{\text{J}}{\text{kg·K}}")
+    _div_warn(
+        "A equação diferencial térmica integrada pelo simulador é: "
+        "$\\dot{T} = (P_{cu} + P_{fe})/C_{th} - (T - T_{amb})/(R_{th}\\,C_{th})$. "
+        "Em regime permanente, $\\dot{T} = 0$ e $T_{regime} = T_{amb} + R_{th}\\,(P_{cu}+P_{fe})$."
+    )
+
+    st.write("")
+    _h4("$T_{amb}$ — Temperatura Ambiente (°C)")
+    st.markdown(
+        "Temperatura do ambiente externo, usada como condição de contorno da EDO térmica "
+        "e como valor inicial de $T$ na simulação. "
+        "A temperatura do motor em qualquer instante é:"
+    )
+    _eq(r"T(t) = T_{amb} + \Delta T(t), \quad \Delta T(t) = \Delta T_{regime}\!\left(1 - e^{-t/\tau_{th}}\right)")
+    st.markdown(
+        "Alterar $T_{amb}$ desloca toda a curva de temperatura sem modificar a dinâmica — "
+        "$\\tau_{th}$ e $\\Delta T_{regime}$ permanecem os mesmos."
+    )
+
+    st.divider()
+    st.markdown("### Impedância de Rede")
+    _h4("$R_{grid}$ e $L_{grid}$ — Impedância da Rede de Alimentação")
+    st.markdown(
+        "Em uma instalação real, o motor não é alimentado diretamente por uma fonte ideal "
+        "de tensão: existe uma impedância de rede entre o ponto de entrega e os terminais "
+        "do motor, composta pela resistência e indutância dos cabos, transformadores e "
+        "barramentos. O simulador modela essa impedância como uma série $R_{grid} + jX_{grid}$ "
+        "inserida em cada fase antes dos terminais do estator:"
+    )
+    _eq(r"\bar{V}_{motor} = \bar{V}_{rede} - \bar{I}_s\,(R_{grid} + j\omega_e L_{grid})")
+    st.markdown(
+        "A tensão efetiva nos terminais do motor cai com a corrente — especialmente "
+        "durante a partida, quando $I_s$ é máxima. O efeito é equivalente a um "
+        "**afundamento de tensão proporcional à corrente** ao longo de todo o transitório."
+    )
+    st.markdown(
+        "- **$R_{grid}$:** provoca queda resistiva de tensão e dissipação de potência ativa no cabo.\n"
+        "- **$L_{grid}$:** provoca queda reativa e atraso de fase — mais relevante em redes de "
+        "média tensão ou com cabos longos."
+    )
+    _div_warn(
+        "Com $R_{grid} = L_{grid} = 0$ (padrão), o motor é alimentado por fonte ideal — "
+        "tensão nos terminais sempre igual a $V_l$. "
+        "Valores típicos para cabos de baixa tensão: $R_{grid} \\approx 0{,}01$–$0{,}1\\;\\Omega$, "
+        "$L_{grid} \\approx 10$–$100\\;\\mu$H."
+    )
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # ABA 5 — CONFIGURAÇÕES DE SIMULAÇÃO E ALERTAS
@@ -1142,6 +1316,61 @@ def _render_tab_experimentos() -> None:
     )
 
     st.divider()
+    st.markdown("### Afundamento de Tensão")
+
+    _h4("Afundamento de Tensão — *Voltage Sag*")
+    st.markdown(
+        "O afundamento de tensão é uma **redução temporária** da amplitude da tensão de "
+        "alimentação, com duração tipicamente entre alguns ciclos e alguns segundos. "
+        "É classificado pela norma IEC 61000-4-11 / IEEE 1159 como uma perturbação de "
+        "qualidade de energia de alta ocorrência — causada por faltas em alimentadores "
+        "vizinhos, partida de cargas pesadas ou falhas de comutação na rede."
+    )
+    st.markdown(
+        "No simulador, o afundamento é modelado como uma janela retangular de tensão "
+        "reduzida no intervalo $[t_{sag},\\, t_{sag} + \\Delta t_{sag}]$:"
+    )
+    _eq(
+        r"V(t) = \begin{cases}"
+        r"V_l & t < t_{sag} \\"
+        r"k_{\!sag}\,V_l & t_{sag} \leq t < t_{sag} + \Delta t_{sag} \\"
+        r"V_l & t \geq t_{sag} + \Delta t_{sag}"
+        r"\end{cases}"
+    )
+    st.markdown(
+        "onde $k_{sag} \\in (0,\\,1]$ é a **magnitude residual** — por exemplo, "
+        "$k_{sag} = 0{,}7$ representa um afundamento de 30% ($V = 0{,}7\\,V_l$ durante o evento)."
+    )
+    st.markdown("**Resposta dinâmica da máquina durante o sag:**")
+    st.markdown(
+        "Com a queda de tensão, o torque eletromagnético cai aproximadamente com $V^2$ "
+        "(pois $T_e \\propto V_{th}^2$). Se o torque de carga $T_l$ permanecer constante, "
+        "a equação de movimento passa a ter aceleração negativa:"
+    )
+    _eq(r"J\,\dot{\omega}_r = T_e(V_{sag}) - T_l - B\,\omega_r < 0")
+    st.markdown(
+        "O rotor desacelera. A queda de velocidade $\\Delta n$ depende da profundidade e "
+        "duração do sag e da inércia $J$ do sistema. Com o retorno da tensão nominal, "
+        "o motor reacelera — desde que não tenha saído da região estável da curva "
+        "$T_e \\times n$ (stall)."
+    )
+    _div_warn(
+        "**Critério de recuperação:** se durante o sag a velocidade cair abaixo do "
+        "escorregamento crítico $s_{cr}$, o motor entra na região instável e não retorna "
+        "ao regime mesmo após a restauração da tensão — ocorre o **travamento pós-sag**. "
+        "Este fenômeno é denominado *motor stalling* e é uma das principais causas de "
+        "desligamento em cadeia em redes industriais."
+    )
+    st.markdown(
+        "- **Observar:** queda de velocidade durante o evento, pico de corrente na restauração "
+        "da tensão, tempo de recuperação ao regime permanente.\n"
+        "- **Parâmetros críticos:** $k_{sag}$ (profundidade), $\\Delta t_{sag}$ (duração), "
+        "$J$ (inércia) e $T_l$ (carga aplicada).\n"
+        "- **Saídas relevantes nos gráficos:** $\\omega_r(t)$, $i_{as}(t)$, $T_e(t)$ — "
+        "monitorar o transitório de restauração e verificar se o regime é atingido novamente."
+    )
+
+    st.divider()
     st.markdown("### Desequilíbrio de Tensão e Falta de Fase")
 
     _h4("Desequilíbrio de Tensão — Componentes Simétricas")
@@ -1228,6 +1457,100 @@ def _render_tab_experimentos() -> None:
     st.markdown(
         "Usando $t_{deseq} = 0$, a assimetria está presente desde a partida — "
         "útil para estudar a **partida com rede já desequilibrada**."
+    )
+
+    st.divider()
+    st.markdown("### Gêmeo Digital — Falha de Barra Quebrada")
+
+    _h4("Modelo de Barra Quebrada — Severidade $\\alpha$")
+    st.markdown(
+        "A falha de barra quebrada é uma das ocorrências mais frequentes em motores de "
+        "indução de gaiola de esquilo. Ocorre por fadiga mecânica, ciclos térmicos "
+        "repetidos ou defeito de fabricação — e se manifesta como uma **assimetria "
+        "rotórica** que produz oscilações características de torque e corrente."
+    )
+    st.markdown(
+        "O modelo implementado introduz uma **modulação periódica da resistência rotórica** "
+        "à frequência de escorregamento $f_r = s \\cdot f_e$, simulando o efeito "
+        "de barras com resistência elevada:"
+    )
+    _eq(r"R_r(t) = R_{r,0}\,\bigl[1 + \alpha\,\sin(2\pi\,f_r\,t)\bigr], \quad f_r = s\,f_e")
+    st.markdown(
+        "onde $\\alpha \\in [0,\\,0{,}5]$ é o **parâmetro de severidade** configurável no simulador:"
+    )
+    st.markdown(
+        "- $\\alpha = 0$: motor sem falha — $R_r$ constante.\n"
+        "- $\\alpha = 0{,}1$–$0{,}2$: falha incipiente — oscilações sutis, dificilmente detectáveis sem análise espectral.\n"
+        "- $\\alpha = 0{,}3$–$0{,}5$: falha severa — oscilações de torque e corrente claramente visíveis nos gráficos."
+    )
+    st.markdown(
+        "**Assinatura espectral diagnóstica:** a falha de barra quebrada produz componentes "
+        "laterais (*sidebands*) na corrente estatórica centrados em torno da frequência fundamental:"
+    )
+    _eq(r"f_{sb} = f_e\,(1 \pm 2k\,s), \quad k = 1, 2, 3, \ldots")
+    st.markdown(
+        "A amplitude dessas componentes cresce com $\\alpha$ e com a carga mecânica. "
+        "O método de diagnóstico baseado nessas frequências é denominado "
+        "**MCSA** — *Motor Current Signature Analysis* — e é a técnica de manutenção "
+        "preditiva mais difundida para motores de indução."
+    )
+    _div_warn(
+        "O modelo de modulação de $R_r$ é uma aproximação de primeira ordem. "
+        "Ele captura corretamente a frequência das oscilações e a tendência de amplitude "
+        "com a severidade, mas não reproduz todos os harmônicos da assinatura real de uma "
+        "barra fisicamente fraturada."
+    )
+
+    st.divider()
+    st.markdown("### Estimativa de Parâmetros por Dados de Placa")
+
+    _h4("Método de Estimativa — IEEE T-Equivalente com Premissas NEMA B")
+    st.markdown(
+        "Quando os parâmetros do circuito equivalente ($R_s$, $R_r$, $X_m$, $X_{ls}$, $X_{lr}$) "
+        "não estão disponíveis diretamente, o simulador oferece um estimador automático "
+        "baseado nas informações da **placa de identificação** (*nameplate*) do motor. "
+        "O método segue a metodologia IEEE Std 112 e as premissas de distribuição de "
+        "reatâncias da norma NEMA MG-1."
+    )
+
+    st.markdown("**Dados de entrada exigidos:**")
+    st.markdown(
+        "- Tensão de linha $V_l$ e frequência $f$\n"
+        "- Potência nominal no eixo $P_n$ (kW)\n"
+        "- Velocidade nominal $n_{nom}$ (RPM) — usada para deduzir o número de polos e $s_{nom}$\n"
+        "- Rendimento nominal $\\eta$ e fator de potência $\\cos\\varphi$\n"
+        "- Relação corrente de partida/nominal $I_p/I_n$\n"
+        "- Relação torque de partida/nominal $T_p/T_n$"
+    )
+
+    st.markdown("**Sequência de cálculo:**")
+    st.markdown("**1.** Dedução do escorregamento e grandezas nominais:")
+    _eq(r"s_{nom} = 1 - \frac{n_{nom}}{n_s}, \quad n_s = \frac{120\,f}{p}")
+    _eq(r"I_n = \frac{P_n}{\sqrt{3}\,V_l\,\eta\,\cos\varphi}, \quad T_n = \frac{P_n}{\omega_{r,nom}}")
+
+    st.markdown("**2.** Estimativa da corrente de partida e impedância de curto-circuito:")
+    _eq(r"I_p = \left(\frac{I_p}{I_n}\right) I_n, \quad Z_k = \frac{V_f}{I_p}, \quad X_k = Z_k\,\sqrt{1 - \cos^2\!\varphi_p}")
+    st.markdown(
+        "onde $\\cos\\varphi_p \\approx 0{,}20$ é o fator de potência típico na partida "
+        "(adotado como premissa NEMA B para motores de gaiola simples)."
+    )
+
+    st.markdown("**3.** Distribuição das reatâncias de dispersão (premissa NEMA B):")
+    _eq(r"X_{ls} = 0{,}4\,X_k, \quad X_{lr} = 0{,}6\,X_k")
+
+    st.markdown("**4.** Estimativa de $R_s$ e $R_r$ por balanço de potência em regime nominal:")
+    _eq(r"P_{cu,s} = 3\,I_n^2\,R_s = P_{in} - P_{ag} - P_{fe}, \quad P_{cu,r} = 3\,I_n^2\,R_r = s_{nom}\,P_{ag}")
+
+    st.markdown("**5.** Reatância de magnetização por subtração:")
+    _eq(r"X_m = X_{cc} - X_{ls}, \quad X_{cc} = \frac{V_f}{I_{cc}}")
+
+    _div_warn(
+        "**Limitações do estimador:** os parâmetros obtidos são aproximações baseadas em "
+        "premissas estatísticas da norma NEMA — adequados para simulação e análise de "
+        "sensibilidade, mas não substituem ensaios de identificação (ensaio a vazio + "
+        "ensaio de rotor bloqueado conforme IEEE Std 112). "
+        "Para motores fora do padrão NEMA B (gaiola dupla, rotor bobinado, motores de "
+        "alta eficiência IE4), os resultados podem divergir significativamente dos valores reais."
     )
 
 
