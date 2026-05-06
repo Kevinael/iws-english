@@ -14,6 +14,30 @@ import streamlit as st
 from core.EMS_PY import MachineParams, build_fns, run_simulation
 
 
+def calc_tmax_auto(exp_config: dict, mp: MachineParams) -> float:
+    """Calcula tmax automático: último evento + acomodação mecânica por inércia.
+
+    Retorna o tmax em segundos. Usado tanto pela UI (preview) quanto pelo runner.
+    """
+    exp_type = exp_config.get("exp_type", "")
+    if exp_type == "dol":
+        t_last = exp_config.get("t_carga", 1.0)
+    elif exp_type in ("yd", "comp"):
+        t_last = max(exp_config.get("t_2", 0.5), exp_config.get("t_carga", 1.0))
+    elif exp_type == "soft":
+        t_last = max(exp_config.get("t_pico", 5.0), exp_config.get("t_carga", 1.0))
+    elif exp_type in ("carga", "pulso_carga"):
+        t_last = exp_config.get("t_retirada", exp_config.get("t_carga", 1.0))
+    elif exp_type == "gerador":
+        t_last = exp_config.get("t_2", 1.0)
+    elif exp_type == "voltage_sag":
+        t_last = exp_config.get("t_start_sag", 0.5) + exp_config.get("t_duration_sag", 0.1)
+    else:
+        t_last = 1.0
+    t_acomo = float(min(max(15.0 * mp.J, 2.0), 30.0))
+    return t_last + t_acomo
+
+
 def execute_simulation_flow(
     mp: MachineParams,
     exp_config: dict[str, Any],
@@ -45,24 +69,7 @@ def execute_simulation_flow(
     if _exp_type == "shutdown":
         _tmax_run = float(exp_config.get("_t_end_shutdown", tmax))
     elif tmax <= 0.0:
-        # Cálculo automático: tempo do último evento + acomodação mecânica por inércia
-        if _exp_type == "dol":
-            _t_last = exp_config.get("t_carga", 1.0)
-        elif _exp_type in ("yd", "comp"):
-            _t_last = max(exp_config.get("t_2", 0.5), exp_config.get("t_carga", 1.0))
-        elif _exp_type == "soft":
-            _t_last = max(exp_config.get("t_pico", 5.0), exp_config.get("t_carga", 1.0))
-        elif _exp_type in ("carga", "pulso_carga"):
-            _t_last = exp_config.get("t_retirada", exp_config.get("t_carga", 1.0))
-        elif _exp_type == "gerador":
-            _t_last = exp_config.get("t_2", 1.0)
-        elif _exp_type == "voltage_sag":
-            _t_last = exp_config.get("t_start_sag", 0.5) + exp_config.get("t_duration_sag", 0.1)
-        else:
-            _t_last = 1.0
-        # Acomodação mecânica: clamp(15 * J, 2, 30) segundos
-        _t_acomo = float(min(max(15.0 * mp.J, 2.0), 30.0))
-        _tmax_run = _t_last + _t_acomo
+        _tmax_run = calc_tmax_auto(exp_config, mp)
     else:
         _tmax_run = tmax
 

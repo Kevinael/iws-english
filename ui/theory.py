@@ -74,12 +74,8 @@ def _torque_ref(s: float) -> float:
 # ── helpers de renderização ───────────────────────────────────────────────────
 
 def _h4(title: str) -> None:
-    """Subtítulo de seção, sem cor azul."""
-    st.markdown(
-        f'<h4 style="font-size:1.05rem;font-weight:700;'
-        f'margin:.6rem 0 .4rem;color:#111;">{title}</h4>',
-        unsafe_allow_html=True,
-    )
+    """Subtítulo de seção — usa markdown nativo para suportar LaTeX e negrito."""
+    st.markdown(f"#### {title}")
 
 
 def _eq(latex: str) -> None:
@@ -92,12 +88,7 @@ def _p(text: str) -> None:
 
 
 def _div_warn(text: str) -> None:
-    st.markdown(
-        f'<div style="background:#f3f3f3;border-left:4px solid #555;'
-        f'padding:.5rem .8rem;border-radius:4px;margin:.5rem 0;'
-        f'font-size:.88rem;color:#222;">{text}</div>',
-        unsafe_allow_html=True,
-    )
+    st.warning(text)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

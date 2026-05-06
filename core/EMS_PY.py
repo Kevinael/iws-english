@@ -13,6 +13,12 @@ Modulos internos:
   core.sources        — fontes de tensao/torque, build_fns
   core.transforms     — abc_voltages, clarke_park_transform
   core.thermal        — estimate_rth_cth, dTemp_dt
+
+Documentacao detalhada da arquitetura e decisoes de implementacao:
+  SME/2. Modulos/core/EMS_PY.md
+  SME/Fluxo de Dados e Execucao.md
+  SME/1. Fundamentos/6 - API Publica (run_simulation e build_fns).md
+  SME/2. Modulos/Guia de Leitura do Codigo.md
 """
 
 from __future__ import annotations

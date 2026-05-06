@@ -20,6 +20,11 @@ A massa é proxy da potência mecânica: massa ≈ P_mec_kW × 15 kg/kW.
 
 Heurística de massa: ~15 kg/kW — razoável para motores TEFC 0.5–2500 kW
 conforme catálogos WEG/Siemens (desvio típico < 30%).
+
+Documentacao detalhada de cada decisao de implementacao:
+  SME/2. Modulos/core/thermal.md
+  SME/2. Modulos/Guia de Leitura do Codigo.md  (secao 6)
+  SME/1. Fundamentos/4 - Modelo Matematico (RHS Krause).md
 """
 
 from __future__ import annotations
@@ -58,23 +63,28 @@ def estimate_rth_cth(
     """
     Vfase = Vl / math.sqrt(3.0)
 
-    # Circuito equivalente em T: Xls em série; paralelo(Xm_a, Xlr_a + Rr/s)
+    # Circuito T (nao pi): Xm_a e o ramo de magnetizacao puro (wb*Lm).
+    # Usar Xml (circuito pi) superestimaria as correntes nominais — ver SME/2. Modulos/core/thermal.md
     Z_rotor    = complex(Rr / s_nom, Xlr_a)
     Z_mag      = complex(0.0, Xm_a)
     Z_paralelo = (Z_rotor * Z_mag) / (Z_rotor + Z_mag)
     Z_total    = complex(Rs, Xls_a) + Z_paralelo
 
     I_estator = Vfase / abs(Z_total)
+    # divisor de corrente: fracao de I_estator que flui pelo ramo do rotor
     I_rotor   = I_estator * abs(Z_mag / (Z_rotor + Z_mag))
 
+    # max(..., 10.0) e max(..., 0.5): guarda contra divisao por zero com parametros extremos
     P_perdas  = max(3.0 * (Rs * I_estator**2 + Rr * I_rotor**2), 10.0)
     P_mec_kw  = max(
         (3.0 * I_rotor**2 * (Rr / s_nom) * (1.0 - s_nom)) / 1000.0,
         0.5,
     )
 
+    # massa como proxy de P_mec: ~15 kg/kW (heuristica catalogo TEFC WEG/Siemens)
     massa = P_mec_kw * _KG_POR_KW
 
+    # Rth calibrado para DeltaT=50 K — T_regime tipico de TEFC bem dimensionado
     Rth = _DELTA_T_NOMINAL / P_perdas
     Cth = massa * _CP_ACO
 
@@ -92,5 +102,9 @@ def dTemp_dt(
     """Derivada da temperatura do motor (EDO de 1ª ordem, parâmetros concentrados).
 
     dT/dt = (P_joule + P_fe) / Cth  −  (T − T_amb) / (Rth · Cth)
+
+    Integrada dentro do ODE principal (estado 7) para que o LSODA controle o
+    passo de integracao termico junto com os estados eletromagneticos.
+    Ver SME/2. Modulos/core/thermal.md — secao 'Por que integrar dentro do ODE'.
     """
     return (P_joule + P_fe) / Cth - (Temp - T_amb) / (Rth * Cth)

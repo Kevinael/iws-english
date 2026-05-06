@@ -15,6 +15,7 @@ import streamlit as st
 import plotly.graph_objects as go
 
 from core.EMS_PY import MachineParams
+from core.energy_analysis import compute_energy_metrics
 from viz.plotly_charts import build_fig_stacked, build_fig_sidebyside, build_fig_overlay, build_fig_torque_speed
 from viz.pdf_report import generate_pdf_report
 from core.harmonica_analysis import build_fig_fft
@@ -57,96 +58,6 @@ _PLOT_CFG: dict[str, Any] = {
 }
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# MÉTRICAS DE ENERGIA E ANÁLISE ECONÔMICA
-# ─────────────────────────────────────────────────────────────────────────────
-
-def compute_energy_metrics(res: dict, tarifa_brl_kwh: float) -> dict:
-    """Calcula energia consumida, rendimento médio, custo operacional, THD e FP.
-
-    Integra P_in = (3/2)·(Vqs·iqs + Vds·ids) sobre todo o intervalo de simulação.
-    O rendimento é calculado na janela de regime permanente.
-    THD = sqrt(Σ Ak² k≥2) / A1 × 100% via FFT de ias na janela de regime permanente.
-    FP = P_in_ss / S_aparente onde S = 3 × Va_rms × ias_rms.
-
-    Returns dict com:
-        E_total_kwh   — energia total consumida no experimento (kWh)
-        custo_exp_brl — custo do experimento (R$)
-        horas_op_ano  — horas de operação projetadas por ano (baseado no perfil)
-        custo_ano_brl — custo operacional anual projetado (R$)
-        eta_ss        — rendimento em regime permanente (%)
-        P_in_ss_kw    — potência de entrada em regime (kW)
-        thd_pct       — THD de ias em regime permanente (%)
-        fp            — Fator de Potência em regime permanente (adimensional)
-    """
-    t   = np.asarray(res["t"],   dtype=float)
-    Vqs = np.asarray(res["Vqs"], dtype=float)
-    Vds = np.asarray(res["Vds"], dtype=float)
-    iqs = np.asarray(res["iqs"], dtype=float)
-    ids = np.asarray(res["ids"], dtype=float)
-
-    P_in_inst = (3.0 / 2.0) * (Vqs * iqs + Vds * ids)  # W instantâneo
-    E_total_j   = float(np.trapezoid(np.where(np.isfinite(P_in_inst), P_in_inst, 0.0), t))
-    E_total_kwh = E_total_j / 3_600_000.0
-    custo_exp_brl = E_total_kwh * tarifa_brl_kwh
-
-    # regime permanente
-    ss_start    = int(res.get("_ss_start", 0))
-    eta_ss      = float(res.get("eta", 0.0))
-    P_in_ss     = float(res.get("P_in", 0.0))
-    P_in_ss_kw  = P_in_ss / 1000.0
-
-    # projeção anual: assume perfil de carga contínua (24 h × 365 d) baseado em P_in_ss
-    horas_op_ano  = 8_760.0
-    E_ano_kwh     = P_in_ss_kw * horas_op_ano
-    custo_ano_brl = E_ano_kwh * tarifa_brl_kwh
-
-    # ── THD de ias na janela de regime permanente ──────────────────────────
-    thd_pct = 0.0
-    fp      = 0.0
-    try:
-        ias_ss = np.asarray(res["ias"][ss_start:], dtype=float)
-        t_ss   = t[ss_start:]
-        if len(ias_ss) >= 16:
-            dt_ss = float(t_ss[1] - t_ss[0]) if len(t_ss) > 1 else 1e-4
-            N     = len(ias_ss)
-            spec  = np.abs(np.fft.rfft(ias_ss)) / N
-            freqs = np.fft.rfftfreq(N, d=dt_ss)
-            # fundamental: bin mais próximo de 60 Hz (ou 50 Hz) — usar maior pico abaixo de 2×f
-            f_fund_approx = float(res.get("_f_fund", 60.0)) if "_f_fund" in res else 60.0
-            mask_fund = (freqs > 0.5 * f_fund_approx) & (freqs < 1.5 * f_fund_approx)
-            if mask_fund.any():
-                A1 = float(spec[mask_fund].max())
-                # harmônicas: todos os bins acima de 1,5×f_fund (excluindo DC e fundamental)
-                mask_harm = freqs > 1.5 * f_fund_approx
-                A_harm    = spec[mask_harm]
-                if A1 > 0 and len(A_harm) > 0:
-                    thd_pct = float(np.sqrt(np.sum(A_harm ** 2)) / A1 * 100.0)
-
-        # ── Fator de Potência ──────────────────────────────────────────────
-        # Va_rms: fase a — tensão de linha / sqrt(3). Vqs, Vds são componentes qd0.
-        # |Va| = sqrt(Vqs² + Vds²) / sqrt(2) em pico→RMS assumindo balanço
-        Vqs_ss  = Vqs[ss_start:]
-        Vds_ss  = Vds[ss_start:]
-        Va_pk   = float(np.sqrt(np.mean(Vqs_ss ** 2 + Vds_ss ** 2)))
-        Va_rms  = Va_pk / np.sqrt(2.0)
-        ias_rms = float(res.get("ias_rms", 0.0))
-        S_ap    = 3.0 * Va_rms * ias_rms
-        if S_ap > 0 and np.isfinite(P_in_ss):
-            fp = float(np.clip(abs(P_in_ss) / S_ap, 0.0, 1.0))
-    except Exception:
-        pass
-
-    return {
-        "E_total_kwh":   E_total_kwh,
-        "custo_exp_brl": custo_exp_brl,
-        "horas_op_ano":  horas_op_ano,
-        "custo_ano_brl": custo_ano_brl,
-        "eta_ss":        eta_ss,
-        "P_in_ss_kw":    P_in_ss_kw,
-        "thd_pct":       thd_pct,
-        "fp":            fp,
-    }
 
 
 # ─────────────────────────────────────────────────────────────────────────────

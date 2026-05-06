@@ -16,6 +16,11 @@ Dependencias internas:
   core.thermal    — estimate_rth_cth, dTemp_dt
   core.transforms — abc_voltages, clarke_park_transform
   core.desequilibrio_falta — abc_voltages_deseq
+
+Documentacao detalhada de cada decisao de implementacao:
+  SME/2. Modulos/core/machine_model.md
+  SME/2. Modulos/Guia de Leitura do Codigo.md  (secoes 1-2)
+  SME/1. Fundamentos/4 - Modelo Matematico (RHS Krause).md
 """
 
 from __future__ import annotations
@@ -82,6 +87,9 @@ class MachineParams:
 
     def __post_init__(self) -> None:
         self.wb = 2.0 * np.pi * self.f
+
+        # conversao usa f_ref (frequencia do ensaio), nao f (frequencia de operacao)
+        # permite inserir dados de catalogo a 50 Hz em simulacao a 60 Hz
         if self.input_mode == "L":
             self.Lm  = self.Xm
             self.Lls = self.Xls
@@ -94,6 +102,7 @@ class MachineParams:
         self.Xls_a = self.wb * self.Lls
         self.Xlr_a = self.wb * self.Llr
         _Xm_a      = self.wb * self.Lm
+        # Xml provisorio — necessario para Im_sat; sera recalculado apos Lgrid
         self.Xml   = 1.0 / (1.0 / _Xm_a + 1.0 / self.Xls_a + 1.0 / self.Xlr_a)
 
         # Im_sat automatico: 2 x corrente de magnetizacao em vazio
@@ -103,7 +112,8 @@ class MachineParams:
             self.Im_sat = 2.0 * _Im0
 
         # Rth/Cth automaticos via circuito T no escorregamento nominal.
-        # Usa wb*Lm como ramo de magnetizacao (nao Xml — ver core/thermal.py).
+        # Usa wb*Lm como ramo de magnetizacao (nao Xml — circuito T, nao pi).
+        # Deve ocorrer ANTES de Xls_a_eff ser modificado por Lgrid.
         if self.Rth == 0.0 or self.Cth == 0.0:
             _Xm_a_th = self.wb * self.Lm
             _Rth_est, _Cth_est = estimate_rth_cth(
@@ -115,7 +125,8 @@ class MachineParams:
             if self.Cth == 0.0:
                 self.Cth = _Cth_est
 
-        # Xls_a_eff absorve Lgrid em serie com Lls; Xml recalculado para consistencia
+        # Lgrid absorvido em Xls_a_eff (impedancia serie vista pelo estator)
+        # Xml recalculado para consistencia com o novo Xls_a_eff
         self.Xls_a_eff = self.Xls_a + self.Lgrid * self.wb
         _Xm_a_eff      = self.wb * self.Lm
         self.Xml       = 1.0 / (1.0 / _Xm_a_eff + 1.0 / self.Xls_a_eff + 1.0 / self.Xlr_a)
@@ -170,37 +181,45 @@ def _make_rhs(mp: MachineParams, voltage_fn, torque_fn, ref_code: int,
               rr_fn=None):
     """Fecha o RHS sobre os parametros — retorna rhs(t, y) pronta para solve_ivp.
 
+    Padrao closure: parametros capturados como escalares locais para minimizar
+    lookup de atributo no hot path (chamado ~50-200k vezes por segundo de simulacao).
+    use_grid avaliado uma unica vez aqui, nao dentro de rhs.
+    Ver SME/2. Modulos/core/machine_model.md — secao _make_rhs.
+
     Args:
         rr_fn: callable(theta_slip) -> Rr efetivo (modelo barra quebrada).
-               None = Rr constante.
+               None = Rr constante — evita overhead de chamada no caso comum.
     """
+    # extrai escalares — lookup de celula de closure e mais rapido que atributo de objeto
     Xls_a = mp.Xls_a_eff;  Xlr_a = mp.Xlr_a
     Xml   = mp.Xml
     Rs    = mp.Rs;          Rr    = mp.Rr;    wb = mp.wb
     p     = mp.p;           J     = mp.J;     B  = mp.B
     Rfe   = mp.Rfe
     Rgrid    = mp.Rgrid
-    use_grid = (Rgrid != 0.0)
+    use_grid = (Rgrid != 0.0)   # avaliado uma vez; branch em rhs e previsivel
     Rth   = mp.Rth;  Cth = mp.Cth;  T_amb = mp.T_amb
 
     def rhs(t: float, y: list) -> list:
+        # _tetar (posicao do rotor) e estado mas nao entra nas equacoes de Krause
+        # no referencial sincrono — apenas integrado para pos-processamento
         PSIqs, PSIds, PSIqr, PSIdr, wr, _tetar, Temp, theta_slip = y
 
-        # fonte de tensao
+        # fonte de tensao: deseq ativado condicionalmente por t_deseq
         Vl_a = voltage_fn(t)
         if deseq_active and t >= t_deseq:
             Va, Vb, Vc = abc_voltages_deseq(t, Vl_a, mp.f, *deseq)
         else:
             Va, Vb, Vc = abc_voltages(t, Vl_a, mp.f)
-        tetae            = wb * t
+        tetae            = wb * t   # angulo do referencial sincrono (exato, sem integracao)
         Vds_src, Vqs_src = clarke_park_transform(Va, Vb, Vc, tetae)
 
-        # referencial
+        # velocidade angular do referencial (ref_code: 0=estacionario, 1=sincrono, 2=rotórico)
         if   ref_code == 1: w_ref = wb
         elif ref_code == 2: w_ref = wr
         else:               w_ref = 0.0
 
-        # fluxos e correntes
+        # fluxo mutuo e correntes de dispersao (relacoes algebricas — nao EDOs)
         PSImq = Xml * (PSIqs / Xls_a + PSIqr / Xlr_a)
         PSImd = Xml * (PSIds / Xls_a + PSIdr / Xlr_a)
         iqs = (PSIqs - PSImq) / Xls_a
@@ -208,7 +227,7 @@ def _make_rhs(mp: MachineParams, voltage_fn, torque_fn, ref_code: int,
         iqr = (PSIqr - PSImq) / Xlr_a
         idr = (PSIdr - PSImd) / Xlr_a
 
-        # queda resistiva da rede (Lgrid ja absorvido em Xls_a_eff)
+        # queda resistiva da rede (Lgrid ja absorvido em Xls_a_eff — apenas Rgrid aqui)
         if use_grid:
             Vqs_eff = Vqs_src - Rgrid * iqs
             Vds_eff = Vds_src - Rgrid * ids
@@ -217,25 +236,27 @@ def _make_rhs(mp: MachineParams, voltage_fn, torque_fn, ref_code: int,
             Vds_eff = Vds_src
 
         slip_ref = (w_ref - wr) / wb
+        # rr_fn=None no caso comum: evita chamada de funcao em cada passo
         Rr_cur   = rr_fn(theta_slip) if rr_fn is not None else Rr
 
-        # equacoes de estado de Krause
+        # equacoes de fluxo de Krause (2013), Eq. 6.5-17, forma normalizada por wb
         dPSIqs = wb * (Vqs_eff - (w_ref / wb) * PSIds + (Rs / Xls_a) * (PSImq - PSIqs))
         dPSIds = wb * (Vds_eff + (w_ref / wb) * PSIqs + (Rs / Xls_a) * (PSImd - PSIds))
         dPSIqr = wb * (-slip_ref * PSIdr + (Rr_cur / Xlr_a) * (PSImq - PSIqr))
         dPSIdr = wb * ( slip_ref * PSIqr + (Rr_cur / Xlr_a) * (PSImd - PSIdr))
 
-        # torque e mecanica (convencao amplitude-invariante, fator 3/2)
+        # fator 3/2 decorre da convencao amplitude-invariante (nao potencia-invariante)
         Te     = (3.0 / 2.0) * (p / 2.0) * (1.0 / wb) * (PSIds * iqs - PSIqs * ids)
         Tl_a   = torque_fn(t)
         dwr    = (p / (2.0 * J)) * (Te - Tl_a) - (B / J) * wr
         dtetar = wr
 
-        # modelo termico
+        # EDO termica de 1a ordem — ver SME/2. Modulos/core/thermal.md
         P_joule = (3.0 / 2.0) * (Rs * (iqs**2 + ids**2) + Rr_cur * (iqr**2 + idr**2))
         P_fe_th = wb * (PSImq**2 + PSImd**2) / Rfe if Rfe > 0.0 else 0.0
         dTemp   = dTemp_dt(Temp, P_joule, P_fe_th, Rth, Cth, T_amb)
 
+        # theta_slip integrado como estado para o modelo de barra quebrada (rr_fn)
         d_theta_slip = wb - wr
         return [dPSIqs, dPSIds, dPSIqr, dPSIdr, dwr, dtetar, dTemp, d_theta_slip]
 

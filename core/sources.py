@@ -9,6 +9,10 @@ Exporta:
   torque_step            — degrau de torque
   torque_pulse           — pulso de torque
   build_fns              — monta (voltage_fn, torque_fn, t_eventos) para cada exp_type
+
+Padrao de implementacao: todos os lambdas em build_fns capturam variaveis por valor
+via argumento default (_x=x) para evitar o bug classico de closure por referencia.
+Ver SME/2. Modulos/core/sources.md e SME/2. Modulos/Guia de Leitura do Codigo.md (secao 6).
 """
 
 from __future__ import annotations
@@ -61,6 +65,9 @@ def torque_pulse(t: float, Tl_base: float, Tl_pulso: float, t_on: float, t_off: 
 def build_fns(config: dict, mp: MachineParams):
     """Constroi (voltage_fn, torque_fn, t_eventos) para o experimento selecionado.
 
+    Todas as funcoes retornadas sao escalares: recebem e retornam float.
+    O LSODA chama voltage_fn(t) e torque_fn(t) com escalar a cada passo.
+
     Returns:
         (vfn, tfn, t_ev) — callables escalares e lista de instantes de evento.
     """
@@ -69,30 +76,34 @@ def build_fns(config: dict, mp: MachineParams):
 
     if exp == "dol":
         Tl, tc = config["Tl_final"], config["t_carga"]
-        vfn = lambda t: mp.Vl
-        tfn = lambda t: torque_step(t, 0.0, Tl, tc)
+        vfn = lambda t: mp.Vl   # mp.Vl via atributo de objeto — seguro sem default arg
+        # _Tl=Tl e _tc=tc: captura por valor, nao por referencia
+        tfn = lambda t, _Tl=Tl, _tc=tc: torque_step(t, 0.0, _Tl, _tc)
         t_ev = [tc]
 
     elif exp == "yd":
         Vy = mp.Vl / np.sqrt(3.0)
         Tl, t2, tc = config["Tl_final"], config["t_2"], config["t_carga"]
-        vfn = lambda t: voltage_reduced_start(t, mp.Vl, Vy, t2)
-        tfn = lambda t: torque_step(t, 0.0, Tl, tc)
+        # captura por valor: Vy e t2 sao locais ao if-branch e seriam perdidas por ref
+        vfn = lambda t, _Vl=mp.Vl, _Vy=Vy, _t2=t2: voltage_reduced_start(t, _Vl, _Vy, _t2)
+        tfn = lambda t, _Tl=Tl, _tc=tc: torque_step(t, 0.0, _Tl, _tc)
         t_ev = [t2, tc]
 
     elif exp == "comp":
         Vr = mp.Vl * config["voltage_ratio"]
         Tl, t2, tc = config["Tl_final"], config["t_2"], config["t_carga"]
-        vfn = lambda t: voltage_reduced_start(t, mp.Vl, Vr, t2)
-        tfn = lambda t: torque_step(t, 0.0, Tl, tc)
+        # Vr calculado a partir de voltage_ratio — captura por valor
+        vfn = lambda t, _Vl=mp.Vl, _Vr=Vr, _t2=t2: voltage_reduced_start(t, _Vl, _Vr, _t2)
+        tfn = lambda t, _Tl=Tl, _tc=tc: torque_step(t, 0.0, _Tl, _tc)
         t_ev = [t2, tc]
 
     elif exp == "soft":
         Vi = mp.Vl * config["voltage_ratio"]
         t2, tp = config["t_2"], config["t_pico"]
         Tl, tc = config["Tl_final"], config["t_carga"]
-        vfn = lambda t: voltage_soft_starter(t, mp.Vl, Vi, t2, tp)
-        tfn = lambda t: torque_step(t, 0.0, Tl, tc)
+        # Vi, t2, tp: variaveis locais — captura por valor obrigatoria
+        vfn = lambda t, _Vl=mp.Vl, _Vi=Vi, _t2=t2, _tp=tp: voltage_soft_starter(t, _Vl, _Vi, _t2, _tp)
+        tfn = lambda t, _Tl=Tl, _tc=tc: torque_step(t, 0.0, _Tl, _tc)
         t_ev = [t2, tc]
 
     elif exp == "carga":

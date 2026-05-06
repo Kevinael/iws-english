@@ -24,6 +24,7 @@ from core.EMS_PY import MachineParams
 from core.desequilibrio_falta import render_desequilibrio_ui
 from core.param_estimator import estimate_params
 from ui.theme import _palette
+from ui_components.sim_runner import calc_tmax_auto
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -922,35 +923,18 @@ def render_experiment_config(
         if _tmax_auto:
             tmax = 0.0  # sentinel: runner fará o cálculo real
 
-        _etype        = config.get("exp_type", "")
-        _tmax_auto_val = None  # preenchido abaixo se _t_last for conhecido
-        if _etype == "dol":
-            _t_last = config.get("t_carga", 1.0)
-        elif _etype in ("yd", "comp"):
-            _t_last = max(config.get("t_2", 0.5), config.get("t_carga", 1.0))
-        elif _etype == "soft":
-            _t_last = max(config.get("t_pico", 5.0), config.get("t_carga", 1.0))
-        elif _etype == "carga":
-            _t_last = config.get("t_carga", 1.0)
-        elif _etype == "pulso_carga":
-            _t_last = config.get("t_retirada", 1.5)
-        elif _etype == "gerador":
-            _t_last = config.get("t_2", 1.0)
-        elif _etype == "voltage_sag":
-            _t_last = config.get("t_start_sag", 0.5) + config.get("t_duration_sag", 0.1)
-        elif _etype == "shutdown":
+        _etype = config.get("exp_type", "")
+        if _etype == "shutdown":
             _tmax_sug = round(float(config.get("_t_end_shutdown", config.get("t_cutoff", 1.5))), 1)
             st.caption(f"Definido automaticamente: {_tmax_sug:.1f} s  (t_des + t_stop × 1,2 — analítico)")
-            _t_last = None
+            _tmax_auto_val = None
         else:
-            _t_last = 1.0
-        if _t_last is not None:
+            _tmax_auto_val   = round(calc_tmax_auto(config, mp), 1)
             _t_acomo_preview = float(min(max(15.0 * mp.J, 2.0), 30.0))
-            _tmax_auto_val   = round(_t_last + _t_acomo_preview, 1)
             if _tmax_auto:
                 st.caption(f"Automático: **{_tmax_auto_val:.1f} s**  (eventos + {_t_acomo_preview:.1f} s de acomodação mecânica, J={mp.J:.3f} kg·m²)")
             else:
-                st.caption(f"Sugestão: ≥ {round(_t_last + 0.5, 1):.1f} s  (último evento + 0,5 s para atingir regime)")
+                st.caption(f"Sugestão: ≥ {round(_tmax_auto_val - _t_acomo_preview + 0.5, 1):.1f} s  (último evento + 0,5 s para atingir regime)")
 
         h = st.number_input("Passo de integração — $h$ (s)", min_value=0.000001, max_value=0.1, value=0.0001, step=0.000001, format="%.6f", key=wk["h"])
         _tmax_display = _tmax_auto_val if (_tmax_auto and _tmax_auto_val is not None) else tmax

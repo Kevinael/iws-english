@@ -12,6 +12,10 @@ Exporta:
 Constantes de integracao/analise (importadas por EMS_PY para compatibilidade):
   SS_TOL, MIN_SS_CYCLES, NYQUIST_LIMIT, F_ROTOR_FLOOR
   RTOL, ATOL, MAX_STEP_FACTOR
+
+Documentacao detalhada de cada decisao de implementacao:
+  SME/2. Modulos/core/solver.md
+  SME/2. Modulos/Guia de Leitura do Codigo.md  (secoes 3-5)
 """
 
 from __future__ import annotations
@@ -29,14 +33,14 @@ from core.desequilibrio_falta import abc_voltages_deseq
 # CONSTANTES
 # ═══════════════════════════════════════════════════════════════════════════
 
-SS_TOL          = 0.005
-MIN_SS_CYCLES   = 5
-NYQUIST_LIMIT   = 0.05
-F_ROTOR_FLOOR   = 0.01
+SS_TOL          = 0.005   # tolerancia relativa de wr para declarar regime (0.5%)
+MIN_SS_CYCLES   = 5       # minimo de ciclos eletricos consecutivos em regime
+NYQUIST_LIMIT   = 0.05    # h*f maximo — abaixo de 20 amostras/ciclo o RMS fica impreciso
+F_ROTOR_FLOOR   = 0.01    # Hz — piso de f_rotor para evitar LCM astronomico em s≈0
 
-RTOL            = 1e-6
-ATOL            = 1e-9
-MAX_STEP_FACTOR = 20.0
+RTOL            = 1e-6    # tolerancia relativa do LSODA
+ATOL            = 1e-9    # tolerancia absoluta — fisicamente significativa em Wb e rad/s
+MAX_STEP_FACTOR = 20.0    # max_step = 1/(20*f) garante >=20 amostras/ciclo ao LSODA
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -45,6 +49,10 @@ MAX_STEP_FACTOR = 20.0
 
 def _solve(rhs, t_values, y0, mp: MachineParams, clamp_wr_at_zero: bool, t_cutoff=None):
     """Integra o ODE; suporta restart em t_cutoff e clamp wr=0 no shutdown.
+
+    Segmentacao: t_cutoff forca reinicio do integrador na descontinuidade de tensao
+    (shutdown). clamp_wr_at_zero adiciona evento terminal e segmento com dwr=0.
+    Ver SME/2. Modulos/core/solver.md — secao _solve e Guia de Leitura do Codigo secao 3.
 
     Returns:
         y_history shape (8, N).
@@ -61,15 +69,18 @@ def _solve(rhs, t_values, y0, mp: MachineParams, clamp_wr_at_zero: bool, t_cutof
         return sol
 
     def _fill(y_history, offset, sol):
+        # escreve diretamente no buffer pre-alocado; evita concatenacao de arrays
         n = sol.y.shape[1]
         y_history[:, offset:offset + n] = sol.y
         return offset + n
 
     def _ffill(arr):
+        # propaga o ultimo valor finito para frente — correto para motor parado
         for i in range(1, arr.shape[1]):
             mask = ~np.isfinite(arr[:, i])
             arr[:, i] = np.where(mask, arr[:, i - 1], arr[:, i])
 
+    # NaN como sentinela: posicoes nao preenchidas pelo LSODA serao ffill'd depois
     y_history = np.full((8, N), np.nan)
 
     if not clamp_wr_at_zero:
@@ -90,6 +101,8 @@ def _solve(rhs, t_values, y0, mp: MachineParams, clamp_wr_at_zero: bool, t_cutof
         return y_history
 
     # modo shutdown: clamp wr=0 apos evento
+    # y[4] = wr eletrico; threshold = 1% da velocidade sincrona
+    # direction=-1: detecta apenas descida (evita disparo espurio na partida)
     _ws        = mp.wb / (mp.p / 2.0)
     _threshold = 0.01 * _ws
 
@@ -120,6 +133,8 @@ def _solve(rhs, t_values, y0, mp: MachineParams, clamp_wr_at_zero: bool, t_cutof
                 y_ev    = sol_b.y_events[0][0].copy()
                 y_ev[4] = 0.0
 
+                # rhs_clamped: mesmo RHS mas forca dwr=0 — wr permanece em zero
+                # os demais estados (fluxos, temperatura) continuam evoluindo
                 def rhs_clamped(t, y):
                     d    = rhs(t, y)
                     d[4] = 0.0
@@ -130,6 +145,7 @@ def _solve(rhs, t_values, y0, mp: MachineParams, clamp_wr_at_zero: bool, t_cutof
                 n_c    = sol_c.y.shape[1]
                 y_history[:, off + n_b:off + n_b + n_c] = sol_c.y
                 if off + n_b + n_c < N:
+                    # preenche o restante com o ultimo estado (motor parado)
                     y_history[:, off + n_b + n_c:] = sol_c.y[:, -1:]
     else:
         sol_b = solve_ivp(rhs, [t_values[0], tmax], y0, t_eval=t_values,
@@ -176,21 +192,30 @@ def _voltages_vectorized(t_arr, Vl_arr, mp: MachineParams, deseq, t_deseq, deseq
 
 
 def _reconstruct_currents(PSIqs, PSIds, PSIqr, PSIdr, tetae, tetar, mp: MachineParams):
-    """Reconstrucao vetorizada de correntes dq e abc (estator e rotor)."""
+    """Reconstrucao vetorizada de correntes dq e abc (estator e rotor).
+
+    Opera sobre arrays inteiros [N] — chamada uma unica vez apos a integracao.
+    Sequencia: fluxos -> correntes dq -> Park inversa -> Clarke inversa -> abc.
+    Ver SME/2. Modulos/core/solver.md — secao _reconstruct_currents.
+    """
+    # fluxo mutuo: Xml redistribui o fluxo total entre estator e rotor
     PSImq = mp.Xml * (PSIqs / mp.Xls_a_eff + PSIqr / mp.Xlr_a)
     PSImd = mp.Xml * (PSIds / mp.Xls_a_eff + PSIdr / mp.Xlr_a)
+    # corrente de dispersao = (fluxo total - fluxo mutuo) / reatancia de dispersao
     ids = (PSIds - PSImd) / mp.Xls_a_eff
     iqs = (PSIqs - PSImq) / mp.Xls_a_eff
     idr = (PSIdr - PSImd) / mp.Xlr_a
     iqr = (PSIqr - PSImq) / mp.Xlr_a
 
+    # Park inversa: P^{-1} = P^T (matriz ortogonal) — troca sinal de sin
     cos_e, sin_e = np.cos(tetae), np.sin(tetae)
     cos_r, sin_r = np.cos(tetar), np.sin(tetar)
-    iafs = ids * cos_e - iqs * sin_e
-    ibts = ids * sin_e + iqs * cos_e
-    iafr = idr * cos_r - iqr * sin_r
-    ibtr = idr * sin_r + iqr * cos_r
+    iafs = ids * cos_e - iqs * sin_e   # componente alpha do estator (frame estatico)
+    ibts = ids * sin_e + iqs * cos_e   # componente beta do estator
+    iafr = idr * cos_r - iqr * sin_r   # componente alpha do rotor
+    ibtr = idr * sin_r + iqr * cos_r   # componente beta do rotor
 
+    # Clarke inversa amplitude-invariante: k = sqrt(3/2)
     k    = np.sqrt(3.0 / 2.0)
     sq32 = np.sqrt(3.0) / 2.0
     ias = k * iafs
@@ -203,13 +228,20 @@ def _reconstruct_currents(PSIqs, PSIds, PSIqr, PSIdr, tetae, tetar, mp: MachineP
 
 
 def _detect_steady_state(t_arr, wr_arr, mp: MachineParams) -> int:
-    """Detecta o indice de inicio do regime permanente."""
+    """Detecta o indice de inicio do regime permanente.
+
+    Fase 1: encontra o ultimo ponto fora de SS_TOL em relacao a wr_ref.
+    Fase 2: ajusta a janela para ser multipla do LCM(ciclo_eletrico, ciclo_rotor)
+            eliminando vies espectral no calculo de RMS.
+    Ver SME/2. Modulos/core/solver.md — secao _detect_steady_state.
+    """
     N = len(t_arr)
     h = float(t_arr[1] - t_arr[0]) if N > 1 else 1e-4
     samples_per_cycle = max(1, int(round(1.0 / (mp.f * h))))
     min_ss            = MIN_SS_CYCLES * samples_per_cycle
 
     wr_arr = np.where(np.isfinite(wr_arr), wr_arr, 0.0)
+    # referencia = media dos ultimos min_ss pontos (assumidos em regime)
     wr_ref = float(np.mean(wr_arr[-min_ss:])) if N >= min_ss else float(np.mean(wr_arr))
 
     if abs(wr_ref) < 1e-12:
@@ -217,16 +249,20 @@ def _detect_steady_state(t_arr, wr_arr, mp: MachineParams) -> int:
     else:
         rel_dev   = np.abs((wr_arr[:-min_ss] - wr_ref) / wr_ref)
         violators = np.where(rel_dev > SS_TOL)[0]
+        # +1 porque o regime comeca no ponto APOS o ultimo violador
         ss_start  = int(violators[-1]) + 1 if violators.size else 0
 
+    # estimativa provisoria de s para calcular f_rotor
     ss_len_tmp = max(N - ss_start, min_ss)
     wr_med_tmp = float(np.mean(wr_arr[max(0, N - ss_len_tmp):]))
     ws         = mp.wb / (mp.p / 2.0)
     s_tmp      = (ws - wr_med_tmp) / ws if ws != 0 else 0.0
 
+    # F_ROTOR_FLOOR evita lcm_samples astronomico quando s≈0 (operacao a vazio)
     f_rotor = max(abs(s_tmp) * mp.f, F_ROTOR_FLOOR)
     samples_per_rotor_cycle = max(1, int(round(1.0 / (f_rotor * h))))
 
+    # janela alinhada ao LCM elimina vies de RMS por periodo incompleto
     lcm_samples = math.lcm(samples_per_cycle, samples_per_rotor_cycle)
     lcm_samples = min(lcm_samples, N // 2)
 
@@ -237,13 +273,18 @@ def _detect_steady_state(t_arr, wr_arr, mp: MachineParams) -> int:
 
 
 def _compute_steady_state(arr: dict, mp: MachineParams) -> dict:
-    """Calcula medias, RMS e balanco de potencias na janela de regime permanente."""
+    """Calcula medias, RMS e balanco de potencias na janela de regime permanente.
+
+    Balanco: P_gap = Te_med * ws; P_cu_r = s*P_gap; P_mec = (1-s)*P_gap.
+    Modo gerador (s<0): fluxo de potencia invertido — ver SME/2. Modulos/core/solver.md.
+    """
     t_arr  = arr["t"]
     wr_arr = arr["wr"]
     N      = len(t_arr)
     ss_start = _detect_steady_state(t_arr, wr_arr, mp)
     sl       = slice(ss_start, None)
 
+    # substitui NaN por 0 antes de medias — NaN indica falha numerica pontual
     def _safe_mean(a):
         return float(np.mean(np.where(np.isfinite(a), a, 0.0)))
 
@@ -271,9 +312,11 @@ def _compute_steady_state(arr: dict, mp: MachineParams) -> dict:
     P_fe = 3.0 * V_phase_avg**2 / mp.Rfe if mp.Rfe > 0 else 0.0
 
     if s >= 0:
+        # modo motor: entrada eletrica, saida mecanica
         P_in  = P_gap + P_cu_s + P_fe
         P_out = P_mec
     else:
+        # modo gerador (s<0): entrada mecanica, saida eletrica
         P_in  = abs(P_mec)
         P_out = max(0.0, abs(P_gap) - P_cu_s - P_fe)
     eta = (P_out / P_in * 100.0) if P_in > 0 else 0.0
