@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from ui.theme import apply_css
+from ui.theme import apply_css, REF_COLORS, REF_DASHES
 from ui.clean_view import render_clean_view
 from viz.eqcircuit_plotter import render_circuit as _render_circuit_eqcircuit_plotter
 
@@ -131,9 +131,6 @@ def main() -> None:
             "Executar Simulação", key="btn_run",
             use_container_width=True,
         )
-
-        _REF_COLORS = ["#e74c3c", "#3498db", "#2ecc71", "#f39c12", "#9b59b6"]
-        _REF_DASHES = ["dash", "dot", "solid", "dash", "dot"]
 
         _can_save = (
             st.session_state["sim_result"] is not None

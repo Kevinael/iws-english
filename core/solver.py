@@ -25,7 +25,7 @@ import numpy as np
 from scipy.integrate import solve_ivp
 
 from core.machine_model import MachineParams
-from core.transforms import abc_voltages, clarke_park_transform
+from core.transforms import abc_voltages, clarke_park_transform, _SQRT3_2
 from core.desequilibrio_falta import abc_voltages_deseq
 
 
@@ -76,9 +76,15 @@ def _solve(rhs, t_values, y0, mp: MachineParams, clamp_wr_at_zero: bool, t_cutof
 
     def _ffill(arr):
         # propaga o ultimo valor finito para frente — correto para motor parado
-        for i in range(1, arr.shape[1]):
-            mask = ~np.isfinite(arr[:, i])
-            arr[:, i] = np.where(mask, arr[:, i - 1], arr[:, i])
+        # vetorizado: indices de valores finitos acumulados por linha
+        for row in range(arr.shape[0]):
+            r = arr[row]
+            finite = np.isfinite(r)
+            if not finite.any():
+                continue
+            idx = np.where(finite, np.arange(len(r)), 0)
+            np.maximum.accumulate(idx, out=idx)
+            arr[row] = r[idx]
 
     # NaN como sentinela: posicoes nao preenchidas pelo LSODA serao ffill'd depois
     y_history = np.full((8, N), np.nan)
@@ -217,7 +223,7 @@ def _reconstruct_currents(PSIqs, PSIds, PSIqr, PSIdr, tetae, tetar, mp: MachineP
 
     # Clarke inversa amplitude-invariante: k = sqrt(3/2)
     k    = np.sqrt(3.0 / 2.0)
-    sq32 = np.sqrt(3.0) / 2.0
+    sq32 = _SQRT3_2
     ias = k * iafs
     ibs = k * (-0.5 * iafs + sq32 * ibts)
     ics = k * (-0.5 * iafs - sq32 * ibts)

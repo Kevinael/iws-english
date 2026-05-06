@@ -7,7 +7,6 @@ Exporta:
 
 from __future__ import annotations
 
-import re
 from typing import Any
 
 import numpy as np
@@ -20,27 +19,30 @@ from viz.plotly_charts import build_fig_stacked, build_fig_sidebyside, build_fig
 from viz.pdf_report import generate_pdf_report
 from core.harmonica_analysis import build_fig_fft
 from core.sim_diagnostics import generate_insights
+from utils.text_utils import _strip_latex
+from ui.theme import REF_COLORS, REF_DASHES
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# HELPERS
-# ─────────────────────────────────────────────────────────────────────────────
+@st.cache_data(show_spinner=False)
+def _cached_energy_metrics(res: dict, tariff: float) -> dict:
+    return compute_energy_metrics(res, tariff)
 
-def _strip_latex(s: str) -> str:
-    """Converte notação LaTeX $...$ para texto simples (uso em labels do Plotly)."""
-    _greek = {
-        '\\omega': 'ω', '\\alpha': 'α', '\\beta': 'β', '\\gamma': 'γ',
-        '\\delta': 'δ', '\\theta': 'θ', '\\tau': 'τ', '\\phi': 'φ',
-        '\\psi': 'ψ', '\\lambda': 'λ', '\\mu': 'μ', '\\sigma': 'σ',
-        '\\pi': 'π', '\\eta': 'η',
-    }
-    def _convert(m: re.Match) -> str:
-        inner = m.group(1)
-        for cmd, uni in _greek.items():
-            inner = inner.replace(cmd, uni)
-        inner = inner.replace('{', '').replace('}', '').replace('_', '').replace('\\', '')
-        return inner
-    return re.sub(r'\$([^$]+)\$', _convert, s)
+
+@st.cache_data(show_spinner=False)
+def _cached_fig_fft(res: dict, dark: bool, key: str, label: str) -> go.Figure:
+    return build_fig_fft(res, dark, key=key, label=label)
+
+
+@st.cache_data(show_spinner=False)
+def _cached_fig_stacked(
+    res: dict,
+    var_keys: tuple,
+    var_labels: tuple,
+    dark: bool,
+    t_events: tuple,
+    decimals: int,
+) -> go.Figure:
+    return build_fig_stacked(res, list(var_keys), list(var_labels), dark, list(t_events), decimals)
 
 
 _PLOT_CFG: dict[str, Any] = {
@@ -189,10 +191,6 @@ def _kpis_destaque(
 # RENDERIZAÇÃO DE RESULTADOS
 # ─────────────────────────────────────────────────────────────────────────────
 
-_REF_COLORS = ["#e74c3c", "#3498db", "#2ecc71", "#f39c12", "#9b59b6"]
-_REF_DASHES = ["dash", "dot", "solid", "dash", "dot"]
-
-
 def render_ref_panel() -> None:
     """Painel de gerenciamento de referências salvas.
 
@@ -273,7 +271,7 @@ def render_results(
     # dark_plot: prefer session_state toggle se já existir, senão usa dark do tema
     dark_plot = st.session_state.get("plot_dark_toggle", dark)
 
-    fig_pdf = build_fig_stacked(res, var_keys, var_labels_plot, dark_plot, t_events, d)
+    fig_pdf = _cached_fig_stacked(res, tuple(var_keys), tuple(var_labels_plot), dark_plot, tuple(t_events), d)
 
     chart_ref_list = [
         {
@@ -287,7 +285,7 @@ def render_results(
     ]
 
     # ── cálculo de energia (necessário nas abas 1 e 4) ───────────────────
-    _em = compute_energy_metrics(res, energy_tariff) if exp_type != "shutdown" else {}
+    _em = _cached_energy_metrics(res, energy_tariff) if exp_type != "shutdown" else {}
 
     # ══════════════════════════════════════════════════════════════════════
     # ABAS DE RESULTADOS
@@ -466,7 +464,7 @@ def render_results(
                 return fig
 
             # recriar fig_pdf com dark_plot atualizado pelo toggle
-            fig_pdf = build_fig_stacked(res, var_keys, var_labels_plot, dark_plot, t_events, d)
+            fig_pdf = _cached_fig_stacked(res, tuple(var_keys), tuple(var_labels_plot), dark_plot, tuple(t_events), d)
 
             if modo == "Empilhados":
                 for i, fig_single in enumerate(build_fig_sidebyside(
@@ -524,7 +522,7 @@ def render_results(
                 next((l for kk, l in zip(var_keys, var_labels) if kk == _fft_var), _fft_var)
             )
             _dp = st.session_state.get("plot_dark_toggle", dark)
-            fig_fft = build_fig_fft(res, _dp, key=_fft_var, label=_fft_lbl)
+            fig_fft = _cached_fig_fft(res, _dp, _fft_var, _fft_lbl)
 
             _alpha = float(res.get("_broken_bar_severity", 0.0))
             if _alpha > 0:

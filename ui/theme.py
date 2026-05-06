@@ -1,5 +1,8 @@
 import streamlit as st
 
+REF_COLORS = ["#e74c3c", "#3498db", "#2ecc71", "#f39c12", "#9b59b6"]
+REF_DASHES = ["dash", "dot", "solid", "dash", "dot"]
+
 
 def _palette(dark: bool) -> dict:
     if dark:

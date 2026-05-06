@@ -18,9 +18,11 @@ import sys
 from typing import Any, Callable
 import matplotlib
 import matplotlib.figure
-matplotlib.use("Agg")
+try:
+    matplotlib.use("Agg")
+except Exception:
+    pass
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
 import schemdraw
 import schemdraw.elements as elm
 
@@ -139,19 +141,33 @@ def build_figure(mp: Any, dark: bool, palette_fn: Callable[[bool], dict[str, str
     return fig
 
 
-def render_circuit(mp: Any, dark: bool, palette_fn: Callable[[bool], dict[str, str]]) -> None:
-    """Gera o circuito e exibe via st.image (uso Streamlit)."""
-    import streamlit as st
-
+def _build_circuit_png(mp: Any, dark: bool, palette_fn: Callable[[bool], dict[str, str]]) -> bytes:
+    """Gera os bytes PNG do circuito (cacheável)."""
     bg_hex = "#0d1117" if dark else "#ffffff"
     with matplotlib.rc_context({"mathtext.fontset": "dejavusans", "text.usetex": False}):
         fig = build_figure(mp, dark, palette_fn)
         buf = io.BytesIO()
         fig.savefig(buf, format="png", dpi=150, facecolor=bg_hex, bbox_inches="tight")
         plt.close(fig)
-    buf.seek(0)
+    return buf.getvalue()
 
-    st.image(buf, width='stretch')
+
+def render_circuit(mp: Any, dark: bool, palette_fn: Callable[[bool], dict[str, str]]) -> None:
+    """Gera o circuito e exibe via st.image (uso Streamlit)."""
+    import streamlit as st
+
+    try:
+        @st.cache_data(show_spinner=False)
+        def _cached_png(mp_key: tuple, dark: bool) -> bytes:
+            return _build_circuit_png(mp, dark, palette_fn)
+
+        mp_key = (mp.Vl, mp.f, mp.Rs, mp.Rr, mp.Xm, mp.Xls, mp.Xlr,
+                  getattr(mp, "Rfe", 0.0), mp.p)
+        png_bytes = _cached_png(mp_key, dark)
+    except Exception:
+        png_bytes = _build_circuit_png(mp, dark, palette_fn)
+
+    st.image(png_bytes, width='stretch')
 
 
 # ── Execucao standalone ──────────────────────────────────────────────────────

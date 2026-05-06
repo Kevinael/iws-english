@@ -1,24 +1,9 @@
 from __future__ import annotations
-import re
 import numpy as np
 import plotly.graph_objects as go
 import streamlit as st
 from viz.plotly_charts import _plot_theme
-
-
-def _strip_latex(s: str) -> str:
-    """Remove marcação LaTeX $...$ para uso em títulos do Plotly."""
-    _greek = {
-        '\\omega': 'ω', '\\alpha': 'α', '\\beta': 'β', '\\gamma': 'γ',
-        '\\delta': 'δ', '\\theta': 'θ', '\\tau': 'τ', '\\phi': 'φ',
-    }
-    def _convert(m: re.Match) -> str:
-        inner = m.group(1)
-        for cmd, uni in _greek.items():
-            inner = inner.replace(cmd, uni)
-        inner = inner.replace('{', '').replace('}', '').replace('_', '').replace('\\', '')
-        return inner
-    return re.sub(r'\$([^$]+)\$', _convert, s)
+from utils.text_utils import _strip_latex
 
 
 def build_fig_fft(res: dict, dark: bool, key: str = "ias", label: str = "ias") -> go.Figure:

@@ -365,12 +365,6 @@ def generate_pdf_report(exp_label: str, mp: MachineParams, res: dict,
             return f"{val/1000:.3f}", "kW"
         return f"{val:.2f}", "W"
 
-    # ── Helpers ───────────────────────────────────────────────────────────
-    def fmt_power(val: float) -> tuple[str, str]:
-        if abs(val) >= 1000:
-            return f"{val/1000:.3f}", "kW"
-        return f"{val:.2f}", "W"
-
     AFFINITY_GROUPS = [
         ["Te", "n", "wr"],
         ["ias", "ibs", "ics"],

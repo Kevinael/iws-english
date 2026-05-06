@@ -19,6 +19,8 @@ Documentacao detalhada de cada decisao de implementacao:
 from __future__ import annotations
 import numpy as np
 
+_SQRT3_2 = np.sqrt(3.0) / 2.0  # sqrt(3)/2 — fator da transformada Clarke
+
 
 def abc_voltages(t, Vl: float, f: float):
     """Tensoes abc balanceadas (amplitude-invariante).
@@ -55,7 +57,7 @@ def clarke_park_transform(Va, Vb, Vc, tetae):
     k   = np.sqrt(3.0 / 2.0)
     # Clarke (abc -> alfabeta): fusao com Park — sem array intermediario alfabeta
     Vaf = k * (Va - 0.5 * Vb - 0.5 * Vc)
-    Vbt = k * (np.sqrt(3.0) / 2.0 * Vb - np.sqrt(3.0) / 2.0 * Vc)
+    Vbt = k * _SQRT3_2 * (Vb - Vc)
     # Park (alfabeta -> dq sincrono): convencao Krause — Vds e eixo d, Vqs e eixo q
     # (Vds, Vqs) — ordem d-antes-q: compativel com Krause (2013) Eq. 6.5-17
     Vds =  np.cos(tetae) * Vaf + np.sin(tetae) * Vbt

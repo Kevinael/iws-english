@@ -27,6 +27,14 @@ from ui.theme import _palette
 from ui_components.sim_runner import calc_tmax_auto
 
 
+@st.cache_data(show_spinner=False)
+def _cached_estimate_params(
+    Vl: float, f: float, Pn_kW: float, N_nom: float,
+    rend: float, fp: float, Ip_In: float, Tp_Tn: float, is_delta: bool,
+) -> dict:
+    return estimate_params(Vl, f, 0, Pn_kW, N_nom, rend, fp, Ip_In, Tp_Tn, is_delta=is_delta)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # CATÁLOGOS DE VARIÁVEIS
 # ─────────────────────────────────────────────────────────────────────────────
@@ -395,7 +403,7 @@ def render_machine_params(
         )
         st.markdown('</div>', unsafe_allow_html=True)
 
-        resultado = estimate_params(Vl, f, 0, Pn_kW, N_nom, rend_placa, fp_placa, Ip_In, Tp_Tn, is_delta=is_delta)
+        resultado = _cached_estimate_params(Vl, f, Pn_kW, N_nom, rend_placa, fp_placa, Ip_In, Tp_Tn, is_delta)
 
         if not resultado["success"]:
             st.error(f"Dados de placa inconsistentes: {resultado['error']}  Parâmetros padrão (Krause 3 HP) serão usados.")
