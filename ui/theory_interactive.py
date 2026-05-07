@@ -778,99 +778,145 @@ def render_park_dinamico() -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 5. SANKEY DE POTÊNCIA RESPONSIVO — slider de s + botão "Sincronizar"
+# 5. FLUXO DE POTÊNCIA — barras horizontais com slider Plotly (zero latência)
 # ─────────────────────────────────────────────────────────────────────────────
 
 def render_sankey_potencia() -> None:
-    """Sankey interativo do fluxo de potência com slider de escorregamento."""
+    """Fluxo de potência com slider nativo Plotly (zero latência).
+
+    go.Sankey não suporta frames Plotly; substituído por barras horizontais
+    empilhadas (go.Bar) que representam o mesmo fluxo e animam normalmente.
+    Pré-calcula N_STEPS valores de s; slider JS troca frames sem rerun.
+    """
     mp   = _get_mp()
     dark = _dark()
     pt   = _plot_theme(dark)
 
-    col1, col2 = st.columns([3, 1])
-    with col2:
-        if st.button("Sincronizar com simulação", key="th_sankey_sync"):
-            res = st.session_state.get("sim_result")
-            if res and "slip" in res:
-                st.session_state["th_sankey_s"] = float(res["slip"])
-    with col1:
-        s_val = st.slider(
-            "Escorregamento s",
-            min_value=-0.20,
-            max_value=2.00,
-            value=float(st.session_state.get("th_sankey_s", 0.05)),
-            step=0.01,
-            key="th_sankey_s",
-        )
+    N_STEPS = 80
+    s_grid  = np.linspace(-0.20, 2.00, N_STEPS)
+    nom_idx = int(np.argmin(np.abs(s_grid - 0.05)))
 
-    fp = calc_fluxo_potencia(s_val, mp)
-    P_in  = fp["P_in"]
-    P_cu1 = fp["P_cu1"]
-    P_ag  = fp["P_ag"]
-    P_cu2 = fp["P_cu2"]
-    P_mec = fp["P_mec"]
-    P_out = fp["P_out"]
-    region = fp["region"]
-
-    # Formata valores em kW ou W
-    def _fmt(v):
+    def _fmt(v: float) -> str:
         av = abs(v)
-        if av >= 1000:
-            return f"{v/1000:.2f} kW"
-        return f"{v:.1f} W"
+        return f"{v/1000:.2f} kW" if av >= 1000 else f"{v:.1f} W"
 
-    # Para Sankey, valores devem ser positivos
-    # A topologia muda conforme a região de operação
-    node_labels = ["P_in", "P_cu1", "P_ag", "P_cu2", "P_mec", "P_out"]
-    node_colors = ["#4f8ef7", "#f87171", "#a78bfa", "#fb923c", "#34d399", "#22c55e"]
+    COL_PIN  = "#4f8ef7"
+    COL_CU1  = "#f87171"
+    COL_AG   = "#a78bfa"
+    COL_CU2  = "#fb923c"
+    COL_MEC  = "#34d399"
+    COL_OUT  = "#22c55e"
 
-    # Sankey — links com valores absolutos (Plotly exige)
-    link_source = [0, 0, 2, 2]
-    link_target = [1, 2, 3, 4]
-    link_values = [
-        max(abs(P_cu1), 1.0),
-        max(abs(P_ag),  1.0),
-        max(abs(P_cu2), 1.0),
-        max(abs(P_mec), 1.0),
-    ]
-    link_labels = [
-        f"P_cu1 = {_fmt(P_cu1)}",
-        f"P_ag = {_fmt(P_ag)}",
-        f"P_cu2 = {_fmt(P_cu2)}",
-        f"P_mec = {_fmt(P_mec)}",
-    ]
-    link_colors = ["rgba(248,113,113,0.5)", "rgba(167,139,250,0.5)",
-                   "rgba(251,146,60,0.5)",  "rgba(52,211,153,0.5)"]
+    LABELS = ["P_entrada", "P_cu1 (cobre est.)", "P_ag (entreferro)",
+              "P_cu2 (cobre rot.)", "P_mec (conv.)", "P_saída"]
 
-    fig = go.Figure(go.Sankey(
-        arrangement="snap",
-        node=dict(
-            pad=20, thickness=22,
-            line=dict(color="rgba(0,0,0,0)", width=0),
-            label=node_labels,
-            color=node_colors,
-        ),
-        link=dict(
-            source=link_source,
-            target=link_target,
-            value=link_values,
-            label=link_labels,
-            color=link_colors,
-        ),
-    ))
+    def _make_frame_data(s: float):
+        fp     = calc_fluxo_potencia(s, mp)
+        P_in   = fp["P_in"]
+        P_cu1  = fp["P_cu1"]
+        P_ag   = fp["P_ag"]
+        P_cu2  = fp["P_cu2"]
+        P_mec  = fp["P_mec"]
+        P_out  = fp["P_out"]
+        region = fp["region"]
+        eta    = fp["eta"]
+
+        vals   = [abs(P_in), abs(P_cu1), abs(P_ag), abs(P_cu2), abs(P_mec), abs(P_out)]
+        cols   = [COL_PIN, COL_CU1, COL_AG, COL_CU2, COL_MEC, COL_OUT]
+        txts   = [_fmt(P_in), _fmt(P_cu1), _fmt(P_ag),
+                  _fmt(P_cu2), _fmt(P_mec), _fmt(P_out)]
+
+        traces = []
+        for i, (lbl, val, col, txt) in enumerate(zip(LABELS, vals, cols, txts)):
+            traces.append(go.Bar(
+                name=lbl,
+                x=[val],
+                y=["Potência"],
+                orientation="h",
+                marker_color=col,
+                text=[txt],
+                textposition="inside",
+                insidetextanchor="middle",
+                textfont=dict(size=11, color="#ffffff"),
+                hovertemplate=f"{lbl}: {txt}<extra></extra>",
+            ))
+
+        # trace final: título dinâmico como anotação via scatter invisível
+        traces.append(go.Scatter(
+            x=[None], y=[None],
+            mode="markers",
+            marker=dict(opacity=0),
+            showlegend=False,
+            hoverinfo="skip",
+            name=f"{region} | η={eta:.1f}% | s={s:.3f}",
+        ))
+        return traces, region, eta
+
+    # ── figura base ──────────────────────────────────────────────────────────
+    init_traces, region_0, eta_0 = _make_frame_data(s_grid[nom_idx])
+    fig = go.Figure(data=init_traces)
+
+    # ── frames ───────────────────────────────────────────────────────────────
+    frames = []
+    slider_steps = []
+    anim_args = dict(mode="immediate", frame=dict(duration=0, redraw=True),
+                     transition=dict(duration=0))
+
+    for i, s in enumerate(s_grid):
+        trs, region, eta = _make_frame_data(s)
+        frames.append(go.Frame(
+            name=str(i),
+            data=trs,
+            traces=list(range(len(trs))),
+        ))
+        slider_steps.append(dict(
+            method="animate",
+            label=f"{s:.2f}",
+            args=[[str(i)], anim_args],
+        ))
+
+    fig.frames = frames
 
     fig.update_layout(
-        height=300,
+        height=260,
+        barmode="stack",
         title=dict(
-            text=f"Fluxo de Potência — {region}  |  P_in = {_fmt(P_in)}  "
-                 f"|  η = {fp['eta']:.1f}%  |  s = {s_val:.3f}",
-            x=0.5, xanchor="center",
-            font=dict(size=12, color=pt["fg"]),
+            text=f"Fluxo de Potência — {region_0}  |  η = {eta_0:.1f}%  |  s = {s_grid[nom_idx]:.2f}",
+            x=0.5, xanchor="center", font=dict(size=13, color=pt["fg"]),
         ),
         paper_bgcolor=pt["paper_bg"],
+        plot_bgcolor=pt["plot_bg"],
         font=dict(family="Inter, system-ui", size=11, color=pt["fg"]),
-        margin=dict(l=20, r=20, t=55, b=20),
+        margin=dict(l=20, r=20, t=55, b=110),
+        xaxis=dict(
+            title="Potência (W)", showgrid=True, gridcolor=pt["grid"],
+            tickfont=dict(size=10, color=pt["fg"]),
+        ),
+        yaxis=dict(showticklabels=False, showgrid=False),
+        legend=dict(
+            orientation="h", x=0.5, xanchor="center", y=-0.28,
+            font=dict(size=10, color=pt["fg"]), bgcolor="rgba(0,0,0,0)",
+        ),
+        showlegend=True,
+        sliders=[dict(
+            active=nom_idx,
+            currentvalue=dict(
+                prefix="Escorregamento  s = ",
+                visible=True, xanchor="center",
+                font=dict(size=13, color=pt["fg"]),
+            ),
+            y=0, pad=dict(t=45, b=5),
+            len=0.92, x=0.04,
+            steps=slider_steps,
+            bgcolor=pt["paper_bg"], bordercolor=pt["grid"],
+            tickcolor=pt["fg"], font=dict(color=pt["fg"], size=9),
+        )],
+        updatemenus=[dict(
+            type="buttons", visible=False,
+            buttons=[dict(method="animate", args=[None])],
+        )],
     )
+
     st.plotly_chart(fig, use_container_width=True, config={"displaylogo": False})
 
 
@@ -904,6 +950,173 @@ def _build_circuit_png(mp_key: tuple, dark: bool, simplified: bool) -> bytes:
         fig.savefig(buf, format="png", dpi=150, facecolor=bg_hex, bbox_inches="tight")
         plt.close(fig)
     return buf.getvalue()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 7. DESEQUILÍBRIO DE TENSÃO — senoidais com slider δ (amplitude) + Δf (freq)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def render_fasorial_desequilibrio() -> None:
+    """Formas de onda Va/Vb/Vc com desequilíbrio de amplitude e frequência.
+
+    Grid 2D de N_D × N_F frames Plotly pré-calculados (zero latência).
+    Slider 1 — δ: desequilíbrio de amplitude em Va (+δ) e Vc (−δ).
+    Slider 2 — Δf: desvio de frequência em Vc (Hz), Vb permanece nominal.
+    VUF calculado via Fortescue nos fasores em t=0, exibido como anotação.
+    """
+    dark = _dark()
+    pt   = _plot_theme(dark)
+    mp   = _get_mp()
+    f0   = float(mp.f)   # frequência nominal (Hz)
+
+    N_D = 31   # passos de δ: −30% → +30%
+    N_F = 21   # passos de Δf: −10 Hz → +10 Hz
+
+    delta_grid = np.linspace(-0.30, 0.30, N_D)
+    df_grid    = np.linspace(-10.0, 10.0, N_F)
+    nom_d_idx  = N_D // 2  # δ = 0 no centro
+    nom_f_idx  = N_F // 2  # Δf = 0 no centro
+
+    # eixo de tempo: 2 ciclos nominais, 400 pontos
+    T0  = 1.0 / f0
+    t   = np.linspace(0.0, 2 * T0, 400)
+
+    col_Va = "#f97316"
+    col_Vb = "#4f8ef7" if dark else "#1d4ed8"
+    col_Vc = "#34d399" if dark else "#059669"
+    col_vuf = "#f87171"
+
+    a_rot = np.exp(1j * 2 * np.pi / 3)
+    F_mat = np.array([
+        [1, 1,        1       ],
+        [1, a_rot,    a_rot**2],
+        [1, a_rot**2, a_rot**4],
+    ]) / 3.0
+
+    def _make_traces(delta: float, df: float):
+        fc = f0 + df
+        Va_t = (1.0 + delta) * np.sin(2 * np.pi * f0 * t)
+        Vb_t =                  np.sin(2 * np.pi * f0 * t - 2 * np.pi / 3)
+        Vc_t = (1.0 - delta) * np.sin(2 * np.pi * fc * t + 2 * np.pi / 3)
+
+        # VUF via fasores em t=0 (pico normalizado)
+        Va_f = complex(1.0 + delta, 0.0)
+        Vb_f = a_rot**2
+        Vc_f = (1.0 - delta) * np.exp(1j * (4 * np.pi / 3))
+        _, V1s, V2s = F_mat @ np.array([Va_f, Vb_f, Vc_f])
+        vuf = abs(V2s) / abs(V1s) * 100 if abs(V1s) > 1e-9 else 0.0
+
+        t_ms = (t * 1000).tolist()
+        return [
+            go.Scatter(x=t_ms, y=Va_t.tolist(), mode="lines",
+                       name="Va", line=dict(color=col_Va, width=2.5)),
+            go.Scatter(x=t_ms, y=Vb_t.tolist(), mode="lines",
+                       name="Vb", line=dict(color=col_Vb, width=2.5)),
+            go.Scatter(x=t_ms, y=Vc_t.tolist(), mode="lines",
+                       name=f"Vc  (f = {fc:.1f} Hz)", line=dict(color=col_Vc, width=2.5)),
+            go.Scatter(
+                x=[t_ms[-1] * 0.72], y=[1.25],
+                mode="text",
+                text=[f"VUF = {vuf:.1f}%"],
+                textfont=dict(size=14, color=col_vuf),
+                showlegend=False,
+            ),
+        ]
+
+    # ── figura base ──────────────────────────────────────────────────────────
+    fig = go.Figure(data=_make_traces(0.0, 0.0))
+
+    # ── frames 2D ────────────────────────────────────────────────────────────
+    frames = []
+    anim_args = dict(mode="immediate", frame=dict(duration=0, redraw=True),
+                     transition=dict(duration=0))
+
+    for i_d, delta in enumerate(delta_grid):
+        for i_f, df in enumerate(df_grid):
+            frames.append(go.Frame(
+                name=str(i_d * N_F + i_f),
+                data=_make_traces(delta, df),
+                traces=[0, 1, 2, 3],
+            ))
+    fig.frames = frames
+
+    # slider δ — percorre amplitude, Δf fixo em 0
+    steps_delta = [
+        dict(method="animate", label=f"{d*100:+.0f}",
+             args=[[str(i_d * N_F + nom_f_idx)], anim_args])
+        for i_d, d in enumerate(delta_grid)
+    ]
+
+    # slider Δf — percorre frequência, δ fixo em 0
+    steps_df = [
+        dict(method="animate", label=f"{df:+.0f}",
+             args=[[str(nom_d_idx * N_F + i_f)], anim_args])
+        for i_f, df in enumerate(df_grid)
+    ]
+
+    slider_base = dict(
+        len=0.88, x=0.06,
+        bgcolor=pt["paper_bg"], bordercolor=pt["grid"], tickcolor=pt["fg"],
+        font=dict(color=pt["fg"], size=9),
+    )
+
+    y_max = (1.0 + max(abs(delta_grid[0]), abs(delta_grid[-1]))) * 1.15
+
+    fig.update_layout(
+        height=560,
+        title=dict(
+            text="Desequilíbrio de Tensão — Formas de Onda Va / Vb / Vc",
+            x=0.5, xanchor="center", font=dict(size=13, color=pt["fg"]),
+        ),
+        paper_bgcolor=pt["paper_bg"],
+        plot_bgcolor=pt["plot_bg"],
+        font=dict(family="Inter, system-ui", size=11, color=pt["fg"]),
+        margin=dict(l=60, r=20, t=55, b=20),
+        xaxis=dict(
+            title="Tempo (ms)", showgrid=True, gridcolor=pt["grid"],
+            zeroline=False, tickfont=dict(size=10, color=pt["fg"]),
+            domain=[0, 1],
+        ),
+        yaxis=dict(
+            title="Tensão (p.u.)", showgrid=True, gridcolor=pt["grid"],
+            zeroline=True, zerolinecolor=pt["grid"],
+            range=[-y_max, y_max],
+            tickfont=dict(size=10, color=pt["fg"]),
+            domain=[0.44, 1.0],
+        ),
+        legend=dict(
+            orientation="h", x=0.5, xanchor="center", y=0.36,
+            font=dict(size=10, color=pt["fg"]), bgcolor="rgba(0,0,0,0)",
+        ),
+        sliders=[
+            dict(**slider_base,
+                 active=nom_d_idx,
+                 y=0.22,
+                 pad=dict(t=20, b=0),
+                 currentvalue=dict(
+                     prefix="Desequilíbrio de amplitude  δ = ", suffix="%",
+                     visible=True, xanchor="center",
+                     font=dict(size=12, color=pt["fg"]),
+                 ),
+                 steps=steps_delta),
+            dict(**slider_base,
+                 active=nom_f_idx,
+                 y=0.06,
+                 pad=dict(t=20, b=0),
+                 currentvalue=dict(
+                     prefix="Desvio de frequência em Vc  Δf = ", suffix=" Hz",
+                     visible=True, xanchor="center",
+                     font=dict(size=12, color=pt["fg"]),
+                 ),
+                 steps=steps_df),
+        ],
+        updatemenus=[dict(
+            type="buttons", visible=False,
+            buttons=[dict(method="animate", args=[None])],
+        )],
+    )
+
+    st.plotly_chart(fig, use_container_width=True, config={"displaylogo": False})
 
 
 def render_circuito_alternavel() -> None:

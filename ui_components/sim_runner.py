@@ -80,6 +80,9 @@ def execute_simulation_flow(
     _falta_fase_b = exp_config.get("falta_fase_b", False)
     _falta_fase_c = exp_config.get("falta_fase_c", False)
     _t_deseq      = exp_config.get("t_deseq",      0.0)
+    _df_a         = exp_config.get("df_a",          0.0)
+    _df_b         = exp_config.get("df_b",          0.0)
+    _df_c         = exp_config.get("df_c",          0.0)
 
     if (
         (_deseq_a or _deseq_b or _deseq_c or _falta_fase_a or _falta_fase_b or _falta_fase_c)
@@ -97,6 +100,7 @@ def execute_simulation_flow(
                 deseq_a=_deseq_a, deseq_b=_deseq_b, deseq_c=_deseq_c,
                 falta_fase_a=_falta_fase_a, falta_fase_b=_falta_fase_b,
                 falta_fase_c=_falta_fase_c, t_deseq=_t_deseq,
+                df_a=_df_a, df_b=_df_b, df_c=_df_c,
                 clamp_wr_at_zero=(exp_config.get("exp_type") == "shutdown"),
                 t_cutoff=exp_config.get("t_cutoff") if exp_config.get("exp_type") == "shutdown" else None,
                 broken_bar_severity=_broken_bar,

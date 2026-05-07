@@ -22,21 +22,29 @@ def abc_voltages_deseq(t, Vl: float, f: float,
                        deseq_c: float = 0.0,
                        falta_fase_a: bool = False,
                        falta_fase_b: bool = False,
-                       falta_fase_c: bool = False):
+                       falta_fase_c: bool = False,
+                       df_a: float = 0.0,
+                       df_b: float = 0.0,
+                       df_c: float = 0.0):
     """Gera tensões abc com desequilíbrio e/ou falta de fase em qualquer fase.
 
     deseq_a / deseq_b / deseq_c : desvio fracional em Vl (ex: 0.1 = +10%, -0.1 = -10%).
     falta_fase_a/b/c             : se True, força a tensão da fase a zero.
+    df_a / df_b / df_c           : desvio de frequência por fase em Hz (0 = nominal).
     Aceita t escalar ou np.ndarray; retorna o mesmo tipo.
     """
     scalar = np.ndim(t) == 0
-    t_arr = np.atleast_1d(np.asarray(t, dtype=float))
-    tetae = 2.0 * np.pi * f * t_arr
-    zero  = np.zeros_like(t_arr)
+    t_arr  = np.atleast_1d(np.asarray(t, dtype=float))
+    zero   = np.zeros_like(t_arr)
+    k      = np.sqrt(2.0 / 3.0)
 
-    Va = zero if falta_fase_a else np.sqrt(2.0/3.0) * Vl * (1.0 + deseq_a) * np.sin(tetae)
-    Vb = zero if falta_fase_b else np.sqrt(2.0/3.0) * Vl * (1.0 + deseq_b) * np.sin(tetae - 2.0 * np.pi / 3.0)
-    Vc = zero if falta_fase_c else np.sqrt(2.0/3.0) * Vl * (1.0 + deseq_c) * np.sin(tetae + 2.0 * np.pi / 3.0)
+    tetae_a = 2.0 * np.pi * (f + df_a) * t_arr
+    tetae_b = 2.0 * np.pi * (f + df_b) * t_arr
+    tetae_c = 2.0 * np.pi * (f + df_c) * t_arr
+
+    Va = zero if falta_fase_a else k * Vl * (1.0 + deseq_a) * np.sin(tetae_a)
+    Vb = zero if falta_fase_b else k * Vl * (1.0 + deseq_b) * np.sin(tetae_b - 2.0 * np.pi / 3.0)
+    Vc = zero if falta_fase_c else k * Vl * (1.0 + deseq_c) * np.sin(tetae_c + 2.0 * np.pi / 3.0)
 
     if scalar:
         return float(Va[0]), float(Vb[0]), float(Vc[0])
@@ -89,9 +97,13 @@ def render_desequilibrio_ui(config: dict, tmax: float = 2.0) -> None:
         with col_a:
             st.markdown("**Fase A**")
             deseq_a = st.slider(
-                "Desvio fase A (%)", min_value=-30, max_value=30, value=0, step=1,
+                "Desvio amplitude A (%)", min_value=-30, max_value=30, value=0, step=1,
                 help="Ex: +10 → Va = 1.1 × Vnominal", key="deseq_a"
             ) / 100.0
+            df_a = float(st.slider(
+                "Desvio frequência A (Hz)", min_value=-10, max_value=10, value=0, step=1,
+                help="Desvio de frequência em Va. 0 = nominal.", key="df_a"
+            ))
             falta_a = st.toggle("Falta de Fase A (Va = 0)", value=False, key="falta_a")
             if falta_a:
                 st.warning("Falta na fase A — correntes muito elevadas.")
@@ -99,9 +111,13 @@ def render_desequilibrio_ui(config: dict, tmax: float = 2.0) -> None:
         with col_b:
             st.markdown("**Fase B**")
             deseq_b = st.slider(
-                "Desvio fase B (%)", min_value=-30, max_value=30, value=0, step=1,
+                "Desvio amplitude B (%)", min_value=-30, max_value=30, value=0, step=1,
                 help="Ex: +10 → Vb = 1.1 × Vnominal", key="deseq_b"
             ) / 100.0
+            df_b = float(st.slider(
+                "Desvio frequência B (Hz)", min_value=-10, max_value=10, value=0, step=1,
+                help="Desvio de frequência em Vb. 0 = nominal.", key="df_b"
+            ))
             falta_b = st.toggle("Falta de Fase B (Vb = 0)", value=False, key="falta_b")
             if falta_b:
                 st.warning("Falta na fase B — correntes muito elevadas.")
@@ -109,9 +125,13 @@ def render_desequilibrio_ui(config: dict, tmax: float = 2.0) -> None:
         with col_c:
             st.markdown("**Fase C**")
             deseq_c = st.slider(
-                "Desvio fase C (%)", min_value=-30, max_value=30, value=0, step=1,
+                "Desvio amplitude C (%)", min_value=-30, max_value=30, value=0, step=1,
                 help="Ex: -10 → Vc = 0.9 × Vnominal", key="deseq_c"
             ) / 100.0
+            df_c = float(st.slider(
+                "Desvio frequência C (Hz)", min_value=-10, max_value=10, value=0, step=1,
+                help="Desvio de frequência em Vc. 0 = nominal.", key="df_c"
+            ))
             falta_c = st.toggle("Falta de Fase C (Vc = 0)", value=False, key="falta_c")
             if falta_c:
                 st.warning("Falta na fase C — correntes muito elevadas.")
@@ -143,3 +163,6 @@ def render_desequilibrio_ui(config: dict, tmax: float = 2.0) -> None:
         config["falta_fase_b"] = falta_b
         config["falta_fase_c"] = falta_c
         config["t_deseq"]      = t_deseq
+        config["df_a"]         = df_a
+        config["df_b"]         = df_b
+        config["df_c"]         = df_c

@@ -14,7 +14,7 @@ from ui.theory_interactive import (
     render_comparativo_partidas,
     render_park_dinamico,
     render_sankey_potencia,
-    render_circuito_alternavel,
+    render_fasorial_desequilibrio,
 )
 matplotlib.use("Agg")
 matplotlib.rcParams.update({"mathtext.fontset": "dejavusans", "text.usetex": False})
@@ -152,12 +152,6 @@ def _render_tab_circuitos() -> None:
         )
     with col_img:
         _show_img("imgs/ind_ieee.png")
-
-    st.divider()
-
-    # 1b-interativo. Circuito alternável
-    _h4("Circuito Interativo — Alternância entre Modelos")
-    render_circuito_alternavel()
 
     st.divider()
 
@@ -1411,6 +1405,8 @@ def _render_tab_experimentos() -> None:
     _eq(r"V_b = \sqrt{\tfrac{2}{3}}\,V_l\,(1 + \delta_b)\sin\!\left(\omega_e t - \tfrac{2\pi}{3}\right)")
     _eq(r"V_c = \sqrt{\tfrac{2}{3}}\,V_l\,(1 + \delta_c)\sin\!\left(\omega_e t + \tfrac{2\pi}{3}\right)")
     st.markdown("onde $\\delta_a,\\,\\delta_b,\\,\\delta_c \\in [-0{,}30,\\;+0{,}30]$ são os desvios configurados nos sliders.")
+
+    render_fasorial_desequilibrio()
 
     st.write("")
     _h4("Falta de Fase — Operação Bifásica")

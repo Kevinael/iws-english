@@ -50,6 +50,9 @@ def run_simulation(
     falta_fase_b: bool = False,
     falta_fase_c: bool = False,
     t_deseq: float = 0.0,
+    df_a: float = 0.0,
+    df_b: float = 0.0,
+    df_c: float = 0.0,
     clamp_wr_at_zero: bool = False,
     t_cutoff: float | None = None,
     broken_bar_severity: float = 0.0,
@@ -72,9 +75,11 @@ def run_simulation(
         )
 
     t_values     = np.arange(0.0, tmax, h)
-    deseq        = (deseq_a, deseq_b, deseq_c, falta_fase_a, falta_fase_b, falta_fase_c)
+    deseq        = (deseq_a, deseq_b, deseq_c, falta_fase_a, falta_fase_b, falta_fase_c,
+                    df_a, df_b, df_c)
     deseq_active = (deseq_a != 0.0 or deseq_b != 0.0 or deseq_c != 0.0
-                    or falta_fase_a or falta_fase_b or falta_fase_c)
+                    or falta_fase_a or falta_fase_b or falta_fase_c
+                    or df_a != 0.0 or df_b != 0.0 or df_c != 0.0)
 
     rr_fn     = make_broken_bar_rr_fn(mp.Rr, broken_bar_severity, mp.wb)
     rhs       = _make_rhs(mp, voltage_fn, torque_fn, ref_code, deseq, t_deseq, deseq_active, rr_fn)
