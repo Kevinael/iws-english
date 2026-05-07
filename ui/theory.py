@@ -8,6 +8,14 @@ from pathlib import Path
 
 import numpy as np
 import matplotlib
+from ui.theory_interactive import (
+    render_boucherot,
+    render_zonas_operacao,
+    render_comparativo_partidas,
+    render_park_dinamico,
+    render_sankey_potencia,
+    render_circuito_alternavel,
+)
 matplotlib.use("Agg")
 matplotlib.rcParams.update({"mathtext.fontset": "dejavusans", "text.usetex": False})
 import matplotlib.pyplot as plt
@@ -147,6 +155,12 @@ def _render_tab_circuitos() -> None:
 
     st.divider()
 
+    # 1b-interativo. Circuito alternável
+    _h4("Circuito Interativo — Alternância entre Modelos")
+    render_circuito_alternavel()
+
+    st.divider()
+
     # 1c. Thévenin
     _h4("Equivalente de Thévenin — Redução da Malha do Rotor")
     col_img, col_txt = st.columns([1, 1])
@@ -190,56 +204,6 @@ def _render_tab_circuitos() -> None:
 
     st.divider()
 
-    # 1d-ii. Referencial da Transformada de Park
-    _h4("Referencial da Transformada de Park — Escolha do Eixo de Rotação")
-    st.markdown(
-        "A transformada de Park projeta as grandezas trifásicas $abc$ em dois eixos "
-        "ortogonais $dq$ que giram a uma velocidade angular de referência $\\omega_{ref}$. "
-        "A escolha de $\\omega_{ref}$ define o **referencial** e altera a aparência das "
-        "formas de onda — sem alterar a física da máquina."
-    )
-    st.markdown("Os três referenciais disponíveis no simulador são:")
-
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        _h4("Síncrono ($\\omega_{ref} = \\omega_e$)")
-        st.markdown(
-            "Os eixos $dq$ giram junto com o campo magnético girante do estator. "
-            "Em regime permanente, todas as grandezas — tensões, correntes e fluxos — "
-            "tornam-se **valores contínuos (DC)**. É o referencial padrão do simulador "
-            "e o mais utilizado em controle vetorial."
-        )
-        _eq(r"V_{qs} = \text{const.},\quad V_{ds} = 0 \;\text{(regime)}")
-        _div_warn("Recomendado para análise de regime permanente e diagnóstico de torque.")
-    with col2:
-        _h4("Rotórico ($\\omega_{ref} = \\omega_r$)")
-        st.markdown(
-            "Os eixos giram solidários ao rotor. As grandezas rotóricas tornam-se DC; "
-            "as estatóricas oscilam à frequência de escorregamento $f_r = s \\cdot f_e$. "
-            "Útil para análise de falhas no rotor, como barras quebradas, "
-            "onde $s$ é o parâmetro de interesse."
-        )
-        _eq(r"f_r = s\,f_e \quad \Rightarrow \quad \omega_{ref} = \omega_r")
-        _div_warn("Indicado para estudos de falhas rotóricas e análise espectral de corrente.")
-    with col3:
-        _h4("Estacionário ($\\omega_{ref} = 0$)")
-        st.markdown(
-            "Os eixos $\\alpha\\beta$ são fixos no espaço. Nenhuma grandeza é DC — "
-            "estator e rotor oscilam às suas frequências naturais ($f_e$ e $f_r$). "
-            "É o referencial de Clarke, base de estratégias de controle sem sensor "
-            "de posição (sensorless)."
-        )
-        _eq(r"\omega_{ref} = 0 \;\Rightarrow\; \text{eixos } \alpha\beta \text{ estacionários}")
-        _div_warn("Útil para visualização das correntes em coordenadas estacionárias.")
-
-    st.markdown(
-        "As equações de estado do modelo mudam apenas nos termos de acoplamento entre "
-        "eixos (termos $\\omega_{ref}\\,\\psi$). A solução é matematicamente equivalente "
-        "nos três referenciais — a escolha afeta apenas a interpretação das formas de onda."
-    )
-
-    st.divider()
-
     # 1e. Gaiola Dupla
     _h4("Circuito com Gaiola de Esquilo Dupla")
     col_txt, col_img = st.columns([1, 1])
@@ -263,6 +227,27 @@ def _render_tab_circuitos() -> None:
     with col_img:
         _show_img("imgs/ind_ieee_duplo.png")
 
+    st.divider()
+
+    _h4("Gaiola de Esquilo Dupla — Composição do Torque")
+    col_txt, col_img = st.columns([1, 1])
+    with col_txt:
+        st.markdown("O torque resultante é a **superposição** dos torques de cada gaiola:")
+        _eq(r"T_e = T_{ext} + T_{int} = \frac{3}{\omega_s}\!\left(\frac{|V_{ag}|^2 R'_{2e}/s}{|Z'_{2e}|^2} + \frac{|V_{ag}|^2 R'_{2i}/s}{|Z'_{2i}|^2}\right)")
+        st.markdown(
+            "**Na partida** ($s=1$, $f_r = f$): o **efeito pelicular** "
+            "força a corrente para a gaiola externa ($R'_{2e}$ alto) "
+            "$\\Rightarrow$ alto $T_{part}$.\n\n"
+            "**Em regime** ($s \\ll 1$, $f_r \\approx s\\,f$): "
+            "$X'_{2i} \\to 0$ — gaiola interna ($R'_{2i}$ baixo) domina "
+            "$\\Rightarrow$ baixo $s_{nom}$, alto $\\eta$.\n\n"
+            "O resultado é uma variação *automática e contínua* de $R'_2$ efetivo "
+            "durante a aceleração — sem componentes externos, graças ao "
+            "**perfil geométrico das barras do rotor**."
+        )
+    with col_img:
+        _show_img("imgs/SCdupla.png")
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # ABA 2 — COMPORTAMENTO DINÂMICO E TORQUE
@@ -275,49 +260,8 @@ def _render_tab_dinamica() -> None:
         "com dinâmicas e riscos operacionais diferentes."
     )
 
-    # Curva completa
-    _show_img("imgs/T_x_s.png", width="88%")
-
-    st.divider()
-
-    # Três regiões
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        _h4("Região 1 — Frenagem ($s > 1$)")
-        st.markdown(
-            "O rotor gira em sentido oposto ao campo girante. "
-            "$T_e < 0$: a máquina age como **freio eletromagnético** oposto ao movimento."
-        )
-        _eq(r"P_{cu,2} = s\,P_{ag} > P_{ag} \quad (s>1)")
-        st.markdown(
-            "O rotor absorve mais energia do que a fornecida pela rede — "
-            "a diferença provém da **energia cinética da carga**."
-        )
-        _div_warn("Aplicação: *plugging* (inversão de fase para parada forçada). "
-                  "Risco severo de sobreaquecimento — operação limitada a segundos.")
-    with col2:
-        _h4("Região 2 — Motor ($0 < s < 1$)")
-        st.markdown("Operação nominal. Potência elétrica convertida em mecânica:")
-        _eq(r"P_{mec} = (1-s)\,P_{ag} = T_e\,\omega_r")
-        st.markdown(
-            "**Região estável:** $n_{max} < n < n_s$ — perturbações são "
-            "autorreguladas pelo aumento de $T_e$ quando $n$ cai.  \n"
-            "**Região instável:** $0 < n < n_{max}$ — risco de "
-            "*travamento (stall)* sob carga.  \n"
-            "Escorregamento nominal típico: $s_n \\approx 0{,}02$–$0{,}06$."
-        )
-    with col3:
-        _h4("Região 3 — Gerador ($s < 0$)")
-        st.markdown(
-            "Rotor acelerado acima de $n_s$ por fonte motriz externa. "
-            "$T_e$ inverte sentido: a máquina entrega potência elétrica à rede."
-        )
-        _eq(r"P_{ag} = T_e\,\omega_s < 0 \;\Rightarrow\; P_{out,ele} > 0")
-        st.markdown(
-            "$P_{cu,2} = s\\,P_{ag} < 0$: o rotor absorve potência mecânica "
-            "e a transfere ao entreferro."
-        )
-        _div_warn("Aplicações: geração eólica de indução, freio regenerativo em acionamentos.")
+    _h4("Curva T×n — Zonas de Operação Interativas")
+    render_zonas_operacao()
 
     st.divider()
 
@@ -341,46 +285,9 @@ def _render_tab_dinamica() -> None:
     )
 
     st.divider()
+    _h4("Boucherot Interativo — Efeito de R'₂ na Curva T×s")
+    render_boucherot()
 
-    # Efeito de R'₂ na curva
-    _h4("Curvas $T_e \\times n$ — Variação de $R'_2$ (Boucherot na prática)")
-    col_img, col_txt = st.columns([1, 1])
-    with col_img:
-        _show_img("imgs/TR2.png")
-    with col_txt:
-        st.markdown(
-            "$T_{max}$ é **invariante** com $R'_2$. "
-            "O que muda é o escorregamento crítico: $s_{cr} \\propto R'_2$."
-        )
-        st.markdown(
-            "- $R'_2 \\downarrow$: $s_{cr} \\downarrow$ — pico próximo a $n_s$ "
-            "$\\Rightarrow$ alta eficiência em regime, baixo torque de partida.\n"
-            "- $R'_2 \\uparrow$: $s_{cr} \\uparrow$ — pico a baixa rotação "
-            "$\\Rightarrow$ alto torque de partida, alto $s_{nom}$ e perdas em regime."
-        )
-        _eq(r"T_{part} = T_{max} \;\Leftrightarrow\; R'_2 = \sqrt{R_{th}^2 + (X_{th}+X'_2)^2}")
-
-    st.divider()
-
-    # Gaiola dupla — torque
-    _h4("Gaiola de Esquilo Dupla — Composição do Torque")
-    col_txt, col_img = st.columns([1, 1])
-    with col_txt:
-        st.markdown("O torque resultante é a **superposição** dos torques de cada gaiola:")
-        _eq(r"T_e = T_{ext} + T_{int} = \frac{3}{\omega_s}\!\left(\frac{|V_{ag}|^2 R'_{2e}/s}{|Z'_{2e}|^2} + \frac{|V_{ag}|^2 R'_{2i}/s}{|Z'_{2i}|^2}\right)")
-        st.markdown(
-            "**Na partida** ($s=1$, $f_r = f$): o **efeito pelicular** "
-            "força a corrente para a gaiola externa ($R'_{2e}$ alto) "
-            "$\\Rightarrow$ alto $T_{part}$.\n\n"
-            "**Em regime** ($s \\ll 1$, $f_r \\approx s\\,f$): "
-            "$X'_{2i} \\to 0$ — gaiola interna ($R'_{2i}$ baixo) domina "
-            "$\\Rightarrow$ baixo $s_{nom}$, alto $\\eta$.\n\n"
-            "O resultado é uma variação *automática e contínua* de $R'_2$ efetivo "
-            "durante a aceleração — sem componentes externos, graças ao "
-            "**perfil geométrico das barras do rotor**."
-        )
-    with col_img:
-        _show_img("imgs/SCdupla.png")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -460,6 +367,10 @@ def _render_tab_potencia() -> None:
         "porque a **energia cinética do eixo** alimenta adicionalmente o rotor."
     )
 
+    st.divider()
+    _h4("Fluxo de Potência Interativo")
+    render_sankey_potencia()
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # ABA DINÂMICA DE OPERAÇÃO
@@ -472,6 +383,83 @@ def _render_tab_dinamica_operacao() -> None:
         "a parada completa. Esta aba percorre esses estados em ordem cronológica, "
         "relacionando os fenômenos físicos às equações que os governam."
     )
+
+    # ── Referencial da Transformada de Park ──────────────────────────────────
+    st.divider()
+    _h4("Referencial da Transformada de Park — Escolha do Eixo de Rotação")
+    st.markdown(
+        "A transformada de Park projeta as grandezas trifásicas $abc$ em dois eixos "
+        "ortogonais $dq$ que giram a uma velocidade angular de referência $\\omega_{ref}$. "
+        "A escolha de $\\omega_{ref}$ define o **referencial** e altera a aparência das "
+        "formas de onda — sem alterar a física da máquina."
+    )
+    st.markdown("Os três referenciais disponíveis no simulador são:")
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        _h4("Síncrono ($\\omega_{ref} = \\omega_e$)")
+        st.markdown(
+            "Os eixos $d$ e $q$ giram junto com o campo magnético girante do estator "
+            "à velocidade $\\omega_e$. Como o vetor de tensão também gira a $\\omega_e$, "
+            "ele parece **parado** nesse referencial. "
+            "Em regime permanente, todas as grandezas — tensões, correntes e fluxos — "
+            "tornam-se **valores contínuos (DC)**."
+        )
+        st.markdown(
+            "**Na animação:** o vetor de tensão (laranja) gira no plano αβ, "
+            "mas os eixos $d$ e $q$ giram junto — o vetor parece **parado** no plano $dq$.\n\n"
+            "**O que fica constante em regime:** $V_{qs}$ e $V_{ds}$ — "
+            "as componentes do vetor de tensão no referencial $dq$ são valores DC. "
+            "O mesmo vale para correntes e fluxos: $I_{qs}$, $I_{ds}$, $\\psi_{qs}$, $\\psi_{ds}$."
+        )
+        _eq(r"V_{qs} = \text{const.},\quad V_{ds} = 0 \;\text{(regime permanente)}")
+        _div_warn("Referencial padrão do simulador. Recomendado para análise de regime permanente e controle vetorial.")
+    with col2:
+        _h4("Rotórico ($\\omega_{ref} = \\omega_r$)")
+        st.markdown(
+            "Os eixos giram solidários ao rotor à velocidade $\\omega_r = (1-s)\\,\\omega_e$. "
+            "As grandezas **rotóricas** ficam DC; as grandezas **estatóricas** "
+            "oscilam à frequência de escorregamento $f_s = s \\cdot f_e$, "
+            "pois o campo do estator avança em relação ao rotor."
+        )
+        st.markdown(
+            "**Na animação:** o vetor de tensão do estator (laranja) gira lentamente "
+            "no plano $d_r q_r$ à frequência $s \\cdot f_e$ — as componentes $V_{dr}$ e $V_{qr}$ "
+            "são senoidais de baixa frequência.\n\n"
+            "**O que fica constante em regime:** grandezas do próprio rotor — "
+            "$V_{dr}$, $V_{qr}$, $I_{dr}$, $I_{qr}$, $\\psi_{dr}$, $\\psi_{qr}$ — são DC nesse referencial.\n\n"
+            "**O que oscila:** as grandezas do estator vistas pelo rotor oscilam a $s \\cdot f_e$, "
+            "conforme mostrado na animação."
+        )
+        _eq(r"\omega_{ref} = \omega_r = (1-s)\,\omega_e \;\Rightarrow\; f_{\text{estator}} = s\,f_e")
+        _div_warn("Indicado para estudos de falhas rotóricas e análise espectral de corrente do estator.")
+    with col3:
+        _h4("Estacionário ($\\omega_{ref} = 0$)")
+        st.markdown(
+            "Os eixos $\\alpha\\beta$ são fixos no espaço — não giram. "
+            "O vetor de tensão gira a $\\omega_e$ nesse referencial. "
+            "Nenhuma grandeza é DC: estator e rotor oscilam às suas frequências naturais."
+        )
+        st.markdown(
+            "**Na animação:** o vetor de tensão (laranja) gira a $\\omega_e$ no plano $\\alpha\\beta$ fixo. "
+            "As componentes $V_\\alpha$ e $V_\\beta$ — visíveis nas séries temporais — "
+            "são senoidais com 90° de defasagem entre si.\n\n"
+            "**O que oscila:** todas as grandezas — $V_\\alpha$, $V_\\beta$, $I_\\alpha$, $I_\\beta$ "
+            "oscilam a $f_e$; grandezas rotóricas oscilam a $s \\cdot f_e$.\n\n"
+            "**O que fica constante:** nada — nenhuma grandeza é DC neste referencial."
+        )
+        _eq(r"\omega_{ref} = 0 \;\Rightarrow\; V_\alpha = V\cos(\omega_e t),\; V_\beta = V\sin(\omega_e t)")
+        _div_warn("Base do controle sensorless (sem encoder). Útil para visualização das correntes em coordenadas fixas.")
+
+    st.markdown(
+        "As equações de estado do modelo mudam apenas nos termos de acoplamento entre "
+        "eixos (termos $\\omega_{ref}\\,\\psi$). A solução é matematicamente equivalente "
+        "nos três referenciais — a escolha afeta apenas a interpretação das formas de onda."
+    )
+
+    st.divider()
+    _h4("Transformada de Park — Visualização Interativa")
+    render_park_dinamico()
 
     # ── pré-calcula curva T×n ─────────────────────────────────────────────────
     s_mot  = np.linspace(0.002, 1.0, 600)
@@ -1043,6 +1031,58 @@ def _render_tab_sensibilidade() -> None:
         "$L_{grid} \\approx 10$–$100\\;\\mu$H."
     )
 
+    st.divider()
+    st.markdown("### Estimativa de Parâmetros por Dados de Placa")
+
+    _h4("Método de Estimativa — IEEE T-Equivalente com Premissas NEMA B")
+    st.markdown(
+        "Quando os parâmetros do circuito equivalente ($R_s$, $R_r$, $X_m$, $X_{ls}$, $X_{lr}$) "
+        "não estão disponíveis diretamente, o simulador oferece um estimador automático "
+        "baseado nas informações da **placa de identificação** (*nameplate*) do motor. "
+        "O método segue a metodologia IEEE Std 112 e as premissas de distribuição de "
+        "reatâncias da norma NEMA MG-1."
+    )
+
+    st.markdown("**Dados de entrada exigidos:**")
+    st.markdown(
+        "- Tensão de linha $V_l$ e frequência $f$\n"
+        "- Potência nominal no eixo $P_n$ (kW)\n"
+        "- Velocidade nominal $n_{nom}$ (RPM) — usada para deduzir o número de polos e $s_{nom}$\n"
+        "- Rendimento nominal $\\eta$ e fator de potência $\\cos\\varphi$\n"
+        "- Relação corrente de partida/nominal $I_p/I_n$\n"
+        "- Relação torque de partida/nominal $T_p/T_n$"
+    )
+
+    st.markdown("**Sequência de cálculo:**")
+    st.markdown("**1.** Dedução do escorregamento e grandezas nominais:")
+    _eq(r"s_{nom} = 1 - \frac{n_{nom}}{n_s}, \quad n_s = \frac{120\,f}{p}")
+    _eq(r"I_n = \frac{P_n}{\sqrt{3}\,V_l\,\eta\,\cos\varphi}, \quad T_n = \frac{P_n}{\omega_{r,nom}}")
+
+    st.markdown("**2.** Estimativa da corrente de partida e impedância de curto-circuito:")
+    _eq(r"I_p = \left(\frac{I_p}{I_n}\right) I_n, \quad Z_k = \frac{V_f}{I_p}, \quad X_k = Z_k\,\sqrt{1 - \cos^2\!\varphi_p}")
+    st.markdown(
+        "onde $\\cos\\varphi_p \\approx 0{,}20$ é o fator de potência típico na partida "
+        "(adotado como premissa NEMA B para motores de gaiola simples)."
+    )
+
+    st.markdown("**3.** Distribuição das reatâncias de dispersão (premissa NEMA B):")
+    _eq(r"X_{ls} = 0{,}4\,X_k, \quad X_{lr} = 0{,}6\,X_k")
+
+    st.markdown("**4.** Estimativa de $R_s$ e $R_r$ por balanço de potência em regime nominal:")
+    _eq(r"P_{cu,s} = 3\,I_n^2\,R_s = P_{in} - P_{ag} - P_{fe}, \quad P_{cu,r} = 3\,I_n^2\,R_r = s_{nom}\,P_{ag}")
+
+    st.markdown("**5.** Reatância de magnetização por subtração:")
+    _eq(r"X_m = X_{cc} - X_{ls}, \quad X_{cc} = \frac{V_f}{I_{cc}}")
+
+    _div_warn(
+        "**Limitações do estimador:** os parâmetros obtidos são aproximações baseadas em "
+        "premissas estatísticas da norma NEMA — adequados para simulação e análise de "
+        "sensibilidade, mas não substituem ensaios de identificação (ensaio a vazio + "
+        "ensaio de rotor bloqueado conforme IEEE Std 112). "
+        "Para motores fora do padrão NEMA B (gaiola dupla, rotor bobinado, motores de "
+        "alta eficiência IE4), os resultados podem divergir significativamente dos valores reais."
+    )
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # ABA 5 — CONFIGURAÇÕES DE SIMULAÇÃO E ALERTAS
@@ -1231,6 +1271,10 @@ def _render_tab_experimentos() -> None:
     )
 
     st.divider()
+    _h4("Comparativo de Corrente de Partida — Visualização Interativa")
+    render_comparativo_partidas()
+
+    st.divider()
     st.markdown("### Ensaios de Carga")
 
     _h4("Aplicação de Carga — Partida em Vazio")
@@ -1254,37 +1298,12 @@ def _render_tab_experimentos() -> None:
     st.markdown(
         "A carga é aplicada em $t_{on}$ e retirada em $t_{off}$, simulando uma perturbação "
         "temporária (ex: impacto de carga em prensas, compressores alternativos). "
-        "A equação de movimento governa a resposta:"
-    )
-    _eq(r"\frac{d\omega_r}{dt} = \frac{p}{2J}(T_e - T_l) - \frac{B}{J}\,\omega_r")
-    st.markdown(
         "Após $t_{off}$, o motor retorna ao regime de vazio com transitório de velocidade "
         "e corrente observável."
     )
     st.markdown(
         "- **Observar:** queda e recuperação de velocidade, picos de corrente nos dois instantes de comutação.\n"
         "- **Parâmetro chave:** $J$ — inércia elevada amorece a queda de velocidade; baixa inércia amplifica o transitório."
-    )
-
-    st.divider()
-    st.markdown("### Operação como Gerador")
-
-    _h4("Operação como Gerador de Indução")
-    st.markdown(
-        "O motor parte normalmente ($0 < t < t_2$, $s > 0$). Em $t_2$, uma turbina "
-        "ou fonte motriz externa aplica torque mecânico $T_{mec}$ no sentido do movimento, "
-        "acelerando o rotor **acima de $n_s$**. O escorregamento torna-se negativo "
-        "e o sentido do fluxo de potência no entreferro inverte:"
-    )
-    _eq(r"s < 0 \;\Rightarrow\; P_{ag} = T_e\,\omega_s < 0 \;\Rightarrow\; \text{potência entregue à rede}")
-    st.markdown(
-        "A tensão de rede permanece constante — o gerador de indução necessita da rede "
-        "para excitar o campo magnético (não é autônomo). A potência gerada é:"
-    )
-    _eq(r"P_{out} = |P_{ag}| - P_{cu,s} - P_{fe} - P_{rot}")
-    st.markdown(
-        "- **Observar:** velocidade acima de $n_s$, torque eletromagnético negativo, escorregamento negativo nos KPIs.\n"
-        "- **Aplicações:** geração eólica de pequeno porte, freio regenerativo em acionamentos de velocidade variável."
     )
 
     st.divider()
@@ -1492,57 +1511,6 @@ def _render_tab_experimentos() -> None:
         "barra fisicamente fraturada."
     )
 
-    st.divider()
-    st.markdown("### Estimativa de Parâmetros por Dados de Placa")
-
-    _h4("Método de Estimativa — IEEE T-Equivalente com Premissas NEMA B")
-    st.markdown(
-        "Quando os parâmetros do circuito equivalente ($R_s$, $R_r$, $X_m$, $X_{ls}$, $X_{lr}$) "
-        "não estão disponíveis diretamente, o simulador oferece um estimador automático "
-        "baseado nas informações da **placa de identificação** (*nameplate*) do motor. "
-        "O método segue a metodologia IEEE Std 112 e as premissas de distribuição de "
-        "reatâncias da norma NEMA MG-1."
-    )
-
-    st.markdown("**Dados de entrada exigidos:**")
-    st.markdown(
-        "- Tensão de linha $V_l$ e frequência $f$\n"
-        "- Potência nominal no eixo $P_n$ (kW)\n"
-        "- Velocidade nominal $n_{nom}$ (RPM) — usada para deduzir o número de polos e $s_{nom}$\n"
-        "- Rendimento nominal $\\eta$ e fator de potência $\\cos\\varphi$\n"
-        "- Relação corrente de partida/nominal $I_p/I_n$\n"
-        "- Relação torque de partida/nominal $T_p/T_n$"
-    )
-
-    st.markdown("**Sequência de cálculo:**")
-    st.markdown("**1.** Dedução do escorregamento e grandezas nominais:")
-    _eq(r"s_{nom} = 1 - \frac{n_{nom}}{n_s}, \quad n_s = \frac{120\,f}{p}")
-    _eq(r"I_n = \frac{P_n}{\sqrt{3}\,V_l\,\eta\,\cos\varphi}, \quad T_n = \frac{P_n}{\omega_{r,nom}}")
-
-    st.markdown("**2.** Estimativa da corrente de partida e impedância de curto-circuito:")
-    _eq(r"I_p = \left(\frac{I_p}{I_n}\right) I_n, \quad Z_k = \frac{V_f}{I_p}, \quad X_k = Z_k\,\sqrt{1 - \cos^2\!\varphi_p}")
-    st.markdown(
-        "onde $\\cos\\varphi_p \\approx 0{,}20$ é o fator de potência típico na partida "
-        "(adotado como premissa NEMA B para motores de gaiola simples)."
-    )
-
-    st.markdown("**3.** Distribuição das reatâncias de dispersão (premissa NEMA B):")
-    _eq(r"X_{ls} = 0{,}4\,X_k, \quad X_{lr} = 0{,}6\,X_k")
-
-    st.markdown("**4.** Estimativa de $R_s$ e $R_r$ por balanço de potência em regime nominal:")
-    _eq(r"P_{cu,s} = 3\,I_n^2\,R_s = P_{in} - P_{ag} - P_{fe}, \quad P_{cu,r} = 3\,I_n^2\,R_r = s_{nom}\,P_{ag}")
-
-    st.markdown("**5.** Reatância de magnetização por subtração:")
-    _eq(r"X_m = X_{cc} - X_{ls}, \quad X_{cc} = \frac{V_f}{I_{cc}}")
-
-    _div_warn(
-        "**Limitações do estimador:** os parâmetros obtidos são aproximações baseadas em "
-        "premissas estatísticas da norma NEMA — adequados para simulação e análise de "
-        "sensibilidade, mas não substituem ensaios de identificação (ensaio a vazio + "
-        "ensaio de rotor bloqueado conforme IEEE Std 112). "
-        "Para motores fora do padrão NEMA B (gaiola dupla, rotor bobinado, motores de "
-        "alta eficiência IE4), os resultados podem divergir significativamente dos valores reais."
-    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
