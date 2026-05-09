@@ -92,7 +92,10 @@ def execute_simulation_flow(
 
     with st.spinner("Executando integração numérica..."):
         try:
-            _broken_bar = float(exp_config.get("broken_bar_severity", 0.0))
+            _broken_bar    = float(exp_config.get("broken_bar_severity", 0.0))
+            _t_broken_bar  = float(exp_config.get("t_broken_bar", 0.0))
+            if _broken_bar > 0.0 and _t_broken_bar > 0.0:
+                t_events = t_events + [_t_broken_bar]
             res = run_simulation(
                 mp=mp, tmax=_tmax_run, h=h,
                 voltage_fn=vfn, torque_fn=tfn,
@@ -104,6 +107,7 @@ def execute_simulation_flow(
                 clamp_wr_at_zero=(exp_config.get("exp_type") == "shutdown"),
                 t_cutoff=exp_config.get("t_cutoff") if exp_config.get("exp_type") == "shutdown" else None,
                 broken_bar_severity=_broken_bar,
+                t_broken_bar=_t_broken_bar,
             )
             st.session_state["pdf_bytes"]  = None
             st.session_state["sim_result"] = dict(
@@ -114,6 +118,7 @@ def execute_simulation_flow(
                 exp_config=exp_config,
                 tmax=tmax, h=h,
                 energy_tariff=energy_tariff,
+                torque_fn=tfn,
             )
             st.session_state["_sim_toast"] = (
                 f"Simulação concluída — "

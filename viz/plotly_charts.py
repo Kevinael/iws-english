@@ -30,10 +30,15 @@ def _plot_theme(dark: bool) -> dict:
     )
 
 
-def build_fig_stacked(res, var_keys, var_labels, dark, t_events, decimals=2) -> go.Figure:
+_TL_COLOR = "#f59e0b"  # âmbar — distingue TL de Te nos gráficos
+
+
+def build_fig_stacked(res, var_keys, var_labels, dark, t_events, decimals=2,
+                      tl_arr=None) -> go.Figure:
     n = len(var_keys)
     pt = _plot_theme(dark)
     cols = _colors(dark)
+    has_tl = tl_arr is not None and "Te" in var_keys
 
     fig = make_subplots(
         rows=n, cols=1,
@@ -42,12 +47,17 @@ def build_fig_stacked(res, var_keys, var_labels, dark, t_events, decimals=2) -> 
     )
     t = res["t"]
     for i, (key, lbl) in enumerate(zip(var_keys, var_labels), 1):
-        col = cols[(i-1) % len(cols)]
         fig.add_trace(go.Scatter(
             x=t, y=res[key], mode="lines", name=lbl,
-            line=dict(color=col, width=1.9),
+            line=dict(color=cols[(i-1) % len(cols)], width=1.9),
             hovertemplate=f"<b>{lbl}</b><br>t = %{{x:.4f}} s<br>valor = %{{y:.{decimals}f}}<extra></extra>",
         ), row=i, col=1)
+        if key == "Te" and has_tl:
+            fig.add_trace(go.Scatter(
+                x=t, y=tl_arr, mode="lines", name="TL (N·m)",
+                line=dict(color=_TL_COLOR, width=1.6, dash="dash"),
+                hovertemplate=f"<b>TL</b><br>t = %{{x:.4f}} s<br>valor = %{{y:.{decimals}f}} N·m<extra></extra>",
+            ), row=i, col=1)
         for te in (t_events or []):
             fig.add_vline(x=te, line_dash="dot", line_color=pt["event_line"],
                           line_width=1.1, row=i, col=1)
@@ -72,7 +82,11 @@ def build_fig_stacked(res, var_keys, var_labels, dark, t_events, decimals=2) -> 
         paper_bgcolor=pt["paper_bg"], plot_bgcolor=pt["plot_bg"],
         font=dict(family="Inter, system-ui", size=11, color=pt["fg"]),
         margin=dict(l=55, r=20, t=45, b=40),
-        hovermode="x unified", showlegend=False,
+        hovermode="x unified",
+        showlegend=has_tl,
+        legend=dict(orientation="h", yanchor="bottom", y=1.01,
+                    xanchor="right", x=1, font=dict(size=10),
+                    bgcolor="rgba(0,0,0,0)") if has_tl else {},
         uirevision="layout",
     )
     return fig
@@ -80,16 +94,17 @@ def build_fig_stacked(res, var_keys, var_labels, dark, t_events, decimals=2) -> 
 
 def build_fig_sidebyside(res, var_keys, var_labels, dark, t_events, decimals=2,
                          ref_list=None, primary_color=None,
-                         compact: bool = False) -> list[go.Figure]:
+                         compact: bool = False, tl_arr=None) -> list[go.Figure]:
     # ref_list: list of {"res": dict, "color": str, "dash": str, "label": str}
     # primary_color: if set, overrides palette for the primary trace
     cols = _colors(dark)
     figs = []
     t    = res["t"]
     th   = _plot_theme(dark)
+    has_tl = tl_arr is not None and "Te" in var_keys
     for i, (key, lbl) in enumerate(zip(var_keys, var_labels)):
         pcol = primary_color if primary_color else cols[i % len(cols)]
-        fig = go.Figure()
+        fig  = go.Figure()
         for ref_item in (ref_list or []):
             res_ref   = ref_item.get("res")
             ref_color = ref_item.get("color", "#888888")
@@ -106,6 +121,12 @@ def build_fig_sidebyside(res, var_keys, var_labels, dark, t_events, decimals=2,
             line=dict(color=pcol, width=1.8),
             hovertemplate=f"<b>{lbl}</b><br>t = %{{x:.4f}} s<br>valor = %{{y:.{decimals}f}}<extra></extra>",
         ))
+        if key == "Te" and has_tl:
+            fig.add_trace(go.Scatter(
+                x=t, y=tl_arr, mode="lines", name="TL (N·m)",
+                line=dict(color=_TL_COLOR, width=1.6, dash="dash"),
+                hovertemplate=f"<b>TL</b><br>t = %{{x:.4f}} s<br>valor = %{{y:.{decimals}f}} N·m<extra></extra>",
+            ))
         for te in (t_events or []):
             fig.add_vline(x=te, line_dash="dot", line_color=th["event_line"], line_width=1.1)
         _h   = 200 if compact else 230
@@ -125,7 +146,11 @@ def build_fig_sidebyside(res, var_keys, var_labels, dark, t_events, decimals=2,
                        tickfont=dict(size=9, color=th["fg"]),
                        exponentformat="none",
                        autorange=True, rangemode="normal", fixedrange=False),
-            hovermode="x unified", showlegend=False,
+            hovermode="x unified",
+            showlegend=(key == "Te" and has_tl),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02,
+                        xanchor="right", x=1, font=dict(size=9),
+                        bgcolor="rgba(0,0,0,0)") if (key == "Te" and has_tl) else {},
         )
         figs.append(fig)
     return figs
@@ -133,7 +158,7 @@ def build_fig_sidebyside(res, var_keys, var_labels, dark, t_events, decimals=2,
 
 def build_fig_overlay(res, var_keys, var_labels, dark, t_events, decimals=2,
                       ref_list=None, primary_color=None,
-                      compact: bool = False) -> go.Figure:
+                      compact: bool = False, tl_arr=None) -> go.Figure:
     # ref_list: list of {"res": dict, "color": str, "dash": str, "label": str}
     # primary_color: if set, overrides palette for all primary traces
     pt   = _plot_theme(dark)
@@ -142,6 +167,7 @@ def build_fig_overlay(res, var_keys, var_labels, dark, t_events, decimals=2,
 
     right_units = {"n", "wr"}
     has_right   = any(k in right_units for k in var_keys)
+    has_tl      = tl_arr is not None and "Te" in var_keys
 
     fig = go.Figure()
     for ref_item in (ref_list or []):
@@ -168,6 +194,12 @@ def build_fig_overlay(res, var_keys, var_labels, dark, t_events, decimals=2,
             line=dict(color=pcol, width=1.9), yaxis=yaxis,
             hovertemplate=f"<b>{lbl}</b><br>t = %{{x:.4f}} s<br>valor = %{{y:.{decimals}f}}<extra></extra>",
         ))
+        if key == "Te" and has_tl:
+            fig.add_trace(go.Scatter(
+                x=t, y=tl_arr, mode="lines", name="TL (N·m)",
+                line=dict(color=_TL_COLOR, width=1.6, dash="dash"),
+                hovertemplate=f"<b>TL</b><br>t = %{{x:.4f}} s<br>valor = %{{y:.{decimals}f}} N·m<extra></extra>",
+            ))
     for te in (t_events or []):
         fig.add_vline(x=te, line_dash="dot", line_color=pt["event_line"], line_width=1.1)
 

@@ -194,6 +194,7 @@ def main() -> None:
                 is_mobile=is_mobile,
                 energy_tariff=sr.get("energy_tariff", 0.75),
                 exp_config=sr.get("exp_config"),
+                torque_fn=sr.get("torque_fn"),
             )
 
     # ── ABA TEORIA ────────────────────────────────────────────────────────

@@ -56,6 +56,7 @@ def run_simulation(
     clamp_wr_at_zero: bool = False,
     t_cutoff: float | None = None,
     broken_bar_severity: float = 0.0,
+    t_broken_bar: float = 0.0,
 ) -> dict:
     """Integra o modelo Krause via solve_ivp e devolve as series temporais.
 
@@ -81,7 +82,7 @@ def run_simulation(
                     or falta_fase_a or falta_fase_b or falta_fase_c
                     or df_a != 0.0 or df_b != 0.0 or df_c != 0.0)
 
-    rr_fn     = make_broken_bar_rr_fn(mp.Rr, broken_bar_severity, mp.wb)
+    rr_fn     = make_broken_bar_rr_fn(mp.Rr, broken_bar_severity, mp.wb, t_start=t_broken_bar)
     rhs       = _make_rhs(mp, voltage_fn, torque_fn, ref_code, deseq, t_deseq, deseq_active, rr_fn)
     y0        = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, mp.T_amb, 0.0]
     y_history = _solve(rhs, t_values, y0, mp, clamp_wr_at_zero, t_cutoff=t_cutoff)

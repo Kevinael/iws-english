@@ -251,6 +251,7 @@ def render_results(
     is_mobile: bool = False,
     energy_tariff: float = 0.75,
     exp_config: dict | None = None,
+    torque_fn=None,
 ) -> None:
     """KPIs + gráficos + análise econômica + FFT + botão PDF."""
     st.divider()
@@ -267,6 +268,18 @@ def render_results(
 
     # ── preparar fig PDF e zoom antes das abas (usados em múltiplas abas) ─
     var_labels_plot = [_strip_latex(lbl) for lbl in var_labels]
+
+    # Pré-calcular TL(t) para sobrepor no subplot de Te
+    _tl_arr = None
+    if "Te" in var_keys and torque_fn is not None:
+        try:
+            if "TL" not in res:
+                res["TL"] = np.fromiter((torque_fn(t) for t in res["t"]), dtype=float, count=len(res["t"]))
+            _tl_arr = res["TL"]
+        except Exception:
+            pass
+    _var_keys_plot   = list(var_keys)
+    _var_labels_plot = list(var_labels_plot)
 
     # dark_plot: prefer session_state toggle se já existir, senão usa dark do tema
     dark_plot = st.session_state.get("plot_dark_toggle", dark)
@@ -468,15 +481,15 @@ def render_results(
 
             if modo == "Empilhados":
                 for i, fig_single in enumerate(build_fig_sidebyside(
-                        res, var_keys, var_labels_plot, dark_plot, t_events, d,
+                        res, _var_keys_plot, _var_labels_plot, dark_plot, t_events, d,
                         ref_list=chart_ref_list, primary_color=primary_color,
-                        compact=is_mobile)):
+                        compact=is_mobile, tl_arr=_tl_arr)):
                     _render_plotly(_apply_zoom(fig_single), div_id=f"ems-emp-{i}")
             elif modo == "Lado a lado":
                 figs   = build_fig_sidebyside(
-                    res, var_keys, var_labels_plot, dark_plot, t_events, d,
+                    res, _var_keys_plot, _var_labels_plot, dark_plot, t_events, d,
                     ref_list=chart_ref_list, primary_color=primary_color,
-                    compact=is_mobile)
+                    compact=is_mobile, tl_arr=_tl_arr)
                 n_cols = min(len(figs), 3)
                 rows   = [figs[i:i+n_cols] for i in range(0, len(figs), n_cols)]
                 for ri, row in enumerate(rows):
@@ -486,9 +499,9 @@ def render_results(
                             _render_plotly(_apply_zoom(fig), div_id=f"ems-side-{ri}-{ci}")
             else:
                 fig_overlay = build_fig_overlay(
-                    res, var_keys, var_labels_plot, dark_plot, t_events, d,
+                    res, _var_keys_plot, _var_labels_plot, dark_plot, t_events, d,
                     ref_list=chart_ref_list, primary_color=primary_color,
-                    compact=is_mobile)
+                    compact=is_mobile, tl_arr=_tl_arr)
                 _render_plotly(_apply_zoom(fig_overlay), div_id="ems-overlay")
 
             # Conjugado vs. Velocidade

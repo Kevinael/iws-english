@@ -53,24 +53,29 @@ def abc_voltages_deseq(t, Vl: float, f: float,
 
 # ── Modelo de Barra Quebrada ─────────────────────────────────────────────────
 
-def make_broken_bar_rr_fn(Rr_nominal: float, severity: float, wb: float):
-    """Retorna função Rr(t, s) que modula a resistência do rotor ao dobro da freq. de escorregamento.
+def make_broken_bar_rr_fn(Rr_nominal: float, severity: float, wb: float,
+                          t_start: float = 0.0):
+    """Retorna função Rr(t, theta_slip) que modula Rr à freq. de escorregamento a partir de t_start.
 
-    Modelo: Rr(t) = Rr0 · (1 + α · cos(2·s·ωb·t))
+    Modelo: Rr(t) = Rr0 · (1 + α · cos(2·θ_slip))  para t >= t_start
+            Rr(t) = Rr0                               para t <  t_start
 
     Args:
         Rr_nominal: resistência nominal do rotor (Ω).
         severity:   α — amplitude da oscilação (0 = saudável, 0.1 = 10% de quebra).
         wb:         frequência angular base (rad/s).
+        t_start:    instante de início da falha (s). 0 = falha presente desde o início.
 
     Returns:
-        Callable[[float, float], float] — (t, slip) → Rr efetivo.
+        Callable[[float, float], float] — (t, theta_slip) → Rr efetivo.
         Se severity == 0, retorna None (sinal para desativar o modelo).
     """
     if severity == 0.0:
         return None
 
-    def _rr_fn(theta_slip: float) -> float:
+    def _rr_fn(t: float, theta_slip: float) -> float:
+        if t < t_start:
+            return Rr_nominal
         return Rr_nominal * (1.0 + severity * math.cos(2.0 * theta_slip))
 
     return _rr_fn

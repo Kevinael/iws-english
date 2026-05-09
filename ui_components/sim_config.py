@@ -504,6 +504,17 @@ def render_machine_params(
     p = st.selectbox("Número de polos — $p$", options=[2, 4, 6, 8, 10, 12], index=1, key=wk["p"], disabled=dis)
     J = st.number_input("Momento de inércia — $J$ (kg·m²)",               min_value=0.0001, max_value=100.0, value=_DEFAULTS["J"], step=0.001, key=wk["J"], format="%.3f", disabled=dis)
     B = st.number_input("Coeficiente de atrito viscoso — $B$ (N·m·s/rad)", min_value=0.0,   max_value=10.0,  value=_DEFAULTS["B"], step=0.001, key=wk["B"], format="%.3f", disabled=dis)
+    if B == 0.0:
+        _T_nom_est = float(st.session_state.get("wi_Tl_final", 0.0))
+        _wr_nom    = (1.0 - 0.03) * 120.0 * f / p * 3.14159265 / 30.0
+        if _T_nom_est > 0.0 and _wr_nom > 0.0:
+            _B_est = 0.01 * _T_nom_est / _wr_nom
+            st.caption(
+                f"B = 0 na referência bibliográfica — estimado por regra empírica "
+                f"(0,01 × T_nom / ω_nom): **{_B_est:.4f} N·m·s/rad**. "
+                "Edite manualmente se necessário."
+            )
+            B = _B_est
     ref_label = st.selectbox(
         "Referencial da Transformada de Park",
         ["Síncrono  (ω = ωₑ)", "Rotórico  (ω = ωᵣ)", "Estacionário  (ω = 0)"],
@@ -732,32 +743,26 @@ def render_experiment_config(
 
     elif exp_type == "carga":
         Tl_nom = st.number_input("Torque nominal de referência — $T_{nom}$ (N·m)", value=80.0, min_value=0.0001, key="wi_carga_Tl_nom")
-        c_ini, c_fin = st.columns(2)
-        with c_ini:
-            pct_ini = st.number_input("Carga inicial (%)", value=0.0, min_value=0.0,
-                                      help="Torque já presente no eixo antes da perturbação. 0% = partida em vazio.",
-                                      key="wi_carga_pct_ini")
-        with c_fin:
-            pct_fin = st.number_input("Carga após perturbação (%)", value=100.0,
-                                      help="Pode ser maior (sobrecarga), menor (alívio) ou negativo (torque motor externo).",
-                                      key="wi_carga_pct_fin")
-        config["Tl_inicial"] = Tl_nom * pct_ini / 100.0
+        pct_fin = st.number_input("Carga aplicada (%)", value=100.0,
+                                  help="Torque de carga como percentual de T_nom. Aplicado em t_carga.",
+                                  key="wi_carga_pct_fin")
+        config["Tl_inicial"] = 0.0
         config["Tl_final"]   = Tl_nom * pct_fin / 100.0
-        config["t_carga"]    = st.number_input("Instante da perturbação — $t_{carga}$ (s)", value=1.0, min_value=0.0, key="wi_carga_t_carga")
-        delta = config["Tl_final"] - config["Tl_inicial"]
-        sinal = "aumento" if delta > 0 else ("redução" if delta < 0 else "sem variação")
+        config["t_carga"]    = st.number_input(
+            "Instante de aplicação da carga — $t_{carga}$ (s)",
+            value=1.0, min_value=0.0, key="wi_carga_t_carga",
+        )
         _ibox(
-            f"Motor parte com <strong>{config['Tl_inicial']:.2f} N·m</strong> ({pct_ini:.1f}%) "
-            f"e em $t_{{carga}}$ o torque muda para <strong>{config['Tl_final']:.2f} N·m</strong> "
-            f"({pct_fin:.1f}%) — <strong>{sinal} de {abs(delta):.2f} N·m</strong>."
+            f"Motor parte em vazio e em <i>t</i><sub>carga</sub> recebe "
+            f"<strong>{config['Tl_final']:.2f} N·m</strong> ({pct_fin:.1f}% de T<sub>nom</sub>)."
         )
         # ── Gêmeo Digital: Barra Quebrada ─────────────────────────────
         st.write("")
         with st.expander("Gêmeo Digital — Falha de Barra Quebrada", expanded=False):
             _ibox(
-                "Modela a falha introduzindo oscilação em $R_r$ à freq. de escorregamento: "
-                "$R_r(t) = R_r \\cdot (1 + \\alpha \\cdot \\cos(2s\\omega_b t))$. "
-                "A assinatura espectral da corrente exibirá componentes laterais em $(1 \\pm 2s)f$."
+                "Modela a falha introduzindo oscilação em <i>R</i><sub>r</sub> à frequência de escorregamento: "
+                "<i>R</i><sub>r</sub>(<i>t</i>) = <i>R</i><sub>r0</sub> · (1 + α · cos(2θ<sub>slip</sub>)). "
+                "A assinatura espectral da corrente exibirá componentes laterais em (1 ± 2<i>s</i>)<i>f</i><sub>e</sub>."
             )
             broken_bar_severity = st.slider(
                 "Severidade da falha — $\\alpha$",
@@ -767,13 +772,22 @@ def render_experiment_config(
                 help="0 = motor saudável. 0.1 = 10% de variação em Rr (≈1 barra quebrada). 0.3+ = falha grave.",
             )
             if broken_bar_severity > 0:
+                t_broken_bar = st.number_input(
+                    "Instante de início da falha — $t_{falha}$ (s)",
+                    min_value=0.0, value=config.get("t_carga", 1.0), step=0.1, format="%.2f",
+                    key="wi_carga_t_broken_bar",
+                    help="A modulação de Rr começa neste instante. Use um valor após t_carga para simular falha em regime.",
+                )
                 st.caption(
                     f"α = {broken_bar_severity:.2f} — componentes laterais esperados em "
                     f"$(1 \\pm 2s)f$ Hz. Use a análise FFT para verificar a assinatura."
                 )
                 if broken_bar_severity >= 0.3:
                     st.warning("Severidade elevada (α ≥ 0.3) — pode causar oscilações visíveis no torque.")
+            else:
+                t_broken_bar = 0.0
             config["broken_bar_severity"] = broken_bar_severity
+            config["t_broken_bar"]        = t_broken_bar
 
     elif exp_type == "pulso_carga":
         Tl_base = st.number_input("Torque de base — $T_{base}$ (N·m)", value=40.0, min_value=0.0, key=wk["Tl_pulso"])

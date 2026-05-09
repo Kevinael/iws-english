@@ -237,7 +237,7 @@ def _make_rhs(mp: MachineParams, voltage_fn, torque_fn, ref_code: int,
 
         slip_ref = (w_ref - wr) / wb
         # rr_fn=None no caso comum: evita chamada de funcao em cada passo
-        Rr_cur   = rr_fn(theta_slip) if rr_fn is not None else Rr
+        Rr_cur   = rr_fn(t, theta_slip) if rr_fn is not None else Rr
 
         # equacoes de fluxo de Krause (2013), Eq. 6.5-17, forma normalizada por wb
         dPSIqs = wb * (Vqs_eff - (w_ref / wb) * PSIds + (Rs / Xls_a) * (PSImq - PSIqs))
