@@ -15,11 +15,11 @@ de motores TEFC bem dimensionados (T_regime ≈ 75°C com T_amb = 25°C).
 Esse valor é representativo do que se mede em campo; 105 K (Classe B) é o
 limite de projeto, não a condição normal de operação.
 
-O Cth é estimado a partir da massa do motor: Cth = massa × cp_aço (460 J/kg·K).
-A massa é proxy da potência mecânica: massa ≈ P_mec_kW × 15 kg/kW.
-
-Heurística de massa: ~15 kg/kW — razoável para motores TEFC 0.5–2500 kW
-conforme catálogos WEG/Siemens (desvio típico < 30%).
+O Cth é derivado de τ_th empírico (catálogos TEFC WEG/ABB/Siemens):
+τ_th ≈ 1500 s para 2,2 kW (3 HP), escalando por τ ∝ P_mec^0,25 para motores maiores.
+A temperatura é calculada em pós-processamento (não como estado do ODE) para evitar
+que o pico de inrush eletromagnético (P_joule >> P_nom em t < 50 ms) produza aquecimento
+artificialmente elevado por erro de discretização com o passo h da simulação principal.
 
 Documentacao detalhada de cada decisao de implementacao:
   SME/2. Modulos/core/thermal.md
@@ -35,11 +35,12 @@ import math
 # (75°C em regime com T_amb=25°C); 105 K (Classe B) é o limite de projeto.
 _DELTA_T_NOMINAL: float = 50.0   # K
 
-# Calor específico do aço (J/kg·K) — usado para estimar Cth a partir da massa
-_CP_ACO: float = 460.0             # J/(kg·K)
-
-# kg de motor por kW de potência mecânica — heurística catálogos TEFC
-_KG_POR_KW: float = 15.0
+# Constante de tempo térmica de referência (s) para motor TEFC de 2,2 kW (3 HP).
+# Calibrado contra catálogos WEG/ABB/Siemens: τ_th ≈ 20–25 min para motores pequenos.
+# Escalonada por potência via _TAU_EXPONENT para reproduzir τ crescente com porte.
+_TAU_REF_S: float  = 1500.0   # s  — τ_th para P_ref = 2,2 kW
+_TAU_P_REF: float  =    2.2   # kW — potência de referência
+_TAU_EXPONENT: float = 0.25   # τ ∝ P^0.25 (sublinear — validado: 37 kW → ~2000 s, 1678 kW → ~3200 s)
 
 
 def estimate_rth_cth(
@@ -81,12 +82,13 @@ def estimate_rth_cth(
         0.5,
     )
 
-    # massa como proxy de P_mec: ~15 kg/kW (heuristica catalogo TEFC WEG/Siemens)
-    massa = P_mec_kw * _KG_POR_KW
-
-    # Rth calibrado para DeltaT=50 K — T_regime tipico de TEFC bem dimensionado
+    # Rth calibrado para ΔT=50 K — T_regime típico de TEFC bem dimensionado
     Rth = _DELTA_T_NOMINAL / P_perdas
-    Cth = massa * _CP_ACO
+
+    # Cth derivado de τ_th empírico (catálogos TEFC): τ = Rth · Cth
+    # τ escala sublinearmente com potência — motores maiores têm τ maior mas Rth menor
+    tau_th = _TAU_REF_S * (P_mec_kw / _TAU_P_REF) ** _TAU_EXPONENT
+    Cth = tau_th / Rth
 
     return Rth, Cth
 

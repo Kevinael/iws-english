@@ -21,7 +21,7 @@ import numpy as np
 import streamlit as st
 
 from core.EMS_PY import MachineParams
-from core.desequilibrio_falta import render_desequilibrio_ui
+from core.desequilibrio_falta import render_desequilibrio_ui, render_broken_bar_ui
 from core.param_estimator import estimate_params
 from ui.theme import _palette
 from ui_components.sim_runner import calc_tmax_auto
@@ -111,11 +111,6 @@ _WK: dict[str, str] = {
     "t_start_sag":          "wi_t_start_sag",
     "t_duration_sag":       "wi_t_duration_sag",
     "sag_Tl":               "wi_sag_Tl",
-    # modelo térmico
-    "th_override":          "wi_th_override",
-    "Rth":                  "wi_Rth",
-    "Cth":                  "wi_Cth",
-    "T_amb":                "wi_T_amb",
     # estimador de placa
     "param_source": "wi_param_source",
     "Pn_kW":    "wi_Pn_kW",
@@ -230,6 +225,23 @@ def _validate_params(mp: MachineParams) -> None:
     tau_e_ms = (mp.Lm / mp.Rr * 1000) if mp.Rr else float("inf")
     if tau_e_ms < 0.5:
         warns.append(f"Constante de tempo elétrica $\\tau_e$ ≈ {tau_e_ms:.2f} ms (< 0.5 ms). Passo $h$ muito pequeno pode ser necessário.")
+    if mp.Xm > 0:
+        _xls_ratio = mp.Xls_a / mp.Xm
+        _xlr_ratio = mp.Xlr_a / mp.Xm
+        if _xls_ratio < 0.01:
+            warns.append(
+                f"$X_{{ls}}$ = {mp.Xls:.5f} Ω parece muito pequeno "
+                f"($X_{{ls}}/X_m$ = {_xls_ratio*100:.3f}%, típico: 2–15%). "
+                "Verifique se inseriu indutância (H) em vez de reatância (Ω) — "
+                "valores errados causam explosão de correntes e temperatura."
+            )
+        if _xlr_ratio < 0.01:
+            warns.append(
+                f"$X_{{lr}}$ = {mp.Xlr:.5f} Ω parece muito pequeno "
+                f"($X_{{lr}}/X_m$ = {_xlr_ratio*100:.3f}%, típico: 2–15%). "
+                "Verifique se inseriu indutância (H) em vez de reatância (Ω) — "
+                "valores errados causam explosão de correntes e temperatura."
+            )
     for w in warns:
         st.warning(w)
 
@@ -348,7 +360,6 @@ def render_machine_params(
     )
     use_placa = param_source_label.startswith("Estimar")
     input_mode_original = "PLACA" if use_placa else "MANUAL"
-    Cth_placa: float | None = None
 
     if use_placa:
         # ══════════════════════════════════════════════════════════════════
@@ -415,8 +426,6 @@ def render_machine_params(
             Xls       = resultado["Xls"]
             Xlr       = resultado["Xlr"]
             Rfe       = resultado["Rfe"]
-            Cth_placa = resultado["Cth"]
-
             ligacao = "Triângulo (Δ)" if is_delta else "Estrela (Y)"
             with st.expander("Como esses parâmetros foram estimados?", expanded=True):
                 st.info(
@@ -429,10 +438,7 @@ def render_machine_params(
                     f"- Tensão no entreferro: $E_1 \\approx V_f - I_n \\cdot |Z_s|$ "
                     f"= {resultado['E1']:.2f} V (queda estatórica subtraída)\n"
                     f"- $R_{{fe}}$ estimado por heurística: perdas no ferro ≈ 20% das perdas totais "
-                    f"({resultado['P_fe_total']:.1f} W) referidas a $E_1$ → $R_{{fe}}$ = {Rfe:.1f} Ω\n\n"
-                    f"**Premissa térmica (NEMA MG-1 / IEC 60034 — TEFC):**  \n"
-                    f"Massa ≈ {resultado['Massa']:.0f} kg (15 kg/kW) "
-                    f"× $c_p$ aço (460 J/kg·K) → $C_{{th}}$ = {resultado['Cth']:,.0f} J/K."
+                    f"({resultado['P_fe_total']:.1f} W) referidas a $E_1$ → $R_{{fe}}$ = {Rfe:.1f} Ω"
                 )
                 c1, c2, c3, c4 = st.columns(4)
                 c1.metric("Vel. síncrona (Estimado)",       f"{resultado['n_s']:.1f} RPM")
@@ -572,102 +578,11 @@ def render_machine_params(
         )
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # ── Modelagem Térmica ────────────────────────────────────────────
-        _pgroup("Modelagem Térmica")
-        _ibox(
-            "Modelo de 1ª ordem: "
-            "<i>dT/dt = (P<sub>joule</sub> + P<sub>fe</sub>) / C<sub>th</sub> "
-            "− (T − T<sub>amb</sub>) / (R<sub>th</sub> · C<sub>th</sub>)</i>. "
-            "Por padrão R<sub>th</sub> e C<sub>th</sub> são estimados automaticamente "
-            "por engenharia de materiais: massa do motor × c<sub>p</sub> do aço (460 J/kg·K)."
-        )
-        _th_override = st.checkbox(
-            "Sobrescrever parâmetros térmicos manualmente",
-            value=False,
-            key=wk["th_override"],
-            disabled=dis,
-            help=(
-                "Quando desmarcado, Rth e Cth são estimados automaticamente "
-                "a partir dos parâmetros elétricos do motor. "
-                "Marque apenas se você tiver valores medidos por ensaio térmico."
-            ),
-        )
-        # Preview dos valores auto-calculados (sempre visível)
-        _mp_preview = MachineParams(
-            Vl=Vl, f=f, Rs=Rs, Rr=Rr, Xm=Xm, Xls=Xls, Xlr=Xlr, Rfe=Rfe,
-            p=p, J=J, B=B, input_mode=input_mode, f_ref=f_ref,
-            Rgrid=Rgrid, Lgrid=Lgrid,
-            Rth=0.0, Cth=0.0,
-        )
-        _th1, _th2 = st.columns(2)
-        if not _th_override:
-            # Modo automático: exibe métricas calculadas pelo __post_init__
-            _tau_auto = _mp_preview.Rth * _mp_preview.Cth
-            _th1.metric("Rth calculado (K/W)", f"{_mp_preview.Rth:.4e}")
-            _th2.metric("Cth calculado (J/K)", f"{_mp_preview.Cth:,.0f}")
-            st.caption(
-                f"τ = Rth × Cth = **{_tau_auto:.0f} s** ({_tau_auto/60:.1f} min)  |  "
-                f"Massa estimada ≈ {_mp_preview.Cth / 460:.0f} kg"
-            )
-            # valores que serão usados no display de τ abaixo
-            Rth = _mp_preview.Rth
-            Cth = _mp_preview.Cth
-        else:
-            with _th1:
-                _rth_preview = max(round(_mp_preview.Rth, 6), 0.00001)
-                Rth = st.number_input(
-                    "$R_{th}$ (K/W)",
-                    min_value=0.00001, max_value=100.0,
-                    value=_rth_preview,
-                    step=0.0001, format="%.6f",
-                    key=wk["Rth"],
-                    disabled=dis,
-                    help=(
-                        "Resistência térmica total motor→ambiente. "
-                        "Motores fechados (TEFC) ~1–3 K/W; abertos (DRIP) ~0.5–1.5 K/W."
-                    ),
-                )
-            with _th2:
-                _cth_preview = min(max(round(_mp_preview.Cth, 1), 1.0), 10_000_000.0)
-                Cth = st.number_input(
-                    "$C_{th}$ (J/K)",
-                    min_value=1.0, max_value=10_000_000.0,
-                    value=_cth_preview,
-                    step=100.0, format="%.1f",
-                    key=wk["Cth"],
-                    disabled=dis,
-                    help=(
-                        "Capacitância térmica do conjunto estator+rotor. "
-                        "~500–5000 J/K para motores de 1–10 cv; >100 kJ/K para grandes motores."
-                    ),
-                )
-        T_amb = st.number_input(
-            "Temperatura ambiente $T_{amb}$ (°C)",
-            min_value=-20.0, max_value=60.0, value=25.0, step=1.0, format="%.1f",
-            key=wk["T_amb"],
-            disabled=dis,
-            help="Temperatura inicial do motor = temperatura do ambiente. Padrão IEC: 40°C.",
-        )
-        _tau_th = Rth * Cth
-        st.caption(
-            f"Constante de tempo térmica: τ = R·C = **{_tau_th:.0f} s** "
-            f"({_tau_th/60:.1f} min)."
-        )
-        if _tau_th < 30:
-            st.warning("τ < 30 s — motor aquece muito rapidamente. Verifique Rth e Cth.")
-        # Quando não há override, passa 0.0 → __post_init__ calcula automaticamente.
-        # Exceção: modo Placa — Cth_placa (heurística NEMA/IEC) sobrepõe o auto-cálculo.
-        _Rth_mp = Rth if _th_override else 0.0
-        if input_mode_original == "PLACA" and Cth_placa is not None and not _th_override:
-            _Cth_mp = Cth_placa
-        else:
-            _Cth_mp = Cth if _th_override else 0.0
         st.markdown('</div>', unsafe_allow_html=True)
 
     mp = MachineParams(Vl=Vl, f=f, Rs=Rs, Rr=Rr, Xm=Xm, Xls=Xls, Xlr=Xlr, Rfe=Rfe, p=p, J=J, B=B,
                        input_mode=input_mode, f_ref=f_ref,
-                       Rgrid=Rgrid, Lgrid=Lgrid,
-                       Rth=_Rth_mp, Cth=_Cth_mp, T_amb=T_amb)
+                       Rgrid=Rgrid, Lgrid=Lgrid)
     _validate_params(mp)
 
     st.write("")
@@ -705,7 +620,6 @@ def render_experiment_config(
         "Partida Estrela-Triângulo (Y-D)":             "yd",
         "Partida com Autotransformador":               "comp",
         "Soft-Starter (Rampa de Tensão)":              "soft",
-        "Aplicação de Carga (partida em vazio)":      "carga",
         "Pulso de Carga (aplica e retira)":            "pulso_carga",
         "Operação como Gerador":                       "gerador",
         "Desligamento (Corte de Alimentação)":         "shutdown",
@@ -717,83 +631,65 @@ def render_experiment_config(
 
     _pgroup("Parâmetros de Carga e Tensão")
 
+    # Torque de referência do preset carregado — usado como valor inicial em todos os experimentos.
+    # Garante que ao comutar entre tipos de experimento o torque não retorne ao padrão fixo 80 N·m.
+    _Tl_ref = float(st.session_state.get(wk["Tl_final"], 80.0))
+
     if exp_type == "dol":
-        config["Tl_final"] = st.number_input("Torque de carga — $T_l$ (N·m)", value=80.0, min_value=0.0, key=wk["Tl_final"])
-        config["t_carga"]  = st.number_input("Instante de aplicação da carga — $t_{carga}$ (s)", value=1.0, min_value=0.0, key=wk["t_carga"])
+        partir_em_vazio = st.checkbox(
+            "Partir em vazio (aplicar carga após partida)",
+            value=True,
+            key="wi_dol_partir_vazio",
+            help="Quando ativo, o motor parte sem carga e recebe o torque em t_carga. "
+                 "Quando inativo, a carga já está presente desde o instante zero.",
+        )
+        config["partir_em_vazio"] = partir_em_vazio
+
+        if partir_em_vazio:
+            Tl_nom = st.number_input("Torque nominal de referência — $T_{nom}$ (N·m)", value=_Tl_ref, min_value=0.0001, key="wi_dol_Tl_nom")
+            pct_fin = st.number_input(
+                "Carga aplicada (%)", value=100.0,
+                help="Torque de carga como percentual de T_nom. Aplicado em t_carga.",
+                key="wi_dol_pct_fin",
+            )
+            config["Tl_inicial"] = 0.0
+            config["Tl_final"]   = Tl_nom * pct_fin / 100.0
+            config["t_carga"]    = st.number_input("Instante de aplicação da carga — $t_{carga}$ (s)", value=1.0, min_value=0.0, key=wk["t_carga"])
+            _ibox(
+                f"Motor parte em vazio e em <i>t</i><sub>carga</sub> recebe "
+                f"<strong>{config['Tl_final']:.2f} N·m</strong> ({pct_fin:.1f}% de T<sub>nom</sub>)."
+            )
+        else:
+            config["Tl_inicial"] = None
+            config["Tl_final"]   = st.number_input("Torque de carga — $T_l$ (N·m)", value=_Tl_ref, min_value=0.0, key=wk["Tl_final"])
+            config["t_carga"]    = 0.0
+
 
     elif exp_type == "yd":
-        config["Tl_final"] = st.number_input("Torque de carga — $T_l$ (N·m)", value=80.0, min_value=0.0, key="wi_yd_Tl_final")
+        config["Tl_final"] = st.number_input("Torque de carga — $T_l$ (N·m)", value=_Tl_ref, min_value=0.0, key=wk["Tl_final"])
         config["t_2"]      = st.number_input("Instante de comutação Y → D — $t_2$ (s)", value=0.5, min_value=0.0001, key="wi_yd_t2")
-        config["t_carga"]  = st.number_input("Instante de aplicação da carga — $t_{carga}$ (s)", value=1.0, min_value=0.0, key="wi_yd_t_carga")
+        config["t_carga"]  = st.number_input("Instante de aplicação da carga — $t_{carga}$ (s)", value=1.0, min_value=0.0, key=wk["t_carga"])
         _ibox("A tensão em estrela é reduzida a V<sub>l</sub>&thinsp;/&thinsp;√3. A comutação para triângulo ocorre no instante t<sub>2</sub>.")
 
     elif exp_type == "comp":
-        config["Tl_final"]      = st.number_input("Torque de carga — $T_l$ (N·m)", value=80.0, min_value=0.0, key="wi_comp_Tl_final")
+        config["Tl_final"]      = st.number_input("Torque de carga — $T_l$ (N·m)", value=_Tl_ref, min_value=0.0, key=wk["Tl_final"])
         config["voltage_ratio"] = st.slider("Tap do autotransformador — $k$ (%)", 10, 95, 50, key="wi_comp_tap") / 100.0
         config["t_2"]           = st.number_input("Instante de comutação — $t_2$ (s)", value=0.5, min_value=0.0001, key="wi_comp_t2")
-        config["t_carga"]       = st.number_input("Instante de aplicação da carga — $t_{carga}$ (s)", value=1.0, min_value=0.0, key="wi_comp_t_carga")
+        config["t_carga"]       = st.number_input("Instante de aplicação da carga — $t_{carga}$ (s)", value=1.0, min_value=0.0, key=wk["t_carga"])
         _ibox(f"Tensão inicial = {config['voltage_ratio']*100:.0f}% de V<sub>l</sub> nominal.")
 
     elif exp_type == "soft":
         config["voltage_ratio"] = st.slider("Tensão inicial do Soft-Starter — $V_0$ (%)", 10, 90, 50, key="wi_soft_v0") / 100.0
         config["t_2"]           = st.number_input("Início da rampa de tensão — $t_2$ (s)", value=0.9, min_value=0.0, key="wi_soft_t2")
         config["t_pico"]        = st.number_input("Tempo para atingir tensão nominal — $t_{pico}$ (s)", value=5.0, min_value=0.0001, key="wi_soft_t_pico")
-        config["Tl_final"]      = st.number_input("Torque de carga — $T_l$ (N·m)", value=80.0, min_value=0.0, key="wi_soft_Tl_final")
-        config["t_carga"]       = st.number_input("Instante de aplicação da carga — $t_{carga}$ (s)", value=1.0, min_value=0.0, key="wi_soft_t_carga")
-
-    elif exp_type == "carga":
-        Tl_nom = st.number_input("Torque nominal de referência — $T_{nom}$ (N·m)", value=80.0, min_value=0.0001, key="wi_carga_Tl_nom")
-        pct_fin = st.number_input("Carga aplicada (%)", value=100.0,
-                                  help="Torque de carga como percentual de T_nom. Aplicado em t_carga.",
-                                  key="wi_carga_pct_fin")
-        config["Tl_inicial"] = 0.0
-        config["Tl_final"]   = Tl_nom * pct_fin / 100.0
-        config["t_carga"]    = st.number_input(
-            "Instante de aplicação da carga — $t_{carga}$ (s)",
-            value=1.0, min_value=0.0, key="wi_carga_t_carga",
-        )
-        _ibox(
-            f"Motor parte em vazio e em <i>t</i><sub>carga</sub> recebe "
-            f"<strong>{config['Tl_final']:.2f} N·m</strong> ({pct_fin:.1f}% de T<sub>nom</sub>)."
-        )
-        # ── Gêmeo Digital: Barra Quebrada ─────────────────────────────
-        st.write("")
-        with st.expander("Gêmeo Digital — Falha de Barra Quebrada", expanded=False):
-            _ibox(
-                "Modela a falha introduzindo oscilação em <i>R</i><sub>r</sub> à frequência de escorregamento: "
-                "<i>R</i><sub>r</sub>(<i>t</i>) = <i>R</i><sub>r0</sub> · (1 + α · cos(2θ<sub>slip</sub>)). "
-                "A assinatura espectral da corrente exibirá componentes laterais em (1 ± 2<i>s</i>)<i>f</i><sub>e</sub>."
-            )
-            broken_bar_severity = st.slider(
-                "Severidade da falha — $\\alpha$",
-                min_value=0.0, max_value=0.5, value=0.0, step=0.01,
-                format="%.2f",
-                key=wk["broken_bar_severity"],
-                help="0 = motor saudável. 0.1 = 10% de variação em Rr (≈1 barra quebrada). 0.3+ = falha grave.",
-            )
-            if broken_bar_severity > 0:
-                t_broken_bar = st.number_input(
-                    "Instante de início da falha — $t_{falha}$ (s)",
-                    min_value=0.0, value=config.get("t_carga", 1.0), step=0.1, format="%.2f",
-                    key="wi_carga_t_broken_bar",
-                    help="A modulação de Rr começa neste instante. Use um valor após t_carga para simular falha em regime.",
-                )
-                st.caption(
-                    f"α = {broken_bar_severity:.2f} — componentes laterais esperados em "
-                    f"$(1 \\pm 2s)f$ Hz. Use a análise FFT para verificar a assinatura."
-                )
-                if broken_bar_severity >= 0.3:
-                    st.warning("Severidade elevada (α ≥ 0.3) — pode causar oscilações visíveis no torque.")
-            else:
-                t_broken_bar = 0.0
-            config["broken_bar_severity"] = broken_bar_severity
-            config["t_broken_bar"]        = t_broken_bar
+        config["Tl_final"]      = st.number_input("Torque de carga — $T_l$ (N·m)", value=_Tl_ref, min_value=0.0, key=wk["Tl_final"])
+        config["t_carga"]       = st.number_input("Instante de aplicação da carga — $t_{carga}$ (s)", value=1.0, min_value=0.0, key=wk["t_carga"])
 
     elif exp_type == "pulso_carga":
-        Tl_base = st.number_input("Torque de base — $T_{base}$ (N·m)", value=40.0, min_value=0.0, key=wk["Tl_pulso"])
+        Tl_base = st.number_input("Torque de base — $T_{base}$ (N·m)", value=_Tl_ref * 0.5, min_value=0.0, key=wk["Tl_pulso"])
         st.caption("Carga já presente no eixo antes e após o pulso. Use 0 para partida em vazio.")
         if Tl_base == 0.0:
-            Tl_pulso = st.number_input("Torque durante o pulso — $T_{pulso}$ (N·m)", value=80.0, min_value=0.0001, key=wk["Tl_pulso_abs"])
+            Tl_pulso = st.number_input("Torque durante o pulso — $T_{pulso}$ (N·m)", value=_Tl_ref, min_value=0.0001, key=wk["Tl_pulso_abs"])
             st.caption("Torque aplicado no intervalo $[t_{on},\\, t_{off})$. Fora desse intervalo o motor opera em vazio.")
         else:
             pct      = st.number_input("Variação durante o pulso (%)", value=50.0, key="wi_pct_pulso")
@@ -827,13 +723,13 @@ def render_experiment_config(
                 )
 
     elif exp_type == "gerador":
-        config["Tl_mec"] = st.number_input("Torque mecânico da turbina — $T_{mec}$ (N·m)", value=80.0, min_value=1.0, key=wk["Tl_mec"])
+        config["Tl_mec"] = st.number_input("Torque mecânico da turbina — $T_{mec}$ (N·m)", value=_Tl_ref, min_value=1.0, key=wk["Tl_mec"])
         config["t_2"]    = st.number_input("Instante de aplicação do torque — $t_2$ (s)", value=1.0, min_value=0.0, key=wk["t_2_gerador"])
         _ibox("O torque negativo impulsiona o rotor acima da velocidade síncrona, colocando a máquina em modo gerador.")
 
     elif exp_type == "shutdown":
-        config["Tl_final"]  = st.number_input("Torque de carga — $T_l$ (N·m)", value=80.0, min_value=0.0, key="wi_sd_Tl_final")
-        config["t_carga"]   = st.number_input("Instante de aplicação da carga — $t_{carga}$ (s)", value=0.3, min_value=0.0, key="wi_sd_t_carga")
+        config["Tl_final"]  = st.number_input("Torque de carga — $T_l$ (N·m)", value=_Tl_ref, min_value=0.0, key=wk["Tl_final"])
+        config["t_carga"]   = st.number_input("Instante de aplicação da carga — $t_{carga}$ (s)", value=0.3, min_value=0.0, key=wk["t_carga"])
         config["t_cutoff"]  = st.number_input("Instante de desligamento — $t_{des}$ (s)", value=1.5, min_value=0.0001, key="wi_sd_t_cutoff")
         if config["t_carga"] >= config["t_cutoff"]:
             st.error(f"t_carga ({config['t_carga']:.2f} s) deve ser menor que t_des ({config['t_cutoff']:.2f} s). Aplique a carga antes do desligamento.")
@@ -875,7 +771,7 @@ def render_experiment_config(
         with sg2:
             config["Tl_final"] = st.number_input(
                 "Torque de carga — $T_l$ (N·m)",
-                value=80.0, min_value=0.0,
+                value=_Tl_ref, min_value=0.0,
                 key=wk["sag_Tl"],
                 help="Carga mecânica aplicada desde o início da simulação.",
             )
@@ -976,7 +872,9 @@ def render_experiment_config(
         # verifica se tmax cobre todos os eventos do experimento
         _critical: list[tuple[str, str, float]] = []
         if _etype == "dol":
-            _critical = [("aplicação da carga", r"t_{carga}", config.get("t_carga", 0))]
+            _tc_dol = config.get("t_carga", 0)
+            if _tc_dol > 0:
+                _critical = [("aplicação da carga", r"t_{carga}", _tc_dol)]
         elif _etype == "yd":
             _critical = [("comutação Y→D",       r"t_2",       config.get("t_2", 0)),
                          ("aplicação da carga",  r"t_{carga}", config.get("t_carga", 0))]
@@ -987,8 +885,6 @@ def render_experiment_config(
             _critical = [("início da rampa",         r"t_2",      config.get("t_2", 0)),
                          ("tensão nominal atingida", r"t_{pico}", config.get("t_pico", 0)),
                          ("aplicação da carga",      r"t_{carga}", config.get("t_carga", 0))]
-        elif _etype == "carga":
-            _critical = [("aplicação da carga", r"t_{carga}", config.get("t_carga", 0))]
         elif _etype == "pulso_carga":
             _critical = [("aplicação da carga", r"t_{on}",  config.get("t_carga", 0)),
                          ("retirada da carga",  r"t_{off}", config.get("t_retirada", 0))]
@@ -1014,5 +910,6 @@ def render_experiment_config(
     st.markdown('</div>', unsafe_allow_html=True)
 
     render_desequilibrio_ui(config, tmax=tmax)
+    render_broken_bar_ui(config, tmax=tmax, wk=wk)
 
     return config, var_keys, var_labels, tmax, h

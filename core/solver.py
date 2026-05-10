@@ -8,6 +8,7 @@ Exporta:
   _reconstruct_currents   — correntes dq e abc a partir dos estados
   _detect_steady_state    — detecta indice de inicio do regime permanente
   _compute_steady_state   — RMS, medias e balanco de potencias em regime
+  _compute_thermal        — integra EDO termica em pos-processamento sobre P_joule vetorizado
 
 Constantes de integracao/analise (importadas por EMS_PY para compatibilidade):
   SS_TOL, MIN_SS_CYCLES, NYQUIST_LIMIT, F_ROTOR_FLOOR
@@ -276,6 +277,64 @@ def _detect_steady_state(t_arr, wr_arr, mp: MachineParams) -> int:
     ss_len   = max(ss_len // lcm_samples, 1) * lcm_samples
     ss_start = max(0, N - ss_len)
     return ss_start
+
+
+def _compute_thermal(
+    t_arr: np.ndarray,
+    ias: np.ndarray, ibs: np.ndarray, ics: np.ndarray,
+    iar: np.ndarray, ibr: np.ndarray, icr: np.ndarray,
+    PSImq: np.ndarray, PSImd: np.ndarray,
+    mp: MachineParams,
+    rr_arr: np.ndarray | None = None,
+) -> np.ndarray:
+    """Integra a EDO térmica em pós-processamento sobre os arrays de corrente já integrados.
+
+    Usa correntes de fase abc (não dq de dispersão) para P_joule, o que é correto
+    para o modelo de perdas em motores de indução com convenção amplitude-invariante.
+    Separar a térmica do ODE eletromagnético elimina o erro de discretização causado
+    pelo pico de inrush: o LSODA resolve o ODE com passo adaptativo, e a EDO térmica
+    (tau_th ~ 1500 s) é integrada via Euler implícito sobre esses arrays.
+
+    Args:
+        rr_arr: array de Rr efetivo ao longo do tempo (barra quebrada). None = Rr constante.
+    """
+    N      = len(t_arr)
+    h      = float(t_arr[1] - t_arr[0]) if N > 1 else 1e-3
+    Rr_arr = rr_arr if rr_arr is not None else np.full(N, mp.Rr)
+
+    # P_joule via correntes abc com fator de escala da convenção amplitude-invariante:
+    # ias = sqrt(3/2)*iafs => ias² = (3/2)*iafs²  => P_abc = (3/2)*P_dq
+    # Fator correto: P = (2/3)*soma_abc = P_dq
+    P_joule = (2.0 / 3.0) * (
+        mp.Rs * (ias**2 + ibs**2 + ics**2)
+        + Rr_arr * (iar**2 + ibr**2 + icr**2)
+    )
+    P_fe = (mp.wb * (PSImq**2 + PSImd**2) / mp.Rfe
+            if mp.Rfe > 0.0 else np.zeros(N))
+    P_total = P_joule + P_fe
+
+    # Os primeiros ~5 ciclos elétricos concentram o pico de inrush de magnetização
+    # (fluxos partem de zero): energia real insignificante (< 0.5°C) mas P instantâneo
+    # muito alto. Tratar esses pontos como P = P_nom_estimado evita aquecimento
+    # artificial sem afetar a dinâmica térmica relevante (tau_th ~ 1500 s >> 5/f).
+    n_skip = max(0, int(round(5.0 / (mp.f * h))))   # 5 ciclos elétricos em amostras
+    if n_skip > 0 and n_skip < N:
+        # valor de referência: P médio da janela logo após o pico de inrush
+        win_ref = min(n_skip, N - n_skip)
+        P_ref   = float(np.mean(P_total[n_skip: n_skip + win_ref])) if win_ref > 0 else 0.0
+        P_total[:n_skip] = P_ref
+
+    # Euler implícito: estável para qualquer dt, correto para tau_th >> dt
+    #   T[k+1] = (T[k] + dt*(P[k+1]/Cth + T_amb/(Rth*Cth))) / (1 + dt/(Rth*Cth))
+    Rth = mp.Rth; Cth = mp.Cth; T_amb = mp.T_amb
+    Temp = np.empty(N)
+    Temp[0] = T_amb
+    for k in range(N - 1):
+        dt    = float(t_arr[k + 1] - t_arr[k])
+        alpha = dt / (Rth * Cth)
+        Temp[k + 1] = (Temp[k] + dt * (P_total[k + 1] / Cth + T_amb / (Rth * Cth))) / (1.0 + alpha)
+
+    return np.where(np.isfinite(Temp), Temp, T_amb)
 
 
 def _compute_steady_state(arr: dict, mp: MachineParams) -> dict:

@@ -75,11 +75,12 @@ def build_fns(config: dict, mp: MachineParams):
     t_ev: list = []
 
     if exp == "dol":
-        Tl, tc = config["Tl_final"], config["t_carga"]
-        vfn = lambda t: mp.Vl   # mp.Vl via atributo de objeto — seguro sem default arg
-        # _Tl=Tl e _tc=tc: captura por valor, nao por referencia
-        tfn = lambda t, _Tl=Tl, _tc=tc: torque_step(t, 0.0, _Tl, _tc)
-        t_ev = [tc]
+        Ti = config.get("Tl_inicial") or 0.0
+        Tl = config["Tl_final"]
+        tc = config.get("t_carga", 0.0)
+        vfn = lambda t: mp.Vl
+        tfn = lambda t, _Ti=Ti, _Tl=Tl, _tc=tc: torque_step(t, _Ti, _Tl, _tc)
+        t_ev = [tc] if tc > 0 else []
 
     elif exp == "yd":
         Vy = mp.Vl / np.sqrt(3.0)
@@ -105,13 +106,6 @@ def build_fns(config: dict, mp: MachineParams):
         vfn = lambda t, _Vl=mp.Vl, _Vi=Vi, _t2=t2, _tp=tp: voltage_soft_starter(t, _Vl, _Vi, _t2, _tp)
         tfn = lambda t, _Tl=Tl, _tc=tc: torque_step(t, 0.0, _Tl, _tc)
         t_ev = [t2, tc]
-
-    elif exp == "carga":
-        Ti = config.get("Tl_inicial", 0.0)
-        Tl, tc = config["Tl_final"], config["t_carga"]
-        vfn = lambda t: mp.Vl
-        tfn = lambda t, _Ti=Ti, _Tl=Tl, _tc=tc: torque_step(t, _Ti, _Tl, _tc)
-        t_ev = [tc]
 
     elif exp == "pulso_carga":
         Tb   = config.get("Tl_base", 0.0)

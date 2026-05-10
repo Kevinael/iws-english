@@ -87,7 +87,7 @@ def run_simulation(
     y0        = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, mp.T_amb, 0.0]
     y_history = _solve(rhs, t_values, y0, mp, clamp_wr_at_zero, t_cutoff=t_cutoff)
 
-    PSIqs, PSIds, PSIqr, PSIdr, wr_e, tetar, Temp_arr, _theta_slip_arr = y_history
+    PSIqs, PSIds, PSIqr, PSIdr, wr_e, tetar, _unused_temp, _theta_slip_arr = y_history
     tetae = mp.wb * t_values
 
     Vl_arr = np.fromiter(
@@ -103,6 +103,14 @@ def run_simulation(
     wr_mec = np.maximum(wr_e / (mp.p / 2.0), 0.0)
     n_rpm  = np.maximum(wr_e * 60.0 / (np.pi * mp.p), 0.0)
 
+    # Rr efetivo ao longo do tempo (barra quebrada): reconstroi a partir de theta_slip
+    if rr_fn is not None:
+        rr_arr = np.array([rr_fn(float(t_values[i]), float(_theta_slip_arr[i]))
+                           for i in range(len(t_values))])
+
+    # TEMP DESATIVADO: modelo térmico em revisão — retorna T_amb constante
+    Temp_arr = np.full(len(t_values), mp.T_amb)
+
     arr = {
         "t":    t_values,
         "wr":   wr_mec,
@@ -113,7 +121,7 @@ def run_simulation(
         "iar":  iar,  "ibr": ibr,  "icr": icr,
         "Va":   Va,   "Vb":  Vb,   "Vc":  Vc,
         "Vds":  Vds,  "Vqs": Vqs,
-        "Temp": np.where(np.isfinite(Temp_arr), Temp_arr, mp.T_amb),
+        "Temp": Temp_arr,
         "_broken_bar_severity": broken_bar_severity,
     }
     arr.update(_compute_steady_state(arr, mp))

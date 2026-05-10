@@ -52,17 +52,18 @@ def _exp_rows(cfg: dict) -> list[str]:
         "yd":         "Estrela-Triângulo (Y-D)",
         "comp":       "Autotransformador",
         "soft":       "Soft-Starter (Rampa de Tensão)",
-        "carga":      "Aplicação de Carga",
         "pulso_carga":"Pulso de Carga",
         "gerador":    "Operação como Gerador",
     }
     rows.append(_row("Tipo de experimento", "", labels.get(et, et), "", shade=False))
 
-    if et in ("dol", "yd", "comp", "soft", "carga"):
+    if et in ("dol", "yd", "comp", "soft"):
         rows.append(_row("Torque de carga", "T<sub>L</sub>",
                          _fmt(cfg.get("Tl_final", 0.0), 2), "N·m", shade=True))
-        rows.append(_row("Instante de aplicação da carga", "t<sub>c</sub>",
-                         _fmt(cfg.get("t_carga", 0.0), 3), "s", shade=False))
+        _tc = cfg.get("t_carga", 0.0)
+        if _tc > 0:
+            rows.append(_row("Instante de aplicação da carga", "t<sub>c</sub>",
+                             _fmt(_tc, 3), "s", shade=False))
 
     if et in ("yd", "comp", "soft", "gerador"):
         rows.append(_row("Instante de comutação / aplicação", "t<sub>2</sub>",

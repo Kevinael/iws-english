@@ -28,7 +28,7 @@ import math
 import numpy as np
 from dataclasses import dataclass, field
 
-from core.thermal import estimate_rth_cth, dTemp_dt
+from core.thermal import estimate_rth_cth
 from core.transforms import abc_voltages, clarke_park_transform
 from core.desequilibrio_falta import abc_voltages_deseq
 
@@ -251,13 +251,11 @@ def _make_rhs(mp: MachineParams, voltage_fn, torque_fn, ref_code: int,
         dwr    = (p / (2.0 * J)) * (Te - Tl_a) - (B / J) * wr
         dtetar = wr
 
-        # EDO termica de 1a ordem — ver SME/2. Modulos/core/thermal.md
-        P_joule = (3.0 / 2.0) * (Rs * (iqs**2 + ids**2) + Rr_cur * (iqr**2 + idr**2))
-        P_fe_th = wb * (PSImq**2 + PSImd**2) / Rfe if Rfe > 0.0 else 0.0
-        dTemp   = dTemp_dt(Temp, P_joule, P_fe_th, Rth, Cth, T_amb)
-
         # theta_slip integrado como estado para o modelo de barra quebrada (rr_fn)
         d_theta_slip = wb - wr
-        return [dPSIqs, dPSIds, dPSIqr, dPSIdr, dwr, dtetar, dTemp, d_theta_slip]
+        # estado 7 (Temp) integrado em pos-processamento sobre P_joule vetorizado;
+        # dTemp=0 aqui evita que o pico de inrush (P_joule>>nominal em t<50ms)
+        # contamine a temperatura via erro de discretizacao com h=1e-3.
+        return [dPSIqs, dPSIds, dPSIqr, dPSIdr, dwr, dtetar, 0.0, d_theta_slip]
 
     return rhs

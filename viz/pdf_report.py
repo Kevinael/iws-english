@@ -492,7 +492,19 @@ def generate_pdf_report(exp_label: str, mp: MachineParams, res: dict,
             ias_rms_ = b_res["ias_rms"]
             s_val_   = b_res.get("s", 0.0)
             fator_   = ias_pk_ / ias_rms_ if ias_rms_ > 0 else 0.0
-            if b_exp_type in ("dol", "yd", "comp", "soft"):
+            _dol_em_vazio_pdf = b_exp_type == "dol" and bool(b_t_events)
+            if _dol_em_vazio_pdf:
+                n_v_ = float(np.mean(b_res["n"][:max(1, len(b_res["n"])//5)]))
+                iv_  = float(np.sqrt(np.mean(b_res["ias"][:max(1, len(b_res["ias"])//5)]**2)))
+                rows_ = [
+                    ("Corrente de Pico (i[sub]as,pk[/sub])",  f"{ias_pk_:.4f}",      "A"),
+                    ("Torque Máximo (T[sub]e,max[/sub])",      f"{Te_max_:.4f}",      "N.m"),
+                    ("Velocidade antes da Carga",              f"{n_v_:.3f}",          "RPM"),
+                    ("Velocidade com Carga",                   f"{n_ss_:.3f}",         "RPM"),
+                    ("Afundamento de Velocidade",              f"{n_v_-n_ss_:.3f}",    "RPM"),
+                    ("Variação de Corrente RMS",               f"{ias_rms_-iv_:.4f}", "A"),
+                ]
+            elif b_exp_type in ("dol", "yd", "comp", "soft"):
                 rows_ = [
                     ("Corrente de Pico (i[sub]as,pk[/sub])",              f"{ias_pk_:.4f}",  "A"),
                     ("Fator de Pico (I[sub]pk[/sub]/I[sub]rms[/sub])",    f"{fator_:.4f}",   "-"),
@@ -504,15 +516,6 @@ def generate_pdf_report(exp_label: str, mp: MachineParams, res: dict,
                     idx_  = int(np.searchsorted(b_res["t"], t_ev_))
                     pk2_  = float(np.max(np.abs(b_res["ias"][idx_:]))) if idx_ < len(b_res["t"]) else 0.0
                     rows_.insert(1, ("Corrente de Pico pós Y-D (i[sub]as,pk2[/sub])", f"{pk2_:.4f}", "A"))
-            elif b_exp_type == "carga":
-                n_v_ = float(np.mean(b_res["n"][:max(1, len(b_res["n"])//5)]))
-                iv_  = float(np.sqrt(np.mean(b_res["ias"][:max(1, len(b_res["ias"])//5)]**2)))
-                rows_ = [
-                    ("Velocidade em Vazio",           f"{n_v_:.3f}",             "RPM"),
-                    ("Velocidade com Carga",           f"{n_ss_:.3f}",           "RPM"),
-                    ("Afundamento de Velocidade",       f"{n_v_-n_ss_:.3f}",     "RPM"),
-                    ("Variação de Corrente RMS",        f"{ias_rms_-iv_:.4f}",   "A"),
-                ]
             elif b_exp_type == "gerador":
                 P_o_ = b_res.get("P_out", 0.0)
                 e_g_ = b_res.get("eta", 0.0)
@@ -626,48 +629,6 @@ def generate_pdf_report(exp_label: str, mp: MachineParams, res: dict,
                 pdf.cell(0, 5, "  THD via FFT de ias (regime permanente). FP = Pin / Saparente.",
                          border=0, ln=True)
                 pdf.ln(4)
-
-        # ── Análise Térmica ────────────────────────────────────────────────
-        _temp_arr = b_res.get("Temp")
-        if _temp_arr is not None and len(_temp_arr) > 0:
-            _T_arr  = np.asarray(_temp_arr, dtype=float)
-            _T_max  = float(np.nanmax(_T_arr))
-            _T_fin  = float(_T_arr[-1]) if np.isfinite(_T_arr[-1]) else _T_max
-            _T_amb  = float(getattr(b_mp, "T_amb", 25.0))
-            _Rth    = float(getattr(b_mp, "Rth",   1.5))
-            _Cth    = float(getattr(b_mp, "Cth",   200.0))
-
-            # status da classe de isolação (IEC 60085)
-            if _T_max <= 130:
-                _iso_status = "OK — Classe B (<=130°C)"
-            elif _T_max <= 155:
-                _iso_status = "ATENÇÃO — Classe F (<=155°C)"
-            elif _T_max <= 180:
-                _iso_status = "CRÍTICO — Classe H (<=180°C)"
-            else:
-                _iso_status = "PERIGO — Acima de Classe H (>180°C)"
-
-            THERM_MIN_HEIGHT = 50
-            if (pdf.h - pdf.b_margin) - pdf.get_y() < THERM_MIN_HEIGHT:
-                pdf.add_page()
-            section_title(pdf, "Análise Térmica (Modelo de 1ª Ordem)")
-            pdf.set_fill_color(200, 210, 240)
-            pdf.set_text_color(20, 20, 80)
-            pdf.set_font("Helvetica", "B", 10)
-            for lbl, w in [("  Grandeza", 110), ("Valor", 45), ("Unidade", 15)]:
-                pdf.cell(w, 7, lbl, border=0, fill=True)
-            pdf.ln(7)
-            zebra_table(pdf, [
-                ("Temperatura máxima atingida",            f"{_T_max:.1f}",          "°C"),
-                ("Temperatura ao final da simulação",      f"{_T_fin:.1f}",          "°C"),
-                ("Elevação acima de T[sub]amb[/sub]",      f"{_T_max - _T_amb:.1f}", "°C"),
-                ("Temperatura ambiente (T[sub]amb[/sub])", f"{_T_amb:.1f}",          "°C"),
-                ("Resistência térmica (R[sub]th[/sub])",   f"{_Rth:.2e}",            "K/W"),
-                ("Capacitância térmica (C[sub]th[/sub])",  f"{_Cth:.1f}",            "J/K"),
-                ("Constante de tempo (tau[sub]th[/sub])",  f"{_Rth * _Cth:.0f}",    "s"),
-                ("Status de isolação (IEC 60085)",         _iso_status,              "-"),
-            ], col_widths=[110, 45, 15], col_aligns=["L", "R", "L"])
-            pdf.ln(4)
 
         # ── Assinatura de Corrente (FFT) ───────────────────────────────────
         _fft_key = next((k for k in ("ias", "ibs", "ics") if k in b_res), None)

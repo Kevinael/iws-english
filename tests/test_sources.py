@@ -79,7 +79,7 @@ def test_torque_pulse_at_end():
     ("yd",          {"exp_type": "yd",           "Tl_final": 12.0, "t_carga": 2.0, "t_2": 1.0}),
     ("comp",        {"exp_type": "comp",         "Tl_final": 12.0, "t_carga": 2.0, "t_2": 1.0, "voltage_ratio": 0.65}),
     ("soft",        {"exp_type": "soft",         "Tl_final": 12.0, "t_carga": 3.0, "t_2": 0.5, "t_pico": 2.0, "voltage_ratio": 0.3}),
-    ("carga",       {"exp_type": "carga",        "Tl_final": 12.0, "t_carga": 1.0}),
+    ("dol_vazio",   {"exp_type": "dol",          "Tl_final": 12.0, "Tl_inicial": 0.0, "t_carga": 1.0}),
     ("pulso_carga", {"exp_type": "pulso_carga",  "Tl_final": 12.0, "t_carga": 1.0, "t_retirada": 2.0}),
     ("gerador",     {"exp_type": "gerador",      "Tl_mec": 10.0,   "t_2": 1.0}),
     ("shutdown",    {"exp_type": "shutdown",     "Tl_final": 12.0, "t_carga": 1.0, "t_cutoff": 2.0}),

@@ -17,6 +17,7 @@ from core.EMS_PY import MachineParams
 from core.energy_analysis import compute_energy_metrics
 from viz.plotly_charts import build_fig_stacked, build_fig_sidebyside, build_fig_overlay, build_fig_torque_speed
 from viz.pdf_report import generate_pdf_report
+from viz.pdf_report_v2 import generate_pdf_report_v2
 from core.harmonica_analysis import build_fig_fft
 from core.sim_diagnostics import generate_insights
 from utils.text_utils import _strip_latex
@@ -81,7 +82,27 @@ def _kpis_destaque(
     s_val   = res.get("s", 0.0)
     fator_pk = ias_pk / ias_rms if ias_rms > 0 else 0.0
 
-    if exp_type in ("dol", "yd", "comp", "soft"):
+    # DOL com partida em vazio: exibe KPIs de afundamento de velocidade ao aplicar carga
+    _dol_em_vazio = exp_type == "dol" and bool(t_events)
+
+    if _dol_em_vazio:
+        _tevs_c    = t_events or []
+        t_carga_ev = _tevs_c[0] if _tevs_c else 0.0
+        idx_tc     = max(int(np.searchsorted(res["t"], t_carga_ev)), 1)
+        n_antes    = float(np.mean(res["n"][:idx_tc]))
+        delta_n    = n_antes - n_ss
+        delta_i    = ias_rms - float(np.sqrt(np.mean(res["ias"][:idx_tc]**2)))
+        lbl_delta  = "Afundamento de Velocidade" if delta_n >= 0 else "Elevação de Velocidade"
+        items = [
+            ("Corrente de Pico $i_{as}$",        f"{ias_pk:.{d}f}",       "A"),
+            ("Torque Máximo $T_{e,max}$",         f"{Te_max:.{d}f}",       "N·m"),
+            ("Velocidade Antes da Carga",         f"{n_antes:.{d}f}",      "RPM"),
+            ("Velocidade após Aplicação da Carga", f"{n_ss:.{d}f}",        "RPM"),
+            (lbl_delta,                           f"{abs(delta_n):.{d}f}", "RPM"),
+            ("Variação de Corrente RMS",          f"{delta_i:.{d}f}",      "A"),
+        ]
+
+    elif exp_type in ("dol", "yd", "comp", "soft"):
         items = [
             ("Corrente de Pico $i_{as}$", f"{ias_pk:.{d}f}", "A"),
             ("Fator de Pico  ($I_{pk}$ / $I_{rms}$)", f"{fator_pk:.{d}f}", "—"),
@@ -100,21 +121,6 @@ def _kpis_destaque(
             idx_comp   = int(np.searchsorted(res["t"], t_ev_comp))
             ias_pk2_comp = float(np.max(np.abs(res["ias"][idx_comp:]))) if idx_comp < len(res["t"]) else 0.0
             items.insert(1, ("Corrente de Pico Pós-Comutação AT", f"{ias_pk2_comp:.{d}f}", "A"))
-
-    elif exp_type == "carga":
-        _tevs_c    = t_events or []
-        t_carga_ev = _tevs_c[0] if _tevs_c else 0.0
-        idx_tc     = max(int(np.searchsorted(res["t"], t_carga_ev)), 1)
-        n_antes    = float(np.mean(res["n"][:idx_tc]))
-        delta_n    = n_antes - n_ss
-        delta_i    = ias_rms - float(np.sqrt(np.mean(res["ias"][:idx_tc]**2)))
-        lbl_delta  = "Afundamento de Velocidade" if delta_n >= 0 else "Elevação de Velocidade"
-        items = [
-            ("Velocidade Antes da Perturbação",  f"{n_antes:.{d}f}",      "RPM"),
-            ("Velocidade após Perturbação",       f"{n_ss:.{d}f}",         "RPM"),
-            (lbl_delta,                           f"{abs(delta_n):.{d}f}", "RPM"),
-            ("Variação de Corrente RMS",          f"{delta_i:.{d}f}",      "A"),
-        ]
 
     elif exp_type == "gerador":
         P_out = res.get("P_out", 0.0)
@@ -359,7 +365,7 @@ def render_results(
             ias_pk  = float(np.max(np.abs(res["ias"])))
 
             _show_Te_max = exp_type not in ("gerador",)
-            _show_ias_pk = exp_type not in ("carga", "pulso_carga")
+            _show_ias_pk = exp_type not in ("pulso_carga",)
 
             _row1 = [
                 ("Velocidade de Regime (RPM)",       f"{n_ss:.{d}f}"),
@@ -647,74 +653,6 @@ def render_results(
         else:
             st.info("Análise econômica não disponível para o experimento de desligamento.")
 
-        # Análise Térmica
-        _temp_arr = res.get("Temp")
-        if _temp_arr is not None and len(_temp_arr) > 0:
-            _T_arr = np.asarray(_temp_arr, dtype=float)
-            _T_max = float(np.nanmax(_T_arr))
-            _T_fin = float(_T_arr[-1]) if np.isfinite(_T_arr[-1]) else _T_max
-            _T_amb = float(getattr(mp, "T_amb", 25.0))
-
-            st.divider()
-            st.markdown('<p class="slabel">Análise Térmica (IEC 60085)</p>', unsafe_allow_html=True)
-
-            _tc1, _tc2, _tc3 = st.columns(3)
-            _tc1.metric("Temperatura Máxima",      f"{_T_max:.1f} °C")
-            _tc2.metric("Temperatura Final",        f"{_T_fin:.1f} °C")
-            _tc3.metric("Elevação de Temperatura",  f"{_T_max - _T_amb:.1f} °C acima de T_amb")
-
-            if _T_max > 180.0:
-                st.error(
-                    f"SOBREAQUECIMENTO CRITICO: T_max = {_T_max:.1f}°C excede a Classe H "
-                    f"(180°C). Risco iminente de queima do isolamento (IEC 60085)."
-                )
-            elif _T_max > 155.0:
-                st.error(
-                    f"Sobreaquecimento: T_max = {_T_max:.1f}°C excede o limite da Classe F "
-                    f"(155°C — IEC 60085). Risco de degradação prematura do isolamento."
-                )
-            elif _T_max > 130.0:
-                st.warning(
-                    f"T_max = {_T_max:.1f}°C excede a Classe B (130°C). "
-                    f"Verifique se o motor é de Classe F ou superior."
-                )
-            else:
-                st.success(f"Temperatura dentro do limite da Classe B/F ({_T_max:.1f}°C ≤ 130°C).")
-
-            with st.expander("Ver curva de temperatura", expanded=True):
-                import plotly.graph_objects as _go_th
-                _t_arr_plot = np.asarray(res["t"], dtype=float)
-                _fig_th = _go_th.Figure()
-                _fig_th.add_trace(_go_th.Scatter(
-                    x=_t_arr_plot, y=_T_arr, mode="lines", name="Temperatura (°C)",
-                    line=dict(color="#ef4444", width=2),
-                ))
-                for _cls_n, _cls_lim in [("Classe B", 130), ("Classe F", 155), ("Classe H", 180)]:
-                    _fig_th.add_hline(
-                        y=_cls_lim, line_dash="dot", line_color="#94a3b8", line_width=1,
-                        annotation_text=_cls_n, annotation_position="bottom right",
-                        annotation_font_size=9,
-                    )
-                _fig_th.add_hline(
-                    y=_T_amb, line_dash="dash", line_color="#64748b", line_width=1,
-                    annotation_text=f"T_amb={_T_amb:.0f}°C", annotation_position="bottom right",
-                    annotation_font_size=9,
-                )
-                _fig_th.update_layout(
-                    xaxis_title="Tempo (s)", yaxis_title="Temperatura (°C)",
-                    height=320,
-                    margin=dict(l=50, r=20, t=20, b=40),
-                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-                    paper_bgcolor="rgba(0,0,0,0)",
-                    plot_bgcolor="rgba(249,250,252,1)",
-                )
-                st.plotly_chart(_fig_th, use_container_width=True, config=_PLOT_CFG,
-                                key="ems-thermal-plot")
-                st.caption(
-                    f"Modelo de 1ª ordem: τ = R_th·C_th = "
-                    f"{getattr(mp,'Rth',1.5)*getattr(mp,'Cth',200.0):.0f} s. "
-                    f"Limites IEC 60085: Classe B=130°C, F=155°C, H=180°C."
-                )
 
     # ══════════════════════════════════════════════════════════════════════
     # PAINEL DE REFERÊNCIAS + EXPORTAÇÃO PDF  (fora das abas)
@@ -722,20 +660,86 @@ def render_results(
     st.write("")
     st.divider()
     st.markdown('<p class="slabel">Exportar</p>', unsafe_allow_html=True)
-    if st.button("Gerar Relatório Técnico (PDF)", key="btn_pdf"):
-        with st.spinner("Gerando PDF..."):
-            st.session_state["pdf_bytes"] = generate_pdf_report(
-                exp_label, mp, res, fig_pdf,
-                var_keys, var_labels, t_events,
-                exp_type=exp_type,
-                ref_list=ref_list,
-                energy_tariff=energy_tariff,
+
+    _tmax_exp = float(res["t"][-1]) if len(res.get("t", [])) > 0 else 1.0
+    _h_exp    = float(res["t"][1] - res["t"][0]) if len(res.get("t", [])) > 1 else 1e-3
+
+    _ecol1, _ecol2, _ecol3 = st.columns(3)
+
+    with _ecol1:
+        if not st.session_state.get("pdf_bytes_v1"):
+            if st.button("Relatório V1 (Clássico)", key="btn_pdf_v1"):
+                with st.spinner("Gerando PDF V1..."):
+                    st.session_state["pdf_bytes_v1"] = generate_pdf_report(
+                        exp_label, mp, res, fig_pdf,
+                        var_keys, var_labels, t_events,
+                        exp_type=exp_type,
+                        ref_list=ref_list,
+                        energy_tariff=energy_tariff,
+                    )
+                st.rerun()
+        else:
+            st.download_button(
+                label="Baixar V1 (PDF)",
+                data=st.session_state["pdf_bytes_v1"],
+                file_name="relatorio_ems_v1.pdf",
+                mime="application/pdf",
+                key="btn_pdf_v1_download",
             )
-    if st.session_state.get("pdf_bytes"):
-        st.download_button(
-            label="Baixar Relatório PDF",
-            data=st.session_state["pdf_bytes"],
-            file_name="relatorio_ems.pdf",
-            mime="application/pdf",
-            key="btn_pdf_download",
-        )
+            if st.button("Regerar V1", key="btn_pdf_v1_regen"):
+                del st.session_state["pdf_bytes_v1"]
+                st.rerun()
+
+    with _ecol2:
+        if not st.session_state.get("pdf_bytes_v2_ac"):
+            if st.button("Relatório V2 — Acadêmico", key="btn_pdf_v2_ac"):
+                with st.spinner("Gerando PDF V2 Acadêmico..."):
+                    st.session_state["pdf_bytes_v2_ac"] = generate_pdf_report_v2(
+                        style="academico",
+                        exp_label=exp_label, mp=mp, res=res,
+                        var_keys=var_keys, var_labels=var_labels, t_events=t_events,
+                        exp_type=exp_type, ref_list=ref_list,
+                        energy_tariff=energy_tariff,
+                        tmax=_tmax_exp, h=_h_exp,
+                    )
+                st.rerun()
+        else:
+            st.download_button(
+                label="Baixar V2 Acadêmico (PDF)",
+                data=st.session_state["pdf_bytes_v2_ac"],
+                file_name="relatorio_ems_academico.pdf",
+                mime="application/pdf",
+                key="btn_pdf_v2_ac_download",
+            )
+            if st.button("Regerar V2 Acadêmico", key="btn_pdf_v2_ac_regen"):
+                del st.session_state["pdf_bytes_v2_ac"]
+                st.rerun()
+
+    with _ecol3:
+        if not st.session_state.get("pdf_bytes_v2_db"):
+            if st.button("Relatório V2 — Dashboard", key="btn_pdf_v2_db"):
+                with st.spinner("Gerando PDF V2 Dashboard..."):
+                    st.session_state["pdf_bytes_v2_db"] = generate_pdf_report_v2(
+                        style="dashboard",
+                        exp_label=exp_label, mp=mp, res=res,
+                        var_keys=var_keys, var_labels=var_labels, t_events=t_events,
+                        exp_type=exp_type, ref_list=ref_list,
+                        energy_tariff=energy_tariff,
+                        tmax=_tmax_exp, h=_h_exp,
+                    )
+                st.rerun()
+        else:
+            st.download_button(
+                label="Baixar V2 Dashboard (PDF)",
+                data=st.session_state["pdf_bytes_v2_db"],
+                file_name="relatorio_ems_dashboard.pdf",
+                mime="application/pdf",
+                key="btn_pdf_v2_db_download",
+            )
+            if st.button("Regerar V2 Dashboard", key="btn_pdf_v2_db_regen"):
+                del st.session_state["pdf_bytes_v2_db"]
+                st.rerun()
+
+    # compatibilidade: pdf_bytes legado apontado para V1
+    if st.session_state.get("pdf_bytes_v1") and not st.session_state.get("pdf_bytes"):
+        st.session_state["pdf_bytes"] = st.session_state["pdf_bytes_v1"]

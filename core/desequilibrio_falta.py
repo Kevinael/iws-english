@@ -171,3 +171,57 @@ def render_desequilibrio_ui(config: dict, tmax: float = 2.0) -> None:
         config["df_a"]         = df_a
         config["df_b"]         = df_b
         config["df_c"]         = df_c
+
+
+def render_broken_bar_ui(config: dict, tmax: float = 2.0, wk: dict | None = None) -> None:
+    """Renderiza o expander de Gêmeo Digital — Falha de Barra Quebrada.
+
+    Disponível para qualquer experimento, independente do tipo de partida.
+    Preenche config com as chaves:
+      broken_bar_severity, t_broken_bar.
+    """
+    import streamlit as st
+
+    _wk_key   = (wk or {}).get("broken_bar_severity", "wi_broken_bar_severity")
+    _t_ref    = float(config.get("t_carga", 0.0))
+
+    st.write("")
+    with st.expander("Gêmeo Digital — Falha de Barra Quebrada", expanded=False):
+        st.info(
+            "Simula falha mecânica no rotor por modulação de Rᵣ. "
+            "Útil para estudos de MCSA (Motor Current Signature Analysis)."
+        )
+        st.markdown(
+            "Modelo: $R_r(t) = R_{r0} \\cdot (1 + \\alpha \\cdot \\cos(2\\theta_{slip}))$  "
+            "para $t \\geq t_{falha}$. "
+            "A assinatura espectral exibe componentes laterais em $(1 \\pm 2s)f_e$."
+        )
+        broken_bar_severity = st.slider(
+            "Severidade da falha — $\\alpha$",
+            min_value=0.0, max_value=0.5, value=0.0, step=0.01, format="%.2f",
+            key=_wk_key,
+            help="0 = motor saudável. 0.1 ≈ 1 barra quebrada. 0.3+ = falha grave.",
+        )
+        if broken_bar_severity > 0:
+            _tmax_bb   = float(tmax) if tmax > 0.0 else None
+            _val_bb    = max(0.0, _t_ref)
+            t_broken_bar = st.number_input(
+                "Instante de início da falha — $t_{falha}$ (s)",
+                min_value=0.0, max_value=_tmax_bb,
+                value=_val_bb, step=0.1, format="%.2f",
+                key="wi_broken_bar_t_start",
+                help="A modulação de Rᵣ começa neste instante. "
+                     "Use um valor após t_carga para simular falha em regime permanente.",
+            )
+            st.caption(
+                f"α = {broken_bar_severity:.2f} — componentes laterais esperados em "
+                f"$(1 \\pm 2s)f$ Hz. Use a análise FFT para verificar a assinatura."
+            )
+            if broken_bar_severity >= 0.3:
+                st.warning("Severidade elevada (α ≥ 0.3) — pode causar oscilações visíveis no torque eletromagnético.")
+        else:
+            t_broken_bar = 0.0
+            st.caption("α = 0 — motor saudável. Aumente α para ativar o modelo de falha.")
+
+        config["broken_bar_severity"] = broken_bar_severity
+        config["t_broken_bar"]        = t_broken_bar

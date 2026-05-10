@@ -21,12 +21,12 @@ def calc_tmax_auto(exp_config: dict, mp: MachineParams) -> float:
     """
     exp_type = exp_config.get("exp_type", "")
     if exp_type == "dol":
-        t_last = exp_config.get("t_carga", 1.0)
+        t_last = exp_config.get("t_carga", 0.0) or 1.0
     elif exp_type in ("yd", "comp"):
         t_last = max(exp_config.get("t_2", 0.5), exp_config.get("t_carga", 1.0))
     elif exp_type == "soft":
         t_last = max(exp_config.get("t_pico", 5.0), exp_config.get("t_carga", 1.0))
-    elif exp_type in ("carga", "pulso_carga"):
+    elif exp_type == "pulso_carga":
         t_last = exp_config.get("t_retirada", exp_config.get("t_carga", 1.0))
     elif exp_type == "gerador":
         t_last = exp_config.get("t_2", 1.0)

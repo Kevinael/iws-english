@@ -20,6 +20,7 @@ from ui_components.theory_view import render_theory_tab
 from ui_components.sim_config import (
     MACHINES,
     _WK,
+    _PRESETS,
     render_machine_selector,
     render_machine_params,
     render_experiment_config,
@@ -64,6 +65,22 @@ def main() -> None:
     for key, val in _defaults.items():
         if key not in st.session_state:
             st.session_state[key] = val
+
+    # Carrega o preset Krause automaticamente na primeira execução da sessão
+    _KRAUSE_KEY = "Padrão — Krause 3 HP (2.2 kW / 12 N·m) 220 V/60 Hz"
+    if "_preset_loaded" not in st.session_state:
+        st.session_state["_preset_loaded"] = True
+        _pdata = _PRESETS.get(_KRAUSE_KEY, {})
+        _wk_map = {
+            "Vl": _WK["Vl"], "f": _WK["f"], "Rs": _WK["Rs"], "Rr": _WK["Rr"],
+            "input_mode": _WK["input_mode"], "f_ref": _WK["f_ref"],
+            "Xm": _WK["Xm"], "Xls": _WK["Xls"], "Xlr": _WK["Xlr"],
+            "Rfe": _WK["Rfe"], "p": _WK["p"], "J": _WK["J"], "B": _WK["B"],
+            "exp_type": _WK["exp_type"], "Tl_final": _WK["Tl_final"],
+        }
+        for field, widget_key in _wk_map.items():
+            if field in _pdata:
+                st.session_state[widget_key] = _pdata[field]
 
     # responsividade via CSS puro — sem JS de viewport
     is_mobile = False
@@ -155,8 +172,8 @@ def main() -> None:
         if save_ref and _can_save:
             new_ref = dict(st.session_state["sim_result"])
             _idx    = len(st.session_state["ref_list"])
-            new_ref["color"] = _REF_COLORS[_idx % len(_REF_COLORS)]
-            new_ref["dash"]  = _REF_DASHES[_idx % len(_REF_DASHES)]
+            new_ref["color"] = REF_COLORS[_idx % len(REF_COLORS)]
+            new_ref["dash"]  = REF_DASHES[_idx % len(REF_DASHES)]
             st.session_state["ref_list"].append(new_ref)
             st.rerun()
         if clear_ref:
