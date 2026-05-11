@@ -185,6 +185,17 @@ def render_broken_bar_ui(config: dict, tmax: float = 2.0, wk: dict | None = None
     _wk_key   = (wk or {}).get("broken_bar_severity", "wi_broken_bar_severity")
     _t_ref    = float(config.get("t_carga", 0.0))
 
+    # lê valores do session_state ANTES do expander — garante que config é preenchido
+    # mesmo quando o expander nunca foi aberto pelo usuário.
+    # Usa _wk_key diretamente pois é a key do widget st.slider — o Streamlit
+    # sincroniza session_state[key] com o valor atual do widget a cada render.
+    broken_bar_severity = float(st.session_state.get(_wk_key, 0.0))
+    t_broken_bar        = float(st.session_state.get("wi_broken_bar_t_start", max(0.0, _t_ref)))
+    if broken_bar_severity == 0.0:
+        t_broken_bar = 0.0
+    config["broken_bar_severity"] = broken_bar_severity
+    config["t_broken_bar"]        = t_broken_bar
+
     st.write("")
     with st.expander("Gêmeo Digital — Falha de Barra Quebrada", expanded=False):
         st.info(
@@ -223,5 +234,6 @@ def render_broken_bar_ui(config: dict, tmax: float = 2.0, wk: dict | None = None
             t_broken_bar = 0.0
             st.caption("α = 0 — motor saudável. Aumente α para ativar o modelo de falha.")
 
+        # atualiza config com os valores interativos dentro do expander
         config["broken_bar_severity"] = broken_bar_severity
         config["t_broken_bar"]        = t_broken_bar

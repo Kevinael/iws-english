@@ -90,10 +90,12 @@ def execute_simulation_flow(
     ):
         t_events = t_events + [_t_deseq]
 
+    _broken_bar   = float(exp_config.get("broken_bar_severity", 0.0))
+    _t_broken_bar = float(exp_config.get("t_broken_bar", 0.0))
+
+
     with st.spinner("Executando integração numérica..."):
         try:
-            _broken_bar    = float(exp_config.get("broken_bar_severity", 0.0))
-            _t_broken_bar  = float(exp_config.get("t_broken_bar", 0.0))
             if _broken_bar > 0.0 and _t_broken_bar > 0.0:
                 t_events = t_events + [_t_broken_bar]
             res = run_simulation(
@@ -109,7 +111,8 @@ def execute_simulation_flow(
                 broken_bar_severity=_broken_bar,
                 t_broken_bar=_t_broken_bar,
             )
-            st.session_state["pdf_bytes"]  = None
+            st.session_state["pdf_bytes"] = None
+            st.session_state["zoom_mode"] = "Completo"
             st.session_state["sim_result"] = dict(
                 res=res, var_keys=var_keys, var_labels=var_labels,
                 t_events=t_events, dark=dark, mp=mp,

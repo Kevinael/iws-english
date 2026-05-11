@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Orquestrador principal do Simulador de Máquinas Elétricas.
+"""Orquestrador principal do ElectraSim.
 
 Responsabilidades deste arquivo:
   - Configuração da página Streamlit
@@ -33,7 +33,7 @@ from ui_components.sim_runner import execute_simulation_flow
 # CONFIGURAÇÃO DA PÁGINA
 # ─────────────────────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Simulador de Máquinas Elétricas",
+    page_title="ElectraSim",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
@@ -90,7 +90,7 @@ def main() -> None:
 
     st.markdown(
         '<div class="app-header">'
-        '<div class="app-title">Simulador de Máquinas Elétricas</div>'
+        '<div class="app-title">ElectraSim</div>'
         '</div>',
         unsafe_allow_html=True,
     )

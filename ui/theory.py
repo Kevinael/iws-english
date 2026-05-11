@@ -15,6 +15,7 @@ from ui.theory_interactive import (
     render_park_dinamico,
     render_sankey_potencia,
     render_fasorial_desequilibrio,
+    render_transitorios_sincronizados,
 )
 matplotlib.use("Agg")
 matplotlib.rcParams.update({"mathtext.fontset": "dejavusans", "text.usetex": False})
@@ -587,6 +588,18 @@ def _render_tab_dinamica_operacao() -> None:
                   fontsize=11, fontweight="bold", color="#111")
     fig2.tight_layout()
     st.image(_fig_to_bytes(fig2))
+
+    st.divider()
+    _h4("Transitórios Sincronizados — Visualização Interativa")
+    st.markdown(
+        "O painel abaixo exibe as três grandezas fundamentais — **velocidade** $n(t)$, "
+        "**torque eletromagnético** $T_e(t)$ e **corrente de fase** $i_{as}(t)$ — "
+        "alinhadas no mesmo eixo de tempo para três cenários transitórios típicos. "
+        "Observe como cada evento elétrico ou mecânico se propaga simultaneamente nas "
+        "três grandezas: a corrente reage primeiro (constante de tempo elétrica $\\tau_e$), "
+        "o torque logo em seguida, e a velocidade por último (inércia mecânica $J$)."
+    )
+    render_transitorios_sincronizados()
 
     # ── CARD 3 — Frenagem e Parada ───────────────────────────────────────────
     st.divider()
@@ -1205,12 +1218,18 @@ def _render_tab_experimentos() -> None:
     )
     _eq(r"I_{part} \approx (6\text{ a }8)\,I_n \quad (s=1,\; V = V_{nom})")
     st.markdown(
-        "No simulador, a carga $T_l$ é aplicada em $t_{carga}$ (após a partida em vazio), "
-        "permitindo observar o afundamento de velocidade e o transitório de corrente "
-        "ao conectar a carga."
+        "O simulador oferece dois modos de operação:"
     )
     st.markdown(
-        "- **Observar:** pico de corrente na partida, torque máximo (pull-out), tempo de aceleração.\n"
+        "- **Partir em vazio:** $t = 0$ — tensão nominal aplicada, motor acelera sem carga ($T_l = 0$). "
+        "Em $t_{carga}$, o torque resistente é aplicado em degrau — permite observar o afundamento "
+        "de velocidade e o transitório de corrente ao conectar a carga.\n"
+        "- **Partir com carga:** $t = 0$ — tensão nominal e carga $T_l$ aplicadas simultaneamente; "
+        "motor acelera contra carga plena desde o instante inicial."
+    )
+    st.markdown(
+        "- **Observar:** pico de corrente na partida, torque máximo (pull-out), tempo de aceleração, "
+        "afundamento de velocidade ao aplicar carga.\n"
         "- **Risco:** sobrecarga térmica se $T_l > T_{max}$ — o motor trava (stall)."
     )
 
@@ -1255,9 +1274,18 @@ def _render_tab_experimentos() -> None:
     )
     _eq(r"V(t) = V_0 + (V_l - V_0)\,\frac{t - t_2}{t_{pico} - t_2}, \quad t_2 \leq t \leq t_{pico}")
     st.markdown(
-        "A corrente e o torque crescem suavemente, eliminando o pico abrupto das partidas "
-        "comutadas. Em $t > t_{pico}$ o motor opera em plena tensão; a carga $T_l$ é "
-        "aplicada em $t_{carga}$."
+        "A sequência de eventos no simulador é:"
+    )
+    st.markdown(
+        "- $t = 0$ — motor parte com tensão inicial $V_0 = k\\,V_l$; corrente e torque de partida limitados.\n"
+        "- $t = t_2$ — rampa de tensão iniciada: tensão cresce linearmente de $V_0$ até $V_l$.\n"
+        "- $t = t_{pico}$ — tensão nominal atingida; Soft-Starter desconectado, motor em operação direta "
+        "(duração da rampa: $t_{pico} - t_2$).\n"
+        "- $t = t_{carga}$ — carga $T_l$ aplicada ao eixo."
+    )
+    st.markdown(
+        "A corrente e o torque crescem suavemente ao longo da rampa, eliminando o pico abrupto "
+        "das partidas comutadas."
     )
     st.markdown(
         "- **Observar:** ausência de pico de corrente, aceleração mais lenta, corrente quase constante durante a rampa.\n"
@@ -1309,14 +1337,33 @@ def _render_tab_experimentos() -> None:
         "ou falta total de rede. O campo girante desaparece em microssegundos (transitório "
         "elétrico); a velocidade decai dominada pela constante mecânica:"
     )
-    _eq(r"\tau_m = \frac{J}{B} \quad \Rightarrow \quad \omega_r(t) \approx \omega_r(t_{des})\,e^{-(t-t_{des})/\tau_m}")
     st.markdown(
-        "A carga mecânica $T_l$ permanece ativa, acelerando a parada. Se $B \\approx 0$ "
-        "e $T_l = 0$, o rotor para apenas por atrito — tempo longo."
+        "A sequência de eventos no simulador é:"
     )
     st.markdown(
-        "- **Observar:** extinção abrupta da corrente, decaimento exponencial de velocidade, tempo de parada.\n"
-        "- **t_max recomendado:** $t_{des} + 5\\,\\tau_m$ para capturar a parada completa."
+        "- $t = 0$ — motor parte em vazio e acelera até regime permanente.\n"
+        "- $t = t_{carga}$ — carga $T_l$ aplicada; motor acomoda-se ao novo ponto de operação.\n"
+        "- $t = t_{des}$ — tensão cortada (abertura do contator); torque eletromagnético decai em milissegundos.\n"
+        "- **Pós-corte** — a carga mecânica $T_l$ permanece ativa e freia o rotor até a parada completa."
+    )
+    st.markdown(
+        "Com $B > 0$ e $T_l > 0$, o tempo de parada analítico é calculado pelo simulador como:"
+    )
+    _eq(r"t_{stop} = \frac{J}{B}\,\ln\!\left(1 + \frac{B\,\omega_0}{T_l}\right)")
+    st.markdown(
+        "onde $\\omega_0 = \\omega_r(t_{des})$ é a velocidade no instante do corte. "
+        "O valor $t_{max}$ é definido automaticamente como $t_{des} + 1{,}2\\,t_{stop}$ "
+        "(20% de margem sobre o tempo de parada analítico)."
+    )
+    st.markdown(
+        "Casos especiais:\n"
+        "- $B = 0$, $T_l > 0$: desaceleração linear — $t_{stop} = J\\,\\omega_0 / T_l$.\n"
+        "- $B > 0$, $T_l = 0$: decaimento exponencial — $\\omega_r(t) \\approx \\omega_0\\,e^{-(t-t_{des})/\\tau_m}$, $\\tau_m = J/B$.\n"
+        "- $B \\approx 0$ e $T_l = 0$: rotor para apenas por atrito residual — tempo muito longo."
+    )
+    st.markdown(
+        "- **Observar:** extinção abrupta da corrente, decaimento de velocidade pós-corte, tempo de parada.\n"
+        "- **t_max:** calculado automaticamente pelo simulador com base nos parâmetros $J$, $B$, $T_l$ e $t_{des}$."
     )
 
     st.divider()

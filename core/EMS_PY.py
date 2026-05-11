@@ -87,6 +87,7 @@ def run_simulation(
     y0        = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, mp.T_amb, 0.0]
     y_history = _solve(rhs, t_values, y0, mp, clamp_wr_at_zero, t_cutoff=t_cutoff)
 
+
     PSIqs, PSIds, PSIqr, PSIdr, wr_e, tetar, _unused_temp, _theta_slip_arr = y_history
     tetae = mp.wb * t_values
 
@@ -123,6 +124,7 @@ def run_simulation(
         "Vds":  Vds,  "Vqs": Vqs,
         "Temp": Temp_arr,
         "_broken_bar_severity": broken_bar_severity,
+        "_t_broken_bar":        t_broken_bar,
     }
     arr.update(_compute_steady_state(arr, mp))
     return arr

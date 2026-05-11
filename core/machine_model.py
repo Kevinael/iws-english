@@ -248,7 +248,16 @@ def _make_rhs(mp: MachineParams, voltage_fn, torque_fn, ref_code: int,
         # fator 3/2 decorre da convencao amplitude-invariante (nao potencia-invariante)
         Te     = (3.0 / 2.0) * (p / 2.0) * (1.0 / wb) * (PSIds * iqs - PSIqs * ids)
         Tl_a   = torque_fn(t)
-        dwr    = (p / (2.0 * J)) * (Te - Tl_a) - (B / J) * wr
+
+        # barra quebrada: perturbação de torque aditiva à frequência de escorregamento
+        # ΔTe = α * Te_base * cos(2*θ_slip) — oscila a 2*s*f, produz sidebands em (1±2s)f
+        if rr_fn is not None:
+            _alpha = (Rr_cur - Rr) / Rr  # alpha instantâneo recuperado de Rr_cur
+            Te_bb  = _alpha * Te * 0.5
+        else:
+            Te_bb = 0.0
+
+        dwr    = (p / (2.0 * J)) * (Te + Te_bb - Tl_a) - (B / J) * wr
         dtetar = wr
 
         # theta_slip integrado como estado para o modelo de barra quebrada (rr_fn)

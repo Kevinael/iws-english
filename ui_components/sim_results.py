@@ -29,7 +29,6 @@ def _cached_energy_metrics(res: dict, tariff: float) -> dict:
     return compute_energy_metrics(res, tariff)
 
 
-@st.cache_data(show_spinner=False)
 def _cached_fig_fft(res: dict, dark: bool, key: str, label: str) -> go.Figure:
     return build_fig_fft(res, dark, key=key, label=label)
 
@@ -42,6 +41,7 @@ def _cached_fig_stacked(
     dark: bool,
     t_events: tuple,
     decimals: int,
+    _cache_key: int = 0,  # hash externo para invalidar cache quando res muda
 ) -> go.Figure:
     return build_fig_stacked(res, list(var_keys), list(var_labels), dark, list(t_events), decimals)
 
@@ -50,7 +50,7 @@ _PLOT_CFG: dict[str, Any] = {
     "responsive": True,
     "scrollZoom": False,
     "displaylogo": False,
-    "modeBarButtonsToRemove": ["lasso2d", "select2d", "autoScale2d"],
+    "modeBarButtonsToRemove": ["lasso2d", "select2d"],
     "toImageButtonOptions": {
         "format": "png",
         "filename": "grafico_simulador",
@@ -290,7 +290,8 @@ def render_results(
     # dark_plot: prefer session_state toggle se já existir, senão usa dark do tema
     dark_plot = st.session_state.get("plot_dark_toggle", dark)
 
-    fig_pdf = _cached_fig_stacked(res, tuple(var_keys), tuple(var_labels_plot), dark_plot, tuple(t_events), d)
+    _res_hash = int(hash((res["Te"][-1], res["Te"].std(), res["t"][-1], res.get("_broken_bar_severity", 0))))
+    fig_pdf = _cached_fig_stacked(res, tuple(var_keys), tuple(var_labels_plot), dark_plot, tuple(t_events), d, _cache_key=_res_hash)
 
     chart_ref_list = [
         {
@@ -309,12 +310,10 @@ def render_results(
     # ══════════════════════════════════════════════════════════════════════
     # ABAS DE RESULTADOS
     # ══════════════════════════════════════════════════════════════════════
-    tab_visao, tab_dinamica, tab_diag, tab_ativos = st.tabs([
-        "Visão Geral",
-        "Análise Dinâmica",
-        "Diagnóstico e Falhas",
-        "Gestão de Ativos",
-    ])
+    tab_visao, tab_dinamica, tab_diag, tab_ativos = st.tabs(
+        ["Visão Geral", "Análise Dinâmica", "Diagnóstico e Falhas", "Gestão de Ativos"],
+        key="results_tabs",
+    )
 
     # ══════════════════════════════════════════════════════════════════════
     # ABA 1 — VISÃO GERAL
@@ -426,103 +425,286 @@ def render_results(
         if not var_keys:
             st.info("Nenhuma grandeza selecionada. Retorne à configuração e escolha variáveis para plotar.")
         else:
-            cv1, cv2, cv3 = st.columns([1.6, 1, 1.5])
-            with cv1:
-                _viz_opts = ["Empilhados", "Sobrepostos"] if is_mobile else ["Empilhados", "Lado a lado", "Sobrepostos"]
-                _cur_modo = st.session_state.get("plot_mode", _viz_opts[0])
-                if _cur_modo not in _viz_opts:
-                    st.session_state["plot_mode"] = _viz_opts[0]
-                modo = st.radio("Modo de Visualização", _viz_opts, horizontal=True, key="plot_mode")
-            with cv2:
-                dark_plot = st.toggle("Fundo escuro", value=dark, key="plot_dark_toggle")
-            with cv3:
-                zoom_mode = st.radio(
-                    "Zoom", ["Completo", "Partida", "Regime Permanente"],
-                    horizontal=True, key="zoom_mode",
-                )
+            @st.fragment
+            def _render_dinamica(
+                res, var_keys, var_labels_plot, dark, t_events, decimals,
+                exp_type, exp_config, mp, is_mobile,
+                chart_ref_list, primary_color, tl_arr, res_hash,
+            ):
+                _PLOT_CFG_F: dict = {
+                    "responsive": True, "scrollZoom": False, "displaylogo": False,
+                    "modeBarButtonsToRemove": ["lasso2d", "select2d"],
+                    "toImageButtonOptions": {"format": "png", "filename": "grafico_simulador",
+                                             "scale": 3, "height": 600, "width": 1200},
+                }
 
-            st.write("")
+                cv1, cv2, cv3 = st.columns([1.6, 1, 1.5])
+                with cv1:
+                    _viz_opts = ["Empilhados", "Sobrepostos"] if is_mobile else ["Empilhados", "Lado a lado", "Sobrepostos"]
+                    _cur_modo = st.session_state.get("plot_mode", _viz_opts[0])
+                    if _cur_modo not in _viz_opts:
+                        st.session_state["plot_mode"] = _viz_opts[0]
+                    modo = st.radio("Modo de Visualização", _viz_opts, horizontal=True, key="plot_mode")
+                with cv2:
+                    dark_plot = st.toggle("Fundo escuro", value=dark, key="plot_dark_toggle")
 
-            tmax_data = float(res["t"][-1])
-            t_ss_idx  = int(res.get("_ss_start", 0))
-            t_ss      = float(res["t"][t_ss_idx]) if t_ss_idx < len(res["t"]) else tmax_data
-            x_zoom    = None
-            if zoom_mode == "Regime Permanente":
-                x_zoom = [max(0.0, t_ss - max(0.05 * tmax_data, 0.02)), tmax_data]
-            elif zoom_mode == "Partida":
-                x_zoom = [0.0, min(t_ss * 1.08 + 0.01, 0.2)]
+                _is_pulso    = (exp_type == "pulso_carga")
+                _t_pulso_on  = float((exp_config or {}).get("t_carga",    0.0))
+                _t_pulso_off = float((exp_config or {}).get("t_retirada", 0.0))
+                _zoom_opts   = ["Completo"]
+                if _is_pulso:
+                    _zoom_opts.append("Pulso de Carga")
+                else:
+                    _zoom_opts.append("Partida")
+                _zoom_opts.append("Regime Permanente")
+                _saved_zoom = st.session_state.get("zoom_mode", _zoom_opts[0])
+                _zoom_idx   = _zoom_opts.index(_saved_zoom) if _saved_zoom in _zoom_opts else 0
+                with cv3:
+                    zoom_mode = st.radio(
+                        "Zoom", _zoom_opts, index=_zoom_idx,
+                        horizontal=True, key="zoom_mode",
+                    )
 
-            def _apply_zoom(fig: go.Figure) -> go.Figure:
-                if x_zoom is None:
+                st.write("")
+
+                tmax_data = float(res["t"][-1])
+                t_ss_idx  = int(res.get("_ss_start", 0))
+                t_ss      = float(res["t"][t_ss_idx]) if t_ss_idx < len(res["t"]) else tmax_data
+                t_window  = None
+                if zoom_mode == "Regime Permanente":
+                    t_window = (max(0.0, t_ss - max(0.05 * tmax_data, 0.02)), tmax_data)
+                elif zoom_mode == "Partida":
+                    _cfg  = exp_config or {}
+                    _pad  = 0.1  # margem fixa pós-evento
+                    if exp_type == "dol":
+                        # instante em que wr_mec atinge 95% da vel. síncrona mecânica
+                        _ws_mec = 2.0 * np.pi * mp.f / (mp.p / 2.0)
+                        _wr     = np.asarray(res["wr"], dtype=float)
+                        _above  = np.where(_wr >= 0.95 * _ws_mec)[0]
+                        _t_acc  = float(res["t"][int(_above[0])]) if len(_above) > 0 else t_ss
+                        _tend   = _t_acc + _pad
+                    elif exp_type in ("yd", "comp"):
+                        # chave em t_2, carga em t_carga — mostra até depois da carga
+                        _tc   = float(_cfg.get("t_carga", 0.0))
+                        _t2   = float(_cfg.get("t_2", 0.0))
+                        _tend = max(_tc, _t2) + _pad
+                    elif exp_type == "soft":
+                        # rampa termina em t_pico, carga em t_carga
+                        _tp   = float(_cfg.get("t_pico", 0.0))
+                        _tc   = float(_cfg.get("t_carga", 0.0))
+                        _tend = max(_tp, _tc) + _pad
+                    elif exp_type == "voltage_sag":
+                        # mostra desde antes do sag até após a recuperação
+                        _ts   = float(_cfg.get("t_start_sag", 0.0))
+                        _dur  = float(_cfg.get("t_duration_sag", 0.1))
+                        _tend = _ts + _dur + _pad
+                    else:
+                        _tend = t_ss + _pad
+                    t_window = (0.0, min(_tend, tmax_data))
+                elif zoom_mode == "Pulso de Carga":
+                    _dur     = max(_t_pulso_off - _t_pulso_on, 0.1)
+                    _pad     = max(0.2 * _dur, 0.1)
+                    t_window = (max(0.0, _t_pulso_on - _pad), min(tmax_data, _t_pulso_off + _pad))
+
+                def _y_range(keys):
+                    if t_window is None:
+                        return {}
+                    t_arr = np.asarray(res["t"], dtype=float)
+                    mask  = (t_arr >= t_window[0]) & (t_arr <= t_window[1])
+                    ranges = {}
+                    for key in keys:
+                        if key not in res:
+                            continue
+                        vals = np.asarray(res[key], dtype=float)[mask]
+                        if tl_arr is not None and key == "Te":
+                            vals = np.concatenate([vals, np.asarray(tl_arr, dtype=float)[mask]])
+                        vals = vals[np.isfinite(vals)]
+                        if len(vals) == 0:
+                            continue
+                        ymin, ymax = float(vals.min()), float(vals.max())
+                        ymid     = (ymin + ymax) / 2.0
+                        min_span = max(abs(ymid) * 0.01, 0.1)
+                        if (ymax - ymin) < min_span:
+                            ymin, ymax = ymid - min_span / 2, ymid + min_span / 2
+                        pad = (ymax - ymin) * 0.12
+                        ranges[key] = (ymin - pad, ymax + pad)
+                    return ranges
+
+                def _apply_zoom(fig, keys):
+                    if t_window is None:
+                        return fig
+                    x0, x1 = t_window
+                    fig.update_xaxes(range=[x0, x1], autorange=False)
+                    yr = _y_range(keys)
+                    if yr:
+                        ylo, yhi = next(iter(yr.values()))
+                        fig.update_layout(yaxis=dict(range=[ylo, yhi], autorange=False))
                     return fig
-                x0, x1 = x_zoom
-                fig.update_xaxes(range=[x0, x1], autorange=False)
-                groups: dict = {}
-                for trace in fig.data:
-                    xs = getattr(trace, "x", None)
-                    ys = getattr(trace, "y", None)
-                    if xs is None or ys is None:
-                        continue
-                    ya   = getattr(trace, "yaxis", None) or "y"
-                    xs_a = np.asarray(xs, dtype=float)
-                    ys_a = np.asarray(ys, dtype=float)
-                    mask = (xs_a >= x0) & (xs_a <= x1) & np.isfinite(ys_a)
-                    if not mask.any():
-                        continue
-                    groups.setdefault(ya, []).append(ys_a[mask])
-                for ya, arrays in groups.items():
-                    all_y      = np.concatenate(arrays)
-                    ymin, ymax = float(all_y.min()), float(all_y.max())
-                    span       = ymax - ymin
-                    pad        = span * 0.15 if span > 0 else (abs(ymax) * 0.10 if ymax != 0 else 0.1)
-                    axis_key   = "yaxis" if ya == "y" else f"yaxis{ya[1:]}"
-                    ax = getattr(fig.layout, axis_key, None)
-                    if ax is not None:
-                        ax.range     = [ymin - pad, ymax + pad]
-                        ax.autorange = False
-                return fig
 
-            # recriar fig_pdf com dark_plot atualizado pelo toggle
-            fig_pdf = _cached_fig_stacked(res, tuple(var_keys), tuple(var_labels_plot), dark_plot, tuple(t_events), d)
+                def _apply_zoom_overlay(fig, keys):
+                    if t_window is None:
+                        return fig
+                    x0, x1 = t_window
+                    fig.update_xaxes(range=[x0, x1], autorange=False)
+                    yr         = _y_range(keys)
+                    right_units = {"n", "wr"}
+                    left_keys  = [k for k in keys if k not in right_units]
+                    right_keys = [k for k in keys if k in right_units]
+                    if left_keys and any(k in yr for k in left_keys):
+                        all_v = np.concatenate([np.array(yr[k]) for k in left_keys if k in yr])
+                        fig.update_layout(yaxis=dict(range=[float(all_v.min()), float(all_v.max())], autorange=False))
+                    if right_keys and any(k in yr for k in right_keys):
+                        all_v = np.concatenate([np.array(yr[k]) for k in right_keys if k in yr])
+                        fig.update_layout(yaxis2=dict(range=[float(all_v.min()), float(all_v.max())], autorange=False))
+                    return fig
 
-            if modo == "Empilhados":
-                for i, fig_single in enumerate(build_fig_sidebyside(
-                        res, _var_keys_plot, _var_labels_plot, dark_plot, t_events, d,
+                # ── notas contextuais por grandeza ───────────────────────────
+                _bb_sev   = float(res.get("_broken_bar_severity", 0.0))
+                _s_val    = float(res.get("s", 0.0))
+                _deseq_on = any((exp_config or {}).get(k, 0) for k in
+                                ("deseq_a", "deseq_b", "deseq_c", "falta_fase_a", "falta_fase_b", "falta_fase_c"))
+                _is_yd    = (exp_type == "yd")
+                _is_gen   = (exp_type == "gerador")
+                _is_sd    = (exp_type == "shutdown")
+                _is_soft  = (exp_type == "soft")
+                _Tl_cfg   = float((exp_config or {}).get("Tl_final", 0.0))
+                _Te_max   = float(np.max(res["Te"])) if "Te" in res else 0.0
+
+                def _nota_apos(key: str) -> None:
+                    """Emite a nota contextual adequada para a grandeza 'key', se houver."""
+                    if key == "Te":
+                        if _bb_sev > 0:
+                            _f_osc = 2.0 * abs(_s_val) * mp.f
+                            st.caption(
+                                f"**Barra quebrada (α={_bb_sev:.2f})** — $T_e$ oscila a {_f_osc:.1f} Hz "
+                                f"($2sf$). O torque de carga $T_L$ permanece essencialmente constante: "
+                                f"a inércia $J$ amorte as oscilações de velocidade, tornando $\\Delta T_L \\ll \\Delta T_e$. "
+                                f"A assinatura espectral aparece na corrente como sidebands em $(1\\pm2s)f_e$ Hz — "
+                                f"veja a aba **Diagnóstico e Falhas**."
+                            )
+                        elif _deseq_on:
+                            st.caption(
+                                "**Desequilíbrio de tensão** — a componente de sequência negativa gera um "
+                                "torque na direção oposta ao giro, reduzindo $T_e$ médio e causando pulsação "
+                                "a $2f$. O aumento de perdas por efeito Joule pode ser significativo mesmo com "
+                                "desequilíbrios pequenos (≥ 2%)."
+                            )
+                        elif _is_yd:
+                            st.caption(
+                                "**Partida Estrela-Triângulo** — no instante da comutação (abertura da "
+                                "estrela e fechamento do triângulo) ocorre um segundo transitório de inrush: "
+                                "a tensão é aplicada subitamente com o rotor já em movimento, gerando um "
+                                "pico de $T_e$ menor que o inicial mas potencialmente prejudicial a acoplamentos."
+                            )
+                        elif _is_gen:
+                            st.caption(
+                                "**Modo Gerador** — $T_e$ negativo indica que a máquina absorve torque mecânico "
+                                "e injeta potência ativa na rede (escorregamento $s < 0$, rotor acima da "
+                                "velocidade síncrona). A convenção de sinal é motor: positivo = motor, negativo = gerador."
+                            )
+                        elif _is_sd:
+                            st.caption(
+                                "**Desligamento** — após o corte da tensão, o fluxo no entreferro decai com "
+                                "constante $\\tau_r = L_r/R_r$ e $T_e$ cai rapidamente a zero. O rotor continua "
+                                "girando por inércia, desacelerando sob $T_L$ e atrito viscoso $B$."
+                            )
+                        elif _is_soft and _Te_max < _Tl_cfg * 1.05 and _Tl_cfg > 0:
+                            st.caption(
+                                "**Soft-starter** — o torque máximo de partida está próximo do torque de carga. "
+                                "Se $T_{e,max} < T_L$ o motor não parte. Considere aumentar a tensão inicial "
+                                "ou reduzir a carga durante a aceleração."
+                            )
+                    elif key in ("ias", "ibs", "ics") and _deseq_on:
+                        st.caption(
+                            "**Desequilíbrio de tensão** — correntes de fase assimétricas indicam circulação "
+                            "de corrente de sequência negativa no estator. A fase com menor tensão tende a "
+                            "apresentar maior corrente (efeito de redistribuição de impedâncias), acelerando "
+                            "o envelhecimento do isolamento."
+                        )
+                    elif key == "n" and _is_gen:
+                        st.caption(
+                            "**Modo Gerador** — velocidade acima da síncrona ($n > n_{sinc}$) corresponde a "
+                            "$s < 0$. A máquina opera como gerador de indução, injetando potência ativa na rede "
+                            "sem excitação independente (requer reativo da rede para magnetização)."
+                        )
+                    elif key == "n" and _is_sd:
+                        _ws  = 2.0 * np.pi * mp.f / (mp.p / 2.0)
+                        _t_cut = float((exp_config or {}).get("t_cutoff", 0.0))
+                        if mp.B > 0 and _Tl_cfg > 0:
+                            import math as _math
+                            _t_stop = (_math.log(1.0 + mp.B * _ws / _Tl_cfg)) * mp.J / mp.B
+                        elif _Tl_cfg > 0:
+                            _t_stop = mp.J * _ws / _Tl_cfg
+                        else:
+                            _t_stop = mp.J / mp.B if mp.B > 0 else 0.0
+                        st.caption(
+                            f"**Desligamento** — após $t_{{des}}$ = {_t_cut:.2f} s a tensão é cortada e o motor "
+                            f"desacelera livremente. Tempo estimado de parada: **{_t_stop:.2f} s** "
+                            f"($J/B \\cdot \\ln(1 + B\\omega_s/T_L)$)."
+                        )
+
+                if modo == "Empilhados":
+                    for i, (fig_single, key) in enumerate(zip(
+                            build_fig_sidebyside(
+                                res, var_keys, var_labels_plot, dark_plot, t_events, decimals,
+                                ref_list=chart_ref_list, primary_color=primary_color,
+                                compact=is_mobile, tl_arr=tl_arr),
+                            var_keys)):
+                        st.plotly_chart(_apply_zoom(fig_single, [key]),
+                                        use_container_width=True, config=_PLOT_CFG_F, key=f"ems-emp-{i}")
+                        _nota_apos(key)
+                elif modo == "Lado a lado":
+                    figs   = build_fig_sidebyside(
+                        res, var_keys, var_labels_plot, dark_plot, t_events, decimals,
                         ref_list=chart_ref_list, primary_color=primary_color,
-                        compact=is_mobile, tl_arr=_tl_arr)):
-                    _render_plotly(_apply_zoom(fig_single), div_id=f"ems-emp-{i}")
-            elif modo == "Lado a lado":
-                figs   = build_fig_sidebyside(
-                    res, _var_keys_plot, _var_labels_plot, dark_plot, t_events, d,
-                    ref_list=chart_ref_list, primary_color=primary_color,
-                    compact=is_mobile, tl_arr=_tl_arr)
-                n_cols = min(len(figs), 3)
-                rows   = [figs[i:i+n_cols] for i in range(0, len(figs), n_cols)]
-                for ri, row in enumerate(rows):
-                    cols = st.columns(len(row), gap="small")
-                    for ci, (col, fig) in enumerate(zip(cols, row)):
-                        with col:
-                            _render_plotly(_apply_zoom(fig), div_id=f"ems-side-{ri}-{ci}")
-            else:
-                fig_overlay = build_fig_overlay(
-                    res, _var_keys_plot, _var_labels_plot, dark_plot, t_events, d,
-                    ref_list=chart_ref_list, primary_color=primary_color,
-                    compact=is_mobile, tl_arr=_tl_arr)
-                _render_plotly(_apply_zoom(fig_overlay), div_id="ems-overlay")
+                        compact=is_mobile, tl_arr=tl_arr)
+                    n_cols = min(len(figs), 3)
+                    rows   = [list(zip(figs, var_keys))[i:i+n_cols] for i in range(0, len(figs), n_cols)]
+                    for ri, row in enumerate(rows):
+                        cols = st.columns(len(row), gap="small")
+                        for ci, (col, (fig, key)) in enumerate(zip(cols, row)):
+                            with col:
+                                st.plotly_chart(_apply_zoom(fig, [key]),
+                                                use_container_width=True, config=_PLOT_CFG_F,
+                                                key=f"ems-side-{ri}-{ci}")
+                                _nota_apos(key)
+                else:
+                    # overlay: uma única figura — exibe notas de todas as grandezas plotadas
+                    fig_overlay = build_fig_overlay(
+                        res, var_keys, var_labels_plot, dark_plot, t_events, decimals,
+                        ref_list=chart_ref_list, primary_color=primary_color,
+                        compact=is_mobile, tl_arr=tl_arr)
+                    st.plotly_chart(_apply_zoom_overlay(fig_overlay, var_keys),
+                                    use_container_width=True, config=_PLOT_CFG_F, key="ems-overlay")
+                    for key in var_keys:
+                        _nota_apos(key)
 
-            # Conjugado vs. Velocidade
-            st.write("")
-            st.markdown('<p class="slabel">Conjugado vs. Velocidade</p>', unsafe_allow_html=True)
-            _P_mec_ss = float(res.get("P_mec", 0.0))
-            _P_nom_kw = max(_P_mec_ss / 1000.0, 0.5)
-            _fig_ts = build_fig_torque_speed(
+                # Conjugado vs. Velocidade
+                st.write("")
+                st.markdown('<p class="slabel">Conjugado vs. Velocidade</p>', unsafe_allow_html=True)
+                _P_mec_ss = float(res.get("P_mec", 0.0))
+                _fig_ts = build_fig_torque_speed(
+                    res=res, P_nom_kw=max(_P_mec_ss / 1000.0, 0.5),
+                    f=mp.f, p=mp.p, dark=dark_plot,
+                )
+                st.plotly_chart(_fig_ts, use_container_width=True)
+
+            _render_dinamica(
                 res=res,
-                P_nom_kw=_P_nom_kw,
-                f=mp.f,
-                p=mp.p,
-                dark=dark_plot,
+                var_keys=_var_keys_plot,
+                var_labels_plot=_var_labels_plot,
+                dark=dark,
+                t_events=t_events,
+                decimals=d,
+                exp_type=exp_type,
+                exp_config=exp_config,
+                mp=mp,
+                is_mobile=is_mobile,
+                chart_ref_list=chart_ref_list,
+                primary_color=primary_color,
+                tl_arr=_tl_arr,
+                res_hash=_res_hash,
             )
-            st.plotly_chart(_fig_ts, use_container_width=True)
 
     # ══════════════════════════════════════════════════════════════════════
     # ABA 3 — DIAGNÓSTICO E FALHAS

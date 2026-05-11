@@ -75,8 +75,6 @@ def build_fig_stacked(res, var_keys, var_labels, dark, t_events, decimals=2,
     fig.update_xaxes(row=n, col=1, title_text="Tempo (s)",
                      showgrid=True, gridcolor=pt["grid"], gridwidth=0.4,
                      tickfont=dict(size=10, color=pt["fg"]))
-    fig.update_xaxes(uirevision="x_shared")
-    fig.update_yaxes(uirevision="y_auto")
     fig.update_layout(
         height=max(300, 280*n),
         paper_bgcolor=pt["paper_bg"], plot_bgcolor=pt["plot_bg"],
@@ -87,7 +85,6 @@ def build_fig_stacked(res, var_keys, var_labels, dark, t_events, decimals=2,
         legend=dict(orientation="h", yanchor="bottom", y=1.01,
                     xanchor="right", x=1, font=dict(size=10),
                     bgcolor="rgba(0,0,0,0)") if has_tl else {},
-        uirevision="layout",
     )
     return fig
 
@@ -96,12 +93,12 @@ def build_fig_sidebyside(res, var_keys, var_labels, dark, t_events, decimals=2,
                          ref_list=None, primary_color=None,
                          compact: bool = False, tl_arr=None) -> list[go.Figure]:
     # ref_list: list of {"res": dict, "color": str, "dash": str, "label": str}
-    # primary_color: if set, overrides palette for the primary trace
     cols = _colors(dark)
     figs = []
     t    = res["t"]
     th   = _plot_theme(dark)
     has_tl = tl_arr is not None and "Te" in var_keys
+
     for i, (key, lbl) in enumerate(zip(var_keys, var_labels)):
         pcol = primary_color if primary_color else cols[i % len(cols)]
         fig  = go.Figure()
@@ -160,7 +157,6 @@ def build_fig_overlay(res, var_keys, var_labels, dark, t_events, decimals=2,
                       ref_list=None, primary_color=None,
                       compact: bool = False, tl_arr=None) -> go.Figure:
     # ref_list: list of {"res": dict, "color": str, "dash": str, "label": str}
-    # primary_color: if set, overrides palette for all primary traces
     pt   = _plot_theme(dark)
     cols = _colors(dark)
     t    = res["t"]

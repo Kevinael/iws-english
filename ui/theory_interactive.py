@@ -6,12 +6,14 @@ Cada função é autocontida: lê parâmetros da máquina de st.session_state
 e renderiza um gráfico Plotly interativo via st.plotly_chart.
 
 Exporta:
-    render_boucherot            — Te×s com slider de R'₂ (Boucherot)
-    render_zonas_operacao       — Te×n com zonas coloridas e diagrama vetorial
-    render_comparativo_partidas — corrente×tempo: DOL, Y-D, Soft-Starter
-    render_park_dinamico        — plano vetorial αβ/dq + séries temporais
-    render_sankey_potencia      — Sankey de fluxo de potência com slider de s
-    render_circuito_alternavel  — Circuito equivalente alternável (completo / IEEE)
+    render_boucherot                  — Te×s com slider de R'₂ (Boucherot)
+    render_zonas_operacao             — Te×n com zonas coloridas e diagrama vetorial
+    render_comparativo_partidas       — corrente×tempo: DOL, Y-D, Soft-Starter
+    render_park_dinamico              — plano vetorial αβ/dq + séries temporais
+    render_sankey_potencia            — Sankey de fluxo de potência com slider de s
+    render_circuito_alternavel        — Circuito equivalente alternável (completo / IEEE)
+    render_transitorios_sincronizados — n, Te e ias sincronizados para 3 cenários
+    render_fasorial_desequilibrio     — formas de onda Va/Vb/Vc com desequilíbrio
 """
 
 from __future__ import annotations
@@ -921,7 +923,328 @@ def render_sankey_potencia() -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 6. CIRCUITO EQUIVALENTE ALTERNÁVEL — Completo (com Rfe) vs. IEEE (sem Rfe)
+# 6. TRANSITÓRIOS SINCRONIZADOS — n, Te e ias para 3 cenários
+# ─────────────────────────────────────────────────────────────────────────────
+
+def render_transitorios_sincronizados() -> None:
+    """Gráficos sincronizados de n(t), Te(t) e ias(t) para três cenários transitórios.
+
+    Usa updatemenus (botões Plotly) para alternar entre cenários sem rerun:
+      1. Partida DOL em vazio seguida de aplicação de carga
+      2. Voltage Sag (afundamento de tensão)
+      3. Desligamento (shutdown após regime permanente)
+
+    Os cenários são modelos analíticos aproximados — pedagogicamente corretos,
+    sem substituir a simulação numérica completa do solver.
+    """
+    mp   = _get_mp()
+    dark = _dark()
+    pt   = _plot_theme(dark)
+
+    V1, R1, X1, R2, X2, Xm, ws_mec, ns = _extract_params(mp)
+    wb  = float(mp.wb)
+    p   = int(mp.p)
+    J   = float(mp.J)
+    B   = float(mp.B) if mp.B > 0 else 0.005
+    f   = float(mp.f)
+
+    # ── Parâmetros do circuito equivalente ───────────────────────────────────
+    # Impedância a s=1 → corrente de partida
+    Z2s1  = R2 + 1j * X2
+    Zeqs1 = (1j * Xm * Z2s1) / (1j * Xm + Z2s1)
+    Ztot1 = R1 + 1j * X1 + Zeqs1
+    I_pk  = abs(V1 / Ztot1)           # corrente de pico a s=1 (A)
+    # Regime permanente (s≈0.04)
+    s_ss  = 0.04
+    Z2ss  = (R2 / s_ss) + 1j * X2
+    Zeqss = (1j * Xm * Z2ss) / (1j * Xm + Z2ss)
+    Ztss  = R1 + 1j * X1 + Zeqss
+    I_ss  = abs(V1 / Ztss)            # corrente nominal (A)
+    # Torque
+    Te_ss = float(_torque_array(np.array([s_ss]), V1, R1, X1, R2, X2, Xm, ws_mec)[0])
+    Tl    = Te_ss * 0.85               # carga aplicada após partida
+    n_ss  = ns * (1.0 - s_ss)
+    # Constante de tempo mecânica para a partida
+    tau_mec = J * ws_mec / max(Te_ss, 1.0)
+
+    col_n   = "#4f8ef7" if dark else "#1d4ed8"
+    col_Te  = "#34d399" if dark else "#059669"
+    col_ias = "#f97316"
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Cenário A — Partida DOL + aplicação de carga
+    # ─────────────────────────────────────────────────────────────────────────
+    t_max_A = max(tau_mec * 3.5, 4.0)
+    t_A = np.linspace(0.0, t_max_A, 1200)
+    t_load = t_max_A * 0.55           # instante de aplicação de carga
+
+    # n(t): curva exponencial de partida, leve afundamento na carga
+    tau_acc = max(tau_mec * 0.8, 0.5)
+    n_pre   = n_ss * (1.0 - np.exp(-t_A / tau_acc))
+    delta_n = n_ss * 0.025            # afundamento de ~2.5%
+    tau_sag = tau_acc * 0.3
+    n_post  = np.where(
+        t_A < t_load, n_pre,
+        n_ss - delta_n * np.exp(-(t_A - t_load) / tau_sag),
+    )
+    n_A = n_post
+
+    # Te(t): pico de partida, decai ao valor de regime, segundo transitório na carga
+    s_arr_A = np.maximum(1.0 - n_A / ns, 1e-4)
+    Te_A_raw = _torque_array(s_arr_A, V1, R1, X1, R2, X2, Xm, ws_mec)
+    Te_A = np.clip(Te_A_raw, 0.0, None)
+
+    # ias(t): envelope exponencial de decaimento do inrush
+    tau_e = (X1 + X2) / (2.0 * np.pi * f * max(R1 + R2, 0.01))
+    env_A = I_ss + (I_pk - I_ss) * np.exp(-t_A / max(tau_e, 1e-3))
+    env_A = np.where(t_A < t_load, env_A, np.maximum(env_A, I_ss * 1.18))
+    ias_A = env_A * np.abs(np.sin(2.0 * np.pi * f * t_A))
+    # marcar evento
+    t_events_A = [t_load]
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Cenário B — Voltage Sag (afundamento de tensão de 30% por 0.2 s)
+    # ─────────────────────────────────────────────────────────────────────────
+    t_sag_start = 1.0
+    t_sag_dur   = 0.20
+    t_sag_end   = t_sag_start + t_sag_dur
+    t_max_B     = t_sag_end + 1.5
+    t_B = np.linspace(0.0, t_max_B, 1200)
+
+    sag_depth = 0.30                  # queda de 30% da tensão nominal
+
+    # n(t): em regime, leve queda durante sag, recuperação após
+    n_sag_drop = n_ss * 0.06 * sag_depth / 0.30
+    tau_sag_n  = 0.08
+    n_B = np.where(
+        t_B < t_sag_start, n_ss,
+        np.where(
+            t_B < t_sag_end,
+            n_ss - n_sag_drop * (1.0 - np.exp(-(t_B - t_sag_start) / tau_sag_n)),
+            n_ss - n_sag_drop * np.exp(-(t_B - t_sag_end) / tau_sag_n),
+        ),
+    )
+
+    # Te(t): cai proporcionalmente a V² durante sag, recupera depois
+    Te_sag = Te_ss * (1.0 - sag_depth) ** 2
+    tau_Te_rec = 0.06
+    Te_B = np.where(
+        t_B < t_sag_start, Te_ss,
+        np.where(
+            t_B < t_sag_end,
+            Te_sag + (Te_ss - Te_sag) * np.exp(-(t_B - t_sag_start) / 0.04),
+            Te_ss - (Te_ss - Te_sag) * np.exp(-(t_B - t_sag_end) / tau_Te_rec),
+        ),
+    )
+
+    # ias(t): corrente de re-partida após o sag (pico menor que partida fria)
+    I_restart = I_ss * (1.0 + 2.5 * sag_depth)
+    ias_B_env = np.where(
+        t_B < t_sag_start, I_ss,
+        np.where(
+            t_B < t_sag_end,
+            I_ss * (1.0 - sag_depth * 0.6),
+            I_ss + (I_restart - I_ss) * np.exp(-(t_B - t_sag_end) / max(tau_e, 0.05)),
+        ),
+    )
+    ias_B = ias_B_env * np.abs(np.sin(2.0 * np.pi * f * t_B))
+    t_events_B = [t_sag_start, t_sag_end]
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Cenário C — Desligamento (corte de tensão em regime)
+    # ─────────────────────────────────────────────────────────────────────────
+    t_cutoff = 0.5
+    t_max_C  = t_cutoff + max(J * ws_mec / max(Tl * 0.5, 1.0), 2.0)
+    t_C = np.linspace(0.0, t_max_C, 1200)
+
+    # tau de decaimento de n após corte: inércia / carga
+    tau_n_off = J / max(B + Tl / max(float(ws_mec), 1.0), 0.01)
+    n_C = np.where(
+        t_C < t_cutoff, n_ss,
+        np.maximum(n_ss * np.exp(-(t_C - t_cutoff) / max(tau_n_off, 0.1)), 0.0),
+    )
+
+    # Te(t): cai rapidamente a zero (constante de tempo elétrica)
+    tau_Te_off = float(Xm / (wb * max(R2, 0.01))) * 0.15
+    Te_C = np.where(
+        t_C < t_cutoff, Te_ss,
+        Te_ss * np.exp(-(t_C - t_cutoff) / max(tau_Te_off, 0.02)),
+    )
+    Te_C = np.maximum(Te_C, 0.0)
+
+    # ias(t): decai exponencialmente com a constante de fluxo de magnetização
+    ias_C_env = np.where(
+        t_C < t_cutoff, I_ss,
+        I_ss * np.exp(-(t_C - t_cutoff) / max(tau_Te_off * 2, 0.05)),
+    )
+    ias_C = ias_C_env * np.abs(np.sin(2.0 * np.pi * f * t_C))
+    t_events_C = [t_cutoff]
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Figura com subplots — 3 linhas (n, Te, ias)
+    # ─────────────────────────────────────────────────────────────────────────
+    from plotly.subplots import make_subplots
+
+    def _make_subplots_for(t, n, Te, ias, t_events):
+        traces = []
+        for row, (y_arr, col, name) in enumerate([
+            (n,   col_n,   "n (RPM)"),
+            (Te,  col_Te,  "Te (N·m)"),
+            (ias, col_ias, "ias (A)"),
+        ], 1):
+            traces.append(dict(
+                type="scatter", x=t.tolist(), y=y_arr.tolist(),
+                mode="lines", name=name,
+                line=dict(color=col, width=2.2),
+                xaxis=f"x{row}", yaxis=f"y{row}",
+                showlegend=(row == 1),
+            ))
+        return traces, t_events
+
+    traces_A, tevs_A = _make_subplots_for(t_A, n_A, Te_A, ias_A, t_events_A)
+    traces_B, tevs_B = _make_subplots_for(t_B, n_B, Te_B, ias_B, t_events_B)
+    traces_C, tevs_C = _make_subplots_for(t_C, n_C, Te_C, ias_C, t_events_C)
+
+    # Linha de evento: adicionar como trace shape-like scatter vertical
+    def _event_traces(t_events, row_count=3, x_axis_sfx=None):
+        ev_traces = []
+        for te in t_events:
+            for row in range(1, row_count + 1):
+                sfx = str(row) if row > 1 else ""
+                ev_traces.append(dict(
+                    type="scatter",
+                    x=[te, te], y=[0, 1],
+                    yref=f"y{sfx} domain",
+                    mode="lines",
+                    line=dict(color=pt["event_line"], width=1.2, dash="dot"),
+                    xaxis=f"x{sfx}",
+                    yaxis=f"y{sfx}",
+                    showlegend=False,
+                    hoverinfo="skip",
+                ))
+        return ev_traces
+
+    # Escala Y para eventos (domain 0..1 não funciona em scatter direto)
+    # Usamos shape via layout.shapes — adicionado via update_layout
+    def _event_shapes(t_events, yref_count=3):
+        shapes = []
+        for te in t_events:
+            for row in range(1, yref_count + 1):
+                sfx = str(row) if row > 1 else ""
+                shapes.append(dict(
+                    type="line",
+                    xref=f"x{sfx}", yref=f"y{sfx} domain",
+                    x0=te, x1=te, y0=0, y1=1,
+                    line=dict(color=pt["event_line"], width=1.2, dash="dot"),
+                ))
+        return shapes
+
+    # Construção da figura base com cenário A
+    SCENARIOS = [
+        ("Partida DOL + Carga", traces_A, _event_shapes(tevs_A),
+         f"n₀ → {n_ss:.0f} RPM → afundamento com carga",
+         t_A[-1], max(n_A) * 1.15, max(Te_A) * 1.15, max(ias_A) * 1.15),
+        ("Afundamento de Tensão (Sag)", traces_B, _event_shapes(tevs_B),
+         f"Sag de {int(sag_depth*100)}% de {t_sag_dur*1000:.0f} ms — re-partida transitória",
+         t_B[-1], max(n_B) * 1.05, max(Te_B) * 1.25, max(ias_B) * 1.25),
+        ("Desligamento (Shutdown)", traces_C, _event_shapes(tevs_C),
+         f"Corte em t={t_cutoff:.2f} s — decaimento por inércia (J={J:.3f} kg·m²)",
+         t_C[-1], n_ss * 1.10, Te_ss * 1.25, I_ss * 1.25),
+    ]
+
+    init_traces = SCENARIOS[0][1]
+    fig = go.Figure(data=[go.Scatter(**{k: v for k, v in tr.items()
+                                        if k not in ("xaxis", "yaxis")})
+                           for tr in init_traces])
+
+    # Remontar como figura com subplots corretos
+    fig = make_subplots(rows=3, cols=1, shared_xaxes=True,
+                        vertical_spacing=0.06,
+                        row_heights=[0.34, 0.33, 0.33])
+
+    # Inicializa com cenário A
+    for tr in SCENARIOS[0][1]:
+        row = int(tr["xaxis"][-1]) if tr["xaxis"][-1].isdigit() else 1
+        fig.add_trace(go.Scatter(
+            x=tr["x"], y=tr["y"],
+            mode=tr["mode"], name=tr["name"],
+            line=tr["line"],
+            showlegend=tr["showlegend"],
+            hovertemplate=f"t = %{{x:.4f}} s<br>{tr['name']} = %{{y:.2f}}<extra></extra>",
+        ), row=row, col=1)
+
+    y_titles = ["Velocidade (RPM)", "Torque $T_e$ (N·m)", "Corrente $i_{as}$ (A)"]
+    for i, ytitle in enumerate(y_titles, 1):
+        fig.update_yaxes(
+            title_text=ytitle, row=i, col=1,
+            showgrid=True, gridcolor=pt["grid"],
+            tickfont=dict(size=10, color=pt["fg"]),
+            title_font=dict(size=11, color=pt["fg"]),
+        )
+    fig.update_xaxes(
+        title_text="Tempo (s)", row=3, col=1,
+        showgrid=True, gridcolor=pt["grid"],
+        tickfont=dict(size=10, color=pt["fg"]),
+    )
+
+    # ── updatemenus: botões de cenário (zero latência via restyle) ───────────
+    # Construir vetores de dados para cada cenário para restyle
+    def _restyle_args(traces, t_end, y_n_max, y_Te_max, y_ias_max):
+        x_data = [tr["x"] for tr in traces]
+        y_data = [tr["y"] for tr in traces]
+        return (
+            {"x": x_data, "y": y_data},
+            [0, 1, 2],
+        )
+
+    buttons = []
+    for label, traces, shapes, desc, t_end, yn, yte, yia in SCENARIOS:
+        x_data = [tr["x"] for tr in traces]
+        y_data = [tr["y"] for tr in traces]
+        buttons.append(dict(
+            method="restyle",
+            label=label,
+            args=[{"x": x_data, "y": y_data}],
+        ))
+
+    fig.update_layout(
+        height=520,
+        title=dict(
+            text="Transitórios Sincronizados — n(t) · Te(t) · ias(t)",
+            x=0.5, xanchor="center",
+            font=dict(size=13, color=pt["fg"]),
+        ),
+        paper_bgcolor=pt["paper_bg"],
+        plot_bgcolor=pt["plot_bg"],
+        font=dict(family="Inter, system-ui", size=11, color=pt["fg"]),
+        margin=dict(l=70, r=20, t=100, b=45),
+        hovermode="x unified",
+        showlegend=False,
+        shapes=SCENARIOS[0][2],
+        updatemenus=[dict(
+            type="buttons",
+            direction="right",
+            x=0.5, xanchor="center",
+            y=1.13, yanchor="top",
+            showactive=True,
+            bgcolor=pt["paper_bg"],
+            bordercolor=pt["grid"],
+            font=dict(color=pt["fg"], size=11),
+            buttons=buttons,
+            active=0,
+        )],
+    )
+
+    st.plotly_chart(fig, use_container_width=True, config={"displaylogo": False})
+    st.caption(
+        "Modelo analítico aproximado — didaticamente representativo. "
+        "Para curvas numéricas precisas, use o **Simulador** com os parâmetros da sua máquina. "
+        "Linhas pontilhadas âmbar indicam instantes de evento (aplicação de carga, início/fim de sag, corte de tensão)."
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 7. CIRCUITO EQUIVALENTE ALTERNÁVEL — Completo (com Rfe) vs. IEEE (sem Rfe)
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _palette_theory(dark: bool) -> dict[str, str]:

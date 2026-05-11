@@ -213,6 +213,50 @@ def _ibox(html: str) -> None:
     st.markdown(f'<div class="ibox">{html}</div>', unsafe_allow_html=True)
 
 
+def _Te_rotor_bloqueado(mp: MachineParams, voltage_ratio: float) -> float:
+    """Torque eletromagnético em rotor bloqueado (s=1) para tensão reduzida.
+
+    Usa o circuito equivalente em T sem Rfe (conservador — Rfe eleva Te ligeiramente).
+    Te(s=1) = (3·p/2) / wb · Vf² · Rr / [(Rs+Rr)² + (Xls+Xlr)²]
+    O fator k² de tensão reduzida é aplicado via Vf_red = k · Vf.
+    """
+    Vf   = mp.Vl / np.sqrt(3.0)
+    Vf_r = Vf * voltage_ratio
+    Zr2  = (mp.Rs + mp.Rr) ** 2 + (mp.Xls_a + mp.Xlr_a) ** 2
+    if Zr2 == 0.0:
+        return 0.0
+    return (3.0 * (mp.p / 2) / mp.wb) * (Vf_r ** 2) * mp.Rr / Zr2
+
+
+def _aviso_partida_reduzida(mp: MachineParams, voltage_ratio: float, Tl: float) -> None:
+    """Exibe aviso de viabilidade de partida com tensão reduzida."""
+    Te_bloq = _Te_rotor_bloqueado(mp, voltage_ratio)
+    Te_nom  = _Te_rotor_bloqueado(mp, 1.0)
+    if Tl <= 0.0:
+        st.caption(
+            f"Torque de partida estimado (rotor bloqueado): **{Te_bloq:.1f} N·m** "
+            f"({voltage_ratio*100:.0f}% de tensão → {voltage_ratio**2*100:.0f}% de T_e,bloq nominal {Te_nom:.1f} N·m)."
+        )
+        return
+    margem = (Te_bloq / Tl - 1.0) * 100.0
+    if Te_bloq < Tl:
+        st.error(
+            f"Torque de partida estimado **{Te_bloq:.1f} N·m** < carga **{Tl:.1f} N·m** — "
+            f"o motor **pode não partir** com esta tensão reduzida. "
+            f"Aumente o tap/tensão inicial ou reduza a carga."
+        )
+    elif margem < 20.0:
+        st.warning(
+            f"Torque de partida estimado **{Te_bloq:.1f} N·m** — margem estreita de **+{margem:.0f}%** "
+            f"sobre a carga de {Tl:.1f} N·m. A partida pode falhar com variações de rede ou atrito estático."
+        )
+    else:
+        st.success(
+            f"Partida viável — torque de partida estimado **{Te_bloq:.1f} N·m** "
+            f"(margem de **+{margem:.0f}%** sobre a carga de {Tl:.1f} N·m)."
+        )
+
+
 def _validate_params(mp: MachineParams) -> None:
     """Emite avisos na UI quando parâmetros estão fora de faixas fisicamente plausíveis."""
     warns: list[str] = []
@@ -260,7 +304,7 @@ def render_machine_selector(dark: bool) -> None:
     # apenas máquinas disponíveis são exibidas
     available = [m for m in MACHINES if not m["disabled"]]
 
-    st.markdown('<p class="slabel">Simulador de Máquinas Elétricas</p>', unsafe_allow_html=True)
+    st.markdown('<p class="slabel">ElectraSim</p>', unsafe_allow_html=True)
     st.markdown("### Selecione o equipamento")
     st.write("")
 
@@ -656,34 +700,67 @@ def render_experiment_config(
             config["Tl_final"]   = Tl_nom * pct_fin / 100.0
             config["t_carga"]    = st.number_input("Instante de aplicação da carga — $t_{carga}$ (s)", value=1.0, min_value=0.0, key=wk["t_carga"])
             _ibox(
-                f"Motor parte em vazio e em <i>t</i><sub>carga</sub> recebe "
-                f"<strong>{config['Tl_final']:.2f} N·m</strong> ({pct_fin:.1f}% de T<sub>nom</sub>)."
+                f"<strong>t = 0 s</strong> — tensão nominal ({mp.Vl:.0f} V) aplicada; motor acelera em vazio (T<sub>l</sub> = 0).<br>"
+                f"<strong>t = {config['t_carga']:.2f} s</strong> — carga de "
+                f"<strong>{config['Tl_final']:.2f} N·m</strong> ({pct_fin:.1f}% de T<sub>nom</sub>) aplicada ao eixo; "
+                f"motor acomoda-se ao novo ponto de operação em regime permanente."
             )
         else:
             config["Tl_inicial"] = None
             config["Tl_final"]   = st.number_input("Torque de carga — $T_l$ (N·m)", value=_Tl_ref, min_value=0.0, key=wk["Tl_final"])
             config["t_carga"]    = 0.0
+            _ibox(
+                f"<strong>t = 0 s</strong> — tensão nominal ({mp.Vl:.0f} V) e carga de "
+                f"<strong>{config['Tl_final']:.2f} N·m</strong> aplicadas simultaneamente; "
+                f"motor parte contra carga plena e acelera até o regime permanente."
+            )
 
 
     elif exp_type == "yd":
         config["Tl_final"] = st.number_input("Torque de carga — $T_l$ (N·m)", value=_Tl_ref, min_value=0.0, key=wk["Tl_final"])
         config["t_2"]      = st.number_input("Instante de comutação Y → D — $t_2$ (s)", value=0.5, min_value=0.0001, key="wi_yd_t2")
         config["t_carga"]  = st.number_input("Instante de aplicação da carga — $t_{carga}$ (s)", value=1.0, min_value=0.0, key=wk["t_carga"])
-        _ibox("A tensão em estrela é reduzida a V<sub>l</sub>&thinsp;/&thinsp;√3. A comutação para triângulo ocorre no instante t<sub>2</sub>.")
+        _ibox(
+            f"<strong>t = 0 s</strong> — motor parte em estrela (Y) com tensão reduzida a "
+            f"{mp.Vl/np.sqrt(3):.1f} V ({100/np.sqrt(3):.0f}% de V<sub>l</sub>); corrente e torque de partida reduzidos a ≈ 1/3.<br>"
+            f"<strong>t = {config['t_2']:.2f} s</strong> — comutação Y → Δ: tensão sobe para {mp.Vl:.0f} V; "
+            f"transitório de corrente de re-partida.<br>"
+            f"<strong>t = {config['t_carga']:.2f} s</strong> — carga de <strong>{config['Tl_final']:.2f} N·m</strong> aplicada ao eixo."
+        )
+        _aviso_partida_reduzida(mp, 1.0 / np.sqrt(3.0), config["Tl_final"])
 
     elif exp_type == "comp":
         config["Tl_final"]      = st.number_input("Torque de carga — $T_l$ (N·m)", value=_Tl_ref, min_value=0.0, key=wk["Tl_final"])
         config["voltage_ratio"] = st.slider("Tap do autotransformador — $k$ (%)", 10, 95, 50, key="wi_comp_tap") / 100.0
         config["t_2"]           = st.number_input("Instante de comutação — $t_2$ (s)", value=0.5, min_value=0.0001, key="wi_comp_t2")
         config["t_carga"]       = st.number_input("Instante de aplicação da carga — $t_{carga}$ (s)", value=1.0, min_value=0.0, key=wk["t_carga"])
-        _ibox(f"Tensão inicial = {config['voltage_ratio']*100:.0f}% de V<sub>l</sub> nominal.")
+        _ibox(
+            f"<strong>t = 0 s</strong> — motor parte com tensão reduzida a "
+            f"{config['voltage_ratio']*100:.0f}% de V<sub>l</sub> "
+            f"({mp.Vl * config['voltage_ratio']:.1f} V); torque de partida reduzido a "
+            f"{config['voltage_ratio']**2 * 100:.0f}% do valor em tensão plena.<br>"
+            f"<strong>t = {config['t_2']:.2f} s</strong> — comutação: autotransformador desconectado, "
+            f"tensão nominal {mp.Vl:.0f} V aplicada diretamente; transitório de corrente de re-partida.<br>"
+            f"<strong>t = {config['t_carga']:.2f} s</strong> — carga de <strong>{config['Tl_final']:.2f} N·m</strong> aplicada ao eixo."
+        )
+        _aviso_partida_reduzida(mp, config["voltage_ratio"], config["Tl_final"])
 
     elif exp_type == "soft":
         config["voltage_ratio"] = st.slider("Tensão inicial do Soft-Starter — $V_0$ (%)", 10, 90, 50, key="wi_soft_v0") / 100.0
-        config["t_2"]           = st.number_input("Início da rampa de tensão — $t_2$ (s)", value=0.9, min_value=0.0, key="wi_soft_t2")
+        config["t_2"]           = st.number_input("Início da rampa de tensão — $t_2$ (s)", value=0.0, min_value=0.0, key="wi_soft_t2")
         config["t_pico"]        = st.number_input("Tempo para atingir tensão nominal — $t_{pico}$ (s)", value=5.0, min_value=0.0001, key="wi_soft_t_pico")
         config["Tl_final"]      = st.number_input("Torque de carga — $T_l$ (N·m)", value=_Tl_ref, min_value=0.0, key=wk["Tl_final"])
         config["t_carga"]       = st.number_input("Instante de aplicação da carga — $t_{carga}$ (s)", value=1.0, min_value=0.0, key=wk["t_carga"])
+        _ibox(
+            f"<strong>t = 0 s</strong> — motor parte com tensão inicial de "
+            f"{config['voltage_ratio']*100:.0f}% de V<sub>l</sub> "
+            f"({mp.Vl * config['voltage_ratio']:.1f} V); corrente e torque de partida limitados.<br>"
+            f"<strong>t = {config['t_2']:.2f} s</strong> — rampa de tensão iniciada: tensão sobe linearmente até {mp.Vl:.0f} V.<br>"
+            f"<strong>t = {config['t_pico']:.2f} s</strong> — tensão nominal atingida; Soft-Starter desconectado, "
+            f"motor em operação direta (rampa de {config['t_pico'] - config['t_2']:.2f} s).<br>"
+            f"<strong>t = {config['t_carga']:.2f} s</strong> — carga de <strong>{config['Tl_final']:.2f} N·m</strong> aplicada ao eixo."
+        )
+        _aviso_partida_reduzida(mp, config["voltage_ratio"], config["Tl_final"])
 
     elif exp_type == "pulso_carga":
         Tl_base = st.number_input("Torque de base — $T_{base}$ (N·m)", value=_Tl_ref * 0.5, min_value=0.0, key=wk["Tl_pulso"])
@@ -708,24 +785,28 @@ def render_experiment_config(
             duracao = t_off - t_on
             if Tl_base == 0.0:
                 _ibox(
-                    f"Motor parte em vazio. "
-                    f"Pulso de <strong>{Tl_pulso:.2f} N·m</strong> de {t_on:.2f} s a {t_off:.2f} s "
-                    f"(duração: {duracao:.2f} s). Após o pulso retorna ao vazio."
+                    f"<strong>t = 0 s</strong> — motor parte em vazio (T<sub>l</sub> = 0) com tensão nominal {mp.Vl:.0f} V.<br>"
+                    f"<strong>t = {t_on:.2f} s</strong> — pulso de carga de <strong>{Tl_pulso:.2f} N·m</strong> aplicado; motor desacelera.<br>"
+                    f"<strong>t = {t_off:.2f} s</strong> — pulso retirado (duração: {duracao:.2f} s); motor retorna ao vazio e recupera velocidade síncrona."
                 )
             else:
                 delta = Tl_pulso - Tl_base
                 sinal = "aumento" if delta >= 0 else "redução"
                 _ibox(
-                    f"Base: <strong>{Tl_base:.2f} N·m</strong> contínua. "
-                    f"Pulso de {t_on:.2f} s a {t_off:.2f} s ({duracao:.2f} s): "
-                    f"{sinal} para <strong>{Tl_pulso:.2f} N·m</strong> "
-                    f"({pct:+.1f}% de $T_{{base}}$)."
+                    f"<strong>t = 0 s</strong> — motor parte com carga de base <strong>{Tl_base:.2f} N·m</strong> e tensão nominal {mp.Vl:.0f} V.<br>"
+                    f"<strong>t = {t_on:.2f} s</strong> — {sinal} para <strong>{Tl_pulso:.2f} N·m</strong> "
+                    f"({pct:+.1f}% de T<sub>base</sub>); transitório de velocidade e torque.<br>"
+                    f"<strong>t = {t_off:.2f} s</strong> — retorno à base de {Tl_base:.2f} N·m (duração do pulso: {duracao:.2f} s)."
                 )
 
     elif exp_type == "gerador":
         config["Tl_mec"] = st.number_input("Torque mecânico da turbina — $T_{mec}$ (N·m)", value=_Tl_ref, min_value=1.0, key=wk["Tl_mec"])
         config["t_2"]    = st.number_input("Instante de aplicação do torque — $t_2$ (s)", value=1.0, min_value=0.0, key=wk["t_2_gerador"])
-        _ibox("O torque negativo impulsiona o rotor acima da velocidade síncrona, colocando a máquina em modo gerador.")
+        _ibox(
+            f"<strong>t = 0 s</strong> — máquina conectada à rede ({mp.Vl:.0f} V) e acelerada pela inércia até próximo à velocidade síncrona.<br>"
+            f"<strong>t = {config['t_2']:.2f} s</strong> — torque mecânico de <strong>{config['Tl_mec']:.2f} N·m</strong> aplicado pela turbina; "
+            f"rotor ultrapassa a velocidade síncrona (s &lt; 0) e a máquina passa a injetar potência ativa na rede."
+        )
 
     elif exp_type == "shutdown":
         config["Tl_final"]  = st.number_input("Torque de carga — $T_l$ (N·m)", value=_Tl_ref, min_value=0.0, key=wk["Tl_final"])
@@ -748,15 +829,12 @@ def render_experiment_config(
         _t_end_sd = config["t_cutoff"] + _t_stop_mec * 1.2
         config["_t_end_shutdown"] = float(_t_end_sd)
         _ibox(
-            "A tensão cai a zero em <i>t<sub>des</sub></i>, simulando abertura do contator ou falta de rede. "
-            "A carga mecânica permanece ativa e freia o rotor até a parada completa (ω<sub>r</sub> travado em 0).<br><br>"
-            f"<strong>Tempo de parada analítico (pós-corte): {_t_stop_mec:.2f} s</strong>"
-            f" &nbsp;— calculado por "
-            f"t<sub>stop</sub> = (J/B)·ln(1 + B·ω₀/T<sub>L</sub>)<br>"
-            f"<strong>t<sub>end</sub> automático: {_t_end_sd:.2f} s</strong>"
-            f" &nbsp;(t<sub>des</sub> + t<sub>stop</sub> × 1,2 — 20% de margem)<br>"
-            "O torque eletromagnético decai em milissegundos (transitório elétrico); "
-            "a velocidade segue a equação mecânica acima."
+            f"<strong>t = 0 s</strong> — motor parte com tensão nominal {mp.Vl:.0f} V e acelera em vazio.<br>"
+            f"<strong>t = {config['t_carga']:.2f} s</strong> — carga de <strong>{config['Tl_final']:.2f} N·m</strong> aplicada; motor acomoda-se em regime permanente.<br>"
+            f"<strong>t = {config['t_cutoff']:.2f} s</strong> — tensão cortada (abertura do contator); torque eletromagnético decai em milissegundos.<br>"
+            f"<strong>Pós-corte</strong> — carga mecânica freia o rotor até parada completa "
+            f"(t<sub>stop</sub> ≈ {_t_stop_mec:.2f} s, calculado por J/B·ln(1 + B·ω₀/T<sub>L</sub>)).<br>"
+            f"<strong>t<sub>end</sub> automático: {_t_end_sd:.2f} s</strong> (t<sub>des</sub> + t<sub>stop</sub> × 1,2)."
         )
 
     elif exp_type == "voltage_sag":
@@ -784,11 +862,13 @@ def render_experiment_config(
         config["t_duration_sag"] = t_duration_sag
         _Vsag_line = mp.Vl * sag_mag
         _ibox(
-            f"Tensão cai de <strong>{mp.Vl:.1f} V</strong> para "
-            f"<strong>{_Vsag_line:.1f} V ({sag_mag*100:.0f}%)</strong> "
-            f"em <i>t</i> = {t_start_sag:.3f} s durante {t_duration_sag*1000:.0f} ms "
-            f"(retorno em {t_end_sag:.3f} s). "
-            "O transitório de re-partida pós-sag é o principal evento de interesse."
+            f"<strong>t = 0 s</strong> — motor parte com tensão nominal {mp.Vl:.1f} V e carga de "
+            f"<strong>{config['Tl_final']:.2f} N·m</strong>; atinge regime permanente antes do sag.<br>"
+            f"<strong>t = {t_start_sag:.3f} s</strong> — afundamento de tensão: "
+            f"{mp.Vl:.1f} V → <strong>{_Vsag_line:.1f} V ({sag_mag*100:.0f}%)</strong>; "
+            f"torque eletromagnético reduz, rotor desacelera.<br>"
+            f"<strong>t = {t_end_sag:.3f} s</strong> — tensão restaurada ({t_duration_sag*1000:.0f} ms de duração); "
+            f"transitório de re-aceleração com pico de corrente — principal evento de interesse."
         )
         if t_duration_sag < 0.02:
             st.warning("Duração < 20 ms — sag sub-transitório; reduza o passo $h$ para capturar o transitório.")
