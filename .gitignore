@@ -1,0 +1,13 @@
+.claude/
+ignore/
+docs/
+*.bat
+*.txt
+!requirements.txt
+.gitignore
+
+# testes e artefatos de cobertura
+tests/
+.coverage
+.pytest_cache/
+htmlcov/
