@@ -104,11 +104,6 @@ def run_simulation(
     wr_mec = np.maximum(wr_e / (mp.p / 2.0), 0.0)
     n_rpm  = np.maximum(wr_e * 60.0 / (np.pi * mp.p), 0.0)
 
-    # Rr efetivo ao longo do tempo (barra quebrada): reconstroi a partir de theta_slip
-    if rr_fn is not None:
-        rr_arr = np.array([rr_fn(float(t_values[i]), float(_theta_slip_arr[i]))
-                           for i in range(len(t_values))])
-
     # TEMP DESATIVADO: modelo térmico em revisão — retorna T_amb constante
     Temp_arr = np.full(len(t_values), mp.T_amb)
 

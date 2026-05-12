@@ -101,7 +101,10 @@ def render_clean_view() -> None:
         st.info("Execute uma simulação primeiro para visualizar os parâmetros.")
         return
 
-    mp       = sr["mp"]
+    mp       = sr.get("mp")
+    if mp is None:
+        st.warning("Resultado de simulação incompleto — parâmetros de máquina ausentes.")
+        return
     exp_cfg  = sr.get("exp_config", {})
     tmax     = sr.get("tmax", 0.0)
     h        = sr.get("h", 0.0)

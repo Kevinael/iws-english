@@ -120,10 +120,7 @@ def calc_fluxo_potencia(s: float, mp) -> dict:
     P_mec = (1.0 - s) * P_ag
     P_out = P_mec                              # sem perdas rotacionais modeladas
 
-    if P_in != 0:
-        eta = (P_out / P_in * 100.0) if P_in > 0 else (P_out / P_in * 100.0)
-    else:
-        eta = 0.0
+    eta = (P_out / P_in * 100.0) if P_in != 0 else 0.0
 
     if s < 0:
         region = "Gerador"

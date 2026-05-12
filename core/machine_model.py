@@ -103,6 +103,8 @@ class MachineParams:
         self.Xlr_a = self.wb * self.Llr
         _Xm_a      = self.wb * self.Lm
         # Xml provisorio — necessario para Im_sat; sera recalculado apos Lgrid
+        if _Xm_a <= 0.0 or self.Xls_a <= 0.0 or self.Xlr_a <= 0.0:
+            raise ValueError(f"Parâmetros magnéticos inválidos: Xm_a={_Xm_a:.4f}, Xls_a={self.Xls_a:.4f}, Xlr_a={self.Xlr_a:.4f}")
         self.Xml   = 1.0 / (1.0 / _Xm_a + 1.0 / self.Xls_a + 1.0 / self.Xlr_a)
 
         # Im_sat automatico: 2 x corrente de magnetizacao em vazio
@@ -129,6 +131,8 @@ class MachineParams:
         # Xml recalculado para consistencia com o novo Xls_a_eff
         self.Xls_a_eff = self.Xls_a + self.Lgrid * self.wb
         _Xm_a_eff      = self.wb * self.Lm
+        if _Xm_a_eff <= 0.0 or self.Xls_a_eff <= 0.0 or self.Xlr_a <= 0.0:
+            raise ValueError(f"Parâmetros magnéticos inválidos (pós-Lgrid): Xm_a={_Xm_a_eff:.4f}, Xls_a_eff={self.Xls_a_eff:.4f}, Xlr_a={self.Xlr_a:.4f}")
         self.Xml       = 1.0 / (1.0 / _Xm_a_eff + 1.0 / self.Xls_a_eff + 1.0 / self.Xlr_a)
 
     @property

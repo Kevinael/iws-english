@@ -36,7 +36,7 @@ def build_fig_fft(res: dict, dark: bool, key: str = "ias", label: str = "ias") -
     f1_mask = freq > 1.0
     f1_idx  = int(np.argmax(yf[f1_mask])) + int(np.searchsorted(freq, 1.0))
     f1      = float(freq[f1_idx]) if f1_idx < len(freq) else 60.0
-    A1      = float(yf[f1_idx])
+    A1      = float(yf[f1_idx]) if f1_idx < len(yf) else 0.0
 
     # janela: até a 11ª harmônica ou 1200 Hz
     x_max = min(f1 * 11, 1200.0)
