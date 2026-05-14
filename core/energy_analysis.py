@@ -61,6 +61,7 @@ def compute_energy_metrics(res: dict, tarifa_brl_kwh: float) -> dict:
     try:
         ias_ss = np.asarray(res["ias"][ss_start:], dtype=float)
         t_ss   = t[ss_start:]
+        # janela curta (< 16 amostras): thd e fp permanecem neutros (0.0)
         if len(ias_ss) >= 16:
             dt_ss = float(t_ss[1] - t_ss[0]) if len(t_ss) > 1 else 1e-4
             N     = len(ias_ss)
@@ -77,16 +78,16 @@ def compute_energy_metrics(res: dict, tarifa_brl_kwh: float) -> dict:
                 if A1 > 0 and len(A_harm) > 0:
                     thd_pct = float(np.sqrt(np.sum(A_harm ** 2)) / A1 * 100.0)
 
-        Vqs_ss  = Vqs[ss_start:]
-        Vds_ss  = Vds[ss_start:]
-        # |Vdq| = sqrt(Vqs²+Vds²) e a amplitude de pico da tensao de fase no ref sincrono
-        Va_pk   = float(np.sqrt(np.mean(Vqs_ss ** 2 + Vds_ss ** 2)))
-        Va_rms  = Va_pk / np.sqrt(2.0)
-        ias_rms = float(res.get("ias_rms", 0.0))
-        S_ap    = 3.0 * Va_rms * ias_rms
-        # np.clip garante FP fisicamente valido mesmo com pequenos erros numericos
-        if S_ap > 0 and np.isfinite(P_in_ss):
-            fp = float(np.clip(abs(P_in_ss) / S_ap, 0.0, 1.0))
+            Vqs_ss  = Vqs[ss_start:]
+            Vds_ss  = Vds[ss_start:]
+            # |Vdq| = sqrt(Vqs²+Vds²) e a amplitude de pico da tensao de fase no ref sincrono
+            Va_pk   = float(np.sqrt(np.mean(Vqs_ss ** 2 + Vds_ss ** 2)))
+            Va_rms  = Va_pk / np.sqrt(2.0)
+            ias_rms = float(res.get("ias_rms", 0.0))
+            S_ap    = 3.0 * Va_rms * ias_rms
+            # np.clip garante FP fisicamente valido mesmo com pequenos erros numericos
+            if S_ap > 0 and np.isfinite(P_in_ss):
+                fp = float(np.clip(abs(P_in_ss) / S_ap, 0.0, 1.0))
     except Exception:
         # analise espectral pode falhar por janela curta, NaN ou A1=0
         # retorna thd=0 e fp=0 — valores neutros sem alarmar a UI

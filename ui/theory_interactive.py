@@ -21,7 +21,6 @@ from __future__ import annotations
 import numpy as np
 import plotly.graph_objects as go
 import streamlit as st
-import streamlit.components.v1 as st_components
 
 import io
 import matplotlib
@@ -203,7 +202,7 @@ def render_boucherot() -> None:
         frames.append(go.Frame(
             name=str(i),
             data=[
-                go.Scatter(x=s_f.tolist(), y=Te.tolist(), name=f"R'₂ = {r2:.3f} Ω"),
+                go.Scatter(x=s_f, y=Te, name=f"R'₂ = {r2:.3f} Ω"),
                 go.Scatter(x=[sp], y=[Tp],
                            text=[f"T_max = {Tp:.1f} N·m"],
                            textposition="top center"),
@@ -1094,7 +1093,7 @@ def render_transitorios_sincronizados() -> None:
             (ias, col_ias, "ias (A)"),
         ], 1):
             traces.append(dict(
-                type="scatter", x=t.tolist(), y=y_arr.tolist(),
+                type="scatter", x=t, y=y_arr,
                 mode="lines", name=name,
                 line=dict(color=col, width=2.2),
                 xaxis=f"x{row}", yaxis=f"y{row}",
@@ -1382,7 +1381,7 @@ def render_fasorial_desequilibrio() -> None:
     t_ms   = (t_arr * 1000).tolist()
     # endpoint=True: curva estática inclui t=T_loop para fechar o ciclo visualmente
     t_plot = np.linspace(0.0, T_loop, N_T + 1, endpoint=True)
-    t_ms_plot = (t_plot * 1000).tolist()
+    t_ms_plot = t_plot * 1000  # ndarray — Plotly aceita direto
 
     # ── pré-calcula todas as ondas (vetorizado) ───────────────────────────────
     Va_wave = amp_a * np.sin(2 * np.pi * fa * t_arr)
@@ -1399,13 +1398,13 @@ def render_fasorial_desequilibrio() -> None:
     # ── traços base das formas de onda (curvas estáticas) ─────────────────────
     base_wave: list = []
     if ativa_a:
-        base_wave.append(go.Scatter(x=t_ms_plot, y=Va_plot.tolist(), mode="lines",
+        base_wave.append(go.Scatter(x=t_ms_plot, y=Va_plot, mode="lines",
             name="Va", line=dict(color=col_Va, width=2.5)))
     if ativa_b:
-        base_wave.append(go.Scatter(x=t_ms_plot, y=Vb_plot.tolist(), mode="lines",
+        base_wave.append(go.Scatter(x=t_ms_plot, y=Vb_plot, mode="lines",
             name="Vb", line=dict(color=col_Vb, width=2.5)))
     if ativa_c:
-        base_wave.append(go.Scatter(x=t_ms_plot, y=Vc_plot.tolist(), mode="lines",
+        base_wave.append(go.Scatter(x=t_ms_plot, y=Vc_plot, mode="lines",
             name=f"Vc ({fc:.1f} Hz)", line=dict(color=col_Vc, width=2.5)))
     n_static_wave = len(base_wave)
 
@@ -1444,7 +1443,7 @@ def render_fasorial_desequilibrio() -> None:
     theta_c = np.linspace(0, 2 * np.pi, 120)
     base_fas: list = [
         go.Scatter(
-            x=np.cos(theta_c).tolist(), y=np.sin(theta_c).tolist(),
+            x=np.cos(theta_c), y=np.sin(theta_c),
             mode="lines", line=dict(color=col_gr, width=1, dash="dot"),
             showlegend=False,
         ),
@@ -1533,7 +1532,6 @@ def render_fasorial_desequilibrio() -> None:
     fas_json_str  = fig_fas.to_json()
 
     phases_js = []
-    wave_ys   = []
     for amp, freq, ph0, _, _, ativa in [
         (amp_a, fa, 0.0,        col_Va, "Va", ativa_a),
         (amp_b, fb, -2*np.pi/3, col_Vb, "Vb", ativa_b),
@@ -1542,7 +1540,6 @@ def render_fasorial_desequilibrio() -> None:
         if not ativa:
             continue
         phases_js.append({"amp": amp, "freq": freq, "ph0": ph0})
-        wave_ys.append((amp * np.sin(2 * np.pi * freq * t_arr + ph0)).tolist())
 
     T_loop_ms = T_loop * 1000
     cycle_sec = cycle_sec_pre
@@ -1660,7 +1657,7 @@ def render_fasorial_desequilibrio() -> None:
 </script>
 </body></html>"""
 
-    st_components.html(html_src, height=540, scrolling=False)
+    st.iframe(html_src, height=540)
 
 
 def render_circuito_alternavel() -> None:

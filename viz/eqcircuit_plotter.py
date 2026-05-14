@@ -16,18 +16,19 @@ from __future__ import annotations
 import io
 import sys
 from typing import Any, Callable
-import matplotlib
-import matplotlib.figure
-try:
-    matplotlib.use("Agg")
-except Exception:
-    pass
-import matplotlib.pyplot as plt
-import schemdraw
-import schemdraw.elements as elm
 
 
-def build_figure(mp: Any, dark: bool, palette_fn: Callable[[bool], dict[str, str]]) -> matplotlib.figure.Figure:
+def build_figure(mp: Any, dark: bool, palette_fn: Callable[[bool], dict[str, str]]) -> "matplotlib.figure.Figure":
+    # Lazy import: matplotlib + schemdraw só carregam quando o circuito é desenhado
+    import matplotlib
+    try:
+        matplotlib.use("Agg")
+    except Exception:
+        pass
+    import matplotlib.pyplot as plt
+    import schemdraw
+    import schemdraw.elements as elm
+
     c      = palette_fn(dark)
     bg_hex = "#000000" if dark else "#ffffff"
     wire   = "#ffffff" if dark else "#000000"
@@ -143,6 +144,8 @@ def build_figure(mp: Any, dark: bool, palette_fn: Callable[[bool], dict[str, str
 
 def _build_circuit_png(mp: Any, dark: bool, palette_fn: Callable[[bool], dict[str, str]]) -> bytes:
     """Gera os bytes PNG do circuito (cacheável)."""
+    import matplotlib
+    import matplotlib.pyplot as plt
     bg_hex = "#0d1117" if dark else "#ffffff"
     with matplotlib.rc_context({"mathtext.fontset": "dejavusans", "text.usetex": False}):
         fig = build_figure(mp, dark, palette_fn)
@@ -203,6 +206,8 @@ if __name__ == "__main__":
 
     dark = "--light" not in sys.argv
     mp   = _MP()
+    import matplotlib
+    import matplotlib.pyplot as plt
     matplotlib.use("TkAgg")
     fig  = build_figure(mp, dark, _palette)
     plt.show()

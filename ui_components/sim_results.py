@@ -15,7 +15,9 @@ import plotly.graph_objects as go
 
 from core.EMS_PY import MachineParams
 from core.energy_analysis import compute_energy_metrics
-from viz.plotly_charts import build_fig_stacked, build_fig_sidebyside, build_fig_overlay, build_fig_torque_speed
+from viz.plotly_charts import (
+    build_fig_stacked, build_fig_sidebyside, build_fig_overlay, build_fig_torque_speed,
+)
 from viz.pdf_report import generate_pdf_report
 from viz.pdf_report_v2 import generate_pdf_report_v2
 from core.harmonica_analysis import build_fig_fft
@@ -29,7 +31,8 @@ def _cached_energy_metrics(res: dict, tariff: float) -> dict:
     return compute_energy_metrics(res, tariff)
 
 
-def _cached_fig_fft(res: dict, dark: bool, key: str, label: str) -> go.Figure:
+@st.cache_data(show_spinner=False)
+def _cached_fig_fft(res: dict, dark: bool, key: str, label: str, _cache_key: int = 0) -> go.Figure:
     return build_fig_fft(res, dark, key=key, label=label)
 
 
@@ -44,6 +47,14 @@ def _cached_fig_stacked(
     _cache_key: int = 0,  # hash externo para invalidar cache quando res muda
 ) -> go.Figure:
     return build_fig_stacked(res, list(var_keys), list(var_labels), dark, list(t_events), decimals)
+
+
+@st.cache_data(show_spinner=False)
+def _cached_fig_torque_speed(
+    P_nom_kw: float, f: float, p: int, dark: bool, _cache_key: int = 0,
+    *, res: dict | None = None,
+) -> go.Figure:
+    return build_fig_torque_speed(res=res, P_nom_kw=P_nom_kw, f=f, p=p, dark=dark)
 
 
 _PLOT_CFG: dict[str, Any] = {
@@ -293,6 +304,12 @@ def render_results(
     _res_hash = int(hash((res["Te"][-1], res["Te"].std(), res["t"][-1], res.get("_broken_bar_severity", 0))))
     fig_pdf = _cached_fig_stacked(res, tuple(var_keys), tuple(var_labels_plot), dark_plot, tuple(t_events), d, _cache_key=_res_hash)
 
+    # Troca de experimento: descarta zoom_mode persistido para que o radio
+    # respeite o `index` calculado dentro de _render_dinamica.
+    if st.session_state.get("_last_exp_for_zoom") != exp_type:
+        st.session_state.pop("zoom_mode", None)
+        st.session_state["_last_exp_for_zoom"] = exp_type
+
     chart_ref_list = [
         {
             "res":   r["res"],
@@ -457,8 +474,10 @@ def render_results(
                 else:
                     _zoom_opts.append("Partida")
                 _zoom_opts.append("Regime Permanente")
-                _saved_zoom = st.session_state.get("zoom_mode", _zoom_opts[0])
-                _zoom_idx   = _zoom_opts.index(_saved_zoom) if _saved_zoom in _zoom_opts else 0
+                # default por experimento: pulso de carga abre no zoom do transitorio
+                _zoom_default = "Pulso de Carga" if _is_pulso else _zoom_opts[0]
+                _saved_zoom   = st.session_state.get("zoom_mode", _zoom_default)
+                _zoom_idx     = _zoom_opts.index(_saved_zoom) if _saved_zoom in _zoom_opts else _zoom_opts.index(_zoom_default)
                 with cv3:
                     zoom_mode = st.radio(
                         "Zoom", _zoom_opts, index=_zoom_idx,
@@ -683,9 +702,10 @@ def render_results(
                 st.write("")
                 st.markdown('<p class="slabel">Conjugado vs. Velocidade</p>', unsafe_allow_html=True)
                 _P_mec_ss = float(res.get("P_mec", 0.0))
-                _fig_ts = build_fig_torque_speed(
-                    res=res, P_nom_kw=max(_P_mec_ss / 1000.0, 0.5),
+                _fig_ts = _cached_fig_torque_speed(
+                    P_nom_kw=max(_P_mec_ss / 1000.0, 0.5),
                     f=mp.f, p=mp.p, dark=dark_plot,
+                    _cache_key=res_hash, res=res,
                 )
                 st.plotly_chart(_fig_ts, width="stretch")
 
@@ -723,7 +743,7 @@ def render_results(
                 next((l for kk, l in zip(var_keys, var_labels) if kk == _fft_var), _fft_var)
             )
             _dp = st.session_state.get("plot_dark_toggle", dark)
-            fig_fft = _cached_fig_fft(res, _dp, _fft_var, _fft_lbl)
+            fig_fft = _cached_fig_fft(res, _dp, _fft_var, _fft_lbl, _cache_key=_res_hash)
 
             _alpha = float(res.get("_broken_bar_severity", 0.0))
             if _alpha > 0:

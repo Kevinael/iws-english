@@ -257,10 +257,22 @@ def build_fig_torque_speed(
     rpm_array = np.asarray(res["n"],  dtype=float)
     te_array  = np.asarray(res["Te"], dtype=float)
 
-    # Ponto de operação: última amostra válida
-    valid_mask   = np.isfinite(rpm_array) & np.isfinite(te_array)
-    rpm_op       = float(rpm_array[valid_mask][-1]) if valid_mask.any() else float(rpm_array[-1])
-    torque_op    = float(te_array[valid_mask][-1])  if valid_mask.any() else float(te_array[-1])
+    # Descarta os primeiros 5 ciclos elétricos: nesse intervalo Te oscila
+    # violentamente em torno de wr≈0 (inrush eletromagnético), poluindo a
+    # trajetória T×n. Mesma janela usada por _compute_thermal.
+    t_array = np.asarray(res.get("t", []), dtype=float)
+    if len(t_array) > 1 and f > 0:
+        h     = float(t_array[1] - t_array[0])
+        n_skip = min(max(0, int(round(5.0 / (f * h)))), len(rpm_array) - 1)
+    else:
+        n_skip = 0
+    rpm_plot = rpm_array[n_skip:]
+    te_plot  = te_array[n_skip:]
+
+    # Ponto de operação: última amostra válida (sobre o array já recortado)
+    valid_mask   = np.isfinite(rpm_plot) & np.isfinite(te_plot)
+    rpm_op       = float(rpm_plot[valid_mask][-1]) if valid_mask.any() else float(rpm_plot[-1])
+    torque_op    = float(te_plot[valid_mask][-1])  if valid_mask.any() else float(te_plot[-1])
 
     # Referências nominais
     n_sync       = 120.0 * f / p                           # RPM síncrona
@@ -274,9 +286,9 @@ def build_fig_torque_speed(
 
     fig = go.Figure()
 
-    # Trajetória dinâmica
+    # Trajetória dinâmica (sem o transitorio eletromagnetico inicial)
     fig.add_trace(go.Scatter(
-        x=rpm_array, y=te_array,
+        x=rpm_plot, y=te_plot,
         mode="lines",
         name="Trajetoria Dinamica",
         line=dict(color=col_traj, width=1.8),

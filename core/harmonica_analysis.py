@@ -33,10 +33,14 @@ def build_fig_fft(res: dict, dark: bool, key: str = "ias", label: str = "ias") -
     freq = np.fft.rfftfreq(N, d=dt)
 
     # detecta fundamental (maior pico acima de 1 Hz)
-    f1_mask = freq > 1.0
-    f1_idx  = int(np.argmax(yf[f1_mask])) + int(np.searchsorted(freq, 1.0))
-    f1      = float(freq[f1_idx]) if f1_idx < len(freq) else 60.0
-    A1      = float(yf[f1_idx]) if f1_idx < len(yf) else 0.0
+    f1_mask  = freq > 1.0
+    mask_idx = np.where(f1_mask)[0]
+    if len(mask_idx) == 0:
+        f1, A1, f1_idx = 60.0, 0.0, 0
+    else:
+        f1_idx = int(mask_idx[0]) + int(np.argmax(yf[f1_mask]))
+        f1     = float(freq[f1_idx])
+        A1     = float(yf[f1_idx])
 
     # janela: até a 11ª harmônica ou 1200 Hz
     x_max = min(f1 * 11, 1200.0)
