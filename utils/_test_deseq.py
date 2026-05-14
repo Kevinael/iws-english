@@ -36,4 +36,4 @@ if st.button("Simular"):
         fig.add_vline(x=t_deseq, line_dash="dash", line_color="orange",
                       annotation_text=f"t={t_deseq:.2f}s")
     fig.update_layout(title="Tensões de fase", xaxis_title="Tempo (s)", yaxis_title="Tensão (V)")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")

@@ -270,7 +270,7 @@ def render_results(
         return "W", f"{val:.{decimals}f}"
 
     def _render_plotly(fig: go.Figure, div_id: str = "ems-plot") -> None:
-        st.plotly_chart(fig, use_container_width=True, config=_PLOT_CFG, key=div_id)
+        st.plotly_chart(fig, width="stretch", config=_PLOT_CFG, key=div_id)
 
     # ── preparar fig PDF e zoom antes das abas (usados em múltiplas abas) ─
     var_labels_plot = [_strip_latex(lbl) for lbl in var_labels]
@@ -651,7 +651,7 @@ def render_results(
                                 compact=is_mobile, tl_arr=tl_arr),
                             var_keys)):
                         st.plotly_chart(_apply_zoom(fig_single, [key]),
-                                        use_container_width=True, config=_PLOT_CFG_F, key=f"ems-emp-{i}")
+                                        width="stretch", config=_PLOT_CFG_F, key=f"ems-emp-{i}")
                         _nota_apos(key)
                 elif modo == "Lado a lado":
                     figs   = build_fig_sidebyside(
@@ -665,7 +665,7 @@ def render_results(
                         for ci, (col, (fig, key)) in enumerate(zip(cols, row)):
                             with col:
                                 st.plotly_chart(_apply_zoom(fig, [key]),
-                                                use_container_width=True, config=_PLOT_CFG_F,
+                                                width="stretch", config=_PLOT_CFG_F,
                                                 key=f"ems-side-{ri}-{ci}")
                                 _nota_apos(key)
                 else:
@@ -675,7 +675,7 @@ def render_results(
                         ref_list=chart_ref_list, primary_color=primary_color,
                         compact=is_mobile, tl_arr=tl_arr)
                     st.plotly_chart(_apply_zoom_overlay(fig_overlay, var_keys),
-                                    use_container_width=True, config=_PLOT_CFG_F, key="ems-overlay")
+                                    width="stretch", config=_PLOT_CFG_F, key="ems-overlay")
                     for key in var_keys:
                         _nota_apos(key)
 
@@ -687,7 +687,7 @@ def render_results(
                     res=res, P_nom_kw=max(_P_mec_ss / 1000.0, 0.5),
                     f=mp.f, p=mp.p, dark=dark_plot,
                 )
-                st.plotly_chart(_fig_ts, use_container_width=True)
+                st.plotly_chart(_fig_ts, width="stretch")
 
             _render_dinamica(
                 res=res,

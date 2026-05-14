@@ -146,7 +146,7 @@ def main() -> None:
         st.write("")
         run_clicked = st.button(
             "Executar Simulação", key="btn_run",
-            use_container_width=True,
+            width="stretch",
         )
 
         _can_save = (
@@ -157,14 +157,14 @@ def main() -> None:
         with ba1:
             save_ref = st.button(
                 "Salvar como Referência", key="btn_save_ref",
-                use_container_width=True,
+                width="stretch",
                 disabled=not _can_save,
                 help="Salva o resultado atual para comparação (máx. 5)",
             )
         with ba2:
             clear_ref = st.button(
                 "Limpar Referências", key="btn_clear_ref",
-                use_container_width=True,
+                width="stretch",
                 disabled=not st.session_state["ref_list"],
                 help="Remove todas as referências salvas",
             )

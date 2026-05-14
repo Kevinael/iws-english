@@ -328,7 +328,7 @@ def render_machine_selector(dark: bool) -> None:
     _, btn_col, _ = st.columns([2, 1, 2])
     for m in available:
         with btn_col:
-            if st.button("Iniciar Simulação", key=f"sel_{m['key']}", use_container_width=True):
+            if st.button("Iniciar Simulação", key=f"sel_{m['key']}", width="stretch"):
                 st.session_state["selected_machine"] = m["key"]
                 st.rerun()
 

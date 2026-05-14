@@ -270,7 +270,7 @@ def render_boucherot() -> None:
         )],
     )
 
-    st.plotly_chart(fig, use_container_width=True, config={"displaylogo": False})
+    st.plotly_chart(fig, width="stretch", config={"displaylogo": False})
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -349,7 +349,7 @@ def render_zonas_operacao() -> None:
         legend=dict(orientation="h", x=0.5, xanchor="center", y=-0.18,
                     font=dict(size=10, color=pt["fg"]), bgcolor="rgba(0,0,0,0)"),
     )
-    st.plotly_chart(fig, use_container_width=True, config={"displaylogo": False})
+    st.plotly_chart(fig, width="stretch", config={"displaylogo": False})
 
     # Diagrama vetorial animado
     _render_diagrama_vetorial(zona, dark)
@@ -555,7 +555,7 @@ def render_comparativo_partidas() -> None:
         legend=dict(orientation="h", x=0.5, xanchor="center", y=-0.18,
                     font=dict(size=10, color=pt["fg"]), bgcolor="rgba(0,0,0,0)"),
     )
-    st.plotly_chart(fig, use_container_width=True, config={"displaylogo": False})
+    st.plotly_chart(fig, width="stretch", config={"displaylogo": False})
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -920,7 +920,7 @@ def render_sankey_potencia() -> None:
         )],
     )
 
-    st.plotly_chart(fig, use_container_width=True, config={"displaylogo": False})
+    st.plotly_chart(fig, width="stretch", config={"displaylogo": False})
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1231,7 +1231,7 @@ def render_transitorios_sincronizados() -> None:
         )],
     )
 
-    st.plotly_chart(fig, use_container_width=True, config={"displaylogo": False})
+    st.plotly_chart(fig, width="stretch", config={"displaylogo": False})
     st.caption(
         "Modelo analítico aproximado — didaticamente representativo. "
         "Para curvas numéricas precisas, use o **Simulador** com os parâmetros da sua máquina. "
@@ -1296,27 +1296,6 @@ def render_fasorial_desequilibrio() -> None:
     col_fg  = pt["fg"]
     col_gr  = pt["grid"]
 
-    # ── pré-calcula VUF com valores anteriores do session_state (para col_vel) ─
-    def _vuf_from_state() -> float:
-        _da = st.session_state.get("_fdeseq_da", 0)
-        _db = st.session_state.get("_fdeseq_db", 0)
-        _dc = st.session_state.get("_fdeseq_dc", 0)
-        _aa = st.session_state.get("_fdeseq_ativa_a", True)
-        _ab = st.session_state.get("_fdeseq_ativa_b", True)
-        _ac = st.session_state.get("_fdeseq_ativa_c", True)
-        _a  = (1 + _da / 100) if _aa else 0.0
-        _b  = (1 + _db / 100) if _ab else 0.0
-        _c  = (1 + _dc / 100) if _ac else 0.0
-        _ar = np.exp(1j * 2 * np.pi / 3)
-        _F  = np.array([[1,1,1],[1,_ar,_ar**2],[1,_ar**2,_ar**4]]) / 3.0
-        _Va = _a * np.exp(1j * 0.0)
-        _Vb = _b * np.exp(1j * (-2 * np.pi / 3))
-        _Vc = _c * np.exp(1j * ( 2 * np.pi / 3))
-        _, _V1, _V2 = _F @ np.array([_Va, _Vb, _Vc])
-        return abs(_V2) / abs(_V1) * 100 if abs(_V1) > 1e-9 else 0.0
-
-    _vuf_pre = _vuf_from_state()
-
     # ── controles: 3 colunas verticais por fase + coluna de velocidade ───────
     col_a, col_b, col_c, col_vel = st.columns(4)
 
@@ -1357,7 +1336,6 @@ def render_fasorial_desequilibrio() -> None:
             min_value=1, max_value=20, value=5, step=1,
             key="_fdeseq_vel", format="%d s",
         )
-        st.metric("VUF", f"{_vuf_pre:.1f}%")
 
     amp_a = (1.0 + delta_a / 100.0) if ativa_a else 0.0
     amp_b = (1.0 + delta_b / 100.0) if ativa_b else 0.0
@@ -1382,14 +1360,28 @@ def render_fasorial_desequilibrio() -> None:
     v2_pu   = float(abs(V2s))
     vuf_txt = f"VUF = {vuf:.1f}%"
 
-    # ── eixo de tempo: 1 ciclo nominal, N_T frames ────────────────────────────
-    N_T   = 72   # 5° por frame → giro suave a 60 Hz
-    T0    = 1.0 / f0
-    # endpoint=False: array de animação (N_T posições angulares uniformes, sem repetir t=T0)
-    t_arr  = np.linspace(0.0, T0, N_T, endpoint=False)
+    # ── período de loop: menor k·T0 que aproxime um ciclo inteiro de todas as fases ─
+    # Com frequências distintas, sin(2π·f_i·t) só fecha quando k·T0 é (quase) múltiplo
+    # inteiro de 1/f_i. Buscamos k∈[1,30] minimizando o erro de fase no fim da janela.
+    T0       = 1.0 / f0
+    freqs_on = [fa if ativa_a else f0, fb if ativa_b else f0, fc if ativa_c else f0]
+    k_best, err_best = 1, float("inf")
+    for k in range(1, 31):
+        Twin = k * T0
+        err  = sum(abs(((fi * Twin) - round(fi * Twin))) for fi in freqs_on)
+        if err < err_best - 1e-9:
+            err_best, k_best = err, k
+            if err < 1e-6:
+                break
+    T_loop = k_best * T0
+
+    # ── eixo de tempo: ciclo de loop, N_T frames por ciclo nominal ────────────
+    N_T   = 72 * k_best   # 5°/frame por ciclo de 60 Hz, escalado pelo loop
+    # endpoint=False: array de animação (sem repetir t=T_loop)
+    t_arr  = np.linspace(0.0, T_loop, N_T, endpoint=False)
     t_ms   = (t_arr * 1000).tolist()
-    # endpoint=True: curva estática inclui t=T0 para fechar o ciclo visualmente
-    t_plot = np.linspace(0.0, T0, N_T + 1, endpoint=True)
+    # endpoint=True: curva estática inclui t=T_loop para fechar o ciclo visualmente
+    t_plot = np.linspace(0.0, T_loop, N_T + 1, endpoint=True)
     t_ms_plot = (t_plot * 1000).tolist()
 
     # ── pré-calcula todas as ondas (vetorizado) ───────────────────────────────
@@ -1552,10 +1544,10 @@ def render_fasorial_desequilibrio() -> None:
         phases_js.append({"amp": amp, "freq": freq, "ph0": ph0})
         wave_ys.append((amp * np.sin(2 * np.pi * freq * t_arr + ph0)).tolist())
 
-    T0_ms = T0 * 1000
+    T_loop_ms = T_loop * 1000
     cycle_sec = cycle_sec_pre
 
-    t_ms_max  = T0_ms   # período completo — fecha o loop visualmente
+    t_ms_max  = T_loop_ms   # janela de loop completa — fecha o ciclo visualmente
     html_src = f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8">
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
@@ -1579,8 +1571,8 @@ def render_fasorial_desequilibrio() -> None:
   var tMs     = {json.dumps(t_ms)};
   var wIdx    = {json.dumps(wave_anim_idx)};
   var fIdx    = {json.dumps(fas_anim_idx)};
-  var T0real  = {T0_ms:.4f};   // período real em ms (≈16.7 ms @ 60 Hz)
-  var tMax    = {t_ms_max:.4f}; // duração do eixo X em ms
+  var T0real  = {T_loop_ms:.4f};   // janela de loop em ms (k·T0, fecha todas as fases)
+  var tMax    = {t_ms_max:.4f}; // duração do eixo X em ms (== T0real)
   var yMax    = {y_max_wave * 1.25:.4f};
   var PI2      = 2 * Math.PI;
   var startTs  = null;
@@ -1603,9 +1595,9 @@ def render_fasorial_desequilibrio() -> None:
   function tick(ts){{
     if (!startTs) startTs = ts;
     var T0ms  = cycleSec * 1000;                 // duração visual de 1 ciclo em ms
-    var tNorm = ((ts - startTs) % T0ms) / T0ms; // fração 0..1 dentro do ciclo visual
-    tNorm     = tNorm * T0real / 1000;           // mapeia para 0..T0real/1000 s (1 ciclo real)
-    var tx = tNorm * 1000;     // ms dentro do ciclo para o cursor
+    var frac  = ((ts - startTs) % T0ms) / T0ms;  // fração 0..1 dentro do ciclo visual
+    var tx    = frac * tMax;                     // ms dentro do ciclo para o cursor (fecha em tMax)
+    var tNorm = frac * T0real / 1000;            // segundos: 0..T0real/1000 (1 ciclo real)
 
     // ── VUF instantâneo via Fortescue ────────────────────────────────────────
     // fasores complexos em tNorm
@@ -1690,7 +1682,7 @@ def render_circuito_alternavel() -> None:
         float(getattr(mp, "Rfe", 500.0)), int(mp.p),
     )
     png_bytes = _build_circuit_png(mp_key, dark, simplified)
-    st.image(png_bytes, use_container_width=True)
+    st.image(png_bytes, width="stretch")
 
     if simplified:
         st.markdown(
