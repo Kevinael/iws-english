@@ -22,7 +22,7 @@ import streamlit as st
 
 from core.EMS_PY import MachineParams
 from core.desequilibrio_falta import render_desequilibrio_ui, render_broken_bar_ui
-from core.param_estimator import estimate_params
+from core.param_estimator import estimate_params, estimate_params_ieee_tests
 from ui.theme import _palette
 from ui_components.sim_runner import calc_tmax_auto
 
@@ -33,6 +33,19 @@ def _cached_estimate_params(
     rend: float, fp: float, Ip_In: float, Tp_Tn: float, is_delta: bool,
 ) -> dict:
     return estimate_params(Vl, f, 0, Pn_kW, N_nom, rend, fp, Ip_In, Tp_Tn, is_delta=is_delta)
+
+
+@st.cache_data(show_spinner=False)
+def _cached_estimate_ieee(
+    V_dc: float, I_dc: float, is_delta: bool,
+    Vl_nl: float, I_nl: float, P_nl: float, f_nl: float,
+    Vl_lr: float, I_lr: float, P_lr: float, f_lr: float,
+    Pfw: float, split: str, Xls_frac: float,
+) -> dict:
+    return estimate_params_ieee_tests(
+        V_dc, I_dc, is_delta, Vl_nl, I_nl, P_nl, f_nl,
+        Vl_lr, I_lr, P_lr, f_lr, Pfw, split, Xls_frac,
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -120,6 +133,20 @@ _WK: dict[str, str] = {
     "Ip_In":    "wi_Ip_In",
     "Tp_Tn":    "wi_Tp_Tn",
     "is_delta": "wi_is_delta",
+    # estimador IEEE 112 — ensaios físicos
+    "ieee_split":    "wi_ieee_split",
+    "ieee_Xls_frac": "wi_ieee_Xls_frac",
+    "ieee_Pfw":      "wi_ieee_Pfw",
+    "ieee_V_dc":     "wi_ieee_V_dc",
+    "ieee_I_dc":     "wi_ieee_I_dc",
+    "ieee_Vl_nl":    "wi_ieee_Vl_nl",
+    "ieee_I_nl":     "wi_ieee_I_nl",
+    "ieee_P_nl":     "wi_ieee_P_nl",
+    "ieee_f_nl":     "wi_ieee_f_nl",
+    "ieee_Vl_lr":    "wi_ieee_Vl_lr",
+    "ieee_I_lr":     "wi_ieee_I_lr",
+    "ieee_P_lr":     "wi_ieee_P_lr",
+    "ieee_f_lr":     "wi_ieee_f_lr",
 }
 
 
@@ -140,7 +167,17 @@ _INPUT_MODE_LABELS: list[str] = [
 _PARAM_SOURCE_LABELS: list[str] = [
     "Inserir parâmetros manualmente",
     "Estimar por dados de placa (Nameplate)",
+    "Determinar por Ensaios IEEE 112",
 ]
+
+_IEEE_SPLIT_LABELS: dict[str, str] = {
+    "B":      "Classe B — 40% / 60% (padrão NEMA)",
+    "A":      "Classe A — 50% / 50%",
+    "C":      "Classe C — 30% / 70%",
+    "D":      "Classe D — 50% / 50%",
+    "WR":     "Rotor Bobinado — 50% / 50%",
+    "custom": "Personalizada (definir fração Xls/Xk)",
+}
 
 _PRESETS: dict[str, dict[str, Any]] = {
     "Padrão — Krause 3 HP (2.2 kW / 12 N·m) 220 V/60 Hz": {
@@ -403,7 +440,13 @@ def render_machine_params(
         horizontal=True,
     )
     use_placa = param_source_label.startswith("Estimar")
-    input_mode_original = "PLACA" if use_placa else "MANUAL"
+    use_ieee  = param_source_label.startswith("Determinar")
+    if use_placa:
+        input_mode_original = "PLACA"
+    elif use_ieee:
+        input_mode_original = "IEEE"
+    else:
+        input_mode_original = "MANUAL"
 
     if use_placa:
         # ══════════════════════════════════════════════════════════════════
@@ -504,6 +547,199 @@ def render_machine_params(
                 p6.metric("Rfe (Estimado)", f"{Rfe:.1f} Ω")
 
         # Parâmetros fixos para MachineParams no modo placa
+        f_ref      = f
+        input_mode = "X"
+
+    elif use_ieee:
+        # ══════════════════════════════════════════════════════════════════
+        # MODO IEEE 112 — três ensaios físicos (CC + Vazio + Bloqueado)
+        # ══════════════════════════════════════════════════════════════════
+        _pgroup("Dados de Rede")
+        Vl = st.number_input(
+            "Tensão de linha RMS — $V_l$ (V)",
+            min_value=50.0, max_value=15000.0, value=_DEFAULTS["Vl"], step=1.0,
+            key=wk["Vl"], disabled=dis,
+        )
+        f  = st.number_input(
+            "Frequência da rede — $f$ (Hz)",
+            min_value=1.0, max_value=400.0, value=_DEFAULTS["f"], step=1.0,
+            key=wk["f"], disabled=dis,
+        )
+        is_delta = st.checkbox(
+            "Ligação em Triângulo (Δ) — desmarque para Estrela (Y)",
+            value=False, key=wk["is_delta"], disabled=dis,
+            help="Define o fator do ensaio CC: Y → Rs = (V_dc/I_dc)/2; Δ → Rs = (V_dc/I_dc)·1,5.",
+        )
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        _pgroup("[1] Ensaio CC — Resistência do Estator")
+        c_dc1, c_dc2 = st.columns(2)
+        V_dc = c_dc1.number_input(
+            "Tensão CC aplicada — $V_{dc}$ (V)",
+            min_value=0.01, max_value=1000.0, value=10.0, step=0.1, format="%.3f",
+            key=wk["ieee_V_dc"], disabled=dis,
+            help="Tensão CC aplicada entre dois terminais do motor (resistência a frio).",
+        )
+        I_dc = c_dc2.number_input(
+            "Corrente CC medida — $I_{dc}$ (A)",
+            min_value=0.001, max_value=10000.0, value=11.5, step=0.1, format="%.3f",
+            key=wk["ieee_I_dc"], disabled=dis,
+            help="Corrente CC estabilizada após o transitório térmico.",
+        )
+        # Preview do Rs em tempo real (sem chamar o estimador completo)
+        if I_dc > 0:
+            Rs_prev = (V_dc / I_dc) * (1.5 if is_delta else 0.5)
+            st.caption(f"$R_s$ calculado (preview): **{Rs_prev:.4f} Ω**")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        _pgroup("[2] Ensaio em Vazio (No-Load)")
+        c_nl1, c_nl2 = st.columns(2)
+        Vl_nl = c_nl1.number_input(
+            "Tensão de linha — $V_{l,NL}$ (V)",
+            min_value=10.0, max_value=15000.0, value=float(Vl), step=1.0, format="%.1f",
+            key=wk["ieee_Vl_nl"], disabled=dis,
+            help="Tensão de linha aplicada durante o ensaio em vazio (tipicamente igual à nominal).",
+        )
+        I_nl = c_nl2.number_input(
+            "Corrente de linha — $I_{NL}$ (A)",
+            min_value=0.001, max_value=10000.0, value=4.5, step=0.1, format="%.3f",
+            key=wk["ieee_I_nl"], disabled=dis,
+            help="Corrente de linha em regime, motor desacoplado.",
+        )
+        c_nl3, c_nl4 = st.columns(2)
+        P_nl = c_nl3.number_input(
+            "Potência trifásica — $P_{NL}$ (W)",
+            min_value=0.1, max_value=1e7, value=180.0, step=1.0, format="%.2f",
+            key=wk["ieee_P_nl"], disabled=dis,
+            help="Potência ativa trifásica total absorvida no ensaio em vazio.",
+        )
+        f_nl = c_nl4.number_input(
+            "Frequência — $f_{NL}$ (Hz)",
+            min_value=1.0, max_value=400.0, value=float(f), step=1.0, format="%.2f",
+            key=wk["ieee_f_nl"], disabled=dis,
+        )
+        Pfw = st.number_input(
+            "Perdas mecânicas — $P_{fw}$ (W) — 0 = estimar como 0,8% de $P_{NL}$",
+            min_value=0.0, max_value=1e6, value=0.0, step=1.0, format="%.2f",
+            key=wk["ieee_Pfw"], disabled=dis,
+            help="Atrito + ventilação. Se deixado em 0, a heurística IEEE estima 0,8% de P_NL.",
+        )
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        _pgroup("[3] Ensaio de Rotor Bloqueado (Locked Rotor)")
+        c_lr1, c_lr2 = st.columns(2)
+        Vl_lr = c_lr1.number_input(
+            "Tensão de linha — $V_{l,LR}$ (V)",
+            min_value=0.1, max_value=15000.0, value=50.0, step=0.1, format="%.2f",
+            key=wk["ieee_Vl_lr"], disabled=dis,
+            help="Tensão reduzida aplicada com o rotor travado (cuidado: corrente nominal).",
+        )
+        I_lr = c_lr2.number_input(
+            "Corrente de linha — $I_{LR}$ (A)",
+            min_value=0.001, max_value=10000.0, value=14.0, step=0.1, format="%.3f",
+            key=wk["ieee_I_lr"], disabled=dis,
+            help="Corrente de linha medida com rotor bloqueado.",
+        )
+        c_lr3, c_lr4 = st.columns(2)
+        P_lr = c_lr3.number_input(
+            "Potência trifásica — $P_{LR}$ (W)",
+            min_value=0.1, max_value=1e7, value=480.0, step=1.0, format="%.2f",
+            key=wk["ieee_P_lr"], disabled=dis,
+        )
+        f_lr = c_lr4.number_input(
+            "Frequência — $f_{LR}$ (Hz)",
+            min_value=1.0, max_value=400.0, value=15.0, step=0.5, format="%.2f",
+            key=wk["ieee_f_lr"], disabled=dis,
+            help="IEEE Std 112 recomenda f_LR ≈ 25% de f nominal para minimizar saturação.",
+        )
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        _pgroup("Distribuição $X_{ls}$ / $X_{lr}$")
+        split_label = st.selectbox(
+            "Classe NEMA da distribuição",
+            list(_IEEE_SPLIT_LABELS.values()),
+            index=0,
+            key=wk["ieee_split"], disabled=dis,
+            help="IEEE Std 112-2017, Tabela 1 — fração de Xk atribuída a Xls.",
+        )
+        split_code = next(k for k, v in _IEEE_SPLIT_LABELS.items() if v == split_label)
+        if split_code == "custom":
+            Xls_frac = st.slider(
+                "Fração $X_{ls} / X_k$",
+                min_value=0.10, max_value=0.90, value=0.40, step=0.05,
+                key=wk["ieee_Xls_frac"], disabled=dis,
+            )
+        else:
+            Xls_frac = 0.4
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        resultado = _cached_estimate_ieee(
+            V_dc, I_dc, is_delta,
+            Vl_nl, I_nl, P_nl, f_nl,
+            Vl_lr, I_lr, P_lr, f_lr,
+            Pfw, split_code, Xls_frac,
+        )
+
+        if not resultado["success"]:
+            st.error(
+                f"Ensaios IEEE inconsistentes: {resultado['error']}  "
+                "Parâmetros padrão (Krause 3 HP) serão usados."
+            )
+            Rs, Rr, Xm, Xls, Xlr = 0.435, 0.816, 26.13, 0.754, 0.754
+            Rfe = _DEFAULTS["Rfe"]
+        else:
+            Rs    = resultado["Rs"]
+            Rr    = resultado["Rr"]
+            Xm    = resultado["Xm"]
+            Xls   = resultado["Xls"]
+            Xlr   = resultado["Xlr"]
+            Rfe   = resultado["Rfe"]
+            ligacao = "Triângulo (Δ)" if is_delta else "Estrela (Y)"
+            with st.expander("Detalhes do Cálculo (IEEE Std 112-2017)", expanded=True):
+                st.info(
+                    f"**Método:** IEEE Std 112-2017 — três ensaios físicos.\n\n"
+                    f"**Ligação:** {ligacao}  "
+                    f"| **Distribuição:** {_IEEE_SPLIT_LABELS[resultado['split_used']]} "
+                    f"(fração $X_{{ls}}$/$X_k$ = {resultado['Xls_frac']:.2f})\n\n"
+                    f"**Ensaio CC:** $R_s$ = {Rs:.4f} Ω  "
+                    f"(via $V_{{dc}}$/$I_{{dc}}$ = {(V_dc/I_dc):.4f} Ω)\n\n"
+                    f"**Ensaio em Vazio:** $E_{{1,NL}}$ = {resultado['E1_nl']:.2f} V  "
+                    f"| $P_{{fe,3φ}}$ = {resultado['Pfe_3ph']:.2f} W  "
+                    f"| $P_{{fw}}$ usado = {resultado['Pfw_used']:.2f} W "
+                    f"({'medido' if Pfw > 0 else 'heurística 0,8% · P_NL'})\n\n"
+                    f"**Ensaio Bloqueado:** $Z_k$ = {resultado['Zk']:.4f} Ω  "
+                    f"| $R_k$ = {resultado['Rk']:.4f} Ω  "
+                    f"| $X_{{k,LR}}$ = {resultado['Xk_lr']:.4f} Ω → "
+                    f"$X_k$ @ {f_nl:.0f} Hz = {resultado['Xk']:.4f} Ω "
+                    f"(corrigido por $f_{{NL}}/f_{{LR}}$ = {(f_nl/f_lr):.2f})"
+                )
+                c1, c2, c3, c4 = st.columns(4)
+                c1.metric("E₁_NL (Estimado)",  f"{resultado['E1_nl']:.2f} V")
+                c2.metric("Iμ — magnetização", f"{resultado['I_mu']:.3f} A")
+                c3.metric("Pfe trifásica",     f"{resultado['Pfe_3ph']:.1f} W")
+                c4.metric("Pfw usado",         f"{resultado['Pfw_used']:.1f} W")
+                st.markdown("**Parâmetros do circuito equivalente estimados:**")
+                p1, p2, p3, p4, p5, p6 = st.columns(6)
+                p1.metric("Rₛ (Estimado)",  f"{Rs:.4f} Ω")
+                p2.metric("Rᵣ (Estimado)",  f"{Rr:.4f} Ω")
+                p3.metric("Xₘ (Estimado)",  f"{Xm:.4f} Ω")
+                p4.metric("Xls (Estimado)", f"{Xls:.4f} Ω")
+                p5.metric("Xlr (Estimado)", f"{Xlr:.4f} Ω")
+                p6.metric("Rfe (Estimado)", f"{Rfe:.1f} Ω")
+
+            # Avisos de sanidade (apenas em caso de sucesso)
+            if Xm < 5.0 * Xls:
+                st.warning(
+                    f"$X_m / X_{{ls}}$ = {Xm/Xls:.2f} < 5 — relação atípica. "
+                    "Verifique os dados do ensaio em vazio."
+                )
+            if Rfe < 50.0:
+                st.warning(
+                    f"$R_{{fe}}$ = {Rfe:.1f} Ω muito baixo — verifique $P_{{NL}}$ "
+                    "e a separação de perdas mecânicas (Pfw)."
+                )
+
+        # Parâmetros fixos para MachineParams no modo IEEE
         f_ref      = f
         input_mode = "X"
 

@@ -177,3 +177,206 @@ def estimate_params(
         return {"success": False, "error": f"Divisão por zero durante a estimação: {exc}"}
     except Exception as exc:  # noqa: BLE001
         return {"success": False, "error": f"Erro inesperado: {exc}"}
+
+
+# ─── Distribuição Xls/Xlr por classe (IEEE Std 112-2017, Tabela 1) ────────────
+_IEEE_SPLIT_TABLE: dict[str, float] = {
+    "A":      0.50,
+    "B":      0.40,
+    "C":      0.30,
+    "D":      0.50,
+    "WR":     0.50,
+    "custom": 0.40,
+}
+
+
+def estimate_params_ieee_tests(
+    V_dc: float,
+    I_dc: float,
+    is_delta: bool,
+    Vl_nl: float,
+    I_nl: float,
+    P_nl: float,
+    f_nl: float,
+    Vl_lr: float,
+    I_lr: float,
+    P_lr: float,
+    f_lr: float,
+    Pfw: float = 0.0,
+    split: str = "B",
+    Xls_frac: float = 0.4,
+) -> dict:
+    """Estima parâmetros do circuito equivalente a partir dos ensaios IEEE Std 112-2017.
+
+    Implementa os três ensaios clássicos do circuito equivalente em T:
+      1. Ensaio CC (DC Test) — Rs
+      2. Ensaio em Vazio (No-Load) — Xm, Rfe
+      3. Ensaio de Rotor Bloqueado (Locked Rotor) — Rr, Xls, Xlr
+
+    Args:
+        V_dc:     Tensão CC aplicada entre dois terminais (V).
+        I_dc:     Corrente CC medida (A).
+        is_delta: True = ligação Triângulo (Δ); False = Estrela (Y).
+        Vl_nl:    Tensão de linha em vazio (V) — tipicamente nominal.
+        I_nl:     Corrente de linha em vazio (A).
+        P_nl:     Potência trifásica total em vazio (W).
+        f_nl:     Frequência do ensaio em vazio (Hz).
+        Vl_lr:    Tensão de linha no ensaio bloqueado (V) — reduzida.
+        I_lr:     Corrente de linha no ensaio bloqueado (A).
+        P_lr:     Potência trifásica total no ensaio bloqueado (W).
+        f_lr:     Frequência do ensaio bloqueado (Hz) — IEEE recomenda ≈ 25% de f_nl.
+        Pfw:      Perdas mecânicas medidas (W); 0 = estimar como 0,8% de P_nl.
+        split:    Classe NEMA: "A", "B", "C", "D", "WR" ou "custom".
+        Xls_frac: Fração Xls/Xk — usado apenas quando split="custom".
+
+    Returns:
+        dict com mesma estrutura de estimate_params() — chaves principais:
+            success, Rs, Rr, Xm, Xls, Xlr, Rfe,
+            E1_nl, Xk, Rk, Pfe_3ph, I_mu, Pfw_used,
+            split_used, Xls_frac, f_nl, f_lr.
+        Em caso de erro: {'success': False, 'error': <mensagem>}.
+    """
+    try:
+        # ── Validações de entrada ──────────────────────────────────────────
+        if V_dc <= 0.0 or I_dc <= 0.0:
+            return {"success": False, "error": "Ensaio CC: V_dc e I_dc devem ser positivos."}
+        if Vl_nl <= 0.0 or I_nl <= 0.0 or P_nl <= 0.0:
+            return {"success": False, "error": "Ensaio em vazio: Vl_nl, I_nl e P_nl devem ser positivos."}
+        if Vl_lr <= 0.0 or I_lr <= 0.0 or P_lr <= 0.0:
+            return {"success": False, "error": "Ensaio bloqueado: Vl_lr, I_lr e P_lr devem ser positivos."}
+        if f_nl <= 0.0 or f_lr <= 0.0:
+            return {"success": False, "error": "Frequências dos ensaios devem ser positivas."}
+        if Pfw < 0.0:
+            return {"success": False, "error": "Perdas mecânicas (Pfw) não podem ser negativas."}
+
+        split_key = split if split in _IEEE_SPLIT_TABLE else "B"
+        frac = Xls_frac if split_key == "custom" else _IEEE_SPLIT_TABLE[split_key]
+        if not (0.05 <= frac <= 0.95):
+            return {
+                "success": False,
+                "error": f"Fração Xls/Xk = {frac:.3f} fora do intervalo [0,05; 0,95].",
+            }
+
+        # ── Passo 1 — Resistência do estator (Ensaio CC, IEEE 112 Cl. 6.4) ─
+        # Y: dois enrolamentos em série     → Rs_fase = (V_dc / I_dc) / 2
+        # Δ: dois em paralelo c/ um em série → Rs_fase = (V_dc / I_dc) · 1,5
+        if is_delta:
+            Rs = (V_dc / I_dc) * 1.5
+        else:
+            Rs = (V_dc / I_dc) / 2.0
+
+        if Rs <= 0.0:
+            return {"success": False, "error": "Rs calculado não é positivo. Verifique V_dc e I_dc."}
+
+        # ── Passo 2 — Ensaio em Vazio (IEEE 112 Cl. 6.5) ────────────────────
+        Vf_nl = Vl_nl / math.sqrt(3.0)
+        S_nl  = 3.0 * Vf_nl * I_nl
+        # Q_nl (não usado diretamente, mas mantido para rastreabilidade)
+        Q_nl  = math.sqrt(max(S_nl ** 2 - P_nl ** 2, 0.0))
+
+        # Perdas mecânicas — heurística: 0,8% de P_nl quando não informadas
+        Pfw_used = Pfw if Pfw > 0.0 else 0.008 * P_nl
+
+        # Perdas no ferro (descontando Joule no estator e perdas mecânicas)
+        P_joule_st_nl = 3.0 * Rs * I_nl ** 2
+        Pfe_3ph = P_nl - P_joule_st_nl - Pfw_used
+        if Pfe_3ph <= 0.0:
+            return {
+                "success": False,
+                "error": (
+                    f"Pfe calculado ≤ 0 (Pfe_3ph = {Pfe_3ph:.2f} W). "
+                    f"P_nl = {P_nl:.1f} W é insuficiente para cobrir 3·Rs·I_nl² = {P_joule_st_nl:.1f} W "
+                    f"+ Pfw = {Pfw_used:.1f} W."
+                ),
+            }
+
+        # Primeira passagem: E1_nl com Xls ≈ 0
+        E1_nl_0 = math.sqrt(max(Vf_nl ** 2 - (Rs * I_nl) ** 2, 1e-6))
+
+        # ── Passo 3 — Rotor Bloqueado (IEEE 112 Cl. 6.6) ────────────────────
+        Vf_lr = Vl_lr / math.sqrt(3.0)
+        Zk    = Vf_lr / I_lr
+        Rk    = P_lr / (3.0 * I_lr ** 2)
+
+        if Rk >= Zk:
+            return {
+                "success": False,
+                "error": (
+                    f"Ensaio bloqueado: Rk = {Rk:.4f} Ω ≥ Zk = {Zk:.4f} Ω. "
+                    "Verifique P_lr, V_lr e I_lr — o fator de potência está incoerente."
+                ),
+            }
+
+        Xk_lr = math.sqrt(max(Zk ** 2 - Rk ** 2, 1e-6))
+        # Correção linear de frequência: Xk @ f_nl = Xk_lr · (f_nl / f_lr)
+        Xk = Xk_lr * (f_nl / f_lr)
+
+        # ── Passo 4 — Separação Rs/Rr e distribuição Xls/Xlr ────────────────
+        Rr = Rk - Rs
+        if Rr <= 0.0:
+            return {
+                "success": False,
+                "error": (
+                    f"Rr = Rk − Rs = {Rr:.4f} Ω ≤ 0. "
+                    f"Rs (ensaio CC) = {Rs:.4f} Ω é maior que Rk (ensaio bloqueado) = {Rk:.4f} Ω. "
+                    "Verifique as medições."
+                ),
+            }
+
+        Xls = frac * Xk
+        Xlr = (1.0 - frac) * Xk
+
+        # ── Passo 5 — Iteração de Xls sobre E1_nl (1 iteração) ──────────────
+        # E1_nl corrigido com queda em Xls levada em conta
+        E1_nl_corr_sq = (Vf_nl - Rs * I_nl) ** 2 - (Xls * I_nl) ** 2
+        E1_nl = math.sqrt(max(E1_nl_corr_sq, (0.5 * Vf_nl) ** 2))
+
+        # Recalcular Rfe e Xm com E1_nl_corr
+        Rfe = (3.0 * E1_nl ** 2) / Pfe_3ph
+        I_fe = E1_nl / Rfe
+        I_mu_sq = I_nl ** 2 - I_fe ** 2
+        if I_mu_sq <= 0.0:
+            return {
+                "success": False,
+                "error": (
+                    f"Componente de magnetização não positiva (I_nl² − I_fe² = {I_mu_sq:.4f}). "
+                    "Verifique P_nl e I_nl — possível erro de medição em vazio."
+                ),
+            }
+        I_mu = math.sqrt(I_mu_sq)
+        Xm = max(E1_nl / I_mu - Xls, 1e-3)
+
+        return {
+            "success": True,
+            "Rs":          round(Rs,    5),
+            "Rr":          round(Rr,    5),
+            "Xm":          round(Xm,    4),
+            "Xls":         round(Xls,   5),
+            "Xlr":         round(Xlr,   5),
+            "Rfe":         round(Rfe,   2),
+            # rastreabilidade dos ensaios
+            "E1_nl":       round(E1_nl, 3),
+            "E1_nl_0":     round(E1_nl_0, 3),
+            "Xk":          round(Xk,    4),
+            "Xk_lr":       round(Xk_lr, 4),
+            "Rk":          round(Rk,    5),
+            "Zk":          round(Zk,    4),
+            "Pfe_3ph":     round(Pfe_3ph, 2),
+            "P_joule_st_nl": round(P_joule_st_nl, 2),
+            "I_mu":        round(I_mu,  4),
+            "I_fe":        round(I_fe,  4),
+            "Pfw_used":    round(Pfw_used, 2),
+            "S_nl":        round(S_nl,  2),
+            "Q_nl":        round(Q_nl,  2),
+            "Vf_nl":       round(Vf_nl, 3),
+            "Vf_lr":       round(Vf_lr, 3),
+            "split_used":  split_key,
+            "Xls_frac":    round(frac,  3),
+            "f_nl":        f_nl,
+            "f_lr":        f_lr,
+        }
+
+    except ZeroDivisionError as exc:
+        return {"success": False, "error": f"Divisão por zero durante a estimação IEEE: {exc}"}
+    except Exception as exc:  # noqa: BLE001
+        return {"success": False, "error": f"Erro inesperado no estimador IEEE: {exc}"}
