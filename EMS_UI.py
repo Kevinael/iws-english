@@ -132,7 +132,7 @@ def main() -> None:
         dec = int(st.session_state.get("decimals", 3))
 
         # parâmetros + circuito
-        col_params, col_circuit = st.columns([1.2, 0.8], gap="large")
+        col_params, col_circuit = st.columns([1, 1], gap="large")
 
         with col_params:
             mp, ref_code, energy_tariff = render_machine_params(dark, experiment_mode, _WK)
