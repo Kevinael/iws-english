@@ -97,6 +97,63 @@ def render_desequilibrio_ui(config: dict, tmax: float = 2.0) -> None:
     with st.expander("Desequilíbrio de Tensão / Falta de Fase", expanded=False):
         st.info("Simula assimetria na rede. Útil para estudar diagnóstico de falhas e proteção de motores.")
 
+        with st.expander("O que é desequilíbrio de tensão? (teoria, normas e dicas)", expanded=False):
+            st.markdown("""
+**Definição.** Um sistema trifásico é considerado **desequilibrado** quando os três fasores
+de tensão de linha não possuem **módulos iguais** e/ou não estão **defasados de 120°** entre si.
+
+**Causas comuns:**
+- Cargas monofásicas distribuídas de forma assimétrica no alimentador.
+- Bancos de capacitores ou transformadores com tensões de tap desalinhadas.
+- Conexões deficientes (terminais oxidados, fusíveis abertos parcialmente).
+- Faltas monofásicas (curto-circuito fase-terra) durante o transitório.
+
+**Decomposição em componentes simétricas (Fortescue).** Qualquer terna desequilibrada
+pode ser decomposta em três sistemas balanceados:
+
+| Componente | Símbolo | Característica | Efeito no motor |
+|-----------|---------|---------------|-----------------|
+| Positiva | $V_1$ | Sequência ABC normal | Produz torque útil |
+| Negativa | $V_2$ | Sequência ACB (campo girante reverso) | Gera torque **frenante** e correntes elevadas |
+| Zero | $V_0$ | Três fasores em fase | Circula apenas se houver neutro acessível |
+
+A componente de **sequência negativa** é a principal responsável pelos danos: ela
+enxerga um escorregamento próximo de $2 - s \\approx 2$ (campo gira contra o rotor),
+gerando correntes ~5–6× a componente equivalente em sequência positiva.
+
+**Fator de desequilíbrio de tensão (VUF, NEMA MG-1 §14.36):**
+$$\\text{VUF}_{\\%} = \\frac{\\text{máximo desvio de }V_l\\text{ em relação à média}}{\\text{média de }V_l} \\times 100\\%$$
+
+**Limites normativos:**
+- **NEMA MG-1:** motores devem operar com VUF ≤ **1%** sem derating. Acima disso, aplica-se fator de redução de potência (curva da NEMA).
+- **ANEEL PRODIST Módulo 8:** limite de **2%** em conexões BT (≤ 1 kV) e **3%** em MT/AT.
+- **IEC 60034-1:** limite de **1%** contínuo, com excursões transitórias toleradas.
+
+**Impactos típicos no motor:**
+- Aquecimento adicional: $\\Delta T \\propto \\text{VUF}^2$ — um VUF de 3,5% pode aumentar a temperatura dos enrolamentos em ~25%, reduzindo a vida útil pela metade.
+- Torque eletromagnético com **oscilação de 2·f** (120 Hz em rede 60 Hz) devido à interação entre campos de sequência positiva e negativa.
+- Redução do torque máximo disponível.
+- Aumento de vibração e ruído audível.
+
+**Como configurar este painel:**
+- **Desvio de amplitude (%):** modifica o módulo de $V_a$, $V_b$ ou $V_c$ individualmente, em relação ao nominal. Use valores pequenos (1–5%) para simular desequilíbrio típico de rede; valores maiores (10–30%) para estudar a região de proteção.
+- **Desvio de frequência (Hz):** raro em sistemas reais (rede está sincronizada), mas útil para simular geradores isolados ou inversores fora de sincronismo.
+- **Falta de fase:** força $V_a$, $V_b$ ou $V_c$ a zero. **Aviso:** uma falta de fase eleva a corrente nas fases remanescentes para 1,7–2,5× o nominal — proteja com tempo de simulação curto (≤ 1 s).
+- **Instante de início:** o sistema parte da rede balanceada e o desequilíbrio é aplicado a partir deste instante. Use 0 para aplicar desde o início, ou um valor após o regime permanente para visualizar o transitório de desequilíbrio.
+
+**Como observar os efeitos:**
+- Gráficos de **correntes de fase $i_{as}, i_{bs}, i_{cs}$**: amplitudes desiguais.
+- **Torque eletromagnético $T_e$**: oscilação visível em 2·f sobreposta ao valor médio.
+- **Velocidade $n$**: pequena oscilação na velocidade (atenuada pela inércia).
+- **Análise FFT do torque**: pico em 120 Hz (rede 60 Hz) confirma sequência negativa.
+
+**Referências:**
+- NEMA MG-1, *Motors and Generators*, §14.36 ("Effects of Unbalanced Voltage on Motor Performance").
+- ANEEL PRODIST, *Módulo 8 — Qualidade da Energia Elétrica*, §3.4.
+- IEC 60034-1, *Rotating Electrical Machines — Rating and Performance*, §7.2.
+- Fitzgerald/Umans, *Máquinas Elétricas*, §4.7 ("Componentes Simétricas").
+            """)
+
         col_a, col_b, col_c = st.columns(3)
 
         with col_a:
@@ -202,6 +259,93 @@ def render_broken_bar_ui(config: dict, tmax: float = 2.0, wk: dict | None = None
             "Simula falha mecânica no rotor por modulação de Rᵣ. "
             "Útil para estudos de MCSA (Motor Current Signature Analysis)."
         )
+
+        with st.expander("O que é falha de barra quebrada? (teoria, MCSA e dicas)", expanded=False):
+            st.markdown("""
+**Definição.** O rotor de gaiola é formado por **barras condutoras** (alumínio fundido
+ou cobre) curto-circuitadas em ambas as extremidades por **anéis de curto-circuito**.
+Uma barra **quebrada** (trincada, rompida ou com mau contato no anel) interrompe a
+condução de corrente naquele caminho do rotor.
+
+**Causas comuns:**
+- Estresse térmico em partidas DOL repetidas (gradiente $\\Delta T > 200\\,°C$ na barra).
+- Fadiga mecânica por vibração e ciclos de carga.
+- Defeitos de fundição (porosidade no alumínio) ou solda fria nos anéis.
+- Corrosão eletroquímica em ambientes agressivos.
+
+**Estatística de campo (IEEE/EPRI):** falhas no rotor representam **8–15%** das falhas
+totais em motores de indução, sendo barras quebradas a causa dominante em motores
+acima de 100 kW com regime de partidas frequentes.
+
+**Por que a falha gera $(1 \\pm 2s)f_e$?**
+Em um rotor saudável, as $N_r$ correntes de barra são senoidais e equilibradas na
+frequência de escorregamento $s \\cdot f_e$. Uma barra quebrada cria uma **assimetria
+espacial** que gira na velocidade do rotor. Decompondo essa assimetria:
+
+- A componente **direta** induz no estator uma corrente em $f_e(1 - 2s)$ — **banda lateral inferior**.
+- A componente **reversa** induz em $f_e(1 + 2s)$ — banda lateral superior.
+
+Estas duas raias laterais, simétricas em torno da fundamental $f_e$, são a **assinatura
+espectral clássica** da falha (Thomson & Fenger, 2001).
+
+**Modelo implementado neste simulador:**
+
+$$R_r(t) = R_{r0} \\cdot (1 + \\alpha \\cdot \\cos(2\\theta_{slip}))$$
+
+A modulação a $2\\theta_{slip}$ gera, na corrente de estator, exatamente os pares laterais
+$(1 \\pm 2s)f_e$ previstos pela teoria. Aproximação válida para falhas leves a moderadas
+($\\alpha \\leq 0{,}3$); falhas severas exigem modelos de barras individuais (não
+implementado).
+
+**Severidade $\\alpha$ vs. número de barras quebradas (aproximação empírica):**
+
+| $\\alpha$ | Condição | Amplitude lateral típica (dB) |
+|----------|----------|------------------------------|
+| 0,00 | Saudável | < −55 |
+| 0,05 | Início de fissura, 1 barra parcial | −50 a −45 |
+| 0,10 | 1 barra quebrada | −45 a −40 |
+| 0,15–0,20 | 2 barras quebradas adjacentes | −40 a −35 |
+| 0,30+ | Falha grave, múltiplas barras | > −30 |
+
+A referência é a relação $20 \\log_{10}(I_{lateral}/I_{fundamental})$.
+
+**Critério IEC 60034-26 (gravidade da falha):**
+
+| Banda lateral (dB) | Diagnóstico |
+|-------------------|-------------|
+| < −50 | Rotor saudável |
+| −50 a −45 | Possível fissura, monitorar |
+| −45 a −40 | Falha confirmada, planejar manutenção |
+| −40 a −35 | Falha avançada, intervenção urgente |
+| > −35 | Risco de ruptura do anel, parada imediata |
+
+**Procedimento MCSA (Motor Current Signature Analysis):**
+1. Adquira a corrente de uma fase do estator com **alta resolução** ($\\Delta f \\leq 0{,}1$ Hz).
+2. Execute **FFT** em janela longa (≥ 10 s) para resolver as raias laterais.
+3. Identifique a fundamental $f_e$ e meça as bandas em $f_e(1 \\pm 2s)$.
+4. Calcule a amplitude em dB: $20 \\log_{10}(I_{lateral}/I_{fundamental})$.
+5. Confronte com o critério IEC 60034-26 acima.
+
+**Dicas para a simulação:**
+- Use **partida DOL ou direta com carga** para que o motor atinja regime antes da falha.
+- Defina $t_{falha}$ **após o transitório** (≥ 2× o tempo de partida) para isolar a assinatura.
+- Aumente $t_{max}$ para **≥ 5 s** para obter resolução espectral suficiente na FFT.
+- A análise FFT do simulador exibirá as raias laterais quando $\\alpha > 0$.
+- Para visualizar o **torque pulsante**: plote $T_e$ — a oscilação de baixa frequência ($2s \\cdot f_e$, tipicamente 1–5 Hz) é visível mesmo a olho nu.
+- Velocidades **muito baixas de escorregamento** ($s < 0{,}5\\%$) afastam as raias laterais demais da fundamental e dificultam a detecção — partir com carga ajuda.
+
+**Limitações do modelo:**
+- Assume distribuição senoidal da assimetria — não captura efeitos de barras adjacentes não-uniformes.
+- Não modela o **anel de curto-circuito** (cuja falha gera bandas em $(1 \\pm 2s/p)f_e$).
+- Saturação magnética e excentricidade dinâmica não são representadas.
+
+**Referências:**
+- IEC 60034-26, *Effects of Unbalanced Voltages on the Performance of Three-Phase Cage Induction Motors* (aplica-se também à assinatura de falhas rotóricas).
+- Thomson, W. T. & Fenger, M., *Current Signature Analysis to Detect Induction Motor Faults*, IEEE Industry Applications Magazine, vol. 7, no. 4, 2001.
+- Nandi, S., Toliyat, H. A. & Li, X., *Condition Monitoring and Fault Diagnosis of Electrical Motors — A Review*, IEEE Trans. on Energy Conversion, vol. 20, no. 4, 2005.
+- IEEE Std 1129, *Recommended Practice for Maintenance, Testing, and Replacement of Induction Motors*.
+            """)
+
         st.markdown(
             "Modelo: $R_r(t) = R_{r0} \\cdot (1 + \\alpha \\cdot \\cos(2\\theta_{slip}))$  "
             "para $t \\geq t_{falha}$. "
