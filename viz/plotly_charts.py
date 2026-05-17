@@ -18,7 +18,7 @@ def _plot_theme(dark: bool) -> dict:
             plot_bg    = "#151a24",
             paper_bg   = "#0f1218",
             fg         = "#e5e7eb",
-            grid       = "rgba(255,255,255,0.08)",
+            grid       = "rgba(255,255,255,0.15)",
             event_line = "#f59e0b",
         )
     return dict(

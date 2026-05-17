@@ -166,6 +166,7 @@ def apply_css(dark: bool) -> None:
         border: none;
         border-radius: 12px;
         padding: .85rem 1.1rem;
+        min-height: 90px;
         box-shadow: 0 1px 3px rgba(0,0,0,0.09), 0 1px 6px rgba(0,0,0,0.05);
     }}
     [data-testid="stMetricLabel"] p {{
