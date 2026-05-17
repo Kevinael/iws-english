@@ -118,8 +118,8 @@ def main() -> None:
 
     # ── ABA SIMULAÇÃO ─────────────────────────────────────────────────────
     with tab_sim:
-        # controles globais
-        ct1, ct2, ct3 = st.columns([1, 1.6, 0.8])
+        # controles globais — agrupados à esquerda; última coluna absorve o espaço restante
+        ct1, ct2, ct3, _ = st.columns([1.2, 1.8, 1.2, 6])
         with ct1:
             st.toggle("Modo Escuro", value=dark, key="dark_mode")
         with ct2:
