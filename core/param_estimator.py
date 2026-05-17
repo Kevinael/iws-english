@@ -326,12 +326,40 @@ def estimate_params_ieee_tests(
         Xls = frac * Xk
         Xlr = (1.0 - frac) * Xk
 
-        # ── Passo 5 — Iteração de Xls sobre E1_nl (1 iteração) ──────────────
-        # E1_nl corrigido com queda em Xls levada em conta
-        E1_nl_corr_sq = (Vf_nl - Rs * I_nl) ** 2 - (Xls * I_nl) ** 2
-        E1_nl = math.sqrt(max(E1_nl_corr_sq, (0.5 * Vf_nl) ** 2))
+        # ── Passo 5 — Duas iterações fasoriais de E₁_nl ─────────────────────
+        # Modelo fasorial: Vf_nl = E1 + (Rs + j·Xls)·I_nl
+        # I_nl decompõe-se em I_fe (em fase com E1) e I_mu (atrasada de 90°).
+        # Sem conhecer I_fe e I_mu a priori, refinamos E1 em duas iterações.
 
-        # Recalcular Rfe e Xm com E1_nl_corr
+        # Iteração 1: aproximação inicial — assume I_nl em fase com Vf_nl
+        E1_re_1 = Vf_nl - Rs * I_nl
+        E1_im_1 = -Xls * I_nl
+        E1_nl_1 = max(math.sqrt(E1_re_1 ** 2 + E1_im_1 ** 2), 0.5 * Vf_nl)
+
+        # Estima componentes da corrente em vazio com E1 da iteração 1
+        Rfe_1     = (3.0 * E1_nl_1 ** 2) / Pfe_3ph
+        I_fe_1    = E1_nl_1 / Rfe_1
+        I_mu_sq_1 = I_nl ** 2 - I_fe_1 ** 2
+        if I_mu_sq_1 <= 0.0:
+            return {
+                "success": False,
+                "error": (
+                    f"Componente de magnetização não positiva na 1ª iteração "
+                    f"(I_nl² − I_fe² = {I_mu_sq_1:.4f}). Verifique P_nl e I_nl."
+                ),
+            }
+        I_mu_1 = math.sqrt(I_mu_sq_1)
+
+        # Iteração 2: usa decomposição fasorial correta de I_nl
+        # I_nl = I_fe − j·I_mu  (referencial em E1)
+        # Vf_nl = E1 + (Rs + j·Xls)·(I_fe − j·I_mu)
+        # Componente em fase:        Vf_nl = E1 + Rs·I_fe + Xls·I_mu
+        # Componente em quadratura:  0     =      Xls·I_fe − Rs·I_mu
+        E1_re_2 = Vf_nl - Rs * I_fe_1 - Xls * I_mu_1
+        E1_im_2 = -(Xls * I_fe_1 - Rs * I_mu_1)
+        E1_nl   = max(math.sqrt(E1_re_2 ** 2 + E1_im_2 ** 2), 0.5 * Vf_nl)
+
+        # Recalcula Rfe, I_mu e Xm com E1 final
         Rfe = (3.0 * E1_nl ** 2) / Pfe_3ph
         I_fe = E1_nl / Rfe
         I_mu_sq = I_nl ** 2 - I_fe ** 2
@@ -357,6 +385,7 @@ def estimate_params_ieee_tests(
             # rastreabilidade dos ensaios
             "E1_nl":       round(E1_nl, 3),
             "E1_nl_0":     round(E1_nl_0, 3),
+            "E1_nl_1":     round(E1_nl_1, 3),
             "Xk":          round(Xk,    4),
             "Xk_lr":       round(Xk_lr, 4),
             "Rk":          round(Rk,    5),
