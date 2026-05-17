@@ -119,11 +119,12 @@ def main() -> None:
     # ── ABA SIMULAÇÃO ─────────────────────────────────────────────────────
     with tab_sim:
         # controles globais
-        ct1, ct2, ct3, _ = st.columns([1, 1.6, 0.8, 4])
+        ct1, ct2, ct3 = st.columns([1, 1.6, 0.8])
         with ct1:
             st.toggle("Modo Escuro", value=dark, key="dark_mode")
         with ct2:
-            st.toggle("Travar Parâmetros", value=False, key="experiment_mode")
+            st.toggle("Travar Parâmetros", value=False, key="experiment_mode",
+                      help="Quando ativado, desabilita os campos de parâmetros do motor (Rs, Rr, Xm, Xls, Xlr, p, J, B). Útil para comparar resultados variando apenas o experimento (carga, tensão, falha) sem alterar a máquina.")
         with ct3:
             st.number_input("Casas decimais", min_value=0, max_value=6, value=3, step=1, key="decimals")
 
@@ -131,7 +132,7 @@ def main() -> None:
         dec = int(st.session_state.get("decimals", 3))
 
         # parâmetros + circuito
-        col_params, col_circuit = st.columns([1, 1], gap="large")
+        col_params, col_circuit = st.columns([1.2, 0.8], gap="large")
 
         with col_params:
             mp, ref_code, energy_tariff = render_machine_params(dark, experiment_mode, _WK)
@@ -213,6 +214,17 @@ def main() -> None:
                 exp_config=sr.get("exp_config"),
                 torque_fn=sr.get("torque_fn"),
             )
+        else:
+            with st.container(border=True):
+                st.markdown(
+                    "### Nenhuma simulação executada ainda\n\n"
+                    "Configure os parâmetros do motor e do experimento acima, "
+                    "depois clique em **Executar Simulação** para visualizar:\n\n"
+                    "- Formas de onda de corrente, torque e velocidade no transitório\n"
+                    "- Métricas de regime permanente (velocidade final, escorregamento, rendimento)\n"
+                    "- Análise harmônica (FFT) e diagnóstico\n"
+                    "- Indicadores de eficiência energética e custo operacional"
+                )
 
     # ── ABA TEORIA ────────────────────────────────────────────────────────
     with tab_teoria:

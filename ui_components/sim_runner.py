@@ -130,8 +130,15 @@ def execute_simulation_flow(
             )
             st.rerun()
         except Exception as e:
-            st.error(f"Erro na simulação: {e}")
-            st.info(
-                "Verifique os parâmetros. Passos de integração muito grandes "
-                "ou parâmetros fisicamente inválidos podem causar divergência numérica."
+            st.error("Falha durante a integração numérica da simulação.")
+            st.markdown(
+                "**Sugestões para resolver:**\n"
+                "- Reduza o tempo total da simulação (tmax).\n"
+                "- Diminua o passo de integração (h) — valores típicos: 1×10⁻⁴ a 1×10⁻⁵ s.\n"
+                "- Verifique se os parâmetros do motor estão fisicamente consistentes "
+                "(Rfe positivo e finito, Xm > Xls + Xlr, polos coerentes com a velocidade nominal).\n"
+                "- Se o experimento envolve falta de fase ou desequilíbrio severo, "
+                "reduza a duração — correntes muito elevadas podem divergir."
             )
+            with st.expander("Detalhes técnicos do erro (para depuração)", expanded=False):
+                st.code(f"{type(e).__name__}: {e}", language="text")

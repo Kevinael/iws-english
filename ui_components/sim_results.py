@@ -339,9 +339,13 @@ def render_results(
         destaques = _kpis_destaque(res, exp_type, mp, d, t_events)
         if destaques:
             st.markdown('<p class="slabel">Destaques do Experimento</p>', unsafe_allow_html=True)
-            cols = st.columns(len(destaques))
-            for col, (lbl, val, unit) in zip(cols, destaques):
-                col.metric(f"{lbl} ({unit})", val)
+            # Distribui em até 4 colunas por linha, quebrando para múltiplas linhas se necessário
+            _MAX_COLS = 4
+            for i in range(0, len(destaques), _MAX_COLS):
+                chunk = destaques[i:i + _MAX_COLS]
+                cols = st.columns(_MAX_COLS)
+                for col, (lbl, val, unit) in zip(cols, chunk):
+                    col.metric(f"{lbl} ({unit})", val)
             st.write("")
 
         # Trip Class
@@ -395,9 +399,13 @@ def render_results(
                 ("Corrente RMS $i_{as}$ (A)",        f"{ias_rms:.{d}f}"),
                 ("Vel. Angular $\\omega_r$ (rad/s)", f"{wr_ss:.{d}f}"),
             ]
-            k = st.columns(len(_row1))
-            for col, (lbl, val) in zip(k, _row1):
-                col.metric(lbl, val)
+            # Distribui em até 4 colunas por linha
+            _MAX_COLS = 4
+            for i in range(0, len(_row1), _MAX_COLS):
+                chunk = _row1[i:i + _MAX_COLS]
+                cols = st.columns(_MAX_COLS)
+                for col, (lbl, val) in zip(cols, chunk):
+                    col.metric(lbl, val)
 
             s_val   = res.get("s", 0.0)
             gerador = s_val < 0
@@ -412,19 +420,22 @@ def render_results(
             lbl_gap = f"P. Entreferro Gerada ({u0})" if gerador else f"P. Entreferro ({u0})"
             lbl_mec = f"P. Mec. Entrada ({u1})"      if gerador else f"P. Mecanica ({u1})"
 
-            k2 = st.columns(6)
+            # Primeira linha — fluxo de potência ativa
+            k2a = st.columns(3)
             if gerador:
-                k2[0].metric(lbl_in,                      v_in)
-                k2[1].metric(lbl_gap,                     v0)
-                k2[2].metric(f"P. Gerada Rede ({u_out})", v_out)
-                k2[3].metric(f"Perdas Rotor ({u2})",      v2)
+                k2a[0].metric(lbl_in,                      v_in)
+                k2a[1].metric(lbl_gap,                     v0)
+                k2a[2].metric(f"P. Gerada Rede ({u_out})", v_out)
             else:
-                k2[0].metric(lbl_in,                      v_in)
-                k2[1].metric(lbl_gap,                     v0)
-                k2[2].metric(lbl_mec,                     v1)
-                k2[3].metric(f"Perdas Rotor ({u2})",      v2)
-            k2[4].metric("Rendimento (%)",     f"{res.get('eta', 0.0):.{d}f}")
-            k2[5].metric("Escorregamento (%)", f"{s_val*100:.{d}f}")
+                k2a[0].metric(lbl_in,                      v_in)
+                k2a[1].metric(lbl_gap,                     v0)
+                k2a[2].metric(lbl_mec,                     v1)
+
+            # Segunda linha — perdas e indicadores adimensionais
+            k2b = st.columns(3)
+            k2b[0].metric(f"Perdas Rotor ({u2})", v2)
+            k2b[1].metric("Rendimento (%)",       f"{res.get('eta', 0.0):.{d}f}")
+            k2b[2].metric("Escorregamento (%)",   f"{s_val*100:.{d}f}")
 
         # resumo econômico compacto na visão geral
         if _em:
@@ -433,7 +444,14 @@ def render_results(
             _re1, _re2, _re3 = st.columns(3)
             _re1.metric("Rendimento em Regime", f"{_em['eta_ss']:.2f} %")
             _re2.metric("Potência Entrada (regime)", f"{_em['P_in_ss_kw']:.3f} kW")
-            _re3.metric("Custo Operacional Anual", f"R$ {_em['custo_ano_brl']:,.2f}")
+            _re3.metric("Custo Operacional Anual", f"R$ {_em['custo_ano_brl']:,.2f}",
+                        help=(
+                            f"Estimado como: P_in_regime × 8.760 h/ano × tarifa.\n"
+                            f"Suposições: operação contínua 24 h/dia, 365 dias/ano, "
+                            f"na potência de regime permanente.\n"
+                            f"Tarifa atual: R$ {energy_tariff:.4f}/kWh "
+                            f"(configurável em Parâmetros Avançados → Análise Econômica)."
+                        ))
 
     # ══════════════════════════════════════════════════════════════════════
     # ABA 2 — ANÁLISE DINÂMICA
@@ -845,8 +863,19 @@ def render_results(
 
             _ec4, _ec5, _ec6 = st.columns(3)
             _ec4.metric("Rendimento em Regime",    f"{_em['eta_ss']:.2f} %")
-            _ec5.metric("Custo Operacional Anual", f"R$ {_em['custo_ano_brl']:,.2f}")
-            _ec6.metric("Energia Anual Projetada", f"{_em['P_in_ss_kw'] * _em['horas_op_ano']:,.1f} kWh/ano")
+            _ec5.metric("Custo Operacional Anual", f"R$ {_em['custo_ano_brl']:,.2f}",
+                        help=(
+                            f"Estimado como: P_in_regime × 8.760 h/ano × tarifa.\n"
+                            f"Suposições: operação contínua 24 h/dia, 365 dias/ano, "
+                            f"na potência de regime permanente.\n"
+                            f"Tarifa atual: R$ {energy_tariff:.4f}/kWh."
+                        ))
+            _ec6.metric("Energia Anual Projetada", f"{_em['P_in_ss_kw'] * _em['horas_op_ano']:,.1f} kWh/ano",
+                        help=(
+                            f"Energia elétrica que o motor consumiria em um ano de "
+                            f"operação contínua à potência de regime "
+                            f"({_em['P_in_ss_kw']:.3f} kW × 8.760 h/ano)."
+                        ))
 
             st.caption(
                 f"Projeção anual baseada em operação contínua (8.760 h/ano) à tarifa de "

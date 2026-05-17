@@ -6,10 +6,30 @@ from viz.plotly_charts import _plot_theme
 from utils.text_utils import _strip_latex
 
 
+def _fft_unit_for_key(key: str) -> str:
+    """Retorna a unidade física esperada para a variável do FFT.
+
+    Mapeamento simples baseado no prefixo da chave do dicionário de resultados.
+    """
+    k = key.lower()
+    if k.startswith("i"):       # ias, ibs, ics, iar, ids, iqs, ...
+        return "A"
+    if k.startswith("v"):       # Va, Vb, Vc
+        return "V"
+    if k.startswith("te") or k == "te":
+        return "N·m"
+    if k.startswith("wr") or k == "n":
+        return "rad/s" if k.startswith("w") else "RPM"
+    return ""
+
+
 def build_fig_fft(res: dict, dark: bool, key: str = "ias", label: str = "ias") -> go.Figure:
     """Espectro de amplitudes (FFT) de uma variável em regime permanente."""
-    pt  = _plot_theme(dark)
-    col = "#4f8ef7" if dark else "#1d4ed8"
+    pt   = _plot_theme(dark)
+    col  = "#4f8ef7" if dark else "#1d4ed8"
+    unit = _fft_unit_for_key(key)
+    unit_suffix = f" ({unit}, RMS)" if unit else ""
+    unit_hover  = f" {unit}" if unit else ""
 
     ss_start     = int(res.get("_ss_start", 0))
     t_broken_bar = float(res.get("_t_broken_bar", 0.0))
@@ -74,7 +94,7 @@ def build_fig_fft(res: dict, dark: bool, key: str = "ias", label: str = "ias") -
         fill="tozeroy",
         fillcolor="rgba(79,142,247,0.12)" if dark else "rgba(29,78,216,0.12)",
         name=label,
-        hovertemplate="f = %{x:.1f} Hz<br>A = %{y:.4f}<extra></extra>",
+        hovertemplate="f = %{x:.1f} Hz<br>A = %{y:.4f}" + unit_hover + "<extra></extra>",
     ))
 
     # marcadores apenas nos picos com energia relevante
@@ -88,7 +108,7 @@ def build_fig_fft(res: dict, dark: bool, key: str = "ias", label: str = "ias") -
             textposition="top center",
             textfont=dict(size=9, color="#ef4444"),
             name="Harmônicas",
-            hovertemplate="f = %{x:.1f} Hz<br>A = %{y:.4f}<extra></extra>",
+            hovertemplate="f = %{x:.1f} Hz<br>A = %{y:.4f}" + unit_hover + "<extra></extra>",
         ))
 
     # ticks no eixo X: múltiplos da fundamental, no máximo 8 ticks
@@ -109,7 +129,7 @@ def build_fig_fft(res: dict, dark: bool, key: str = "ias", label: str = "ias") -
             dtick=tick_step,
         ),
         yaxis=dict(
-            title="Amplitude", showgrid=True, gridcolor=pt["grid"],
+            title="Amplitude" + unit_suffix, showgrid=True, gridcolor=pt["grid"],
             tickfont=dict(size=9, color=pt["fg"]), exponentformat="none",
             range=[0, y_max * 1.30],
         ),

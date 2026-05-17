@@ -572,6 +572,126 @@ def render_machine_params(
         )
         st.markdown('</div>', unsafe_allow_html=True)
 
+        # ── Guia didático dos três ensaios (fechado por padrão) ───────────
+        with st.expander("Como realizar os ensaios IEEE 112 (procedimento, fórmulas e dicas)", expanded=False):
+            st.markdown("""
+**Visão geral.** O método IEEE Std 112-2017 (Cl. 6) determina o circuito equivalente em T
+de uma máquina de indução por meio de **três ensaios físicos complementares**:
+
+| Ensaio | O que mede | Parâmetros extraídos |
+|--------|-----------|---------------------|
+| **[1] CC** (Cl. 6.4) | Resistência ôhmica do estator a frio | $R_s$ |
+| **[2] Vazio** (Cl. 6.5) | Ramo de magnetização sob tensão nominal, $s \\approx 0$ | $X_m$, $R_{fe}$, $P_{fw}$ |
+| **[3] Rotor Bloqueado** (Cl. 6.6) | Impedância de curto, $s = 1$ | $R_r$, $X_{ls}$, $X_{lr}$ |
+
+Todos os valores são por fase. Para ligação $\\Delta$, ajuste o checkbox acima — o
+estimador trata a conversão internamente.
+            """)
+
+            st.markdown("### [1] Ensaio CC — Resistência do Estator")
+            st.markdown("""
+**Objetivo.** Medir $R_s$ por fase com o motor parado e desenergizado em CA.
+
+**Equipamento.** Fonte CC ajustável, voltímetro CC, amperímetro CC.
+
+**Procedimento (IEEE 112 Cl. 6.4):**
+1. Garanta o motor **frio** (à temperatura ambiente) — a resistência varia ~0,4%/°C.
+2. Conecte a fonte CC entre **dois terminais** do motor.
+3. Eleve a tensão até a corrente atingir aproximadamente **25% de $I_n$**.
+4. Aguarde **1 minuto** para estabilização térmica.
+5. Anote $V_{dc}$ e $I_{dc}$ simultaneamente.
+
+**Fórmula aplicada:**
+- Estrela (Y): $R_s = \\dfrac{V_{dc}}{2 \\cdot I_{dc}}$ — dois enrolamentos em série
+- Triângulo (Δ): $R_s = 1{,}5 \\cdot \\dfrac{V_{dc}}{I_{dc}}$ — dois em paralelo com um em série
+
+**Dicas práticas:**
+- Não exceda 25% de $I_n$ — correntes maiores aquecem os enrolamentos e falseiam $R_s$.
+- Repita o ensaio para os outros dois pares de terminais e use a **média**.
+- Valor típico: 0,01–10 Ω, conforme a potência do motor.
+            """)
+
+            st.markdown("### [2] Ensaio em Vazio (No-Load) — Magnetização")
+            st.markdown("""
+**Objetivo.** Determinar $X_m$, $R_{fe}$ e estimar perdas mecânicas ($P_{fw}$),
+operando o motor **sem carga** em tensão e frequência nominais.
+
+**Equipamento.** Fonte CA trifásica nominal, wattímetro trifásico, voltímetro, amperímetro.
+
+**Procedimento (IEEE 112 Cl. 6.5):**
+1. **Desacople** qualquer carga mecânica do eixo (motor gira livre).
+2. Aplique tensão de linha **nominal** $V_l$ na frequência nominal $f$.
+3. Deixe o motor estabilizar (escorregamento $s \\to 0$, regime térmico).
+4. Anote $V_{l,NL}$, $I_{NL}$ (linha), $P_{NL}$ (trifásica total).
+
+**Separação de perdas.** A potência absorvida em vazio cobre três parcelas:
+
+$$P_{NL} = \\underbrace{3 \\cdot R_s \\cdot I_{NL}^2}_{\\text{Joule estator}} + \\underbrace{P_{fe}}_{\\text{ferro}} + \\underbrace{P_{fw}}_{\\text{atrito+ventilação}}$$
+
+**Fórmulas aplicadas:**
+- $V_{f,NL} = V_{l,NL}/\\sqrt{3}$
+- $E_{1,NL} \\approx V_{f,NL} - (R_s + jX_{ls}) \\cdot I_{NL}$ — refinado em 2 iterações fasoriais
+- $R_{fe} = 3 \\cdot E_{1,NL}^2 / P_{fe}$
+- $I_\\mu = \\sqrt{I_{NL}^2 - I_{fe}^2}$, então $X_m = E_{1,NL}/I_\\mu - X_{ls}$
+
+**Sobre $P_{fw}$:**
+- Se você **mediu** $P_{fw}$ separadamente (ensaio de coast-down ou extrapolação a tensão zero), informe o valor.
+- Se deixar em **0**, o estimador adota a heurística IEEE: $P_{fw} = 0{,}8\\% \\cdot P_{NL}$.
+
+**Dicas práticas:**
+- $I_{NL}$ típica: 25–40% de $I_n$ (motores pequenos), 15–25% (motores grandes).
+- Fator de potência em vazio é muito baixo (~0,1–0,3) — wattímetros analógicos devem ser de boa classe.
+- Se possível, gire o motor em alta rotação por 30 min antes para aquecer os mancais e estabilizar o atrito.
+            """)
+
+            st.markdown("### [3] Ensaio de Rotor Bloqueado (Locked Rotor)")
+            st.markdown("""
+**Objetivo.** Determinar $R_r$, $X_{ls}$ e $X_{lr}$ com o rotor **mecanicamente travado**
+($s = 1$, sem fem de movimento).
+
+**Equipamento.** Fonte CA trifásica de **frequência variável** (idealmente), wattímetro,
+voltímetro, amperímetro, dispositivo mecânico de bloqueio do eixo.
+
+**Procedimento (IEEE 112 Cl. 6.6):**
+1. **Trave o rotor** mecanicamente (chave de fenda na ranhura, freio, etc.) — não pode girar.
+2. Comece com tensão **muito reduzida** (5–10% de $V_n$) e eleve gradualmente.
+3. Aumente até a corrente atingir a **corrente nominal** $I_n$ (ou ligeiramente acima, conforme a norma).
+4. Anote $V_{l,LR}$, $I_{LR}$, $P_{LR}$ e a frequência $f_{LR}$.
+
+**Por que reduzir a frequência?**
+Em $s = 1$ na frequência nominal, a saturação magnética nas barras do rotor distorce as
+medidas. A norma recomenda $f_{LR} \\approx 25\\% \\cdot f_{nominal}$ (ex.: 15 Hz para rede 60 Hz)
+para reduzir a saturação. Como $X$ é proporcional à frequência, o estimador escala o
+resultado de volta:
+
+$$X_k\\big|_{f_{nom}} = X_k\\big|_{f_{LR}} \\cdot \\frac{f_{nom}}{f_{LR}}$$
+
+**Fórmulas aplicadas:**
+- $V_{f,LR} = V_{l,LR}/\\sqrt{3}$
+- $Z_k = V_{f,LR}/I_{LR}$
+- $R_k = P_{LR}/(3 \\cdot I_{LR}^2) = R_s + R_r$
+- $X_k\\big|_{f_{LR}} = \\sqrt{Z_k^2 - R_k^2}$, depois escalonado para $f_{nom}$
+- $R_r = R_k - R_s$ (deve ser positivo)
+
+**Distribuição $X_{ls}/X_{lr}$:** o ensaio fornece apenas a **soma** $X_k = X_{ls} + X_{lr}$.
+A separação usa a Tabela 1 da IEEE 112, conforme a **classe NEMA** selecionada abaixo
+(B = 40/60 é o padrão para motores industriais comuns).
+
+**Dicas práticas e precauções:**
+- **Aviso:** não aplique tensão nominal com rotor bloqueado — a corrente atingiria 5–8× $I_n$ e queimaria os enrolamentos em segundos.
+- Execute o ensaio **rapidamente** (poucos segundos por ponto) para evitar superaquecimento.
+- Se não houver fonte de frequência variável, é aceitável ensaio em 60 Hz para fins didáticos, mas o erro em $X_k$ pode chegar a 5–10%.
+- Valor típico de $R_r$: similar a $R_s$ em motores classe B; bem maior em classe D.
+            """)
+
+            st.markdown("---")
+            st.markdown("""
+**Referências bibliográficas:**
+- IEEE Std 112-2017 — *Standard Test Procedure for Polyphase Induction Motors and Generators*, Cl. 6.
+- Sen, P. C. — *Principles of Electric Machines and Power Electronics*, 3ª ed., §4.6 ("Determination of Equivalent Circuit Parameters").
+- Fitzgerald/Umans — *Máquinas Elétricas*, 7ª ed., §6.5 ("Ensaios para Determinação dos Parâmetros do Circuito Equivalente").
+            """)
+
         _pgroup("[1] Ensaio CC — Resistência do Estator")
         c_dc1, c_dc2 = st.columns(2)
         V_dc = c_dc1.number_input(
@@ -750,8 +870,10 @@ def render_machine_params(
         _pgroup("Dados Elétricos")
         Vl = st.number_input("Tensão de linha RMS — $V_l$ (V)",               min_value=50.0,   max_value=15000.0, value=_DEFAULTS["Vl"],  step=1.0,   key=wk["Vl"],  disabled=dis)
         f  = st.number_input("Frequência da rede — $f$ (Hz)",                 min_value=1.0,    max_value=400.0,   value=_DEFAULTS["f"],   step=1.0,   key=wk["f"],   disabled=dis)
-        Rs = st.number_input("Resistência do estator — $R_s$ (Ω)",            min_value=0.0001, max_value=100.0,   value=_DEFAULTS["Rs"],  step=0.001, key=wk["Rs"],  format="%.3f", disabled=dis)
-        Rr = st.number_input("Resistência do rotor — $R_r$ (Ω)",              min_value=0.0001, max_value=100.0,   value=_DEFAULTS["Rr"],  step=0.001, key=wk["Rr"],  format="%.3f", disabled=dis)
+        Rs = st.number_input("Resistência do estator — $R_s$ (Ω)",            min_value=0.0001, max_value=100.0,   value=_DEFAULTS["Rs"],  step=0.001, key=wk["Rs"],  format="%.3f", disabled=dis,
+                             help="Resistência do enrolamento do estator por fase. Típico: 0,01–10 Ω. Afeta perdas Joule e queda de tensão no transitório de partida.")
+        Rr = st.number_input("Resistência do rotor — $R_r$ (Ω)",              min_value=0.0001, max_value=100.0,   value=_DEFAULTS["Rr"],  step=0.001, key=wk["Rr"],  format="%.3f", disabled=dis,
+                             help="Resistência do enrolamento do rotor referida ao estator. Típico: similar a Rs (classe B). Determina o escorregamento nominal e o torque de partida.")
 
         input_mode_label = st.radio(
             "Formato dos parâmetros magnéticos",
@@ -771,25 +893,35 @@ def render_machine_params(
                 help="Frequência em que $X_m$, $X_{ls}$ e $X_{lr}$ foram medidos (tipicamente 50 Hz ou 60 Hz).",
                 disabled=dis,
             )
-            Xm  = st.number_input("Reatância de magnetização — $X_m$ (Ω)",            min_value=0.0001, max_value=500.0, value=_DEFAULTS["Xm"],  step=0.01,  key=wk["Xm"],  format="%.2f", disabled=dis)
-            Xls = st.number_input("Reatância de dispersão do estator — $X_{ls}$ (Ω)", min_value=0.0001, max_value=50.0,  value=_DEFAULTS["Xls"], step=0.001, key=wk["Xls"], format="%.3f", disabled=dis)
-            Xlr = st.number_input("Reatância de dispersão do rotor — $X_{lr}$ (Ω)",   min_value=0.0001, max_value=50.0,  value=_DEFAULTS["Xlr"], step=0.001, key=wk["Xlr"], format="%.3f", disabled=dis)
+            Xm  = st.number_input("Reatância de magnetização — $X_m$ (Ω)",            min_value=0.0001, max_value=500.0, value=_DEFAULTS["Xm"],  step=0.01,  key=wk["Xm"],  format="%.2f", disabled=dis,
+                                  help="Reatância de magnetização — representa o caminho do fluxo no entreferro. Típico: 10–30× Xls. Valores muito baixos indicam saturação ou ensaio em vazio incorreto.")
+            Xls = st.number_input("Reatância de dispersão do estator — $X_{ls}$ (Ω)", min_value=0.0001, max_value=50.0,  value=_DEFAULTS["Xls"], step=0.001, key=wk["Xls"], format="%.3f", disabled=dis,
+                                  help="Reatância de dispersão do estator — fluxo que não atravessa o entreferro. Típico: 0,1–2 Ω (motores até 10 kW). Determina, junto com Xlr, a inclinação da curva T×n na partida.")
+            Xlr = st.number_input("Reatância de dispersão do rotor — $X_{lr}$ (Ω)",   min_value=0.0001, max_value=50.0,  value=_DEFAULTS["Xlr"], step=0.001, key=wk["Xlr"], format="%.3f", disabled=dis,
+                                  help="Reatância de dispersão do rotor referida ao estator. Tipicamente próxima de Xls (classe B/D) ou maior (classe C).")
         else:
             f_ref   = 60.0
             _wb_ref = 2.0 * 3.141592653589793 * 60.0
-            Xm  = st.number_input("Indutância de magnetização — $L_m$ (H)",            min_value=1e-6, max_value=10.0, value=round(_DEFAULTS["Xm"]  / _wb_ref, 6), step=0.0001, key=wk["Xm_L"],  format="%.6f", disabled=dis)
-            Xls = st.number_input("Indutância de dispersão do estator — $L_{ls}$ (H)", min_value=1e-6, max_value=1.0,  value=round(_DEFAULTS["Xls"] / _wb_ref, 6), step=0.0001, key=wk["Xls_L"], format="%.6f", disabled=dis)
-            Xlr = st.number_input("Indutância de dispersão do rotor — $L_{lr}$ (H)",   min_value=1e-6, max_value=1.0,  value=round(_DEFAULTS["Xlr"] / _wb_ref, 6), step=0.0001, key=wk["Xlr_L"], format="%.6f", disabled=dis)
+            Xm  = st.number_input("Indutância de magnetização — $L_m$ (H)",            min_value=1e-6, max_value=10.0, value=round(_DEFAULTS["Xm"]  / _wb_ref, 6), step=0.0001, key=wk["Xm_L"],  format="%.6f", disabled=dis,
+                                  help="Indutância de magnetização (independente de f). Relacionada à reatância por Xm = 2π·f·Lm.")
+            Xls = st.number_input("Indutância de dispersão do estator — $L_{ls}$ (H)", min_value=1e-6, max_value=1.0,  value=round(_DEFAULTS["Xls"] / _wb_ref, 6), step=0.0001, key=wk["Xls_L"], format="%.6f", disabled=dis,
+                                  help="Indutância de dispersão do estator. Determina a inclinação da curva T×n na região de partida.")
+            Xlr = st.number_input("Indutância de dispersão do rotor — $L_{lr}$ (H)",   min_value=1e-6, max_value=1.0,  value=round(_DEFAULTS["Xlr"] / _wb_ref, 6), step=0.0001, key=wk["Xlr_L"], format="%.6f", disabled=dis,
+                                  help="Indutância de dispersão do rotor referida ao estator. Tipicamente próxima de Lls (classe B/D).")
 
-        Rfe = st.number_input("Resistência de perdas no ferro — $R_{fe}$ (Ω)", min_value=10.0, max_value=10000.0, value=_DEFAULTS["Rfe"], step=10.0, key=wk["Rfe"], format="%.1f", disabled=dis)
+        Rfe = st.number_input("Resistência de perdas no ferro — $R_{fe}$ (Ω)", min_value=10.0, max_value=10000.0, value=_DEFAULTS["Rfe"], step=10.0, key=wk["Rfe"], format="%.1f", disabled=dis,
+                              help="Resistência paralela representando perdas no ferro (histerese + correntes parasitas). Típico: 100–2000 Ω. Valores baixos modelam material magnético de baixa qualidade ou frequências altas.")
         st.caption("$R_{fe}$ afeta tanto a dinâmica do ODE (correntes de perda no ferro) quanto o balanço de potências em regime permanente.")
         st.markdown('</div>', unsafe_allow_html=True)
 
     # ── Mecânicos ─────────────────────────────────────────────────────────
     _pgroup("Dados Mecânicos e Referencial")
-    p = st.selectbox("Número de polos — $p$", options=[2, 4, 6, 8, 10, 12], index=1, key=wk["p"], disabled=dis)
-    J = st.number_input("Momento de inércia — $J$ (kg·m²)",               min_value=0.0001, max_value=100.0, value=_DEFAULTS["J"], step=0.001, key=wk["J"], format="%.3f", disabled=dis)
-    B = st.number_input("Coeficiente de atrito viscoso — $B$ (N·m·s/rad)", min_value=0.0,   max_value=10.0,  value=_DEFAULTS["B"], step=0.001, key=wk["B"], format="%.3f", disabled=dis)
+    p = st.selectbox("Número de polos — $p$", options=[2, 4, 6, 8, 10, 12], index=1, key=wk["p"], disabled=dis,
+                     help="Número de polos magnéticos do motor. Determina a velocidade síncrona ns = 120·f/p. Motores industriais comuns: 2, 4 ou 6 polos.")
+    J = st.number_input("Momento de inércia — $J$ (kg·m²)",               min_value=0.0001, max_value=100.0, value=_DEFAULTS["J"], step=0.001, key=wk["J"], format="%.3f", disabled=dis,
+                        help="Inércia rotacional total no eixo (rotor + carga acoplada). Determina o tempo de partida e a constante mecânica.")
+    B = st.number_input("Coeficiente de atrito viscoso — $B$ (N·m·s/rad)", min_value=0.0,   max_value=10.0,  value=_DEFAULTS["B"], step=0.001, key=wk["B"], format="%.3f", disabled=dis,
+                        help="Atrito viscoso proporcional à velocidade angular (mancais + ventilação). B = 0 idealiza o motor sem perdas mecânicas; deixe em 0 para usar a estimativa empírica indicada abaixo.")
     if B == 0.0:
         _T_nom_est = float(st.session_state.get("wi_Tl_final", 0.0))
         _wr_nom    = (1.0 - 0.03) * 120.0 * f / p * 3.14159265 / 30.0
@@ -805,6 +937,15 @@ def render_machine_params(
         "Referencial da Transformada de Park",
         ["Síncrono  (ω = ωₑ)", "Rotórico  (ω = ωᵣ)", "Estacionário  (ω = 0)"],
         disabled=dis,
+        help=(
+            "Sistema de coordenadas da transformada de Park (dq0):\n"
+            "• Síncrono (ω = ωₑ): correntes em regime aparecem como CC — ideal para "
+            "análises de regime permanente e controle vetorial.\n"
+            "• Rotórico (ω = ωᵣ): solidário ao rotor — útil para estudos de máquinas "
+            "síncronas e ímãs permanentes.\n"
+            "• Estacionário (ω = 0): variáveis dq oscilam na frequência da rede — útil "
+            "para visualizar formas de onda no domínio αβ."
+        ),
     )
     ref_code = {"Síncrono  (ω = ωₑ)": 1,
                 "Rotórico  (ω = ωᵣ)": 2,
