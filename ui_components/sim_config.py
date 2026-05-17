@@ -116,6 +116,8 @@ _WK: dict[str, str] = {
     # modelos avançados
     "Rgrid":                "wi_Rgrid",
     "Lgrid":                "wi_Lgrid",
+    # referencial de Park (persistido para o modo travado)
+    "ref_park":             "wi_ref_park",
     # gêmeo digital e análise econômica
     "broken_bar_severity":  "wi_broken_bar_severity",
     "energy_tariff":        "wi_energy_tariff",
@@ -388,6 +390,73 @@ def render_machine_params(
     """
     st.markdown('<p class="slabel">Parâmetros Físicos da Máquina</p>', unsafe_allow_html=True)
 
+    # ── Modo travado: substituir UI editável por resumo compacto ─────────
+    if experiment_mode:
+        # Lê os valores atuais do session_state (preenchidos por presets ou edições anteriores)
+        Vl  = float(st.session_state.get(wk["Vl"],  _DEFAULTS["Vl"]))
+        f   = float(st.session_state.get(wk["f"],   _DEFAULTS["f"]))
+        Rs  = float(st.session_state.get(wk["Rs"],  _DEFAULTS["Rs"]))
+        Rr  = float(st.session_state.get(wk["Rr"],  _DEFAULTS["Rr"]))
+        Xm  = float(st.session_state.get(wk["Xm"],  _DEFAULTS["Xm"]))
+        Xls = float(st.session_state.get(wk["Xls"], _DEFAULTS["Xls"]))
+        Xlr = float(st.session_state.get(wk["Xlr"], _DEFAULTS["Xlr"]))
+        Rfe = float(st.session_state.get(wk["Rfe"], _DEFAULTS["Rfe"]))
+        p   = int(st.session_state.get(wk["p"],     _DEFAULTS["p"]))
+        J   = float(st.session_state.get(wk["J"],   _DEFAULTS["J"]))
+        B   = float(st.session_state.get(wk["B"],   _DEFAULTS["B"]))
+        Rgrid = float(st.session_state.get(wk["Rgrid"], 0.0))
+        Lgrid = float(st.session_state.get(wk["Lgrid"], 0.0))
+        energy_tariff = float(st.session_state.get(wk["energy_tariff"], 0.75))
+
+        # Referencial de Park — persiste via key adicionada ao selectbox
+        ref_label = st.session_state.get(wk["ref_park"], "Síncrono  (ω = ωₑ)")
+        ref_code = {"Síncrono  (ω = ωₑ)": 1,
+                    "Rotórico  (ω = ωᵣ)": 2,
+                    "Estacionário  (ω = 0)": 3}.get(ref_label, 1)
+
+        input_mode = "X"
+        f_ref = float(st.session_state.get(wk["f_ref"], f))
+
+        st.info(
+            "**Parâmetros travados** — desative o toggle no topo da página para editar.  "
+            "Variações no experimento (carga, tensão, falha) não afetarão a máquina."
+        )
+
+        st.markdown('<p class="slabel">Parâmetros Elétricos</p>', unsafe_allow_html=True)
+        e1, e2, e3, e4 = st.columns(4)
+        e1.metric("Vₗ (V)",   f"{Vl:.1f}")
+        e2.metric("f (Hz)",   f"{f:.1f}")
+        e3.metric("Rₛ (Ω)",   f"{Rs:.4f}")
+        e4.metric("Rᵣ (Ω)",   f"{Rr:.4f}")
+
+        e5, e6, e7, e8 = st.columns(4)
+        e5.metric("Xₘ (Ω)",   f"{Xm:.3f}")
+        e6.metric("Xₗₛ (Ω)",  f"{Xls:.4f}")
+        e7.metric("Xₗᵣ (Ω)",  f"{Xlr:.4f}")
+        e8.metric("Rfe (Ω)",  f"{Rfe:.1f}")
+
+        st.markdown('<p class="slabel">Parâmetros Mecânicos e Referencial</p>', unsafe_allow_html=True)
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("p (polos)",     f"{p}")
+        m2.metric("J (kg·m²)",     f"{J:.4f}")
+        m3.metric("B (N·m·s/rad)", f"{B:.4f}")
+        m4.metric("Referencial",   ref_label.split("(")[0].strip())
+
+        mp = MachineParams(Vl=Vl, f=f, Rs=Rs, Rr=Rr, Xm=Xm, Xls=Xls, Xlr=Xlr, Rfe=Rfe,
+                           p=p, J=J, B=B,
+                           input_mode=input_mode, f_ref=f_ref,
+                           Rgrid=Rgrid, Lgrid=Lgrid)
+        _validate_params(mp)
+
+        st.write("")
+        mc1, mc2, mc3 = st.columns(3)
+        mc1.metric("Velocidade Síncrona $n_s$", f"{mp.n_sync:.1f} RPM")
+        mc2.metric("Velocidade Angular Base $\\omega_b$", f"{mp.wb/(mp.p/2):.2f} rad/s")
+        mc3.metric("Reatância Mútua $X_{ml}$", f"{mp.Xml:.4f} Ω")
+
+        return mp, ref_code, energy_tariff
+    # ── Fim do modo travado; abaixo segue a UI editável original ────────
+
     # Reset do selectbox de preset deve ocorrer ANTES de instanciar o widget
     if st.session_state.pop("_reset_preset_select", False):
         st.session_state["preset_select"] = "— Selecionar preset —"
@@ -425,9 +494,9 @@ def render_machine_params(
             st.session_state["_reset_preset_select"] = True
             st.rerun()
 
-    if experiment_mode:
-        _ibox("<strong>Parâmetros travados</strong> — desative o toggle para editar.")
-
+    # Nota: em modo travado, o branch antecipado no início da função já retornou.
+    # A partir daqui, experiment_mode é sempre False — mantemos `dis` por compatibilidade
+    # com os widgets que ainda referenciam `disabled=dis` (todos serão False).
     dis = experiment_mode
 
     # ── Seleção da fonte de parâmetros ────────────────────────────────────
@@ -937,6 +1006,7 @@ A separação usa a Tabela 1 da IEEE 112, conforme a **classe NEMA** selecionada
         "Referencial da Transformada de Park",
         ["Síncrono  (ω = ωₑ)", "Rotórico  (ω = ωᵣ)", "Estacionário  (ω = 0)"],
         disabled=dis,
+        key=wk["ref_park"],
         help=(
             "Sistema de coordenadas da transformada de Park (dq0):\n"
             "• Síncrono (ω = ωₑ): correntes em regime aparecem como CC — ideal para "
