@@ -336,16 +336,16 @@ def _validate_params(mp: MachineParams) -> None:
 def render_machine_selector(dark: bool) -> None:
     """Tela inicial de seleção de equipamento."""
     _palette(dark)
-    ct_theme, _ = st.columns([1, 6])
-    with ct_theme:
+
+    # Cabeçalho compacto: título à esquerda, toggle Modo Escuro à direita
+    hc1, hc2 = st.columns([5, 2], vertical_alignment="center")
+    with hc1:
+        st.markdown("#### Selecione o equipamento")
+    with hc2:
         st.toggle("Modo Escuro", value=dark, key="dark_mode")
 
     # apenas máquinas disponíveis são exibidas
     available = [m for m in MACHINES if not m["disabled"]]
-
-    st.markdown('<p class="slabel">ElectraSim</p>', unsafe_allow_html=True)
-    st.markdown("### Selecione o equipamento")
-    st.write("")
 
     # grade centralizada: CSS "machine-grid-solo" para 1 card centrado
     cards_html = '<div class="machine-grid-solo">'
@@ -361,9 +361,8 @@ def render_machine_selector(dark: bool) -> None:
         )
     cards_html += '</div>'
     st.markdown(cards_html, unsafe_allow_html=True)
-    st.write("")
 
-    # botão centralizado
+    # botão centralizado, logo abaixo do card
     _, btn_col, _ = st.columns([2, 1, 2])
     for m in available:
         with btn_col:

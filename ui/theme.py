@@ -57,20 +57,21 @@ def apply_css(dark: bool) -> None:
     .machine-grid-solo {{
         display: flex;
         justify-content: center;
-        margin: 1.8rem 0 1.2rem 0;
+        margin: 0.6rem 0 0.8rem 0;
     }}
     .mcard-solo {{
-        max-width: 320px;
+        max-width: 280px;
         width: 100%;
-        padding: 2.8rem 2.4rem 2.2rem !important;
+        padding: 1.4rem 1.6rem 1.2rem !important;
         box-shadow: 0 4px 24px rgba(0,0,0,0.14), 0 1px 6px rgba(0,0,0,0.08) !important;
     }}
     .mcard-solo .mcard-icon {{
-        font-size: 3.6rem !important;
-        margin-bottom: 1rem !important;
+        font-size: 2.4rem !important;
+        margin-bottom: 0.4rem !important;
     }}
     .mcard-solo .mcard-name {{
-        font-size: 1.8rem !important;
+        font-size: 1.3rem !important;
+        margin-bottom: 0.3rem !important;
     }}
 
     /* ── cartões de seleção de máquina (grade multi-coluna, uso futuro) ── */
