@@ -1700,3 +1700,540 @@ def render_circuito_alternavel() -> None:
             r"\left(jX_m \,\Big\|\, R_{fe}\right) \,\Big\|\,"
             r"\!\left(jX_{lr} + \tfrac{R_r}{s}\right)"
         )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 4. MCSA — ASSINATURA DE CORRENTE COM BARRA QUEBRADA
+# ─────────────────────────────────────────────────────────────────────────────
+
+def render_mcsa() -> None:
+    """Simulador MCSA — espectro de corrente com sidebands (1 ± 2k·s)·fe.
+
+    Usa slider nativo Plotly (zero latência): pré-calcula N_STEPS espectros
+    para um grid de severidade α e empacota como frames. O slider JS move
+    entre frames no cliente sem rerun.
+    """
+    mp   = _get_mp()
+    dark = _dark()
+    pt   = _plot_theme(dark)
+
+    f_e   = float(mp.f)
+    # escorregamento nominal típico (ou do último resultado, se disponível)
+    res   = st.session_state.get("sim_result")
+    if res and "res" in res and "s" in res["res"]:
+        s_op = float(res["res"]["s"])
+        if not (0.001 < s_op < 0.20):
+            s_op = 0.035
+    else:
+        s_op = 0.035
+
+    # Grid de severidade α — 51 passos lineares entre 0 e 0.5
+    N_STEPS = 51
+    alpha_grid = np.linspace(0.0, 0.5, N_STEPS)
+    nom_idx    = int(np.argmin(np.abs(alpha_grid - 0.15)))  # arranque na falha incipiente
+
+    # Frequências relevantes
+    f_min = max(f_e - 12.0, 0.0)
+    f_max = f_e + 12.0
+    freqs = np.linspace(f_min, f_max, 1200)
+
+    # Largura espectral (Lorentziana) para visualizar picos discretos
+    fwhm = 0.20  # Hz
+    gamma = fwhm / 2.0
+
+    def _lorentz(f, f0, A):
+        return A * (gamma ** 2) / ((f - f0) ** 2 + gamma ** 2)
+
+    A_fund = 1.0  # amplitude normalizada da fundamental
+
+    def _spectrum(alpha: float) -> np.ndarray:
+        """Soma da fundamental + 3 pares de sidebands em (1 ± 2k·s)·f_e."""
+        y = _lorentz(freqs, f_e, A_fund)
+        # amplitudes laterais decaem com k e crescem com α
+        for k in (1, 2, 3):
+            A_sb = (alpha / 2.0) * (1.0 / k) * A_fund
+            f_low  = f_e * (1.0 - 2.0 * k * s_op)
+            f_high = f_e * (1.0 + 2.0 * k * s_op)
+            y = y + _lorentz(freqs, f_low,  A_sb)
+            y = y + _lorentz(freqs, f_high, A_sb)
+        # piso de ruído
+        y = y + 0.002
+        return y
+
+    col_fund = "#4f8ef7" if dark else "#1d4ed8"
+    col_sb   = "#f87171"
+    col_th   = "#f97316"  # linha de limiar diagnóstico
+
+    # Espectro inicial (frame nom_idx)
+    y_init = _spectrum(alpha_grid[nom_idx])
+
+    # ── figura base ──────────────────────────────────────────────────────────
+    fig = go.Figure()
+
+    # Trace 0 — espectro (variável por frame)
+    fig.add_trace(go.Scatter(
+        x=freqs, y=20.0 * np.log10(np.clip(y_init, 1e-6, None)),
+        mode="lines",
+        line=dict(color=col_fund, width=1.6),
+        fill="tozeroy",
+        fillcolor="rgba(79,142,247,0.10)" if dark else "rgba(29,78,216,0.10)",
+        name="|I_s(f)| (dB)",
+        hovertemplate="f = %{x:.2f} Hz<br>%{y:.1f} dB<extra></extra>",
+    ))
+
+    # Frequências dos sidebands (fixas, pois dependem apenas de s, não de α)
+    sb_x = []
+    sb_text = []
+    for k in (1, 2, 3):
+        f_low  = f_e * (1.0 - 2.0 * k * s_op)
+        f_high = f_e * (1.0 + 2.0 * k * s_op)
+        sb_x.extend([f_low, f_high])
+        sb_text.extend([f"k=-{k}", f"k=+{k}"])
+
+    # Trace 1 — marcadores nas posições dos sidebands (altura recalculada por frame)
+    sb_y_init = [20.0 * np.log10(max(_spectrum(alpha_grid[nom_idx])[int(np.argmin(np.abs(freqs - fx)))], 1e-6)) for fx in sb_x]
+    fig.add_trace(go.Scatter(
+        x=sb_x, y=sb_y_init,
+        mode="markers+text",
+        marker=dict(color=col_sb, size=8, symbol="diamond"),
+        text=sb_text,
+        textposition="top center",
+        textfont=dict(color=col_sb, size=9),
+        name="Sidebands (1 ± 2k·s)·fe",
+        hovertemplate="f = %{x:.2f} Hz<br>%{y:.1f} dB<extra></extra>",
+    ))
+
+    # Trace 2 — limiar IEC 60034-26 (-45 dB → falha confirmada)
+    fig.add_trace(go.Scatter(
+        x=[f_min, f_max], y=[-45.0, -45.0],
+        mode="lines",
+        line=dict(color=col_th, width=1.2, dash="dash"),
+        name="Limiar IEC 60034-26 (−45 dB)",
+        hoverinfo="skip",
+    ))
+
+    # ── frames ───────────────────────────────────────────────────────────────
+    frames = []
+    slider_steps = []
+    for i, alpha in enumerate(alpha_grid):
+        y_f  = _spectrum(alpha)
+        y_db = 20.0 * np.log10(np.clip(y_f, 1e-6, None))
+        sb_y = [20.0 * np.log10(max(y_f[int(np.argmin(np.abs(freqs - fx)))], 1e-6)) for fx in sb_x]
+        frames.append(go.Frame(
+            name=str(i),
+            data=[
+                go.Scatter(x=freqs, y=y_db),
+                go.Scatter(x=sb_x, y=sb_y, text=sb_text),
+                go.Scatter(x=[f_min, f_max], y=[-45.0, -45.0]),
+            ],
+            traces=[0, 1, 2],
+        ))
+        slider_steps.append(dict(
+            method="animate",
+            label=f"{alpha:.2f}",
+            args=[[str(i)], dict(mode="immediate", frame=dict(duration=0, redraw=True),
+                                 transition=dict(duration=0))],
+        ))
+
+    fig.frames = frames
+
+    # ── layout com slider JS ─────────────────────────────────────────────────
+    fig.update_layout(
+        height=440,
+        title=dict(
+            text=f"Espectro MCSA — corrente do estator (s = {s_op*100:.2f}%, f_e = {f_e:.0f} Hz)",
+            x=0.5, xanchor="center", font=dict(size=13, color=pt["fg"]),
+        ),
+        paper_bgcolor=pt["paper_bg"],
+        plot_bgcolor=pt["plot_bg"],
+        font=dict(family="Inter, system-ui", size=11, color=pt["fg"]),
+        margin=dict(l=60, r=20, t=55, b=130),
+        xaxis=dict(title="Frequência (Hz)", showgrid=True, gridcolor=pt["grid"],
+                   tickfont=dict(size=10, color=pt["fg"]),
+                   range=[f_min, f_max]),
+        yaxis=dict(title="Amplitude (dB rel. à fundamental)", showgrid=True,
+                   gridcolor=pt["grid"], tickfont=dict(size=10, color=pt["fg"]),
+                   range=[-70, 5]),
+        showlegend=True,
+        legend=dict(x=0.98, y=0.98, xanchor="right", yanchor="top",
+                    font=dict(size=10, color=pt["fg"]),
+                    bgcolor="rgba(0,0,0,0)"),
+        sliders=[dict(
+            active=nom_idx,
+            currentvalue=dict(
+                prefix="α = ", suffix="",
+                visible=True, xanchor="center",
+                font=dict(size=13, color=pt["fg"]),
+            ),
+            y=0, pad=dict(t=55, b=10), len=0.92, x=0.04,
+            steps=slider_steps,
+            bgcolor=pt["paper_bg"], bordercolor=pt["grid"],
+            tickcolor=pt["fg"], font=dict(color=pt["fg"], size=9),
+        )],
+        updatemenus=[dict(type="buttons", visible=False,
+                          buttons=[dict(method="animate", args=[None])])],
+    )
+
+    st.plotly_chart(fig, width="stretch", config={"displaylogo": False})
+
+    # ── Tabela diagnóstica IEC 60034-26 ──────────────────────────────────────
+    alpha_curr = alpha_grid[nom_idx]
+    # cálculo de amplitude do primeiro sideband (k=1) para diagnóstico
+    A_sb_db = 20.0 * np.log10(max(alpha_curr / 2.0, 1e-6))
+    if A_sb_db < -50:
+        diag = "**Rotor saudável** — sidebands abaixo do piso de ruído típico."
+    elif A_sb_db < -45:
+        diag = "**Monitoramento** — possível fissura incipiente; reavaliar em 30 dias."
+    elif A_sb_db < -40:
+        diag = "**Falha confirmada** — planejar manutenção corretiva."
+    elif A_sb_db < -35:
+        diag = "**Falha avançada** — intervenção urgente recomendada."
+    else:
+        diag = "**Risco crítico** — risco de ruptura do anel; parada imediata."
+
+    st.caption(
+        f"Para α = {alpha_curr:.2f}: amplitude do primeiro sideband ≈ {A_sb_db:.1f} dB → {diag}"
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 5. COMPARADOR DE MÉTODOS DE FRENAGEM — n(t) e Te(t) interativos
+# ─────────────────────────────────────────────────────────────────────────────
+
+def render_comparador_frenagem() -> None:
+    """Comparador interativo dos 3 métodos de frenagem: Regenerativa, Plugging, CC.
+
+    Usa toggles para mostrar/ocultar cada método e dois sliders Streamlit:
+    - velocidade inicial (em % de n_sync)
+    - constante de tempo aparente (ajustável dentro de faixa fisicamente plausível)
+    """
+    mp   = _get_mp()
+    dark = _dark()
+    pt   = _plot_theme(dark)
+
+    n_sync = float(mp.n_sync)
+    n_nom  = n_sync * 0.97  # velocidade nominal ≈ 97% da síncrona
+
+    # ── Controles ────────────────────────────────────────────────────────────
+    c1, c2 = st.columns(2)
+    with c1:
+        n0_pct = st.slider(
+            "Velocidade inicial (% de n_sync)",
+            min_value=50, max_value=100, value=int(round(n_nom / n_sync * 100)),
+            step=1, key="_frenagem_n0", format="%d%%",
+        )
+    with c2:
+        intensidade = st.slider(
+            "Intensidade da frenagem",
+            min_value=0.3, max_value=2.5, value=1.0, step=0.1,
+            key="_frenagem_intens",
+            help="Fator multiplicativo sobre as constantes de tempo nominais.",
+            format="%.1fx",
+        )
+
+    c3, c4, c5 = st.columns(3)
+    with c3:
+        show_reg = st.checkbox("Regenerativa", value=True, key="_frenagem_reg")
+    with c4:
+        show_plug = st.checkbox("Contracorrente (Plugging)", value=True, key="_frenagem_plug")
+    with c5:
+        show_dc = st.checkbox("Injeção CC", value=True, key="_frenagem_dc")
+
+    n0 = n_sync * (n0_pct / 100.0)
+
+    # ── Modelos analíticos simplificados ─────────────────────────────────────
+    # Tempo total visível na janela
+    t_max = 3.0
+    t = np.linspace(0.0, t_max, 1200)
+
+    # 1. Regenerativa: queda exponencial moderada (devolve energia à rede)
+    tau_reg = 0.55 * intensidade
+    n_reg = n0 * np.exp(-t / tau_reg)
+
+    # 2. Plugging: queda linear rápida até zero; após zero, motor reverteria sem desconexão
+    t_plug_stop = max(0.05, 0.35 * intensidade) * (n0 / n_nom)  # proporcional a n0
+    n_plug_motor = n0 * (1.0 - t / t_plug_stop)
+    # Modela o que ocorre se NÃO desconectar (parte que continua acelerando reverso)
+    mask_plug = t <= t_plug_stop
+    n_plug = np.where(mask_plug, n_plug_motor, 0.0)
+    n_plug_no_disc = n_plug_motor  # sem desconexão — atravessa o zero
+
+    # 3. Injeção CC: exponencial mais lenta com torque proporcional à velocidade
+    tau_dc = 1.05 * intensidade
+    n_dc = n0 * np.exp(-t / tau_dc)
+
+    # ── Cálculo de tempo até atingir 5% de n0 (referência prática) ──────────
+    def _t_stop(n_arr, t_arr, n_ref):
+        below = np.where(np.abs(n_arr) <= 0.05 * n_ref)[0]
+        return float(t_arr[below[0]]) if len(below) > 0 else float(t_arr[-1])
+
+    t_stop_reg  = _t_stop(n_reg,  t, n0)
+    t_stop_dc   = _t_stop(n_dc,   t, n0)
+    t_stop_plug = t_plug_stop
+
+    # ── Figura ───────────────────────────────────────────────────────────────
+    col_reg  = "#34d399" if dark else "#059669"
+    col_plug = "#f87171"
+    col_dc   = "#fbbf24" if dark else "#d97706"
+    col_zero = pt["fg"]
+
+    fig = go.Figure()
+
+    if show_reg:
+        fig.add_trace(go.Scatter(
+            x=t, y=n_reg,
+            mode="lines",
+            name=f"Regenerativa (t_p ≈ {t_stop_reg:.2f} s)",
+            line=dict(color=col_reg, width=2.5, dash="dash"),
+            hovertemplate="t = %{x:.2f} s<br>n = %{y:.0f} RPM<extra>Regenerativa</extra>",
+        ))
+
+    if show_plug:
+        # Parte ativa (até desconexão em zero)
+        fig.add_trace(go.Scatter(
+            x=t[mask_plug], y=n_plug_motor[mask_plug],
+            mode="lines",
+            name=f"Plugging (t_p ≈ {t_stop_plug:.2f} s)",
+            line=dict(color=col_plug, width=2.8),
+            hovertemplate="t = %{x:.2f} s<br>n = %{y:.0f} RPM<extra>Plugging</extra>",
+        ))
+        # Parte tracejada (sem desconexão — alerta visual)
+        t_overshoot = t[~mask_plug][:60]
+        n_overshoot = n_plug_no_disc[~mask_plug][:60]
+        if len(t_overshoot) > 0:
+            fig.add_trace(go.Scatter(
+                x=t_overshoot, y=n_overshoot,
+                mode="lines",
+                line=dict(color=col_plug, width=1.4, dash="dot"),
+                opacity=0.55,
+                name="Plugging sem desconexão",
+                hoverinfo="skip",
+                showlegend=False,
+            ))
+
+    if show_dc:
+        fig.add_trace(go.Scatter(
+            x=t, y=n_dc,
+            mode="lines",
+            name=f"Injeção CC (t_p ≈ {t_stop_dc:.2f} s)",
+            line=dict(color=col_dc, width=2.5, dash="dot"),
+            hovertemplate="t = %{x:.2f} s<br>n = %{y:.0f} RPM<extra>CC</extra>",
+        ))
+
+    # Linha de zero
+    fig.add_hline(y=0.0, line=dict(color=col_zero, width=1.0))
+    fig.add_hline(y=n_nom, line=dict(color=pt["grid"], width=0.8, dash="dot"))
+
+    fig.update_layout(
+        height=420,
+        title=dict(text="Comparação de Métodos de Frenagem — n(t)",
+                   x=0.5, xanchor="center", font=dict(size=13, color=pt["fg"])),
+        paper_bgcolor=pt["paper_bg"], plot_bgcolor=pt["plot_bg"],
+        font=dict(family="Inter, system-ui", size=11, color=pt["fg"]),
+        margin=dict(l=60, r=20, t=55, b=55),
+        xaxis=dict(title="Tempo desde início da frenagem (s)", showgrid=True,
+                   gridcolor=pt["grid"], tickfont=dict(size=10, color=pt["fg"]),
+                   range=[0, t_max]),
+        yaxis=dict(title="Velocidade (RPM)", showgrid=True, gridcolor=pt["grid"],
+                   tickfont=dict(size=10, color=pt["fg"]),
+                   range=[-n_sync * 0.15, n_sync * 1.05]),
+        showlegend=True,
+        legend=dict(x=0.98, y=0.98, xanchor="right", yanchor="top",
+                    font=dict(size=10, color=pt["fg"]),
+                    bgcolor="rgba(0,0,0,0)"),
+    )
+
+    st.plotly_chart(fig, width="stretch", config={"displaylogo": False})
+
+    # ── Resumo comparativo ──────────────────────────────────────────────────
+    st.markdown("**Resumo dos métodos selecionados:**")
+    rows = []
+    if show_reg:
+        rows.append(("Regenerativa", f"{t_stop_reg:.2f} s", "Devolve à rede", "Baixo (rede absorve)"))
+    if show_plug:
+        rows.append(("Plugging", f"{t_stop_plug:.2f} s", "Dissipa no rotor", "Muito alto (sobrecorrente)"))
+    if show_dc:
+        rows.append(("Injeção CC", f"{t_stop_dc:.2f} s", "Dissipa no rotor", "Médio"))
+
+    if rows:
+        st.table({
+            "Método":              [r[0] for r in rows],
+            "Tempo até 5% de n₀":  [r[1] for r in rows],
+            "Destino da energia":  [r[2] for r in rows],
+            "Custo térmico":       [r[3] for r in rows],
+        })
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 6. DIAGRAMA DE BLOCOS DE KRAUSE — modelo 0dq expansível
+# ─────────────────────────────────────────────────────────────────────────────
+
+def render_blocos_krause() -> None:
+    """Diagrama de blocos do modelo 0dq de Krause, com cards expansíveis por equação.
+
+    Layout: 6 cards principais (Vqs/Vds → ψqs/ψds, ψqr/ψdr, ψmq/ψmd, iqs/ids,
+    Te, ωr). Cada card mostra a equação simplificada; o usuário pode expandir
+    para ver a versão completa e o significado físico.
+    """
+    dark = _dark()
+    pt   = _plot_theme(dark)
+
+    col_bg     = pt["paper_bg"]
+    col_fg     = pt["fg"]
+    col_border = pt["grid"]
+    col_accent = "#4f8ef7" if dark else "#1d4ed8"
+
+    # CSS dos cards (reutiliza estética dos pgroups do projeto)
+    st.markdown(
+        f"""
+        <style>
+        .krause-grid {{
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.9rem;
+            margin: 0.5rem 0 0.8rem 0;
+        }}
+        .krause-card {{
+            background: {col_bg};
+            border: 1px solid {col_border};
+            border-left: 3px solid {col_accent};
+            border-radius: 10px;
+            padding: 0.8rem 1.0rem 0.6rem 1.0rem;
+        }}
+        .krause-title {{
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: {col_fg};
+            margin-bottom: 0.3rem;
+        }}
+        .krause-subtitle {{
+            font-size: 0.78rem;
+            color: {col_fg};
+            opacity: 0.7;
+            margin-bottom: 0.4rem;
+        }}
+        @media (max-width: 768px) {{
+            .krause-grid {{ grid-template-columns: 1fr; }}
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # ── Layout em 2 colunas (lado a lado) ────────────────────────────────────
+    blocos = [
+        {
+            "titulo": "1. Tensões → Fluxos do Estator",
+            "sub":   "Integração das tensões aplicadas",
+            "eq_simples": r"\dot{\psi}_{qs},\,\dot{\psi}_{ds} = f(V_{qs},\,V_{ds},\,\omega_e,\,\psi_{mq},\,\psi_{md})",
+            "eq_full":    [
+                r"\dot{\psi}_{qs} = \omega_b\!\left(V_{qs} - \tfrac{\omega_e}{\omega_b}\psi_{ds} + \tfrac{R_s}{X_{ls}}(\psi_{mq}-\psi_{qs})\right)",
+                r"\dot{\psi}_{ds} = \omega_b\!\left(V_{ds} + \tfrac{\omega_e}{\omega_b}\psi_{qs} + \tfrac{R_s}{X_{ls}}(\psi_{md}-\psi_{ds})\right)",
+            ],
+            "fisica": (
+                "As tensões $V_{qs}$ e $V_{ds}$ (referencial síncrono) impõem a derivada dos "
+                "fluxos concatenados do estator. O acoplamento cruzado via $\\omega_e$ representa "
+                "a rotação do referencial e o termo $R_s/X_{ls}$ é a queda resistiva."
+            ),
+        },
+        {
+            "titulo": "2. Fluxos do Rotor",
+            "sub":   "Curto-circuito no rotor de gaiola",
+            "eq_simples": r"\dot{\psi}_{qr},\,\dot{\psi}_{dr} = f(\omega_e-\omega_r,\,\psi_{mq},\,\psi_{md})",
+            "eq_full":    [
+                r"\dot{\psi}_{qr} = \omega_b\!\left(-\tfrac{\omega_e-\omega_r}{\omega_b}\psi_{dr} + \tfrac{R_r}{X_{lr}}(\psi_{mq}-\psi_{qr})\right)",
+                r"\dot{\psi}_{dr} = \omega_b\!\left(\tfrac{\omega_e-\omega_r}{\omega_b}\psi_{qr} + \tfrac{R_r}{X_{lr}}(\psi_{md}-\psi_{dr})\right)",
+            ],
+            "fisica": (
+                "Como o rotor está curto-circuitado ($V_{qr} = V_{dr} = 0$), apenas o termo de "
+                "queda resistiva interna e o acoplamento cruzado pela velocidade relativa "
+                "$\\omega_e - \\omega_r$ determinam a evolução dos fluxos do rotor."
+            ),
+        },
+        {
+            "titulo": "3. Fluxos de Magnetização",
+            "sub":   "Acoplamento via entreferro",
+            "eq_simples": r"\psi_{mq},\,\psi_{md} = \text{média ponderada de }\psi_s,\,\psi_r",
+            "eq_full":    [
+                r"\psi_{mq} = X_{ml}\!\left(\tfrac{\psi_{qs}}{X_{ls}} + \tfrac{\psi_{qr}}{X_{lr}}\right)",
+                r"\psi_{md} = X_{ml}\!\left(\tfrac{\psi_{ds}}{X_{ls}} + \tfrac{\psi_{dr}}{X_{lr}}\right)",
+                r"\tfrac{1}{X_{ml}} = \tfrac{1}{X_m} + \tfrac{1}{X_{ls}} + \tfrac{1}{X_{lr}}",
+            ],
+            "fisica": (
+                "Os fluxos no entreferro são uma combinação ponderada dos fluxos do estator e "
+                "do rotor pela reatância mútua resultante $X_{ml}$. Este é o ponto onde estator "
+                "e rotor 'se enxergam' magneticamente."
+            ),
+        },
+        {
+            "titulo": "4. Correntes do Estator",
+            "sub":   "Lei de Ohm magnética",
+            "eq_simples": r"i_{qs},\,i_{ds} = \tfrac{\psi_{qs}-\psi_{mq}}{X_{ls}},\;\tfrac{\psi_{ds}-\psi_{md}}{X_{ls}}",
+            "eq_full":    [
+                r"i_{qs} = \tfrac{\psi_{qs} - \psi_{mq}}{X_{ls}}",
+                r"i_{ds} = \tfrac{\psi_{ds} - \psi_{md}}{X_{ls}}",
+            ],
+            "fisica": (
+                "As correntes são obtidas diretamente da diferença entre fluxo total e fluxo de "
+                "magnetização, dividida pela reatância de dispersão. Em regime, a corrente está "
+                "em fase com a queda $R_s \\cdot i$ sobre o estator."
+            ),
+        },
+        {
+            "titulo": "5. Torque Eletromagnético",
+            "sub":   "Produto vetorial dos fluxos e correntes",
+            "eq_simples": r"T_e = \tfrac{3}{2}\cdot\tfrac{p}{2}\cdot\tfrac{1}{\omega_b}(\psi_{ds}\,i_{qs}-\psi_{qs}\,i_{ds})",
+            "eq_full":    [
+                r"T_e = \tfrac{3}{2}\cdot\tfrac{p}{2}\cdot\tfrac{1}{\omega_b}\,(\psi_{ds}\,i_{qs} - \psi_{qs}\,i_{ds})",
+            ],
+            "fisica": (
+                "O produto vetorial entre fluxo do estator e corrente do estator gera o torque. "
+                "É o análogo dq da expressão clássica $T \\propto \\vec{\\psi}\\times\\vec{i}$. "
+                "O fator $3/2$ vem da transformação invariante em potência; $p/2$ converte "
+                "polos magnéticos em pares de polos mecânicos."
+            ),
+        },
+        {
+            "titulo": "6. Equação Mecânica",
+            "sub":   "Dinâmica do eixo",
+            "eq_simples": r"\dot{\omega}_r = \tfrac{p}{2J}(T_e - T_L) - \tfrac{B}{J}\,\omega_r",
+            "eq_full":    [
+                r"\dot{\omega}_r = \tfrac{p}{2J}\,(T_e - T_L) - \tfrac{B}{J}\,\omega_r",
+            ],
+            "fisica": (
+                "A 2ª Lei de Newton rotacional: torque líquido ($T_e - T_L$) dividido pela "
+                "inércia $J$ determina a aceleração angular. O termo $B\\,\\omega_r/J$ modela "
+                "atrito viscoso. A constante de tempo mecânica é tipicamente 10–100× a elétrica."
+            ),
+        },
+    ]
+
+    # Renderiza grade de cards (resumo)
+    cards_html = '<div class="krause-grid">'
+    for b in blocos:
+        cards_html += (
+            f'<div class="krause-card">'
+            f'  <div class="krause-title">{b["titulo"]}</div>'
+            f'  <div class="krause-subtitle">{b["sub"]}</div>'
+            f'</div>'
+        )
+    cards_html += '</div>'
+    st.markdown(cards_html, unsafe_allow_html=True)
+
+    # Expanders detalhados por bloco
+    st.caption("Expanda cada bloco para visualizar a equação completa e o significado físico.")
+    for b in blocos:
+        with st.expander(b["titulo"], expanded=False):
+            st.markdown(f"_{b['sub']}_")
+            for eq in b["eq_full"]:
+                st.latex(eq)
+            st.markdown(b["fisica"])
+
+    # Diagrama de fluxo entre blocos (texto compacto)
+    st.markdown("---")
+    st.markdown(
+        "**Fluxo computacional do solver:** "
+        "$V_{qs},V_{ds}$ → (1) → $\\psi_s$ ⇄ (3) ⇄ $\\psi_r$ ← (2) ← $\\omega_e-\\omega_r$ ; "
+        "$\\psi_s,\\psi_m$ → (4) → $i_s$ ; $\\psi_s,i_s$ → (5) → $T_e$ → (6) → $\\omega_r$ "
+        "(realimenta em 2)."
+    )

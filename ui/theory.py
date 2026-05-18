@@ -16,6 +16,9 @@ from ui.theory_interactive import (
     render_sankey_potencia,
     render_fasorial_desequilibrio,
     render_transitorios_sincronizados,
+    render_mcsa,
+    render_comparador_frenagem,
+    render_blocos_krause,
 )
 matplotlib.use("Agg")
 matplotlib.rcParams.update({"mathtext.fontset": "dejavusans", "text.usetex": False})
@@ -196,6 +199,9 @@ def _render_tab_circuitos() -> None:
         "eles replica, em tempo real, o comportamento previsto pelo circuito equivalente em "
         "regime permanente."
     )
+
+    st.markdown("**Diagrama de Blocos interativo:**")
+    render_blocos_krause()
 
     st.divider()
 
@@ -680,6 +686,9 @@ def _render_tab_dinamica_operacao() -> None:
     ax3.set_ylim(-200, n_nom * 1.12)
     fig3.tight_layout()
     st.image(_fig_to_bytes(fig3))
+
+    st.markdown("**Comparador interativo:** ajuste a velocidade inicial e a intensidade de cada método.")
+    render_comparador_frenagem()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1553,6 +1562,9 @@ def _render_tab_experimentos() -> None:
         "com a severidade, mas não reproduz todos os harmônicos da assinatura real de uma "
         "barra fisicamente fraturada."
     )
+
+    st.markdown("**Simulador MCSA interativo:** ajuste a severidade $\\alpha$ e observe os sidebands.")
+    render_mcsa()
 
 
 
