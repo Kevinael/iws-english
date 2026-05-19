@@ -1103,61 +1103,8 @@ def _render_tab_sensibilidade() -> None:
         "$L_{grid} \\approx 10$–$100\\;\\mu$H."
     )
 
-    st.divider()
-    st.markdown("### Estimativa de Parâmetros por Dados de Placa")
-
-    _h4("Método de Estimativa — IEEE T-Equivalente com Premissas NEMA B")
-    st.markdown(
-        "Quando os parâmetros do circuito equivalente ($R_s$, $R_r$, $X_m$, $X_{ls}$, $X_{lr}$) "
-        "não estão disponíveis diretamente, o simulador oferece um estimador automático "
-        "baseado nas informações da **placa de identificação** (*nameplate*) do motor. "
-        "O método segue a metodologia IEEE Std 112 e as premissas de distribuição de "
-        "reatâncias da norma NEMA MG-1."
-    )
-
-    st.markdown("**Dados de entrada exigidos:**")
-    st.markdown(
-        "- Tensão de linha $V_l$ e frequência $f$\n"
-        "- Potência nominal no eixo $P_n$ (kW)\n"
-        "- Velocidade nominal $n_{nom}$ (RPM) — usada para deduzir o número de polos e $s_{nom}$\n"
-        "- Rendimento nominal $\\eta$ e fator de potência $\\cos\\varphi$\n"
-        "- Relação corrente de partida/nominal $I_p/I_n$\n"
-        "- Relação torque de partida/nominal $T_p/T_n$"
-    )
-
-    st.markdown("**Sequência de cálculo:**")
-    st.markdown("**1.** Dedução do escorregamento e grandezas nominais:")
-    _eq(r"s_{nom} = 1 - \frac{n_{nom}}{n_s}, \quad n_s = \frac{120\,f}{p}")
-    _eq(r"I_n = \frac{P_n}{\sqrt{3}\,V_l\,\eta\,\cos\varphi}, \quad T_n = \frac{P_n}{\omega_{r,nom}}")
-
-    st.markdown("**2.** Estimativa da corrente de partida e impedância de curto-circuito:")
-    _eq(r"I_p = \left(\frac{I_p}{I_n}\right) I_n, \quad Z_k = \frac{V_f}{I_p}, \quad X_k = Z_k\,\sqrt{1 - \cos^2\!\varphi_p}")
-    st.markdown(
-        "onde $\\cos\\varphi_p \\approx 0{,}20$ é o fator de potência típico na partida "
-        "(adotado como premissa NEMA B para motores de gaiola simples)."
-    )
-
-    st.markdown("**3.** Distribuição das reatâncias de dispersão (premissa NEMA B):")
-    _eq(r"X_{ls} = 0{,}4\,X_k, \quad X_{lr} = 0{,}6\,X_k")
-
-    st.markdown("**4.** Estimativa de $R_s$ e $R_r$ por balanço de potência em regime nominal:")
-    _eq(r"P_{cu,s} = 3\,I_n^2\,R_s = P_{in} - P_{ag} - P_{fe}, \quad P_{cu,r} = 3\,I_n^2\,R_r = s_{nom}\,P_{ag}")
-
-    st.markdown("**5.** Reatância de magnetização por subtração:")
-    _eq(r"X_m = X_{cc} - X_{ls}, \quad X_{cc} = \frac{V_f}{I_{cc}}")
-
-    _div_warn(
-        "**Limitações do estimador:** os parâmetros obtidos são aproximações baseadas em "
-        "premissas estatísticas da norma NEMA — adequados para simulação e análise de "
-        "sensibilidade, mas não substituem ensaios de identificação (ensaio a vazio + "
-        "ensaio de rotor bloqueado conforme IEEE Std 112). "
-        "Para motores fora do padrão NEMA B (gaiola dupla, rotor bobinado, motores de "
-        "alta eficiência IE4), os resultados podem divergir significativamente dos valores reais."
-    )
-
-
 # ─────────────────────────────────────────────────────────────────────────────
-# ABA 5 — CONFIGURAÇÕES DE SIMULAÇÃO E ALERTAS
+# ABA 8a — CONFIGURAÇÕES DE SIMULAÇÃO E ALERTAS (renderizada dentro da Aba 8)
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _render_tab_config() -> None:
@@ -1893,9 +1840,235 @@ def _render_tab_estimadores() -> None:
         "permanente, mas se aplicam a casos de uso diferentes — devem ser escolhidos em "
         "função dos dados disponíveis."
     )
+
+    # ── Seção 7.1: Nameplate ──────────────────────────────────────────────
+    st.markdown("### Seção 7.1 — Estimador *Nameplate* (dados de placa)")
+
     st.info(
-        "**Em construção** — a seção 7.1 (*Nameplate*) e a seção 7.2 (IEEE Std 112-2017) "
-        "serão preenchidas na próxima iteração."
+        "**Quando usar:** apenas dados de placa do motor disponíveis "
+        "(catálogo do fabricante, sem ensaios físicos). Indicado para estudos iniciais, "
+        "análise de sensibilidade e simulação rápida de motores classe NEMA B."
+    )
+
+    _h4("Fundamentação — IEEE T-Equivalente com Premissas NEMA")
+    st.markdown(
+        "Quando os parâmetros do circuito equivalente "
+        "($R_s, R_r', X_m, X_{ls}, X_{lr}'$) não estão diretamente disponíveis, este "
+        "método estima-os a partir das informações da **placa de identificação** "
+        "(*nameplate*) do motor. A formulação combina a metodologia IEEE Std 112 com as "
+        "premissas estatísticas de distribuição de reatâncias da norma NEMA MG-1. A "
+        "implementação está em `core/param_estimator.py:22–179` (função "
+        "`estimate_params`)."
+    )
+
+    st.markdown("**Dados de entrada exigidos:**")
+    st.markdown(
+        "- Tensão de linha $V_l$ e frequência $f$.\n"
+        "- Potência nominal no eixo $P_n$ (kW).\n"
+        "- Velocidade nominal $n_{nom}$ (rpm) — utilizada para deduzir o número de polos "
+        "e $s_{nom}$.\n"
+        "- Rendimento nominal $\\eta$ e fator de potência $\\cos\\varphi$.\n"
+        "- Relação corrente de partida/nominal $I_p/I_n$.\n"
+        "- Relação torque de partida/nominal $T_p/T_n$."
+    )
+
+    st.markdown("**Sequência de cálculo:**")
+
+    st.markdown("**1.** Dedução do escorregamento e grandezas nominais:")
+    _eq(r"s_{nom} = 1 - \frac{n_{nom}}{n_s}, \qquad n_s = \frac{120\,f}{p}")
+    _eq(r"I_n = \frac{P_n}{\sqrt{3}\,V_l\,\eta\,\cos\varphi}, \qquad T_n = \frac{P_n}{\omega_{r,nom}}")
+
+    st.markdown("**2.** Estimativa da corrente de partida e da impedância de curto-circuito:")
+    _eq(r"I_p = \left(\frac{I_p}{I_n}\right) I_n, \qquad Z_k = \frac{V_f}{I_p}, \qquad X_k = Z_k\,\sqrt{1 - \cos^2\!\varphi_p}")
+    st.markdown(
+        "em que $\\cos\\varphi_p \\approx 0{,}20$ é o fator de potência típico na "
+        "partida (premissa NEMA B para motores de gaiola simples)."
+    )
+
+    st.markdown("**3.** Distribuição das reatâncias de dispersão (premissa NEMA B):")
+    _eq(r"X_{ls} = 0{,}4\,X_k, \qquad X_{lr}' = 0{,}6\,X_k")
+
+    st.markdown(
+        "**4.** Estimativa de $R_s$ e $R_r'$ por balanço de potência em regime nominal:"
+    )
+    _eq(r"P_{cu,s} = 3\,I_n^2\,R_s = P_{in} - P_{ag} - P_{fe}, \qquad P_{cu,r} = 3\,I_n^2\,R_r' = s_{nom}\,P_{ag}")
+
+    st.markdown("**5.** Reatância de magnetização por subtração:")
+    _eq(r"X_m = X_{cc} - X_{ls}, \qquad X_{cc} = \frac{V_f}{I_{cc}}")
+
+    _div_warn(
+        "**Limitações do estimador *Nameplate*:** os parâmetros obtidos são aproximações "
+        "baseadas em premissas estatísticas da norma NEMA — adequados para simulação e "
+        "análise de sensibilidade, mas **não substituem ensaios físicos de identificação** "
+        "(ensaio em vazio e rotor bloqueado conforme IEEE Std 112). Para motores fora do "
+        "padrão NEMA B (gaiola dupla, rotor bobinado, motores de alta eficiência IE4), os "
+        "resultados podem divergir significativamente dos valores reais."
+    )
+
+    st.divider()
+
+    # ── Seção 7.2: IEEE Std 112-2017 ──────────────────────────────────────
+    st.markdown("### Seção 7.2 — Estimador IEEE Std 112-2017 (três ensaios físicos)")
+
+    st.info(
+        "**Quando usar:** ensaios físicos disponíveis (corrente contínua, em vazio, "
+        "rotor bloqueado). Indicado para parâmetros de alta precisão, validação de "
+        "modelos dinâmicos, comissionamento e comparação com dados de placa."
+    )
+
+    _h4("7.2.1 — Fundamentação")
+    st.markdown(
+        "O método identifica $R_s, R_r', X_m, X_{ls}, X_{lr}', R_{fe}$ a partir de "
+        "**três ensaios físicos** descritos na norma IEEE Std 112-2017. A implementação "
+        "está em `core/param_estimator.py:193–406` (função "
+        "`estimate_params_ieee_tests`). Cada ensaio explora uma condição operacional "
+        "específica do circuito equivalente em T, isolando um subconjunto dos parâmetros."
+    )
+
+    _h4("7.2.2 — Ensaio de Corrente Contínua (IEEE 112 Cl. 6.4)")
+    st.markdown(
+        "Aplica-se tensão contínua entre dois terminais com o rotor parado. Como "
+        "$X = 0$ em regime CC, apenas as resistências são vistas. O cálculo de "
+        "$R_s$ depende da topologia de ligação dos enrolamentos "
+        "(cf. `core/param_estimator.py:263–266`):"
+    )
+    _eq(r"R_s\Big|_Y = \tfrac{1}{2}\,\frac{V_{dc}}{I_{dc}} \qquad\text{(estrela — dois enrolamentos em série)}")
+    _eq(r"R_s\Big|_\Delta = \tfrac{3}{2}\,\frac{V_{dc}}{I_{dc}} \qquad\text{(triângulo — dois em paralelo, um em série)}")
+    st.markdown(
+        "**Cuidados experimentais:** corrigir o valor medido para a temperatura de "
+        "operação (IEEE 112 Cl. 5.4); aguardar a estabilização térmica antes da leitura. "
+        "Pequenos erros em $R_s$ propagam-se para os demais parâmetros via "
+        "$R_r' = R_k - R_s$."
+    )
+
+    _h4("7.2.3 — Ensaio em Vazio (IEEE 112 Cl. 6.5)")
+    st.markdown(
+        "O motor é acionado sem carga acoplada e mantido na tensão e frequência nominais. "
+        "Mede-se $V_{l,NL}$, $I_{NL}$, $P_{NL}$ e $f_{NL}$. O ensaio identifica $X_m$, "
+        "$R_{fe}$ e a tensão no entreferro $E_{1,NL}$. A separação de perdas segue:"
+    )
+    _eq(r"P_{NL} = 3\,R_s\,I_{NL}^{\,2} + P_{fe} + P_{fw}")
+    st.markdown(
+        "Quando $P_{fw}$ (atrito mais ventilação) não é medido por *coast-down*, adota-se "
+        "a heurística (cf. `core/param_estimator.py:278`):"
+    )
+    _eq(r"P_{fw} = 0{,}008\,P_{NL}")
+    st.markdown(
+        "**Iteração fasorial dupla** para refinar $E_{1,NL}$ "
+        "(cf. `core/param_estimator.py:329–376`):"
+    )
+    st.markdown(
+        "*Iteração 1* — aproximação inicial assumindo $I_{NL}$ em fase com $V_{f,NL}$:"
+    )
+    _eq(r"E_{1,NL}^{(1)} = \sqrt{(V_{f,NL} - R_s\,I_{NL})^{\,2} + (X_{ls}\,I_{NL})^{\,2}}")
+    st.markdown(
+        "*Iteração 2* — decomposição correta de $I_{NL}$ em componentes $I_{fe}$ "
+        "(em fase com $E_1$) e $I_\\mu$ (em quadratura):"
+    )
+    _eq(r"E_{1,NL}^{(2)} = \sqrt{(V_{f,NL} - R_s\,I_{fe} - X_{ls}\,I_\mu)^{\,2} + (X_{ls}\,I_{fe} - R_s\,I_\mu)^{\,2}}")
+    st.markdown("**Resultados finais do ensaio em vazio:**")
+    _eq(r"R_{fe} = \frac{3\,E_{1,NL}^{\,2}}{P_{fe}}, \qquad I_\mu = \sqrt{I_{NL}^{\,2} - I_{fe}^{\,2}}, \qquad X_m = \frac{E_{1,NL}}{I_\mu} - X_{ls}")
+
+    _h4("7.2.4 — Ensaio com Rotor Bloqueado (IEEE 112 Cl. 6.6)")
+    st.markdown(
+        "O rotor é mecanicamente travado e aplica-se tensão reduzida até atingir a "
+        "corrente nominal. Recomenda-se ensaio em frequência reduzida "
+        "$f_{LR} \\approx 0{,}25\\,f_{nom}$ para minimizar o efeito pelicular. As "
+        "grandezas medidas são $V_{l,LR}$, $I_{LR}$, $P_{LR}$ e $f_{LR}$ "
+        "(cf. `core/param_estimator.py:296–327`):"
+    )
+    _eq(r"Z_k = \frac{V_{f,LR}}{I_{LR}}, \qquad R_k = \frac{P_{LR}}{3\,I_{LR}^{\,2}}, \qquad X_k\big|_{f_{LR}} = \sqrt{Z_k^{\,2} - R_k^{\,2}}")
+    st.markdown(
+        "**Correção linear de frequência** para projetar $X_k$ na frequência nominal "
+        "(cf. `core/param_estimator.py:312`):"
+    )
+    _eq(r"X_k\big|_{f_{nom}} = X_k\big|_{f_{LR}}\cdot\frac{f_{NL}}{f_{LR}}")
+    st.markdown("A resistência rotórica refletida é obtida pela subtração:")
+    _eq(r"R_r' = R_k - R_s, \qquad \text{com validação } R_r' > 0")
+
+    _h4("7.2.5 — Distribuição $X_{ls}/X_k$ por Classe NEMA")
+    st.markdown(
+        "A reatância de curto-circuito $X_k$ representa a soma $X_{ls} + X_{lr}'$ — não "
+        "há ensaio físico que separe os dois termos. A norma IEEE 112 adota uma "
+        "**fração tabelada**, dependente da classe construtiva do motor "
+        "(cf. tabela `_IEEE_SPLIT_TABLE` em `core/param_estimator.py:183–190`):"
+    )
+    st.markdown(
+        "| Classe NEMA | $X_{ls}/X_k$ | $X_{lr}'/X_k$ | Aplicação |\n"
+        "|---|---|---|---|\n"
+        "| A | $0{,}50$ | $0{,}50$ | Motores acima de $45\\;\\text{kW}$, rotor bobinado |\n"
+        "| **B (padrão)** | **$0{,}40$** | **$0{,}60$** | Industriais NEMA $1$–$100\\;\\text{kW}$ |\n"
+        "| C | $0{,}30$ | $0{,}70$ | Alta impedância, alto deslizamento |\n"
+        "| D | $0{,}50$ | $0{,}50$ | Alto torque de partida |\n"
+        "| WR (rotor bobinado) | $0{,}50$ | $0{,}50$ | Anéis coletores |\n"
+        "| Personalizado | $\\alpha$ | $1-\\alpha$ | Definido pelo usuário |"
+    )
+
+    _h4("7.2.6 — Instruções de Uso (passo a passo)")
+    st.markdown(
+        "Os campos correspondentes a este estimador encontram-se na *sidebar* do "
+        "simulador, no modo **IEEE Std 112-2017** "
+        "(cf. `ui_components/sim_config.py:763–862`)."
+    )
+    st.markdown("**Ensaio CC** — três valores:")
+    st.markdown(
+        "- $V_{dc}$ (V) — tensão contínua aplicada entre dois terminais.\n"
+        "- $I_{dc}$ (A) — corrente contínua medida em regime térmico estável.\n"
+        "- **Ligação** — escolher entre estrela ($Y$) ou triângulo ($\\Delta$)."
+    )
+    st.markdown("**Ensaio em vazio** — cinco valores:")
+    st.markdown(
+        "- $V_{l,NL}$ (V) — tensão de linha aplicada nos terminais.\n"
+        "- $I_{NL}$ (A) — corrente de linha em vazio.\n"
+        "- $P_{NL}$ (W) — potência ativa trifásica absorvida em vazio.\n"
+        "- $f_{NL}$ (Hz) — frequência da fonte durante o ensaio.\n"
+        "- $P_{fw}$ (W) — perdas mecânicas medidas por *coast-down* "
+        "(opcional; deixar em zero para aplicar a heurística $0{,}8\\%\\,P_{NL}$)."
+    )
+    st.markdown("**Ensaio com rotor bloqueado** — quatro valores:")
+    st.markdown(
+        "- $V_{l,LR}$ (V) — tensão de linha reduzida.\n"
+        "- $I_{LR}$ (A) — corrente de linha próxima da nominal.\n"
+        "- $P_{LR}$ (W) — potência ativa trifásica.\n"
+        "- $f_{LR}$ (Hz) — frequência da fonte, idealmente "
+        "$f_{LR} \\approx 0{,}25\\,f_{nom}$."
+    )
+    st.markdown(
+        "**Distribuição $X_{ls}/X_k$** — selecionar a classe NEMA do motor. Para "
+        "*Personalizado*, ajustar o *slider* da fração $\\alpha$."
+    )
+
+    _h4("7.2.7 — Interpretação dos Resultados e Critérios de Sanidade Física")
+    st.markdown(
+        "Após a execução, o estimador valida automaticamente cada saída contra "
+        "critérios físicos. Os avisos exibidos no painel **Detalhes do Cálculo** "
+        "(cf. `ui_components/sim_config.py:886`) indicam violações:"
+    )
+    st.markdown(
+        "| Critério | Significado físico | Implementação |\n"
+        "|---|---|---|\n"
+        "| $R_s, R_r' > 0$ | Resistências fisicamente positivas | `param_estimator.py:269, 316` |\n"
+        "| $P_{fe} > 0$ | $P_{NL}$ supera perdas Joule mais $P_{fw}$ | L:283–291 |\n"
+        "| $I_\\mu^{\\,2} > 0$ | $\\cos\\varphi$ do ensaio em vazio coerente | L:366–372 |\n"
+        "| $R_k < Z_k$ | Fator de potência $\\le 1$ no ensaio bloqueado | L:301–307 |\n"
+        "| $X_m / X_{ls} \\ge 5$ | Relação típica de motor industrial | aviso em `sim_config.py:947–950` |\n"
+        "| $R_{fe} \\ge 50\\;\\Omega$ | $P_{fe}$ em ordem realista | aviso em `sim_config.py:952–955` |"
+    )
+    st.markdown(
+        "**Conexão com `MachineParams`:** o dicionário retornado pelo estimador é "
+        "gravado nos campos $R_s$, $R_r'$, $X_m$, $X_{ls}$, $X_{lr}'$, $R_{fe}$ do "
+        "dataclass (cf. `core/machine_model.py:40–51`). A frequência de referência "
+        "$f_{ref}$ é ajustada para $f_{NL}$ (cf. `core/machine_model.py:88–101`) e a "
+        "reatância mútua resultante $X_{ml}$ é recalculada em `_xml_from_lm` "
+        "(cf. `core/machine_model.py:158–163`)."
+    )
+
+    _div_warn(
+        "**Recomendação de cruzamento:** mesmo quando se utiliza o estimador IEEE 112, "
+        "recomenda-se executar o estimador *Nameplate* como verificação cruzada. "
+        "Discrepâncias maiores que $\\pm 20\\%$ entre os dois métodos indicam problemas "
+        "nos ensaios (medidas instáveis, temperatura fora da nominal, harmônicas na "
+        "fonte) ou que o motor sob teste foge ao padrão NEMA B assumido pelo *Nameplate*."
     )
 
 
