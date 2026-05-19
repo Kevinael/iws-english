@@ -183,21 +183,63 @@ def _render_tab_circuitos() -> None:
     # 1d. Modelo dq de Krause
     _h4("Do Circuito Equivalente ao Modelo $0dq$ de Krause")
     st.markdown(
-        "O simulador resolve as equações diferenciais no **referencial $dq$ síncrono** "
-        "($\\omega_{ref} = \\omega_e$), usando os **fluxos concatenados** "
-        "$\\psi_{qs},\\,\\psi_{ds},\\,\\psi_{qr},\\,\\psi_{dr}$ como variáveis de estado, "
-        "junto com a velocidade rotórica $\\omega_r$."
+        "O simulador resolve as equações diferenciais em um **referencial $dq$ genérico**, "
+        "selecionável pelo usuário: **síncrono** ($\\omega_{ref}=\\omega_e$), **rotórico** "
+        "($\\omega_{ref}=\\omega_r$) ou **estacionário** ($\\omega_{ref}=0$). As variáveis "
+        "de estado são os **fluxos concatenados** "
+        "$\\psi_{qs},\\,\\psi_{ds},\\,\\psi_{qr}',\\,\\psi_{dr}'$ e a velocidade rotórica "
+        "elétrica $\\omega_r$. Define-se o escorregamento no referencial como "
+        "$s_{ref} = (\\omega_{ref} - \\omega_r)/\\omega_b$, com $\\omega_b = 2\\pi f$."
     )
-    st.markdown("Equações de estado (referencial síncrono):")
-    _eq(r"\dot{\psi}_{qs} = \omega_b\!\left(V_{qs} - \tfrac{\omega_e}{\omega_b}\psi_{ds} + \tfrac{R_s}{X_{ls}}(\psi_{mq}-\psi_{qs})\right)")
-    _eq(r"\dot{\psi}_{qr} = \omega_b\!\left(-\tfrac{\omega_e-\omega_r}{\omega_b}\psi_{dr} + \tfrac{R_r}{X_{lr}}(\psi_{mq}-\psi_{qr})\right)")
-    _eq(r"T_e = \tfrac{3}{2}\cdot\tfrac{p}{2}\cdot\tfrac{1}{\omega_b}(\psi_{ds}\,i_{qs}-\psi_{qs}\,i_{ds})")
-    _eq(r"\dot{\omega}_r = \tfrac{p}{2J}(T_e - T_L) - \tfrac{B}{J}\,\omega_r")
+
+    st.markdown(
+        "**Equações diferenciais dos fluxos** "
+        "(forma normalizada por $\\omega_b$ — cf. `core/machine_model.py:247–250`):"
+    )
+    _eq(r"\dot{\psi}_{qs} = \omega_b\!\left(v_{qs} - \tfrac{\omega_{ref}}{\omega_b}\,\psi_{ds} + \tfrac{R_s}{X_{ls,a}}(\psi_{mq}-\psi_{qs})\right)")
+    _eq(r"\dot{\psi}_{ds} = \omega_b\!\left(v_{ds} + \tfrac{\omega_{ref}}{\omega_b}\,\psi_{qs} + \tfrac{R_s}{X_{ls,a}}(\psi_{md}-\psi_{ds})\right)")
+    _eq(r"\dot{\psi}_{qr}' = \omega_b\!\left(-s_{ref}\,\psi_{dr}' + \tfrac{R_r'}{X_{lr,a}}(\psi_{mq}-\psi_{qr}')\right)")
+    _eq(r"\dot{\psi}_{dr}' = \omega_b\!\left(\;\;s_{ref}\,\psi_{qr}' + \tfrac{R_r'}{X_{lr,a}}(\psi_{md}-\psi_{dr}')\right)")
+
+    st.markdown(
+        "**Relações algébricas** entre fluxos mútuos e fluxos de estado — "
+        "eliminam as correntes do sistema dinâmico "
+        "(cf. `core/machine_model.py:227–232`):"
+    )
+    _eq(r"\psi_{mq} = X_{ml}\!\left(\frac{\psi_{qs}}{X_{ls,a}} + \frac{\psi_{qr}'}{X_{lr,a}}\right), \qquad \psi_{md} = X_{ml}\!\left(\frac{\psi_{ds}}{X_{ls,a}} + \frac{\psi_{dr}'}{X_{lr,a}}\right)")
+    _eq(r"X_{ml} = \left(\frac{1}{X_m} + \frac{1}{X_{ls,a}} + \frac{1}{X_{lr,a}}\right)^{\!-1}")
+
+    st.markdown("**Correntes** recuperadas após a integração dos fluxos:")
+    _eq(r"i_{qs} = \frac{\psi_{qs} - \psi_{mq}}{X_{ls,a}}, \quad i_{ds} = \frac{\psi_{ds} - \psi_{md}}{X_{ls,a}}, \quad i_{qr}' = \frac{\psi_{qr}' - \psi_{mq}}{X_{lr,a}}, \quad i_{dr}' = \frac{\psi_{dr}' - \psi_{md}}{X_{lr,a}}")
+
+    st.markdown(
+        "**Torque eletromagnético** "
+        "(convenção amplitude-invariante de Clarke–Park, com fator $k=\\sqrt{2/3}$):"
+    )
+    _eq(r"T_e = \tfrac{3}{2}\cdot\tfrac{p}{2}\cdot\tfrac{1}{\omega_b}\,(\psi_{ds}\,i_{qs} - \psi_{qs}\,i_{ds})")
+
+    st.markdown("**Equação mecânica** (2.ª Lei de Newton rotacional):")
+    _eq(r"J\,\dot{\omega}_m = T_e - T_L - B\,\omega_m, \qquad \omega_m = \tfrac{2}{p}\,\omega_r")
+
     st.markdown(
         "Os eixos $q$ e $d$ correspondem, respectivamente, às projeções em quadratura "
-        "e em fase da tensão de alimentação no referencial síncrono. O acoplamento entre "
-        "eles replica, em tempo real, o comportamento previsto pelo circuito equivalente em "
-        "regime permanente."
+        "e em fase da tensão de alimentação no referencial escolhido. Em **regime permanente** "
+        "no referencial síncrono, todas as componentes $dq$ tornam-se **constantes (CC)** — "
+        "propriedade que serve como teste de convergência numérica e fundamenta o controle "
+        "vetorial de máquinas."
+    )
+
+    st.markdown(
+        "**Transformação $abc \\leftrightarrow dq$** — Clarke–Park amplitude-invariante "
+        "(cf. `core/transforms.py:46–65`):"
+    )
+    _eq(r"\begin{pmatrix} v_{ds} \\ v_{qs} \end{pmatrix} = \sqrt{\tfrac{3}{2}}\,\begin{pmatrix} \cos\theta_e & \sin\theta_e \\ -\sin\theta_e & \cos\theta_e \end{pmatrix}\!\begin{pmatrix} v_a - \tfrac{1}{2}(v_b + v_c) \\ \tfrac{\sqrt{3}}{2}\,(v_b - v_c) \end{pmatrix}")
+
+    st.markdown(
+        "**Solver numérico:** integração via `scipy.integrate.solve_ivp` com método LSODA "
+        "(cf. `core/solver.py:42–67`), tolerâncias $\\text{RTOL}=10^{-6}$, "
+        "$\\text{ATOL}=10^{-9}$ e passo máximo adaptativo "
+        "$\\Delta t_{max} = 1/(20\\,f)$, garantindo no mínimo 20 amostras por ciclo elétrico."
     )
 
     st.markdown("**Diagrama de Blocos interativo:**")
@@ -267,6 +309,20 @@ def _render_tab_dinamica() -> None:
     st.divider()
 
     # Boucherot
+    _h4("Formulação Algébrica de $T_e(s)$ via Thévenin")
+    st.markdown(
+        "A curva conjugado × escorregamento é obtida de forma fechada após a redução do "
+        "estator e do ramo de magnetização por Thévenin, vistos pelos terminais do rotor "
+        "(cf. Aba 1):"
+    )
+    _eq(r"\bar{V}_{th} = \bar{V}_1\,\frac{jX_m}{R_s + j(X_{ls} + X_m)}, \qquad \bar{Z}_{th} = R_{th} + jX_{th} = \frac{(R_s + jX_{ls})\,(jX_m)}{R_s + j(X_{ls} + X_m)}")
+    st.markdown(
+        "A potência transferida pelo entreferro vale "
+        "$P_{ag} = 3\\,|I'_2|^2\\,(R'_2/s)$, e o torque eletromagnético resulta da divisão "
+        "pela velocidade síncrona mecânica $\\omega_s = (2/p)\\,\\omega_e$:"
+    )
+    _eq(r"T_e(s) = \frac{3}{\omega_s}\cdot\frac{V_{th}^2\,(R'_2/s)}{(R_{th} + R'_2/s)^2 + (X_{th} + X'_2)^2}")
+
     _h4("Torque Máximo e Escorregamento Crítico — Teorema de Boucherot")
     st.markdown(
         "Derivando $T_e(s)$ em relação a $s$ e igualando a zero, obtém-se o par "
