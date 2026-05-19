@@ -1625,23 +1625,299 @@ def _render_tab_experimentos() -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# ABA 6 — MANUAL DE USO DO SIMULADOR
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _render_tab_manual_de_uso() -> None:
+    st.markdown(
+        "Este manual descreve, em sequência, as etapas necessárias para configurar, "
+        "executar e analisar um ensaio no Electrical Machines Simulator (EMS). Cada etapa "
+        "indica os arquivos e funções correspondentes na implementação, permitindo a "
+        "rastreabilidade entre interface, código e fundamentação teórica."
+    )
+
+    _h4("Visão Geral do Fluxo de Trabalho")
+    st.markdown(
+        "O uso do simulador segue cinco etapas em ordem cronológica:"
+    )
+    st.markdown(
+        "1. **Seleção do equipamento** — escolher um motor do catálogo ou inserir "
+        "parâmetros personalizados.\n"
+        "2. **Inserção dos parâmetros físicos** — elétricos, magnéticos, mecânicos, "
+        "de rede e térmicos.\n"
+        "3. **Definição da fonte e do referencial de Park** — fonte senoidal balanceada, "
+        "impedância de rede, escolha do referencial $dq$.\n"
+        "4. **Configuração do experimento** — selecionar o tipo de ensaio "
+        "(DOL, Y-Δ, Soft-Starter, etc.) e perturbações.\n"
+        "5. **Execução, análise das plotagens e exportação** — leitura dos gráficos "
+        "transitórios e de regime, exportação em PDF."
+    )
+
+    st.divider()
+
+    _h4("Etapa 1 — Seleção do Equipamento")
+    st.markdown(
+        "Na barra lateral (*sidebar*), o seletor `render_machine_selector` "
+        "(`ui_components/sim_config.py`) oferece dois caminhos:"
+    )
+    st.markdown(
+        "- **Catálogo de motores NEMA** — pré-preenche o dataclass `MachineParams` com "
+        "valores tabelados de motores típicos (3 HP, 25 HP, 500 HP, entre outros). "
+        "Indicado para validação rápida e estudos comparativos.\n"
+        "- **Personalizado** — todos os campos ficam editáveis e devem ser inseridos "
+        "manualmente. Indicado para reproduzir ensaios reais ou bibliografias específicas."
+    )
+
+    st.divider()
+
+    _h4("Etapa 2 — Inserção dos Parâmetros Físicos")
+    st.markdown(
+        "Todos os campos do dataclass `MachineParams` "
+        "(`core/machine_model.py:40–76`) devem ser preenchidos. Os grupos são:"
+    )
+
+    st.markdown("**Parâmetros elétricos** (circuito equivalente em T):")
+    st.markdown(
+        "- $V_l$ — tensão de linha RMS aplicada aos terminais (V).\n"
+        "- $f$ — frequência da fonte (Hz). Define $\\omega_e = 2\\pi f$.\n"
+        "- $R_s$ — resistência por fase do estator (Ω).\n"
+        "- $R_r'$ — resistência rotórica refletida ao estator (Ω).\n"
+        "- $X_m$ — reatância de magnetização (Ω).\n"
+        "- $X_{ls}$ — reatância de dispersão do estator (Ω).\n"
+        "- $X_{lr}'$ — reatância de dispersão rotórica refletida (Ω).\n"
+        "- $R_{fe}$ — resistência paralela representando as perdas no ferro (Ω)."
+    )
+
+    st.markdown("**Parâmetros magnéticos** — modo de entrada:")
+    st.markdown(
+        "O usuário escolhe entre fornecer **reatâncias** (modo $X$) ou **indutâncias** "
+        "(modo $L$), via a chave `input_mode`. Em ambos os casos é necessário informar "
+        "a frequência de referência $f_{ref}$ em que os valores foram medidos. A conversão "
+        "interna usa $\\omega_{b,ref} = 2\\pi f_{ref}$ "
+        "(cf. `core/machine_model.py:88–101`):"
+    )
+    _eq(r"L_m = \frac{X_m}{\omega_{b,ref}}, \qquad L_{ls} = \frac{X_{ls}}{\omega_{b,ref}}, \qquad L_{lr}' = \frac{X_{lr}'}{\omega_{b,ref}}")
+    st.markdown(
+        "Quando se altera $f$ (frequência de operação), as reatâncias operacionais "
+        "$X_{ls,a}$, $X_{lr,a}$ e $X_{m,a}$ são recalculadas via "
+        "$X = \\omega_b\\,L$."
+    )
+
+    st.markdown("**Parâmetros mecânicos**:")
+    st.markdown(
+        "- $p$ — número de polos (inteiro). Define a velocidade síncrona "
+        "$n_s = 120\\,f / p$ (rpm).\n"
+        "- $J$ — momento de inércia rotacional total (kg·m²).\n"
+        "- $B$ — coeficiente de atrito viscoso (N·m·s/rad). Se zero, é estimado por "
+        "regra empírica a partir do torque nominal.\n"
+        "- $T_{nom}$ — torque nominal de carga, ex.: $T_{nom} = 80\\;\\text{N·m}$ "
+        "(usado como referência em ensaios com carga constante)."
+    )
+
+    st.markdown("**Impedância de rede** (*Voltage Sag* e queda de tensão na linha):")
+    st.markdown(
+        "- $R_{grid}$ — resistência por fase da linha (Ω).\n"
+        "- $L_{grid}$ — indutância por fase da linha (H). É absorvida em "
+        "$X_{ls,eff} = X_{ls,a} + \\omega_b\\,L_{grid}$ "
+        "(cf. `core/machine_model.py:132`)."
+    )
+
+    st.markdown("**Parâmetros térmicos** (modelo de aquecimento desacoplado):")
+    st.markdown(
+        "- $R_{th}$ — resistência térmica (°C/W).\n"
+        "- $C_{th}$ — capacitância térmica (J/°C).\n"
+        "- $T_{amb}$ — temperatura ambiente (°C).\n"
+        "Quando deixados em zero, são estimados automaticamente."
+    )
+
+    st.divider()
+
+    _h4("Etapa 3 — Modos de Obtenção dos Parâmetros Elétricos")
+    st.markdown(
+        "Os parâmetros $R_s, R_r', X_m, X_{ls}, X_{lr}', R_{fe}$ podem ser obtidos por "
+        "três caminhos distintos:"
+    )
+    st.markdown(
+        "1. **Manual** — valores inseridos diretamente. Requer conhecimento prévio "
+        "(ensaios anteriores ou bibliografia).\n"
+        "2. **Estimador *Nameplate*** — estimativa a partir de dados de placa, sem "
+        "ensaios físicos. Indicado para análises preliminares e estudos de sensibilidade "
+        "(ver Aba 7, seção 7.1).\n"
+        "3. **Estimador IEEE Std 112-2017** — estimativa a partir de três ensaios físicos "
+        "(corrente contínua, em vazio, rotor bloqueado). Indicado para validação de "
+        "modelos e comissionamento (ver Aba 7, seção 7.2)."
+    )
+    _div_warn(
+        "Os métodos *Nameplate* e IEEE Std 112-2017 são **complementares**, não "
+        "alternativos: usa-se *Nameplate* quando há apenas dados de placa; usa-se IEEE "
+        "112 quando há ensaios físicos disponíveis."
+    )
+
+    st.divider()
+
+    _h4("Etapa 4 — Referencial da Transformada de Park")
+    st.markdown(
+        "O usuário escolhe o referencial em que as variáveis $dq$ são expressas. "
+        "Três opções estão disponíveis no simulador:"
+    )
+    st.markdown(
+        "- **Síncrono** ($\\omega_{ref} = \\omega_e$) — em regime permanente, todas as "
+        "componentes $dq$ tornam-se constantes (CC). Recomendado para análise de regime "
+        "e para controle vetorial.\n"
+        "- **Rotórico** ($\\omega_{ref} = \\omega_r$) — solidário ao rotor. Útil para "
+        "diagnóstico de falhas rotóricas (barras quebradas) e análise de máquinas síncronas.\n"
+        "- **Estacionário** ($\\omega_{ref} = 0$) — variáveis $dq$ oscilam na frequência "
+        "da rede. Útil para visualização das formas de onda $\\alpha\\beta$."
+    )
+    st.markdown(
+        "A escolha **não altera os resultados físicos** ($T_e$, $\\omega_r$, correntes "
+        "$abc$, potências) — apenas a base de representação interna das variáveis $dq$. "
+        "A fundamentação matemática completa está na Aba 5 (Dinâmica de Operação)."
+    )
+
+    st.divider()
+
+    _h4("Etapa 5 — Configuração do Experimento")
+    st.markdown(
+        "O simulador oferece um catálogo de ensaios pré-configurados. O tempo de "
+        "simulação $t_{max}$ é estimado automaticamente em "
+        "`ui_components/sim_runner.py:calc_tmax_auto` para cada tipo:"
+    )
+    st.markdown(
+        "| Experimento | Descrição | $t_{max}$ típico |\n"
+        "|---|---|---|\n"
+        "| **DOL** | Partida direta com tensão plena | $0{,}5\\;\\text{s}$ |\n"
+        "| **Y-Δ** | Partida estrela-triângulo, chaveamento em $t_{sw}$ | $0{,}8$–$1{,}2\\;\\text{s}$ |\n"
+        "| **Soft-Starter** | Rampa de tensão por controle de ângulo | $1{,}0$–$2{,}0\\;\\text{s}$ |\n"
+        "| **Pulso de Carga** | Degrau de carga após regime | $1{,}5$–$2{,}0\\;\\text{s}$ |\n"
+        "| **Gerador** | Operação como gerador (acionamento mecânico) | $1{,}0$–$3{,}0\\;\\text{s}$ |\n"
+        "| **Voltage Sag** | Afundamento momentâneo de tensão | $1{,}0$–$2{,}0\\;\\text{s}$ |\n"
+        "| **Shutdown** | Desligamento e *coast-down* | $2{,}0$–$5{,}0\\;\\text{s}$ |\n"
+        "| **Comparativo** | Sobreposição de múltiplas partidas | $0{,}8\\;\\text{s}$ |"
+    )
+    st.markdown(
+        "Para cada experimento, os parâmetros específicos (tensão de partida, instante "
+        "de chaveamento, magnitude do *sag*, entre outros) ficam visíveis na *sidebar* "
+        "após a seleção. A catalogação completa está na Aba 8."
+    )
+
+    st.divider()
+
+    _h4("Etapa 6 — Leitura das Plotagens")
+    st.markdown(
+        "Após a execução, a aba **Resultados** apresenta cinco grupos de gráficos. "
+        "Recomenda-se a seguinte ordem de análise:"
+    )
+
+    st.markdown("**1. Transitório de partida** — picos de corrente e torque:")
+    st.markdown(
+        "- Corrente de inrush típica: $I_{part} \\approx 6\\text{–}8\\,I_n$ "
+        "nos primeiros $50$–$100\\;\\text{ms}$.\n"
+        "- Pico de torque eletromagnético: pode atingir $2$–$3\\,T_{nom}$.\n"
+        "- Tempo de aceleração até $95\\%\\,\\omega_{sinc}$: depende de $J$, $T_L$ e do "
+        "método de partida adotado."
+    )
+
+    st.markdown("**2. Regime permanente** — janela RMS confiável:")
+    st.markdown(
+        "- Aguardar a estabilização completa antes de coletar valores RMS — "
+        "tipicamente $5$–$10$ ciclos elétricos após o último transitório.\n"
+        "- Em referencial síncrono, $i_{ds}$ e $i_{qs}$ devem ser constantes em regime."
+    )
+
+    st.markdown("**3. Correntes $abc$** — verificação de simetria:")
+    st.markdown(
+        "- Simetria $|i_a| \\approx |i_b| \\approx |i_c|$ confirma equilíbrio de fases.\n"
+        "- Assimetria indica desequilíbrio de tensão, falta de fase ou falha rotórica."
+    )
+
+    st.markdown("**4. Componentes $dq$** — teste de convergência:")
+    st.markdown(
+        "- Em referencial síncrono, $i_{ds}$ e $i_{qs}$ tornam-se constantes em regime.\n"
+        "- Ondulação persistente sugere ressonância numérica ou parâmetros incoerentes."
+    )
+
+    st.markdown("**5. Curva $T_e \\times n$ dinâmica** — comparação com curva estática:")
+    st.markdown(
+        "- A trajetória dinâmica espirala em torno da curva estática "
+        "(`viz/plotly_charts.build_fig_torque_speed`).\n"
+        "- Em regime, o ponto operacional coincide com a interseção da curva estática "
+        "e da reta da carga $T_L(\\omega_r)$."
+    )
+
+    st.divider()
+
+    _h4("Etapa 7 — Exportação dos Resultados")
+    st.markdown(
+        "Três formatos de relatório em PDF estão disponíveis "
+        "(cf. `ui_components/sim_results.py:904–963`):"
+    )
+    st.markdown(
+        "- **PDF v1** — relatório resumido com gráficos principais e tabela de parâmetros.\n"
+        "- **PDF v2 (AC)** — relatório técnico ampliado com análise de regime AC, "
+        "harmônicas e componentes $dq$.\n"
+        "- **PDF v2 (DB)** — relatório dinâmico-balístico com sobreposição de transitórios "
+        "e diagrama de fluxo de potência."
+    )
+    st.markdown(
+        "Os botões de exportação são gerados via `st.download_button`. O conteúdo "
+        "inclui todas as plotagens Plotly renderizadas e a tabela final do "
+        "`MachineParams` utilizado na simulação."
+    )
+
+    st.divider()
+
+    _h4("Referências Internas")
+    st.markdown(
+        "Para fundamentação teórica e detalhamento, consulte:"
+    )
+    st.markdown(
+        "- **Aba 1** — Modelagem e Circuitos Equivalentes (estático e modelo $0dq$ de Krause).\n"
+        "- **Aba 2** — Dinâmica e Torque, com a curva $T_e(s)$ e o teorema de Boucherot.\n"
+        "- **Aba 3** — Balanço energético e fluxo de potência.\n"
+        "- **Aba 4** — Sensibilidade dos parâmetros do circuito equivalente.\n"
+        "- **Aba 5** — Dinâmica de operação e transformada de Park.\n"
+        "- **Aba 7** — Estimadores *Nameplate* e IEEE Std 112-2017.\n"
+        "- **Aba 8** — Configurações numéricas e catálogo completo de experimentos."
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ABA 7 — ESTIMADORES DE PARÂMETROS
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _render_tab_estimadores() -> None:
+    st.markdown(
+        "Esta aba documenta os **dois estimadores de parâmetros** disponíveis no "
+        "simulador. Ambos são métodos legítimos do circuito equivalente em T em regime "
+        "permanente, mas se aplicam a casos de uso diferentes — devem ser escolhidos em "
+        "função dos dados disponíveis."
+    )
+    st.info(
+        "**Em construção** — a seção 7.1 (*Nameplate*) e a seção 7.2 (IEEE Std 112-2017) "
+        "serão preenchidas na próxima iteração."
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # RENDER PRINCIPAL
 # ─────────────────────────────────────────────────────────────────────────────
 
 def render_theory_tab() -> None:
     st.markdown(
-        "Fundamentos físicos da máquina de indução trifásica — "
-        "selecione uma aba para explorar o tema desejado."
+        "Fundamentos físicos da máquina de indução trifásica e manual de operação "
+        "do simulador — selecione uma aba para explorar o tema desejado."
     )
 
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
         "1 - Modelagem e Circuitos",
         "2 - Dinâmica e Torque",
         "3 - Balanço Energético",
         "4 - Sensibilidade de Parâmetros",
-        "5 - Configurações e Alertas",
-        "6 - Dinâmica de Operação",
-        "7 - Experimentos e Perturbações",
+        "5 - Dinâmica de Operação",
+        "6 - Manual de Uso",
+        "7 - Estimadores de Parâmetros",
+        "8 - Configurações e Experimentos",
     ])
 
     with tab1:
@@ -1661,13 +1937,21 @@ def render_theory_tab() -> None:
         _render_tab_sensibilidade()
 
     with tab5:
-        st.markdown("## Configurações de Simulação e Alertas")
-        _render_tab_config()
-
-    with tab6:
         st.markdown("## Dinâmica de Operação")
         _render_tab_dinamica_operacao()
 
+    with tab6:
+        st.markdown("## Manual de Uso do Simulador")
+        _render_tab_manual_de_uso()
+
     with tab7:
-        st.markdown("## Experimentos e Perturbações de Rede")
+        st.markdown("## Estimadores de Parâmetros")
+        _render_tab_estimadores()
+
+    with tab8:
+        st.markdown("## Configurações, Alertas e Experimentos")
+        st.markdown("### Configurações Numéricas e Alertas")
+        _render_tab_config()
+        st.divider()
+        st.markdown("### Catálogo de Experimentos")
         _render_tab_experimentos()
