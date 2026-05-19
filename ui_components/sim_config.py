@@ -884,36 +884,64 @@ A separação usa a Tabela 1 da IEEE 112, conforme a **classe NEMA** selecionada
             Rfe   = resultado["Rfe"]
             ligacao = "Triângulo (Δ)" if is_delta else "Estrela (Y)"
             with st.expander("Detalhes do Cálculo (IEEE Std 112-2017)", expanded=True):
-                st.info(
-                    f"**Método:** IEEE Std 112-2017 — três ensaios físicos.\n\n"
-                    f"**Ligação:** {ligacao}  "
-                    f"| **Distribuição:** {_IEEE_SPLIT_LABELS[resultado['split_used']]} "
-                    f"(fração $X_{{ls}}$/$X_k$ = {resultado['Xls_frac']:.2f})\n\n"
-                    f"**Ensaio CC:** $R_s$ = {Rs:.4f} Ω  "
-                    f"(via $V_{{dc}}$/$I_{{dc}}$ = {(V_dc/I_dc):.4f} Ω)\n\n"
-                    f"**Ensaio em Vazio:** $E_{{1,NL}}$ = {resultado['E1_nl']:.2f} V  "
-                    f"| $P_{{fe,3φ}}$ = {resultado['Pfe_3ph']:.2f} W  "
-                    f"| $P_{{fw}}$ usado = {resultado['Pfw_used']:.2f} W "
-                    f"({'medido' if Pfw > 0 else 'heurística 0,8% · P_NL'})\n\n"
-                    f"**Ensaio Bloqueado:** $Z_k$ = {resultado['Zk']:.4f} Ω  "
-                    f"| $R_k$ = {resultado['Rk']:.4f} Ω  "
-                    f"| $X_{{k,LR}}$ = {resultado['Xk_lr']:.4f} Ω → "
-                    f"$X_k$ @ {f_nl:.0f} Hz = {resultado['Xk']:.4f} Ω "
-                    f"(corrigido por $f_{{NL}}/f_{{LR}}$ = {(f_nl/f_lr):.2f})"
+                # Cabeçalho — método e configuração da estimação
+                st.markdown(
+                    f"**Método:** IEEE Std 112-2017 — três ensaios físicos. "
+                    f"**Ligação:** {ligacao}. "
+                    f"**Distribuição:** {_IEEE_SPLIT_LABELS[resultado['split_used']]} "
+                    f"(fração $X_{{ls}}/X_k$ = {resultado['Xls_frac']:.2f})."
                 )
+
+                # ── Ensaios físicos: três colunas lado a lado ────────────
+                st.markdown("##### Ensaios físicos")
+                t1, t2, t3 = st.columns(3)
+                with t1:
+                    st.markdown("**Ensaio CC**")
+                    st.markdown(f"$R_s$ = **{Rs:.4f} Ω**")
+                    st.caption(f"via $V_{{dc}}/I_{{dc}}$ = {(V_dc/I_dc):.4f} Ω")
+                with t2:
+                    st.markdown("**Ensaio em Vazio**")
+                    st.markdown(
+                        f"$E_{{1,NL}}$ = **{resultado['E1_nl']:.2f} V**  \n"
+                        f"$P_{{fe,3φ}}$ = **{resultado['Pfe_3ph']:.2f} W**  \n"
+                        f"$P_{{fw}}$ = **{resultado['Pfw_used']:.2f} W**"
+                    )
+                    st.caption(
+                        "Pfw medido" if Pfw > 0
+                        else "Pfw via heurística (0,8% · P_NL)"
+                    )
+                with t3:
+                    st.markdown("**Ensaio Bloqueado**")
+                    st.markdown(
+                        f"$Z_k$ = **{resultado['Zk']:.4f} Ω**  \n"
+                        f"$R_k$ = **{resultado['Rk']:.4f} Ω**  \n"
+                        f"$X_k$ @ {f_nl:.0f} Hz = **{resultado['Xk']:.4f} Ω**"
+                    )
+                    st.caption(
+                        f"$X_{{k,LR}}$ = {resultado['Xk_lr']:.4f} Ω · "
+                        f"correção $f_{{NL}}/f_{{LR}}$ = {(f_nl/f_lr):.2f}"
+                    )
+
+                st.divider()
+
+                # ── Indicadores intermediários ───────────────────────────
+                st.markdown("##### Indicadores intermediários")
                 c1, c2, c3, c4 = st.columns(4)
-                c1.metric("E₁_NL (Estimado)",  f"{resultado['E1_nl']:.2f} V")
-                c2.metric("Iμ — magnetização", f"{resultado['I_mu']:.3f} A")
-                c3.metric("Pfe trifásica",     f"{resultado['Pfe_3ph']:.1f} W")
-                c4.metric("Pfw usado",         f"{resultado['Pfw_used']:.1f} W")
-                st.markdown("**Parâmetros do circuito equivalente estimados:**")
-                p1, p2, p3, p4, p5, p6 = st.columns(6)
-                p1.metric("Rₛ (Estimado)",  f"{Rs:.4f} Ω")
-                p2.metric("Rᵣ (Estimado)",  f"{Rr:.4f} Ω")
-                p3.metric("Xₘ (Estimado)",  f"{Xm:.4f} Ω")
-                p4.metric("Xls (Estimado)", f"{Xls:.4f} Ω")
-                p5.metric("Xlr (Estimado)", f"{Xlr:.4f} Ω")
-                p6.metric("Rfe (Estimado)", f"{Rfe:.1f} Ω")
+                c1.metric("E₁ (vazio)",      f"{resultado['E1_nl']:.2f} V")
+                c2.metric("Iμ magnetização", f"{resultado['I_mu']:.3f} A")
+                c3.metric("Pfe trifásica",   f"{resultado['Pfe_3ph']:.1f} W")
+                c4.metric("Pfw usado",       f"{resultado['Pfw_used']:.1f} W")
+
+                # ── Parâmetros finais: 3 colunas × 2 linhas ──────────────
+                st.markdown("##### Parâmetros estimados (circuito equivalente)")
+                r1 = st.columns(3)
+                r1[0].metric("Rₛ",  f"{Rs:.4f} Ω")
+                r1[1].metric("Rᵣ",  f"{Rr:.4f} Ω")
+                r1[2].metric("Xₘ",  f"{Xm:.4f} Ω")
+                r2 = st.columns(3)
+                r2[0].metric("Xₗₛ", f"{Xls:.4f} Ω")
+                r2[1].metric("Xₗᵣ", f"{Xlr:.4f} Ω")
+                r2[2].metric("Rfe", f"{Rfe:.1f} Ω")
 
             # Avisos de sanidade (apenas em caso de sucesso)
             if Xm < 5.0 * Xls:
