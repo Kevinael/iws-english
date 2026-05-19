@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """Renderização de resultados da simulação: KPIs, gráficos e exportação PDF.
 
 Exporta:
@@ -13,7 +13,7 @@ import numpy as np
 import streamlit as st
 import plotly.graph_objects as go
 
-from core.EMS_PY import MachineParams
+from core.IWS_PY import MachineParams
 from core.energy_analysis import compute_energy_metrics
 from viz.plotly_charts import (
     build_fig_stacked, build_fig_sidebyside, build_fig_overlay, build_fig_torque_speed,

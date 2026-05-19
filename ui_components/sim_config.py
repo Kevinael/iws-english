@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """Configuração e inputs da simulação — parâmetros da máquina e experimento.
 
 Exporta:
@@ -20,7 +20,7 @@ from typing import Any
 import numpy as np
 import streamlit as st
 
-from core.EMS_PY import MachineParams
+from core.IWS_PY import MachineParams
 from core.desequilibrio_falta import render_desequilibrio_ui, render_broken_bar_ui
 from core.param_estimator import estimate_params, estimate_params_ieee_tests
 from ui.theme import _palette

@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """
 solver.py — Integracao numerica e pos-processamento do modelo Krause
 
@@ -10,7 +10,7 @@ Exporta:
   _compute_steady_state   — RMS, medias e balanco de potencias em regime
   _compute_thermal        — integra EDO termica em pos-processamento sobre P_joule vetorizado
 
-Constantes de integracao/analise (importadas por EMS_PY para compatibilidade):
+Constantes de integracao/analise (importadas por IWS_PY para compatibilidade):
   SS_TOL, MIN_SS_CYCLES, NYQUIST_LIMIT, F_ROTOR_FLOOR
   RTOL, ATOL, MAX_STEP_FACTOR
 

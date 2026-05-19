@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """Execução da simulação — orquestra build_fns + run_simulation e persiste o resultado.
 
 Exporta:
@@ -11,7 +11,7 @@ from typing import Any
 
 import streamlit as st
 
-from core.EMS_PY import MachineParams, build_fns, run_simulation
+from core.IWS_PY import MachineParams, build_fns, run_simulation
 
 
 def calc_tmax_auto(exp_config: dict, mp: MachineParams) -> float:

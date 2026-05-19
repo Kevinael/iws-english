@@ -5,6 +5,7 @@ docs/
 *.txt
 !requirements.txt
 .gitignore
+CLAUDE.md
 
 # testes e artefatos de cobertura
 tests/

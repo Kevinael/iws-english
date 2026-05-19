@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Orquestrador principal do ElectraSim.
+"""Orquestrador principal do Infraestrutura Web de Simulação.
 
 Responsabilidades deste arquivo:
   - Configuração da página Streamlit
@@ -33,7 +33,7 @@ from ui_components.sim_runner import execute_simulation_flow
 # CONFIGURAÇÃO DA PÁGINA
 # ─────────────────────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="ElectraSim",
+    page_title="Infraestrutura Web de Simulação",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
@@ -90,7 +90,7 @@ def main() -> None:
 
     st.markdown(
         '<div class="app-header">'
-        '<div class="app-title">ElectraSim</div>'
+        '<div class="app-title">Infraestrutura Web de Simulação</div>'
         '</div>',
         unsafe_allow_html=True,
     )

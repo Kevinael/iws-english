@@ -170,7 +170,7 @@ def render_clean_view() -> None:
 ">
   <div style="border-bottom:2px solid #1e293b;padding-bottom:10px;margin-bottom:18px;">
     <div style="font-size:18px;font-weight:700;letter-spacing:0.02em;color:#1e293b;">
-      Simulador de Máquina de Indução Trifásica
+      Infraestrutura Web de Simulação
     </div>
     <div style="font-size:13px;color:#555;margin-top:4px;">
       Parâmetros de configuração

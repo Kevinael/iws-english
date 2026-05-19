@@ -1,6 +1,6 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """
-EMS_PY.py — Fachada publica do simulador de maquinas de inducao (modelo Krause 0dq)
+IWS_PY.py — Fachada publica do simulador de maquinas de inducao (modelo Krause 0dq)
 
 Exporta (interface retrocompativel):
   MachineParams  — core.machine_model
@@ -15,7 +15,7 @@ Modulos internos:
   core.thermal        — estimate_rth_cth, dTemp_dt
 
 Documentacao detalhada da arquitetura e decisoes de implementacao:
-  SME/2. Modulos/core/EMS_PY.md
+  SME/2. Modulos/core/IWS_PY.md
   SME/Fluxo de Dados e Execucao.md
   SME/1. Fundamentos/6 - API Publica (run_simulation e build_fns).md
   SME/2. Modulos/Guia de Leitura do Codigo.md

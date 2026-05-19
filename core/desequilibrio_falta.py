@@ -1,13 +1,13 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """
 desequilibrio_falta.py
 ======================
 Módulo reservado para simulação de desequilíbrio de tensão e falta de fase.
 Não é importado nem utilizado pelo restante da aplicação.
 
-Para reativar: importe render_desequilibrio_ui em EMS_UI.py e adicione
+Para reativar: importe render_desequilibrio_ui em IWS_UI.py e adicione
 deseq_a, deseq_b, deseq_c, falta_fase_a, falta_fase_b, falta_fase_c
-como parâmetros de run_simulation em EMS_PY.py.
+como parâmetros de run_simulation em IWS_PY.py.
 """
 from __future__ import annotations
 import math
@@ -90,7 +90,7 @@ def render_desequilibrio_ui(config: dict, tmax: float = 2.0) -> None:
       deseq_a, deseq_b, deseq_c,
       falta_fase_a, falta_fase_b, falta_fase_c,
       t_deseq.
-    Deve ser chamado dentro do bloco de configuração do experimento em EMS_UI.py.
+    Deve ser chamado dentro do bloco de configuração do experimento em IWS_UI.py.
     """
     import streamlit as st
     st.write("")

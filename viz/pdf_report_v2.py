@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """
 pdf_report_v2.py — Relatório técnico V2 com dois estilos de layout.
 
@@ -14,7 +14,7 @@ Exporta:
 from __future__ import annotations
 import io
 import numpy as np
-from core.EMS_PY import MachineParams
+from core.IWS_PY import MachineParams
 from viz.eqcircuit_plotter import build_figure as _build_circuit_figure
 from ui.theme import _palette
 
