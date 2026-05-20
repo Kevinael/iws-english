@@ -609,6 +609,7 @@ def render_results(
 
                 def _nota_apos(key: str) -> None:
                     """Emite a nota contextual adequada para a grandeza 'key', se houver."""
+                    _cfg = exp_config or {}
                     if key == "Te":
                         if _bb_sev > 0:
                             _f_osc = 2.0 * abs(_s_val) * mp.f
@@ -621,64 +622,234 @@ def render_results(
                             )
                         elif _deseq_on:
                             st.caption(
-                                "**Desequilíbrio de tensão** — a componente de sequência negativa gera um "
-                                "torque na direção oposta ao giro, reduzindo $T_e$ médio e causando pulsação "
-                                "a $2f$. O aumento de perdas por efeito Joule pode ser significativo mesmo com "
-                                "desequilíbrios pequenos (≥ 2%)."
+                                "**Desequilíbrio de tensão / Falta de fase** — a componente de sequência negativa "
+                                "estabelece campo girante em sentido oposto a $\\omega_s$, com escorregamento efetivo "
+                                "$s^- = 2 - s^+$, gerando torque frenante pulsante à frequência $2f$ e reduzindo "
+                                "$T_e$ médio em relação ao regime equilibrado."
                             )
                         elif _is_yd:
                             st.caption(
-                                "**Partida Estrela-Triângulo** — no instante da comutação (abertura da "
-                                "estrela e fechamento do triângulo) ocorre um segundo transitório de inrush: "
-                                "a tensão é aplicada subitamente com o rotor já em movimento, gerando um "
-                                "pico de $T_e$ menor que o inicial mas potencialmente prejudicial a acoplamentos."
+                                "**Partida Estrela-Triângulo (Y-$\\Delta$)** — na comutação, a tensão de fase salta "
+                                "de $V_n/\\sqrt{3}$ para $V_n$, impondo um degrau de excitação sobre o fluxo residual "
+                                "no entreferro. O segundo pico de $T_e$ decai com constante $\\tau_s = L_s/R_s$ até "
+                                "o novo regime permanente $T_e = T_L + B\\,\\omega_r$."
+                            )
+                        elif exp_type == "autotrafo":
+                            _k = float(_cfg.get("voltage_ratio", 0.5))
+                            st.caption(
+                                f"**Partida com Autotransformador (tap $k$ = {_k:.0%})** — a tensão reduzida "
+                                f"$V_s = k\\,V_n$ atenua $T_e$ por um fator $k^2 = {_k**2:.2f}$, reduzindo o "
+                                f"pico de inrush sem eliminar as oscilações transitórias. Na comutação para tensão "
+                                f"plena ocorre um segundo transitório análogo ao do modo Y-$\\Delta$."
+                            )
+                        elif _is_soft:
+                            if _Te_max < _Tl_cfg * 1.05 and _Tl_cfg > 0:
+                                st.caption(
+                                    "**Soft-starter** — o torque máximo de partida está próximo do torque de carga. "
+                                    "Se $T_{e,\\max} < T_L$ o motor não parte. Considere aumentar a tensão inicial "
+                                    "ou reduzir a carga durante a aceleração."
+                                )
+                            else:
+                                st.caption(
+                                    "**Soft-starter** — a rampa de tensão suaviza o crescimento de $T_e$, "
+                                    "eliminando o pico de inrush da partida direta. O torque cresce de forma "
+                                    "aproximadamente proporcional a $V_s^2(t)$ até atingir $T_e = T_L + B\\,\\omega_r$ "
+                                    "em regime permanente."
+                                )
+                        elif exp_type == "pulso_carga":
+                            st.caption(
+                                "**Pulso de Carga** — a inserção súbita de $T_L$ provoca queda transitória de "
+                                "$\\omega_r$ e aumento de escorregamento $s$. O torque eletromagnético $T_e$ "
+                                "eleva-se em resposta, com oscilações amortecidas pela constante $\\tau_m = J/B$, "
+                                "até igualr-se a $T_L + B\\,\\omega_r$ no novo ponto de operação."
                             )
                         elif _is_gen:
                             st.caption(
                                 "**Modo Gerador** — $T_e$ negativo indica que a máquina absorve torque mecânico "
                                 "e injeta potência ativa na rede (escorregamento $s < 0$, rotor acima da "
-                                "velocidade síncrona). A convenção de sinal é motor: positivo = motor, negativo = gerador."
+                                "velocidade síncrona $\\omega_s$). A convenção de sinal adotada é motora: "
+                                "positivo = motor, negativo = gerador."
                             )
                         elif _is_sd:
+                            _tau_r = mp.Lr / mp.Rr if mp.Rr > 0 else 0.0
                             st.caption(
-                                "**Desligamento** — após o corte da tensão, o fluxo no entreferro decai com "
-                                "constante $\\tau_r = L_r/R_r$ e $T_e$ cai rapidamente a zero. O rotor continua "
-                                "girando por inércia, desacelerando sob $T_L$ e atrito viscoso $B$."
+                                f"**Desligamento** — após o corte da tensão, o fluxo no entreferro decai com "
+                                f"constante $\\tau_r = L_r/R_r$ = {_tau_r:.3f} s e $T_e$ cai rapidamente a zero. "
+                                f"O rotor continua girando por inércia, desacelerando sob $T_L$ e atrito viscoso $B$."
                             )
-                        elif _is_soft and _Te_max < _Tl_cfg * 1.05 and _Tl_cfg > 0:
+                        elif exp_type == "voltage_sag":
+                            _sag = float(_cfg.get("sag_magnitude", 0.5))
                             st.caption(
-                                "**Soft-starter** — o torque máximo de partida está próximo do torque de carga. "
-                                "Se $T_{e,max} < T_L$ o motor não parte. Considere aumentar a tensão inicial "
-                                "ou reduzir a carga durante a aceleração."
+                                f"**Afundamento de Tensão (Voltage Sag, $V_{{sag}}$ = {_sag:.0%}$V_n$)** — "
+                                f"$T_e$ cai proporcionalmente a $V_s^2$, reduzindo-se a $\\approx {_sag**2:.0%}$ "
+                                f"do valor nominal durante o distúrbio. Se $T_{{e,\\min}} < T_L$ o motor perde "
+                                f"sincronismo e pode estagnar ($s \\to 1$)."
                             )
-                    elif key in ("ias", "ibs", "ics") and _deseq_on:
-                        st.caption(
-                            "**Desequilíbrio de tensão** — correntes de fase assimétricas indicam circulação "
-                            "de corrente de sequência negativa no estator. A fase com menor tensão tende a "
-                            "apresentar maior corrente (efeito de redistribuição de impedâncias), acelerando "
-                            "o envelhecimento do isolamento."
-                        )
-                    elif key == "n" and _is_gen:
-                        st.caption(
-                            "**Modo Gerador** — velocidade acima da síncrona ($n > n_{sinc}$) corresponde a "
-                            "$s < 0$. A máquina opera como gerador de indução, injetando potência ativa na rede "
-                            "sem excitação independente (requer reativo da rede para magnetização)."
-                        )
-                    elif key == "n" and _is_sd:
-                        _ws  = 2.0 * np.pi * mp.f / (mp.p / 2.0)
-                        _t_cut = float((exp_config or {}).get("t_cutoff", 0.0))
-                        if mp.B > 0 and _Tl_cfg > 0:
+                        elif exp_type == "dol":
+                            st.caption(
+                                "**Partida Direta (DOL)** — na energização com $\\omega_r = 0$ e $s = 1$, "
+                                "a baixa impedância do circuito impõe corrente de inrush $I_s \\approx 5$–$8\\,I_n$. "
+                                "O torque $T_e$ exibe oscilações amortecidas sobrepostas à envoltória crescente, "
+                                "decorrentes dos fluxos transitórios nos eixos $d$-$q$, até estabilizar em "
+                                "$T_e = T_L + B\\,\\omega_r$."
+                            )
+
+                    elif key in ("ias", "ibs", "ics"):
+                        if _bb_sev > 0:
+                            _f_osc = 2.0 * abs(_s_val) * mp.f
+                            _f_lo  = (1.0 - 2.0 * abs(_s_val)) * mp.f
+                            _f_hi  = (1.0 + 2.0 * abs(_s_val)) * mp.f
+                            st.caption(
+                                f"**Barra quebrada (α={_bb_sev:.2f})** — a assimetria do circuito do rotor "
+                                f"induz modulação de amplitude na corrente do estator, gerando sidebands "
+                                f"em $(1\\pm2s)f_e$ = {_f_lo:.1f} Hz e {_f_hi:.1f} Hz visíveis no espectro MCSA "
+                                f"— veja a aba **Diagnóstico e Falhas**."
+                            )
+                        elif _deseq_on:
+                            st.caption(
+                                "**Desequilíbrio de tensão / Falta de fase** — correntes de fase assimétricas "
+                                "indicam circulação de componente de sequência negativa $I_2$ no estator. "
+                                "A fase com menor tensão tende a apresentar maior corrente, acelerando o "
+                                "envelhecimento do isolamento elétrico."
+                            )
+                        elif _is_yd:
+                            st.caption(
+                                "**Partida Estrela-Triângulo (Y-$\\Delta$)** — na fase estrela, $I_s$ é "
+                                "reduzida a $1/3$ do valor DOL equivalente. Na comutação para triângulo "
+                                "ocorre um segundo pico de corrente, tipicamente $1{,}5$–$2\\,I_n$, "
+                                "que decai com $\\tau_s = L_s/R_s$."
+                            )
+                        elif exp_type == "autotrafo":
+                            _k = float(_cfg.get("voltage_ratio", 0.5))
+                            st.caption(
+                                f"**Autotransformador (tap $k$ = {_k:.0%})** — a corrente de inrush no estator "
+                                f"é reduzida por $k^2 = {_k**2:.2f}$ em relação à partida direta, pois "
+                                f"$I_{{s,\\text{{inrush}}}} \\propto V_s = k\\,V_n$."
+                            )
+                        elif _is_soft:
+                            st.caption(
+                                "**Soft-starter** — a rampa de tensão elimina o pico de inrush; a corrente "
+                                "cresce gradualmente de $I_s \\approx 0$ até $I_n$ no regime permanente, "
+                                "reduzindo o estresse elétrico e mecânico na partida."
+                            )
+                        elif exp_type == "dol":
+                            st.caption(
+                                "**Partida Direta (DOL)** — com $s = 1$, a corrente de partida atinge "
+                                "$I_{{s,0}} \\approx V_n / Z_s$, tipicamente $5$–$8\\,I_n$. "
+                                "À medida que $\\omega_r$ cresce e $s$ decresce, $I_s$ reduz até $I_n$ "
+                                "em regime permanente."
+                            )
+                        elif exp_type == "voltage_sag":
+                            st.caption(
+                                "**Afundamento de Tensão** — durante o sag, $I_s$ pode elevar-se "
+                                "transitoriamente se o motor desacelera e o escorregamento $s$ aumenta, "
+                                "comportamento típico de cargas com torque proporcional a $\\omega_r^2$."
+                            )
+
+                    elif key in ("iar", "ibr", "icr"):
+                        if _bb_sev > 0:
+                            st.caption(
+                                f"**Barra quebrada (α={_bb_sev:.2f})** — a assimetria das correntes do rotor "
+                                f"indica que uma ou mais barras apresentam resistência elevada ($R_{{barra}} \\gg R_r$). "
+                                f"A distribuição não uniforme gera pulsação de $T_e$ e aquecimento localizado."
+                            )
+                        elif _deseq_on:
+                            st.caption(
+                                "**Desequilíbrio de tensão** — a componente de sequência negativa induz "
+                                "corrente de rotor à frequência $(2-s)f_e$, muito maior que $sf_e$ do "
+                                "regime equilibrado, elevando as perdas Joule no rotor."
+                            )
+
+                    elif key in ("Va", "Vb", "Vc"):
+                        if exp_type == "voltage_sag":
+                            _sag = float(_cfg.get("sag_magnitude", 0.5))
+                            _t0  = float(_cfg.get("t_start_sag", 0.5))
+                            _dt  = float(_cfg.get("t_duration_sag", 0.1))
+                            st.caption(
+                                f"**Afundamento de Tensão** — tensão reduzida a {_sag:.0%}$V_n$ durante "
+                                f"$\\Delta t_{{sag}}$ = {_dt:.3f} s (de $t$ = {_t0:.3f} s a "
+                                f"$t$ = {_t0+_dt:.3f} s). A recuperação brusca após o sag pode gerar "
+                                f"transitório de re-excitação no fluxo do estator."
+                            )
+                        elif _deseq_on:
+                            _falta = any(_cfg.get(k, 0) for k in ("falta_fase_a", "falta_fase_b", "falta_fase_c"))
+                            if _falta:
+                                st.caption(
+                                    "**Falta de fase** — a tensão da fase aberta cai a zero nos terminais; "
+                                    "as fases remanescentes mantêm amplitude nominal, impondo tensão de "
+                                    "sequência negativa $V_2 \\neq 0$ ao estator."
+                                )
+                            else:
+                                st.caption(
+                                    "**Desequilíbrio de tensão** — amplitudes de fase desiguais indicam "
+                                    "assimetria na alimentação. A decomposição em componentes simétricas "
+                                    "revela $V_2/V_1$ proporcional ao grau de desequilíbrio."
+                                )
+
+                    elif key in ("n", "wr"):
+                        _lbl_v = "$\\omega_r$" if key == "wr" else "$n$"
+                        _lbl_u = "rad/s" if key == "wr" else "rpm"
+                        if _is_gen:
+                            st.caption(
+                                f"**Modo Gerador** — {_lbl_v} acima da velocidade síncrona corresponde a "
+                                f"$s < 0$. A máquina opera como gerador de indução, injetando potência ativa "
+                                f"na rede sem excitação independente (requer reativo da rede para magnetização)."
+                            )
+                        elif _is_sd:
+                            _ws    = 2.0 * np.pi * mp.f / (mp.p / 2.0)
+                            _t_cut = float(_cfg.get("t_cutoff", 0.0))
                             import math as _math
-                            _t_stop = (_math.log(1.0 + mp.B * _ws / _Tl_cfg)) * mp.J / mp.B
-                        elif _Tl_cfg > 0:
-                            _t_stop = mp.J * _ws / _Tl_cfg
-                        else:
-                            _t_stop = mp.J / mp.B if mp.B > 0 else 0.0
-                        st.caption(
-                            f"**Desligamento** — após $t_{{des}}$ = {_t_cut:.2f} s a tensão é cortada e o motor "
-                            f"desacelera livremente. Tempo estimado de parada: **{_t_stop:.2f} s** "
-                            f"($J/B \\cdot \\ln(1 + B\\omega_s/T_L)$)."
-                        )
+                            if mp.B > 0 and _Tl_cfg > 0:
+                                _t_stop = _math.log(1.0 + mp.B * _ws / _Tl_cfg) * mp.J / mp.B
+                            elif _Tl_cfg > 0:
+                                _t_stop = mp.J * _ws / _Tl_cfg
+                            else:
+                                _t_stop = mp.J / mp.B if mp.B > 0 else 0.0
+                            st.caption(
+                                f"**Desligamento** — após $t_{{des}}$ = {_t_cut:.2f} s a tensão é cortada e "
+                                f"o motor desacelera livremente. Tempo estimado de parada: **{_t_stop:.2f} s** "
+                                f"($J/B \\cdot \\ln(1 + B\\omega_s/T_L)$)."
+                            )
+                        elif exp_type == "voltage_sag":
+                            st.caption(
+                                f"**Afundamento de Tensão** — a queda de $T_e \\propto V_s^2$ durante o sag "
+                                f"provoca desaceleração transitória de {_lbl_v}. Se a margem de "
+                                f"escorregamento for suficiente, o motor recupera a velocidade nominal "
+                                f"após o restabelecimento da tensão; caso contrário, estagna ($s \\to 1$)."
+                            )
+                        elif exp_type == "pulso_carga":
+                            st.caption(
+                                f"**Pulso de Carga** — a inserção súbita de $T_L$ causa queda transitória "
+                                f"de {_lbl_v}, aumentando $s$ e, consequentemente, $T_e$. O sistema "
+                                f"amortece e converge para o novo ponto de equilíbrio com constante "
+                                f"de tempo mecânica $\\tau_m \\approx J/B$."
+                            )
+                        elif _is_yd:
+                            st.caption(
+                                f"**Partida Estrela-Triângulo (Y-$\\Delta$)** — {_lbl_v} cresce monotonicamente "
+                                f"durante a fase estrela. Na comutação, o transitório de $T_e$ provoca "
+                                f"uma perturbação visível antes da estabilização em regime permanente."
+                            )
+                        elif exp_type == "autotrafo":
+                            st.caption(
+                                f"**Autotransformador** — a aceleração sob tensão reduzida é mais lenta que "
+                                f"na DOL (torque proporcional a $k^2$). Na comutação para tensão plena, "
+                                f"{_lbl_v} exibe perturbação transitória antes de atingir o regime."
+                            )
+                        elif _is_soft:
+                            st.caption(
+                                f"**Soft-starter** — {_lbl_v} cresce suavemente com o aumento progressivo "
+                                f"de $V_s(t)$, sem o choque mecânico da partida direta. A aceleração "
+                                f"é monotônica, limitada pelo perfil de rampa configurado."
+                            )
+                        elif exp_type == "dol":
+                            _ws_rpm = 60.0 * mp.f / (mp.p / 2.0)
+                            st.caption(
+                                f"**Partida Direta (DOL)** — {_lbl_v} parte de zero e acelera até "
+                                f"$\\approx (1-s_{{nom}})\\,\\omega_s$ ({_ws_rpm*(1-abs(_s_val)):.0f} {_lbl_u}). "
+                                f"A aceleração é determinada pelo excesso de torque $T_e - T_L$ dividido "
+                                f"pelo momento de inércia $J$."
+                            )
 
                 if modo == "Empilhados":
                     for i, (fig_single, key) in enumerate(zip(
