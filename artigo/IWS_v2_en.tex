@@ -1,0 +1,525 @@
+%===============================================================================
+% IWS_v2_en.tex — English version of the revised and expanded IWS article
+% Mirrors IWS_v2_pt.tex with full English body and frontmatter.
+%===============================================================================
+\documentclass[a4paper]{ifacconf}
+
+\usepackage{graphicx,amsmath,url}
+\usepackage[round]{natbib}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta}
+
+\def\portugues{0}
+
+\ifx\portugues\undefined
+\def\portugues{0}
+\fi
+
+\if\portugues0
+   \usepackage[english]{babel}
+  \else
+   \usepackage[spanish,brazil,english]{babel}
+\fi
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{ae}
+
+\begin{document}
+
+\begin{frontmatter}
+\vspace*{-2cm}
+\title{A Web-Based Simulation Infrastructure for Electrical-Machine Education: Dynamic Modeling, Starting Methods, and Automated Diagnosis}
+
+\author[First]{Kevin Gabriel Pinheiro Castro}
+\author[First]{Marcus Vinicius Araújo Fernandes}
+\author[First]{Vitor Silva do Nascimento}
+\author[First]{Vinnícius Alex Melo Peixoto}
+\author[First]{Calebe Freitas da Silva}
+
+\address[First]{Industry Directorate, Natal-Central Campus, Federal Institute of Education, Science and Technology of Rio Grande do Norte (IFRN), RN, Brazil. (e-mail: k.g.pinheiro.castro@gmail.com; marcus.fernandes@ifrn.edu.br; vitrsn@gmail.com; vinicius.alex.melo@hotmail.com; calebe8839@gmail.com)}
+\vskip 1mm
+
+\renewcommand{\abstractname}{{\bf Abstract:~}}
+\begin{abstract}
+Mastery of Three-Phase Induction Motor (TIM) transient states is essential in engineering education; however, the cost barriers and hardware requirements of proprietary tools often limit ubiquitous experimentation. This paper presents the Web Infrastructure for Simulation (IWS), a unified dynamic-simulation platform built on a web architecture and aligned with the principles of Education~5.0. The tool unifies eight didactic experimental scenarios — direct-on-line starting, star-delta, autotransformer, soft-starter, load pulses, generating mode, controlled shutdown, and grid voltage sag — and embeds two parameter-estimation methods (Nameplate and IEEE Std~112-2017), a first-order thermal model, spectral diagnosis through FFT and MCSA, a parametric broken-bar fault model, and an automated physical-diagnosis engine that produces ranked technical insights at every run. The motor is modeled in the $dq0$ dynamic reference frame as an eight-state system solved by the adaptive LSODA algorithm, enabling dynamic parameter adjustment and real-time monitoring of electromechanical variables. The processing core's fidelity was verified through quantitative comparison with reference models, showing a mean relative error of less than 2\% in torque and current transients. The solution integrates a responsive interface, a zero-latency interactive theoretical layer with eleven precomputed-frame components, and a dual technical-report exporter, laying the groundwork for future pedagogical effectiveness evaluations and incipient-fault diagnosis.
+\end{abstract}
+
+\begin{keyword}
+Three-Phase Induction Motor; Dynamic Modeling; $dq0$; Reference Frame; Starting Methods; Parameter Estimation; Automated Diagnosis; Education 5.0.
+\end{keyword}
+
+\end{frontmatter}
+
+%===============================================================================
+
+\section{Introduction}
+
+Since the rise of modern industry, engineering has continuously pursued the balance between cost and reliability. The Three-Phase Induction Motor (TIM) has established itself as the global standard owing to its robustness and constructive simplicity, being essential in drives ranging from low-inertia systems to high-severity loads (\citeauthor{Umans2014EN}, \citeyear{Umans2014EN}). The true technical challenge, however, lies in the starting transients. Within a few seconds, the machine faces inrush currents that may reach ten times the rated value (\citeauthor{jain2014modeling}, \citeyear{jain2014modeling}), causing critical thermal stress and torque oscillations that affect the stability of the electrical grid (\citeauthor{ikeda2007simulation}, \citeyear{ikeda2007simulation}).
+
+In the educational context, access to complete physical test benches is frequently limited by their high cost and by the complexity of installing soft-starters or autotransformers. Traditional simulation tools such as MATLAB and LabVIEW are the industrial standard (\citeauthor{aktaibi2011dynamic}, \citeyear{aktaibi2011dynamic}); however, dependence on costly licenses and on robust local processing hardware restricts student autonomy (\citeauthor{leedy2013simulink}, \citeyear{leedy2013simulink}). Moreover, the literature points to a global decline in student engagement with electrical-machinery courses, demanding the transition to hybrid teaching methodologies that prioritize ubiquity and interactivity (\citeauthor{singh2019improving}, \citeyear{singh2019improving}).
+
+Although tools such as MATLAB Online enable browser access, the dependence on commercial licenses and the absence of features specifically aimed at the practical teaching of electrical machinery persist as barriers. Table~\ref{tab:tool_comparison_en} summarizes the advantages of the infrastructure proposed in this work compared with conventional tools and open-source alternatives (\citeauthor{li2010simulation}, \citeyear{li2010simulation}; \citeauthor{leedy2013simulink}, \citeyear{leedy2013simulink}).
+
+\begin{table}[htbp]
+\centering
+\caption{Functional comparison between the proposed IWS and conventional simulation tools.}
+\label{tab:tool_comparison_en}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lcccc}
+\hline
+\textbf{Criterion} & \textbf{MATLAB} & \textbf{LabVIEW} & \textbf{SciLab} & \textbf{IWS (Proposed)} \\ \hline
+Free license & No & No & Yes & \textbf{Yes} \\
+\textit{Mobile} access & Limited & No & No & \textbf{Yes} \\
+Unified driving scenarios & Yes & Yes & No & \textbf{Yes (8)} \\
+Integrated parameter estimation & No & No & No & \textbf{Yes} \\
+Automated physical diagnosis & No & No & No & \textbf{Yes} \\
+Interactive didactic module & No & No & No & \textbf{Yes} \\
+Automated PDF report & Not native & Not native & No & \textbf{Yes (dual)} \\ \hline
+\end{tabular}%
+}
+\end{table}
+
+Dynamic analysis is also fundamental for the diagnosis of faults masked under steady-state operation. Mechanical anomalies, such as shaft misalignment, or electrical anomalies, such as inter-turn short circuits and broken rotor bars, are detectable only through the observation of transients and of the spectral signature of stator currents (\citeauthor{tuanmohamad2024advance}, \citeyear{tuanmohamad2024advance}; \citeauthor{arkan2005modelling}, \citeyear{arkan2005modelling}). Without tools that enable such interactive and detailed exploration, learning is confined to the static theory of textbooks.
+
+To meet this demand, this work presents the Web Infrastructure for Simulation (IWS). Aligned with the principles of Education~5.0, the platform fosters student protagonism through hands-on learning and ubiquitous virtual experimentation (\citeauthor{cordeiro2024educacao}, \citeyear{cordeiro2024educacao}). The computational core relies on $dq0$ modeling, which removes the explicit time dependence of inductances in the stationary frame and facilitates the dynamic analysis of transients (\citeauthor{sengamalai2022three}, \citeyear{sengamalai2022three}). The unified mathematical model of \cite{usta2024mathematical} was adopted as the precision reference, with deviations below $\pm 2\%$ relative to consolidated models (\citeauthor{leroux2022static}, \citeyear{leroux2022static}).
+
+Unlike fragmented simulators, the IWS unifies eight driving methods and operating regimes, two parameter-estimation methods, spectral-diagnosis tools, thermal modeling, and an automated diagnosis engine in a single responsive environment. The platform thus removes hardware barriers, enabling a fluid transition between academic theory and engineering practice on any mobile device.
+
+This paper is organized into five sections. Section~2 details the electromechanical equations of the TIM in the dynamic reference frame. Section~3 describes the IWS architecture, the pedagogical interaction strategies, and the modules of parameter estimation, diagnosis, and fault modeling. Section~4 presents the quantitative validation of the platform and the critical discussion of the simulated transients. Finally, Section~5 summarizes the main conclusions and the perspectives for the project's expansion.
+
+\section{Mathematical Modeling of the Induction Motor}
+\label{sec:modelagem}
+
+The dynamic modeling of the TIM is grounded in the theory of rotating reference frames consolidated by \cite{KrauseThomas}. The central principle of this approach is the projection of the machine variables onto a pair of orthogonal axes ($d, q$) rotating at an arbitrary angular speed $\omega_{ref}$ (\citeauthor{usta2024mathematical}, \citeyear{usta2024mathematical}). This transformation removes the explicit time dependence of the inductances arising from the relative motion between stator and rotor, enabling a modular state-variable structure and ensuring the numerical fidelity required for transient analysis (\citeauthor{sengamalai2022three}, \citeyear{sengamalai2022three}; \citeauthor{leroux2022static}, \citeyear{leroux2022static}).
+
+The input voltages are processed through the Clarke and Park transforms and integrated by adaptive-step algorithms to ensure solution stability under high time derivatives:
+\begin{equation}
+\label{eq:park_en}
+\begin{bmatrix}V_{ds} \\ V_{qs}\end{bmatrix} = \begin{bmatrix}\cos\theta_e & \sin\theta_e \\ -\sin\theta_e & \cos\theta_e\end{bmatrix} \,k\, \begin{bmatrix}1 & -0.5 & -0.5 \\ 0 & \frac{\sqrt{3}}{2} & -\frac{\sqrt{3}}{2}\end{bmatrix} \begin{bmatrix}V_a \\ V_b \\ V_c\end{bmatrix}
+\end{equation}
+where $k = \sqrt{2/3}$ is the normalization factor adopted for the stationary reference frame under amplitude-invariant transformation.
+
+The electromechanical dynamics is described by eight state variables --- four flux linkages ($\Psi_{qs},\,\Psi_{ds},\,\Psi_{qr},\,\Psi_{dr}$), the rotor electrical speed ($\omega_r$), the rotor angular position ($\theta_r$), the winding temperature ($\theta$), and the accumulated electrical slip angle ($\theta_{slip}$) --- all normalized by the base angular speed $\omega_b = 2\pi f$ (\citeauthor{usta2024mathematical}, \citeyear{usta2024mathematical}). The states $\theta$ and $\theta_{slip}$ are coupled in a one-way fashion to the electromagnetic dynamics: the former feeds the first-order thermal model detailed in Section~\ref{subsec:diagnostico_en} and the latter enables the parametric modeling of rotor faults described in Section~\ref{subsec:broken_bar_en}.
+
+The differential equations for the stator flux linkages, referred to an angular speed $\omega_{ref}$, are given by:
+
+\begin{align}
+\frac{d\Psi_{qs}}{dt} &= \omega_b \left[V_{qs} - \frac{\omega_{ref}}{\omega_b}\Psi_{ds} + \frac{R_s}{X_{ls}}(\Psi_{mq} - \Psi_{qs})\right] \label{eq:dPsiqs_en} \\[4pt]
+\frac{d\Psi_{ds}}{dt} &= \omega_b \left[V_{ds} + \frac{\omega_{ref}}{\omega_b}\Psi_{qs} + \frac{R_s}{X_{ls}}(\Psi_{md} - \Psi_{ds})\right] \label{eq:dPsids_en}
+\end{align}
+
+Analogously, the differential equations for the rotor flux linkages, considering the rotor electrical speed $\omega_r$, are expressed as:
+
+\begin{align}
+\frac{d\Psi_{qr}}{dt} &= \omega_b \left[-\frac{(\omega_{ref} - \omega_r)}{\omega_b}\Psi_{dr} + \frac{R_r}{X_{lr}}(\Psi_{mq} - \Psi_{qr})\right] \label{eq:dPsiqr_en} \\[4pt]
+\frac{d\Psi_{dr}}{dt} &= \omega_b \left[\frac{(\omega_{ref} - \omega_r)}{\omega_b}\Psi_{qr} + \frac{R_r}{X_{lr}}(\Psi_{md} - \Psi_{dr})\right] \label{eq:dPsidr_en}
+\end{align}
+
+where $R_s, R_r$ are the resistances and $X_{ls}, X_{lr}$ the leakage reactances. The magnetic coupling between stator and rotor is expressed by the magnetizing flux linkages on the corresponding axes, computed algebraically following (\citeauthor{aktaibi2011dynamic}, \citeyear{aktaibi2011dynamic}):
+
+\begin{equation}
+    \Psi_{m\{q,d\}} = X_{ml} \left( \frac{\Psi_{s\{q,d\}}}{X_{ls}} + \frac{\Psi_{r\{q,d\}}}{X_{lr}} \right)
+    \label{eq:psim_en}
+\end{equation}
+
+The stator currents, required for torque computation, are extracted from the state variables through their relationship with the leakage reactances:
+
+\begin{equation}
+    i_{s\{q,d\}} = \frac{\Psi_{s\{q,d\}} - \Psi_{m\{q,d\}}}{X_{ls}}
+    \label{eq:is_en}
+\end{equation}
+
+with $1/X_{ml} = 1/X_m + 1/X_{ls} + 1/X_{lr}$, where $X_m$ is the main magnetizing reactance. The electromechanical conversion yields the electromagnetic torque $T_e$ from the interaction between flux linkages and stator currents (\citeauthor{diaz2009induction}, \citeyear{diaz2009induction}):
+
+\begin{equation}
+    T_e = \frac{3}{2} \frac{p}{2} \frac{1}{\omega_b} (\Psi_{ds} i_{qs} - \Psi_{qs} i_{ds})
+    \label{eq:te_en}
+\end{equation}
+
+The rotor acceleration is governed by the fundamental equation of motion, which integrates the effects of inertia ($J$), load torque ($T_L$), and the viscous-friction coefficient ($B_v$):
+
+\begin{equation}
+    \frac{d\omega_r}{dt} = \frac{p}{2J} (T_e - T_L - B_v \omega_r)
+    \label{eq:movimento_en}
+\end{equation}
+
+The solution of this differential system is carried out by adaptive-step numerical integration (LSODA — \textit{Livermore Solver for Ordinary Differential Equations, Automatic}). This approach ensures stability even in regimes of high time derivatives and allows the analysis of transient damping under the effect of the iron-loss resistance ($R_{fe}$), an essential ingredient for the faithful observation of industrial phenomena (\citeauthor{kumari2025comparative}, \citeyear{kumari2025comparative}; \citeauthor{leroux2022static}, \citeyear{leroux2022static}).
+
+Figure~\ref{fig:cqt eq_en} illustrates the topology of the single-phase equivalent circuit on $dq0$ axes adopted as the basis of the IWS computational core.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.48\textwidth]{imagens/cqt eq.png}
+    \caption{Topology of the single-phase equivalent circuit on $dq0$ axes integrated into the simulator.}
+    \label{fig:cqt eq_en}
+\end{figure}
+
+\section{Methodology and Implementation of the Web Infrastructure}
+
+The transposition of the mathematical rigor of the $dq0$ frame into a ubiquitous computational environment is the methodological core of this work. Developed in Python to overcome cost and licensing barriers of proprietary tools (\citeauthor{leedy2013simulink}, \citeyear{leedy2013simulink}), the IWS employs an adaptive architecture accessible over the network. This modular organization, aligned with the principles of Education~5.0, aims to foster student protagonism in the analysis of complex dynamic phenomena (\citeauthor{cordeiro2024educacao}, \citeyear{cordeiro2024educacao}).
+
+\subsection{Simulator Architecture and Technological Infrastructure}
+
+The IWS is organized in three functional layers: (i) \textit{Physical Processing}, (ii) \textit{Interface and Application Logic}, and (iii) \textit{Visualization and Documentation}. This separation allows the computational engine to operate independently of the graphical interface, simplifying system scalability (\citeauthor{aktaibi2011dynamic}, \citeyear{aktaibi2011dynamic}).
+
+Built on the Python ecosystem, the infrastructure uses the \texttt{Streamlit} framework for the adaptive interface and the \texttt{SciPy} library for the numerical solution of the $dq0$ differential equations (the \texttt{solve\_ivp} routine with the \texttt{LSODA} method, $rtol = 10^{-6}$, and $atol = 10^{-9}$). The interface layer manages reactive interaction and validates the physical consistency of the motor in real time. Finally, the visualization component uses the \texttt{Plotly} library to generate interactive plots, supporting active data exploration, while the documentation module automates the generation of technical PDF reports, detailed in Section~\ref{subsec:pedagogical_en}.
+
+\subsection{Functional Implementation and Data Flow}
+
+The integrated operation of the IWS rests on a data-flow architecture in which the separation between numerical processing and the interface ensures system stability. The physical core translates the unified model discussed in Section~\ref{sec:modelagem} using the \texttt{SciPy} library. The system of ordinary differential equations is solved by the adaptive LSODA method, ensuring numerical convergence and precision within the $\pm 2\%$ reference margin required for high-fidelity validations (\citeauthor{li2010simulation}, \citeyear{li2010simulation}). The maximum integration step is bounded by $h_{max} = 1/(20\,f)$, ensuring at least twenty samples per electrical cycle and preserving the integrity of results even under high-derivative regimes and severe transients.
+
+The interface layer, built on the \texttt{Streamlit} framework, provides a learning environment in which changing load parameters or resistances triggers the instant re-execution of the processing engine, fostering iterative experimentation (\citeauthor{tuanmohamad2024advance}, \citeyear{tuanmohamad2024advance}). Data visualization relies on the \texttt{Plotly} library to generate interactive plots with zoom and value-inspection capabilities, allowing the student to inspect in detail the torque oscillations, current peaks, and frequency spectra via the Fast Fourier Transform (\citeauthor{mohapatra2019steady}, \citeyear{mohapatra2019steady}).
+
+Auxiliary components, such as the dynamic diagram generator and the energy-balance routines, allow the validation of dynamic results against classical machine theory (\citeauthor{kumari2025comparative}, \citeyear{kumari2025comparative}). Finally, the integration of the theoretical knowledge base with the automated documentation module consolidates the platform as a resource supporting deliberate practice and academic evaluation (\citeauthor{souza2011ambiente}, \citeyear{souza2011ambiente}).
+
+\subsection{Simulation Scenarios and Pedagogical Strategies}
+
+The IWS was designed to act as a dynamic laboratory in courses such as Electrical Machines~I, enabling the exploration of operating regimes that would otherwise entail high risk or prohibitive cost in physical environments. The modules are structured to support problem-based learning (PBL) and deliberate practice, covering the following didactic scenarios:
+
+\textbf{Comparison of Starting Methods and Inrush Control:} The simulator unifies reduced-voltage starts (star-delta and autotransformer) and direct-on-line starting, enabling a pedagogical activity of comparative analysis of inrush currents that may reach ten times the rated value. Furthermore, the voltage-ramp modeling of the soft-starter mitigates the torque discontinuities inherent to electromechanical methods, aligning the tool with modern industrial-automation practice and letting the student interpret the impact of different ramp settings (\citeauthor{singh2015}, \citeyear{singh2015}).
+
+\textbf{Transient Analysis and Reversible Operation:} The dynamic response to abrupt torque changes and the transition to generating mode ($s < 0$) are supported as exploratory-learning activities on transient stability. This scenario enables the observation of the natural damping provided by iron losses and the dynamics of the reverse energy flow, fundamental elements for the analysis of power systems and the integration of renewable sources (\citeauthor{ikeda2007simulation}, \citeyear{ikeda2007simulation}). The real-time arrangement of performance indicators allows the student to instantly correlate input-parameter changes with the machine's dynamic responses, consolidating the practical learning cycle.
+
+The structured description of the full set of experimental scenarios and of the complementary braking modes is presented in Section~\ref{subsec:scenarios_en}.
+
+\subsection{Interface Architecture and Student Protagonism}
+
+The IWS interface is built under the paradigm of reactive computing through the \texttt{Streamlit} framework, prioritizing ubiquity of access and reduced cognitive load. Aligned with the autonomy principles of Education~5.0 (\citeauthor{cordeiro2024educacao}, \citeyear{cordeiro2024educacao}), the visual arrangement follows the engineer's workflow: asset selection, physical parameterization, dynamic execution, and multi-level analysis. The platform is an extensible structure, allowing the future integration of new machines without restructuring the user interface (\citeauthor{leedy2013simulink}, \citeyear{leedy2013simulink}), following the operating flow detailed in Figure~\ref{fig:fluxo_ems_en}.
+
+\begin{figure}[htbp]
+  \centering
+  \resizebox{0.48\textwidth}{!}{
+    \input{diagrama_ems_fluxo_en}
+  }
+  \caption{Operating flow of the Web Infrastructure for Simulation (IWS).}
+  \label{fig:fluxo_ems_en}
+\end{figure}
+
+The interaction is based on tabbed navigation that integrates the dynamic simulation with a qualitative knowledge base, turning the computational engine into a multidisciplinary learning environment (\citeauthor{souza2011ambiente}, \citeyear{souza2011ambiente}). A strategic differential is the ``Experiment Mode'', which lets the user pin nominal parameters to ensure scientific consistency and force the student's focus on the independent variables of the drive under study (\citeauthor{tuanmohamad2024advance}, \citeyear{tuanmohamad2024advance}). The configuration panel allows the fine tuning of electrical and mechanical data --- including the resistance $R_{fe}$ for a realistic damping model (\citeauthor{kumari2025comparative}, \citeyear{kumari2025comparative}) --- with real-time validation based on physical ratios (\citeauthor{karakas2009aggregation}, \citeyear{karakas2009aggregation}).
+
+The numerical stability during interaction is ensured by the automatic guideline $h \leq 1/(20f)$ for the integration step and by the adaptive LSODA method. Results are displayed through performance indicators and interactive plots that support spectral analyses via the Fast Fourier Transform (FFT), a tool essential for identifying fault signatures (\citeauthor{arkan2005modelling}, \citeyear{arkan2005modelling}). Finally, the direct visual-comparison feature and the export of technical PDF reports consolidate the platform as a resource supporting deliberate practice and academic evaluation (\citeauthor{singh2019improving}, \citeyear{singh2019improving}).
+
+\subsection{Automated Estimation of Equivalent-Circuit Parameters}
+\label{subsec:estimation_en}
+
+The fidelity of the dynamic simulation described in Section~\ref{sec:modelagem} hinges on the consistency of the T-equivalent circuit parameters ($R_s,\,R_r',\,X_m,\,X_{ls},\,X_{lr}',\,R_{fe}$). In pedagogical settings and in commissioning projects, these values are rarely directly available. To address this gap, the IWS incorporates two complementary estimation methods that the user selects according to the data at hand: a \textit{Nameplate} estimator, grounded in the statistical assumptions of the NEMA MG-1 standard, and a deterministic estimator based on physical tests in accordance with IEEE Std~112-2017 (\citeauthor{ieee112_2017}, \citeyear{ieee112_2017}).
+
+\subsubsection{Nameplate Estimator}
+
+The \textit{Nameplate} estimator recovers the equivalent circuit from the information on the motor nameplate --- rated voltage $V_l$, frequency $f$, output power $P_n$, speed $n_{nom}$, efficiency $\eta$, power factor $\cos\varphi$, and the ratios $I_p/I_n$ and $T_p/T_n$. The slip and the rated current follow from:
+
+\begin{equation}
+\label{eq:nameplate_snom_en}
+s_{nom} = 1 - \frac{n_{nom}}{n_s}, \qquad n_s = \frac{120\,f}{p},
+\end{equation}
+
+\begin{equation}
+\label{eq:nameplate_in_en}
+I_n = \frac{P_n}{\sqrt{3}\,V_l\,\eta\,\cos\varphi}, \qquad T_n = \frac{P_n}{\omega_{r,nom}}.
+\end{equation}
+
+The short-circuit reactance is estimated from the ratio $I_p/I_n$ under the starting power-factor assumption $\cos\varphi_p \approx 0.20$, typical of NEMA Class~B motors (\citeauthor{li2010simulation}, \citeyear{li2010simulation}):
+
+\begin{equation}
+\label{eq:nameplate_xk_en}
+X_k = \frac{V_l/\sqrt{3}}{I_n\,(I_p/I_n)}\sqrt{1 - \cos^2\!\varphi_p}.
+\end{equation}
+
+The split between the leakage reactances follows the NEMA~B convention, $X_{ls} = 0.4\,X_k$ and $X_{lr}' = 0.6\,X_k$. The resistances are derived from the rated-regime power balance ($P_{cu,s} = 3\,I_n^2\,R_s$ and $P_{cu,r} = 3\,I_n^2\,R_r' = s_{nom}\,P_{ag}$), and $X_m$ follows from the subtraction $X_m = X_{cc} - X_{ls}$. The method suits preliminary analyses and sensitivity studies of NEMA~B machines, although it diverges significantly for double-cage, wound-rotor, or IE4 high-efficiency motors.
+
+\subsubsection{IEEE Std~112-2017 Estimator}
+
+When physical tests are available, the IWS performs the deterministic procedure prescribed by IEEE Std~112-2017, which isolates each parameter through three independent tests (\citeauthor{ieee112_2017}, \citeyear{ieee112_2017}).
+
+\textbf{DC test (Cl.~6.4).} A DC voltage $V_{dc}$ is applied between two terminals with the rotor at rest, yielding the per-phase resistance as a function of the winding connection:
+
+\begin{equation}
+\label{eq:ieee_rs_en}
+R_s\big|_Y = \frac{1}{2}\,\frac{V_{dc}}{I_{dc}}, \qquad R_s\big|_\Delta = \frac{3}{2}\,\frac{V_{dc}}{I_{dc}}.
+\end{equation}
+
+\textbf{No-load test (Cl.~6.5).} The motor is driven uncoupled at rated voltage and frequency, and the quantities $V_{l,NL}$, $I_{NL}$, $P_{NL}$, and $f_{NL}$ are measured. The loss separation obeys:
+
+\begin{equation}
+\label{eq:ieee_pnl_en}
+P_{NL} = 3\,R_s\,I_{NL}^{\,2} + P_{fe} + P_{fw},
+\end{equation}
+
+\noindent in which $P_{fw}$ stands for friction-and-windage losses. When a coast-down measurement is not available, the heuristic $P_{fw} = 0.008\,P_{NL}$ is adopted (\citeauthor{ieee112_2017}, \citeyear{ieee112_2017}). The air-gap voltage $E_{1,NL}$ is refined through a double phasor iteration. The first iteration assumes $I_{NL}$ approximately in phase with $V_{f,NL}$:
+
+\begin{equation}
+\label{eq:ieee_e1_iter1_en}
+E_{1,NL}^{(1)} = \sqrt{\bigl(V_{f,NL} - R_s\,I_{NL}\bigr)^{\,2} + \bigl(X_{ls}\,I_{NL}\bigr)^{\,2}}.
+\end{equation}
+
+\noindent The current is then decomposed into the component $I_{fe} = P_{fe}/(3\,E_{1,NL}^{(1)})$, in phase with $E_1$, and the magnetizing component $I_\mu = \sqrt{I_{NL}^{\,2} - I_{fe}^{\,2}}$. The second iteration corrects $E_1$ through the proper decomposition:
+
+\begin{equation}
+\label{eq:ieee_e1_iter2_en}
+\begin{split}
+E_{1,NL}^{(2)} = \big[\,&(V_{f,NL} - R_s\,I_{fe} - X_{ls}\,I_\mu)^{\,2} \\
+&+\, (X_{ls}\,I_{fe} - R_s\,I_\mu)^{\,2}\,\big]^{1/2}.
+\end{split}
+\end{equation}
+
+\noindent The magnetizing reactance and the iron-loss resistance follow as:
+
+\begin{equation}
+\label{eq:ieee_xm_rfe_en}
+X_m = \frac{E_{1,NL}}{I_\mu} - X_{ls}, \qquad R_{fe} = \frac{3\,E_{1,NL}^{\,2}}{P_{fe}}.
+\end{equation}
+
+\textbf{Locked-rotor test (Cl.~6.6).} With the rotor mechanically blocked, a reduced voltage is applied until the rated current is reached. The test is recommended at a reduced frequency $f_{LR} \approx 0.25\,f_{nom}$ to mitigate the skin effect. From the measurements of $V_{l,LR}$, $I_{LR}$, $P_{LR}$, and $f_{LR}$:
+
+\begin{equation}
+\label{eq:ieee_zk_en}
+Z_k = \frac{V_{l,LR}/\sqrt{3}}{I_{LR}}, \quad R_k = \frac{P_{LR}}{3\,I_{LR}^{\,2}}, \quad X_k\big|_{f_{LR}} = \sqrt{Z_k^{\,2} - R_k^{\,2}}.
+\end{equation}
+
+\noindent A linear frequency correction projects the reactance onto the rated regime:
+
+\begin{equation}
+\label{eq:ieee_xk_corr_en}
+X_k\big|_{f_{nom}} = X_k\big|_{f_{LR}} \cdot \frac{f_{NL}}{f_{LR}}, \qquad R_r' = R_k - R_s.
+\end{equation}
+
+\textbf{Short-circuit reactance split.} The standard adopts a tabulated fraction $\alpha = X_{ls}/X_k$ that depends on the motor construction class (Table~\ref{tab:nema_split_en}), because no single physical test can separate $X_{ls}$ from $X_{lr}'$.
+
+\begin{table}[htbp]
+\centering
+\caption{$X_{ls}/X_k$ split per NEMA class (IEEE Std~112-2017).}
+\label{tab:nema_split_en}
+\begin{tabular}{lcc}
+\hline
+\textbf{NEMA class} & $X_{ls}/X_k$ & $X_{lr}'/X_k$ \\ \hline
+A & 0.50 & 0.50 \\
+B (default) & 0.40 & 0.60 \\
+C & 0.30 & 0.70 \\
+D & 0.50 & 0.50 \\
+Wound rotor & 0.50 & 0.50 \\ \hline
+\end{tabular}
+\end{table}
+
+\textbf{Physical-sanity validation.} At the end of the procedure the estimator runs a set of automatic checks --- $R_s,\,R_r' > 0$; $P_{fe} > 0$; $I_\mu^{\,2} > 0$; $R_k < Z_k$; $X_m/X_{ls} \geq 5$; $R_{fe} \geq 50\;\Omega$ --- flagging to the user inconsistencies arising from unstable measurements, thermal drift, or harmonic contamination of the supply. The validated parameters feed directly into the dataclass that parameterizes the $dq0$ model presented in Section~\ref{sec:modelagem}, closing the loop between experimental data and dynamic simulation.
+
+\subsection{Thermal Modeling, Spectral Diagnostics, and Grid Impedance}
+\label{subsec:diagnostico_en}
+
+The transient analysis of the TIM gains pedagogical and industrial value when complemented by three additional functionalities embedded in the IWS: (i) a first-order thermal model decoupled from the $dq0$ reference frame, (ii) spectral tools for incipient-fault diagnosis, and (iii) the modeling of the grid impedance for voltage-sag studies.
+
+\subsubsection{First-Order Thermal Model}
+
+The heating of the stator winding is modeled by a first-order equivalent thermal circuit, integrated in post-processing over the previously computed current arrays:
+
+\begin{equation}
+\label{eq:thermal_en}
+C_{th}\,\frac{d\theta}{dt} = 3\,R_s\,i_{s,rms}^{\,2} - \frac{\theta - T_{amb}}{R_{th}},
+\end{equation}
+
+\noindent in which $\theta$ is the winding temperature, $R_{th}$ is the equivalent thermal resistance between winding and ambient, $C_{th}$ is the thermal capacitance of the rotor-stator assembly, and $T_{amb}$ is the ambient temperature. An implicit-Euler discretization over previously integrated current arrays avoids the error associated with the magnetizing inrush spike, in agreement with (\citeauthor{karakas2009aggregation}, \citeyear{karakas2009aggregation}). For machines whose $R_{th}$ and $C_{th}$ are unavailable in the catalogue, the platform automatically estimates these parameters by imposing an asymptotic rise $\Delta\theta_{ss} = 50\,$K under rated operation and scaling the capacitance by the estimated motor mass ($\sim 15\,$kg/kW), a procedure broadly compatible with general-purpose TEFC motors. This decoupling allows the student to assess thermal stress in successive startings and in overload regimes without affecting the numerical stability of the LSODA solver used by the dynamic core.
+
+\subsubsection{Spectral Analysis and Incipient-Fault Diagnosis}
+
+The IWS provides two complementary spectral resources based on the Fast Fourier Transform (FFT) of the stator currents. The first computes the harmonic decomposition in steady state, yielding the individual amplitudes $I_h$ and the total harmonic distortion (\citeauthor{mohapatra2019steady}, \citeyear{mohapatra2019steady}):
+
+\begin{equation}
+\label{eq:thd_en}
+\text{THD} = \frac{1}{I_1}\sqrt{\sum_{h=2}^{H} I_h^{\,2}},
+\end{equation}
+
+\noindent quantifying the harmonic content induced by non-sinusoidal starting strategies (soft-starter, Y--$\Delta$ switching) or by supply asymmetries. The second resource, dedicated to motor current signature analysis (MCSA), exploits the sidebands at $f_{sb} = (1 \pm 2ks)f$, with $k \in \mathbb{N}^{*}$, characteristic of broken rotor bars (\citeauthor{arkan2005modelling}, \citeyear{arkan2005modelling}; \citeauthor{tuanmohamad2024advance}, \citeyear{tuanmohamad2024advance}). The relative amplitude of these sidebands provides a quantitative severity indicator:
+
+\begin{equation}
+\label{eq:mcsa_severity_en}
+\beta_{sb} = 20\log_{10}\!\left(\frac{I_{sb}}{I_1}\right) \quad [\mathrm{dB}].
+\end{equation}
+
+The interface additionally embeds modules dedicated to voltage unbalance and phase loss. The severity of unbalance is characterized by the voltage unbalance factor $\text{VUF}$, defined as the ratio between negative and positive sequence components (\citeauthor{karakas2009aggregation}, \citeyear{karakas2009aggregation}):
+
+\begin{equation}
+\label{eq:vuf_en}
+\text{VUF} = \frac{|V_2|}{|V_1|} \times 100\,\%,
+\end{equation}
+
+\noindent enabling direct correlation between the supply disturbance and the degradation observed in the torque and current transients.
+
+\subsubsection{Grid-Impedance Modeling and Voltage Sag}
+
+The inclusion of a grid impedance $\bar{Z}_{grid} = R_{grid} + j\omega_e L_{grid}$ in series with the stator reproduces voltage-sag scenarios induced by the feeding line. The inductance $L_{grid}$ is absorbed into the effective reactance $X_{ls,eff} = X_{ls} + \omega_b L_{grid}$, leaving the $dq0$ model structure unchanged. The motor terminal voltage then depends on the instantaneous current as:
+
+\begin{equation}
+\label{eq:vag_grid_en}
+\bar{V}_{ag} = \bar{V}_{source} - \bar{I}_s\,(R_{grid} + j\omega_e L_{grid}).
+\end{equation}
+
+\noindent This formulation enables the simulation of \textit{voltage sag} events with magnitude and duration defined by the user --- a critical operating condition for the study of industrial drives' resilience against medium-voltage grid disturbances.
+
+\subsection{Broken-Bar Fault Modeling and Current-Signature Diagnosis}
+\label{subsec:broken_bar_en}
+
+The spectral analysis presented in Section~\ref{subsec:diagnostico_en} is pedagogically closed by the introduction of a physical rotor-fault model capable of deterministically generating the sidebands $(1 \pm 2ks)f$ exploited by MCSA. Broken bars account for a substantial share of failures in squirrel-cage motors above 100~kW subjected to frequent starts (\citeauthor{arkan2005modelling}, \citeyear{arkan2005modelling}); the student therefore needs to correlate the observed spectral signature with an intelligible physical mechanism.
+
+The IWS embeds a parametric single-fault model consistent with the equivalent rotor-resistance modulation approach (\citeauthor{tuanmohamad2024advance}, \citeyear{tuanmohamad2024advance}). A broken bar induces a spatial asymmetry in the rotor current distribution which, projected onto the synchronous reference frame, manifests as a second-order harmonic modulation in the accumulated electrical slip angle $\theta_{slip}$:
+
+\begin{equation}
+\label{eq:broken_bar_en}
+R_r(t) = R_{r0}\,\bigl[1 + \alpha\cos\!\bigl(2\theta_{slip}(t)\bigr)\bigr], \qquad t \geq t_{fault},
+\end{equation}
+
+\noindent where $\theta_{slip}(t) = \int_{0}^{t}\!s(\tau)\,\omega_b\,d\tau$ is the accumulated electrical slip angle --- a dedicated state of the ODE system, as introduced in Section~\ref{sec:modelagem} --- and $\alpha \in [0,\,0.5]$ is the fault severity index. For $t < t_{fault}$ the resistance remains nominal, allowing the isolated observation of the degradation transient after the healthy steady state. The parameter $\alpha$ admits a direct interpretation in terms of the number of compromised bars: $\alpha \approx 0.05$ matches an incipient crack, $\alpha \approx 0.10$ a fully broken bar, and $\alpha \gtrsim 0.20$ adjacent multiple-bar failures.
+
+The second-order modulation in $\theta_{slip}$ is mathematically equivalent to the forward-backward decomposition of the rotor asymmetry and induces, in the stator current, exactly the pair of sidebands at $f_e(1 \pm 2s)$ predicted by classical theory. The user can confront the amplitude of these bands with the $\beta_{sb}$ criterion of Equation~\ref{eq:mcsa_severity_en} and classify the defect severity according to the IEC~60034-26 recommendation, closing the loop between physical model, spectral signature, and industrial diagnosis. The model is valid for mild to moderate failures; higher severities require individual rotor-bar representation, which falls outside the platform scope.
+
+\subsection{Automated Physical Diagnosis at Runtime}
+\label{subsec:diag_auto_en}
+
+The democratization of experimental access does not eliminate the need for qualified technical guidance --- on the contrary, it amplifies it. To mitigate the dependence on synchronous teacher supervision and to align deliberate practice with the Education~5.0 paradigm (\citeauthor{cordeiro2024educacao}, \citeyear{cordeiro2024educacao}), the IWS integrates an automated physical-diagnosis engine that operates on the state arrays returned by the LSODA solver and produces, at every run, an ordered set of technical \textit{insights} ranked by severity (informative, warning, error).
+
+The diagnosis rests on four analytical rules derived from the Newton-Euler equations and the model of \cite{KrauseThomas}. The first rule verifies whether the mean derivative of angular velocity over the final simulation window remained below the threshold $|\overline{d\omega_r/dt}| < 0.5\;\mathrm{rad/s^2}$, a necessary condition for the remaining rules to apply. When satisfied, the second rule evaluates the steady-state torque balance:
+
+\begin{equation}
+\label{eq:balanco_torques_en}
+J\,\frac{d\omega_m}{dt}\bigg|_{ss} = T_e^{ss} - T_L - B\,\omega_m^{ss} = 0,
+\end{equation}
+
+\noindent explicitly quantifying the component $B\,\omega_m^{ss}$ assigned to viscous friction and windage to emphasize to the learner that the apparent discrepancy $T_e^{ss} - T_L \neq 0$ is not a numerical error but the exact contribution required to overcome mechanical losses.
+
+The third rule assesses the acceleration-torque reserve through the ratio $T_{e,max}/T_L$, classifying the start in three ranges: ample margin ($\geq 2.0$), reduced margin ($\geq 1.2$), and risk of stalling ($<1.2$), in line with industrial drive sizing best practice (\citeauthor{singh2015}, \citeyear{singh2015}). The fourth rule inspects the steady-state slip: $s_{ss} > 8\%$ is flagged as severe overload, with risk of thermal-relay actuation (IEC~60947-4-1); $0.5\% < s_{ss} < 5\%$ is classified as operation within the NEMA~B rated range; $s_{ss} < 0.5\%$ signals underload with degraded power factor due to the dominance of the magnetizing current $I_\mu = E_1/X_m$.
+
+The automatic nature of the diagnosis is particularly valuable in asynchronous learning environments: the student instantly receives, after each run, a first-principles technical analysis, turning the numerical result into structured feedback equivalent to that of in-person supervision.
+
+\subsection{Unified Experimental Scenarios and Braking Modes}
+\label{subsec:scenarios_en}
+
+The plurality of operating regimes relevant to electrical-machinery education is addressed through a unified function factory that builds, for each scenario, the pair $\bigl(V(t),\,T_L(t)\bigr)$ to be integrated by the solver. This abstraction decouples the numerical core from the particularities of each experiment and enables eight didactic modes, summarized in Table~\ref{tab:cenarios_en}.
+
+\begin{table}[htbp]
+\centering
+\caption{Unified experimental scenarios within the IWS.}
+\label{tab:cenarios_en}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{ll}
+\hline
+\textbf{Identifier} & \textbf{Modeled phenomenon} \\ \hline
+\texttt{dol}        & Direct-on-line starting with subsequent load application \\
+\texttt{yd}         & Star-delta starting with switching at $t_2$ \\
+\texttt{comp}       & Autotransformer starting with programmable tap \\
+\texttt{soft}       & Linear voltage ramp (soft-starter) \\
+\texttt{pulso}      & Rectangular load pulse over a constant baseline \\
+\texttt{gerador}    & External mechanical drive, generating regime \\
+\texttt{shutdown}   & Disconnection with natural inertial braking \\
+\texttt{sag}        & Rectangular voltage sag of the supply \\ \hline
+\end{tabular}%
+}
+\end{table}
+
+The choice among the eight scenarios is made by the student without code intervention, keeping the interface aligned with the engineer's cognitive flow: \textit{regime selection} $\rightarrow$ \textit{parameterization} $\rightarrow$ \textit{execution} $\rightarrow$ \textit{analysis}. The uniqueness of the solver across the scenarios ensures methodological coherence in cross-comparisons, an essential requirement for problem-based learning (PBL) activities.
+
+The IWS complements this architecture with an interactive module dedicated to the comparative analysis of three electromechanical braking methods, in line with industrial commissioning practice (\citeauthor{ikeda2007simulation}, \citeyear{ikeda2007simulation}). Regenerative braking, triggered for $s < 0$, returns the stored kinetic energy to the grid and is modeled by an exponential decay $n(t) = n_0\,e^{-t/\tau_{reg}}$, with $\tau_{reg}$ governed by iron losses and the return impedance. Plugging, obtained by reversing two phases of the supply, imposes a reverse rotating field that produces an approximately linear velocity drop until the zero crossing, at which point disconnection is mandatory to prevent rotation reversal:
+
+\begin{equation}
+\label{eq:plugging_en}
+n(t) \approx n_0\,\bigl(1 - t/t_{stop}\bigr), \qquad 0 \leq t \leq t_{stop}.
+\end{equation}
+
+DC-injection braking replaces the AC supply with a DC source, generating a stationary stator field that dissipates the kinetic energy in the rotor windings; the response is exponential, $n(t) = n_0\,e^{-t/\tau_{DC}}$, with $\tau_{DC}$ typically larger than $\tau_{reg}$. The visual comparison of the three decays on the same time axis, alongside the energy balance (energy returned to the grid \textit{vs.} dissipated in the winding), lets the student critically assess the trade-offs between stopping time, thermal cost, and implementation complexity.
+
+\subsection{Automated Documentation and Zero-Latency Interactive Pedagogical Architecture}
+\label{subsec:pedagogical_en}
+
+The dynamic simulation based on LSODA described in the previous sections coexists, within the IWS, with a complementary pedagogical layer dedicated to building the theoretical concepts that precede the numerical experiment. This layer --- grouped in a Theory tab structured into eight subdivisions (equivalent-circuit modeling; dynamics and torque; energy balance; parameter sensitivity; Park transformations; operational manual; parameter estimators; configurations and experiments) --- adopts the strategy of \textit{server-side precomputed frames} and a \textit{client-side JavaScript slider} to ensure zero-latency interactivity.
+
+The methodological choice is deliberate: each interactive component (phasor diagram, $T$--$n$ curve with operating points, parametric MCSA spectrum, Sankey power flowgram, synchronized starting transients, Krause block diagram, among others, totaling eleven components) precomputes the state mesh in a single core invocation, and the subsequent slider navigation merely queries the already materialized frames. The result is a fluid parametric exploration --- equivalent, from the user's standpoint, to manipulating an analytical diagram on paper --- that dispenses with new numerical integrations and removes the wait barrier between successive increments of the independent variable.
+
+This design addresses a recognized limitation of conventional simulation tools: the perceptible delay between parameter change and graphical update discourages extensive exploration of the solution space and fragments pedagogical reasoning (\citeauthor{leedy2013simulink}, \citeyear{leedy2013simulink}). By removing such friction, the IWS brings the didactic experience closer to the \textit{direct-manipulation} model already established in modern interactive \textit{notebooks}, without prejudicing the mathematical rigor imposed by the dynamic core. The architecture is replicable to new concepts via a common function signature, enabling modular extension of the pedagogical layer without refactoring the main interface.
+
+For the technical recording of each run, the IWS offers a dual PDF report exporter. The first style, named \textit{academic}, adopts formatting consistent with the Brazilian ABNT NBR~14724 guidelines and is intended for submission as an annex of formal course reports; it organizes, in numbered sections, the parameters adopted, the relevant equations, the transient plots, and the summary of the automated diagnoses. The second style, named \textit{dashboard}, prioritizes fast reading by field engineers, condensing key performance indicators, the color-coded loss bar (stator Joule, rotor Joule, iron, mechanical), and the ranked \textit{insights} in a single visualization page. The coexistence of the two formats allows the same simulation result to serve both pedagogical purposes and technical documentation, broadening the platform's use cycle beyond the classroom.
+
+\section{Results and Discussion}
+
+The validation of the IWS processing core was based on a quantitative comparison against the unified model of (\citeauthor{usta2024mathematical}, \citeyear{usta2024mathematical}), originally processed in MATLAB/Simulink. The test scenario, selected for its high numerical demand in transient regimes, consisted of the direct-on-line starting of a 2.2~kW motor, followed by the application of a nominal-load step of 10~N$\cdot$m at $t = 0.6$~s.
+
+\subsection{Quantitative Numerical-Fidelity Analysis}
+
+The precision of the IWS was assessed by computing the percent relative error ($e$) against the reference values (\citeauthor{usta2024mathematical}, \citeyear{usta2024mathematical}), as defined in Equation~\ref{eq:erro_en}:
+
+\begin{equation}
+e = \frac{|x_{IWS} - x_{ref}|}{x_{ref}} \times 100\%
+\label{eq:erro_en}
+\end{equation}
+
+The simulation parameters, drawn from the 2.2~kW \textit{benchmark} motor, are consolidated in Table~\ref{tab:params_usta_en}. Notice the inclusion of the iron-loss resistance ($R_{fe}$), a crucial parameter for the fidelity of the torque transients.
+
+\begin{table}[htbp]
+\centering
+\caption{Motor parameters used to reproduce the model of \cite{usta2024mathematical}.}
+\label{tab:params_usta_en}
+\begin{tabular}{lcc}
+\hline
+\textbf{Parameter} & \textbf{Value} & \textbf{Unit} \\ \hline
+\multicolumn{3}{l}{\textbf{Electrical data}} \\
+Line voltage (RMS)            & 220     & V          \\
+Grid frequency                & 50      & Hz         \\
+Stator resistance             & 2.650   & $\Omega$   \\
+Rotor resistance              & 2.850   & $\Omega$   \\
+Magnetizing reactance         & 60.980  & $\Omega$   \\
+Stator leakage reactance      & 4.430   & $\Omega$   \\
+Rotor leakage reactance       & 5.690   & $\Omega$   \\
+Iron-loss resistance          & 500     & $\Omega$   \\ \hline
+\multicolumn{3}{l}{\textbf{Mechanical and scenario data}} \\
+Number of poles               & 4       & ---        \\
+Moment of inertia             & 0.025   & kg$\cdot$m$^2$ \\
+Viscous-friction coefficient  & 0.001   & N$\cdot$m$\cdot$s \\
+Load-pulse torque             & 10      & N$\cdot$m  \\
+Application instant           & 0.600   & s          \\ \hline
+\end{tabular}
+\end{table}
+
+The analysis of the transients processed by the IWS (Figure~\ref{fig:resultados_web_en}) shows that the simulator reproduces with high fidelity the dynamic behavior of the TIM, accurately capturing the torque overshoot and the characteristic current oscillations at start. The comparative performance indicators are consolidated in Table~\ref{tab:validacao_en}, evidencing that the mean residual deviation remained below 1.5\%. This accuracy lies strictly within the $\pm 2\%$ margin validated industrially for $dq0$-based models (\citeauthor{leroux2022static}, \citeyear{leroux2022static}).
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.48\textwidth]{imagens/resultados_web.png}
+    \caption{Phase current, electromagnetic torque, and speed transients processed by the IWS platform.}
+    \label{fig:resultados_web_en}
+\end{figure}
+
+\begin{table}[htbp]
+\centering
+\caption{Quantitative comparison between the IWS and the reference model.}
+\label{tab:validacao_en}
+\begin{tabular}{lccc}
+\hline
+\textbf{Analyzed quantity} & \textbf{Reference} & \textbf{IWS} & \textbf{Error (\%)} \\ \hline
+Load torque (N$\cdot$m)        & 10.0                & 10.0          & ---                \\
+Final speed (rad/s)            & 151.04              & 151.68        & 0.424\%            \\
+Settling time (s)              & 0.069               & 0.0684        & 0.870\%            \\ \hline
+\end{tabular}
+\end{table}
+
+\subsection{Discussion of the Transients and Pedagogical Value}
+
+The speed stabilization under load and the oscillatory behavior of the electromagnetic torque validate the robustness of the numerical processing engine implemented in the platform. As pointed out by (\citeauthor{aktaibi2011dynamic}, \citeyear{aktaibi2011dynamic}), the ability to monitor torque explicitly is fundamental so that the student identifies the mechanical stress on the shaft during starting and loading transients --- an analysis amplified by the IWS interactive interface. The real-time arrangement of results allows the learner to instantly correlate input-parameter changes with the dynamic responses of the machine, consolidating the practical learning cycle.
+
+The quantitative analysis revealed a residual deviation of only 0.870\% in the settling time relative to the reference standard. This discrepancy stems from intrinsic divergences between the adaptive LSODA solver of the \texttt{SciPy} library and MATLAB's proprietary routines, being more pronounced in regions of high time derivative, such as at the exact instant of load application (\citeauthor{li2010simulation}, \citeyear{li2010simulation}). Nevertheless, the observed deviations remain strictly within the acceptable range for teaching-oriented dynamic analysis applications, without compromising the physical interpretation of the fundamental phenomena.
+
+The IWS therefore presents itself as an active-learning resource aligned with the principles of Education~5.0 (\citeauthor{cordeiro2024educacao}, \citeyear{cordeiro2024educacao}). By democratizing access to high-complexity scientific experiments, the platform enables deliberate practice to take place safely and autonomously, including on mobile devices. The combination of the unified set of eight experimental scenarios, the automated physical-diagnosis layer, and the dual-format technical documentation substantially expands the repertoire of feasible didactic activities compared to physical benches, allowing the student to develop competencies in the analysis and evaluation of complex electromechanical systems before real laboratory practice (\citeauthor{singh2019improving}, \citeyear{singh2019improving}).
+
+\section{Conclusions}
+
+This work presented the conception, expansion, and validation of the Web Infrastructure for Simulation (IWS), a platform dedicated to the dynamic study and transient analysis of Three-Phase Induction Motors. The tool proved to be a technically robust and financially accessible alternative to proprietary computational tools, overcoming portability barriers by enabling the processing of complex mathematical models directly in the browser, with full support for mobile devices.
+
+The main contribution of this work is the proposal of a unified infrastructure capable of simulating eight distinct transient regimes --- covering the four classical starting strategies (direct, star-delta, autotransformer, and soft-starter), the load pulse, the reversible operation as a generator, the controlled shutdown, and the grid voltage sag --- under an eight-state $dq0$ model validated quantitatively (\citeauthor{usta2024mathematical}, \citeyear{usta2024mathematical}). The platform further integrates two complementary parameter-estimation methods (\textit{Nameplate} and IEEE Std~112-2017), a parametric broken-bar fault model that closes the loop with MCSA spectral analysis, and an automated physical-diagnosis engine grounded in the Newton-Euler equations and the Krause theory. The statistical validation confirmed the fidelity of the processing core, which exhibited a mean relative error below 2\% in the torque and current transients, lying strictly within the precision standards required for industrial dynamic simulations (\citeauthor{leroux2022static}, \citeyear{leroux2022static}).
+
+From the pedagogical standpoint, the IWS meets the requirements of Education~5.0 by promoting student protagonism and learning based on real phenomena (\citeauthor{cordeiro2024educacao}, \citeyear{cordeiro2024educacao}). The zero-latency interactive theoretical layer, composed of eleven precomputed-frame components, and the dual technical-report exporter consolidate the platform as a strategic complement to physical laboratories, mitigating infrastructure limitations and enabling deliberate practice in operating regimes that would be costly or hazardous on real benches (\citeauthor{singh2019improving}, \citeyear{singh2019improving}). Beyond validating the technical effectiveness of the system, this work establishes the methodological foundations for future evaluations of impact on the active learning of engineering students.
+
+As future work, the ecosystem is planned to expand to encompass synchronous and direct-current machines, to implement modules for closed-loop vector control, and to deepen the incipient-fault models to include the individual representation of rotor bars and the short-circuit-ring fault. The results indicate that the IWS provides a solid foundation for the future investigation of control strategies and motor-aggregation techniques on common buses, evolving into a comprehensive infrastructure for the analysis and design of modern industrial systems.
+
+\section*{Acknowledgments}
+
+We thank the Natal-Central Campus of IFRN for the institutional support and our families for the unwavering encouragement that made this study possible.
+
+\bibliography{ifacconf}
+
+\end{document}

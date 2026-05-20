@@ -1,0 +1,323 @@
+% ============================================================================
+% NOVAS SUBSEÇÕES — funcionalidades do EMS ainda não cobertas em Atual.tex.
+% Inserir em Atual.tex após a subseção 3.4 (Arquitetura da Interface e
+% Protagonismo Estudantil) e antes da Seção 4 (Resultados e Discussão).
+% ============================================================================
+
+% ==========================================
+% VERSÃO EM PORTUGUÊS (NOVAS FUNCIONALIDADES)
+% ==========================================
+
+\subsection{Estimação Automatizada dos Parâmetros do Circuito Equivalente}
+\label{subsec:estimacao_parametros}
+
+A fidelidade da simulação dinâmica descrita na Seção~\ref{sec:modelagem} depende diretamente da consistência dos parâmetros do circuito equivalente em T ($R_s,\,R_r',\,X_m,\,X_{ls},\,X_{lr}',\,R_{fe}$). Em ambientes pedagógicos e em projetos de comissionamento, esses valores raramente estão disponíveis de forma direta. Para suprir essa lacuna, a IWS incorpora dois métodos complementares de estimação, selecionáveis pelo usuário em função dos dados disponíveis: o estimador \textit{Nameplate}, fundamentado nas premissas estatísticas da norma NEMA MG-1, e o estimador determinístico baseado em ensaios físicos conforme a norma IEEE Std 112-2017 (\citeauthor{ieee112_2017}, \citeyear{ieee112_2017}).
+
+\subsubsection{Estimador \textit{Nameplate}}
+
+O estimador \textit{Nameplate} recupera o circuito equivalente a partir das informações da placa de identificação do motor — tensão nominal $V_l$, frequência $f$, potência $P_n$, velocidade $n_{nom}$, rendimento $\eta$, fator de potência $\cos\varphi$ e razões $I_p/I_n$ e $T_p/T_n$. O escorregamento e a corrente nominal são deduzidos de:
+
+\begin{equation}
+\label{eq:nameplate_snom}
+s_{nom} = 1 - \frac{n_{nom}}{n_s}, \qquad n_s = \frac{120\,f}{p},
+\end{equation}
+
+\begin{equation}
+\label{eq:nameplate_in}
+I_n = \frac{P_n}{\sqrt{3}\,V_l\,\eta\,\cos\varphi}, \qquad T_n = \frac{P_n}{\omega_{r,nom}}.
+\end{equation}
+
+A reatância de curto-circuito é estimada a partir da relação $I_p/I_n$ admitindo o fator de potência de partida $\cos\varphi_p \approx 0{,}20$, característico da classe NEMA~B (\citeauthor{li2010simulation}, \citeyear{li2010simulation}):
+
+\begin{equation}
+\label{eq:nameplate_xk}
+X_k = \frac{V_l/\sqrt{3}}{I_n\,(I_p/I_n)}\sqrt{1 - \cos^2\!\varphi_p}.
+\end{equation}
+
+A distribuição entre as reatâncias de dispersão segue a premissa NEMA~B, $X_{ls} = 0{,}4\,X_k$ e $X_{lr}' = 0{,}6\,X_k$. As resistências são extraídas do balanço de potência ($P_{cu,s} = 3\,I_n^2\,R_s$ e $P_{cu,r} = 3\,I_n^2\,R_r' = s_{nom}\,P_{ag}$), e $X_m$ resulta da subtração $X_m = X_{cc} - X_{ls}$. O método é apropriado para análises preliminares e estudos de sensibilidade em motores classe NEMA~B, embora apresente desvios significativos em máquinas de gaiola dupla, rotor bobinado ou de alta eficiência IE4.
+
+\subsubsection{Estimador IEEE Std 112-2017}
+
+Quando ensaios físicos estão disponíveis, a IWS executa o procedimento determinístico da norma IEEE Std 112-2017, que isola os parâmetros a partir de três ensaios independentes (\citeauthor{ieee112_2017}, \citeyear{ieee112_2017}).
+
+\textbf{Ensaio em corrente contínua (Cl.~6.4).} Aplica-se tensão contínua $V_{dc}$ entre dois terminais com o rotor parado, obtendo-se a resistência por fase em função da topologia da ligação:
+
+\begin{equation}
+\label{eq:ieee_rs}
+R_s\big|_Y = \frac{1}{2}\,\frac{V_{dc}}{I_{dc}}, \qquad R_s\big|_\Delta = \frac{3}{2}\,\frac{V_{dc}}{I_{dc}}.
+\end{equation}
+
+\textbf{Ensaio em vazio (Cl.~6.5).} O motor é acionado sem carga acoplada na tensão e frequência nominais, e medem-se $V_{l,NL}$, $I_{NL}$, $P_{NL}$ e $f_{NL}$. A separação de perdas observa:
+
+\begin{equation}
+\label{eq:ieee_pnl}
+P_{NL} = 3\,R_s\,I_{NL}^{\,2} + P_{fe} + P_{fw},
+\end{equation}
+
+\noindent em que $P_{fw}$ representa as perdas por atrito e ventilação. Na ausência de medição por \textit{coast-down}, adota-se a heurística $P_{fw} = 0{,}008\,P_{NL}$ (\citeauthor{ieee112_2017}, \citeyear{ieee112_2017}). A tensão no entreferro $E_{1,NL}$ é refinada por meio de uma iteração fasorial dupla. Na primeira iteração, assume-se $I_{NL}$ aproximadamente em fase com $V_{f,NL}$:
+
+\begin{equation}
+\label{eq:ieee_e1_iter1}
+E_{1,NL}^{(1)} = \sqrt{\bigl(V_{f,NL} - R_s\,I_{NL}\bigr)^{\,2} + \bigl(X_{ls}\,I_{NL}\bigr)^{\,2}}.
+\end{equation}
+
+\noindent A corrente é então decomposta em uma componente $I_{fe} = P_{fe}/(3\,E_{1,NL}^{(1)})$ em fase com $E_1$ e em uma componente de magnetização $I_\mu = \sqrt{I_{NL}^{\,2} - I_{fe}^{\,2}}$. A segunda iteração corrige $E_1$ pela decomposição correta:
+
+\begin{equation}
+\label{eq:ieee_e1_iter2}
+\begin{split}
+E_{1,NL}^{(2)} = \big[\,&(V_{f,NL} - R_s\,I_{fe} - X_{ls}\,I_\mu)^{\,2} \\
+&+\, (X_{ls}\,I_{fe} - R_s\,I_\mu)^{\,2}\,\big]^{1/2}.
+\end{split}
+\end{equation}
+
+\noindent A reatância de magnetização e a resistência de perdas no ferro resultam de:
+
+\begin{equation}
+\label{eq:ieee_xm_rfe}
+X_m = \frac{E_{1,NL}}{I_\mu} - X_{ls}, \qquad R_{fe} = \frac{3\,E_{1,NL}^{\,2}}{P_{fe}}.
+\end{equation}
+
+\textbf{Ensaio com rotor bloqueado (Cl.~6.6).} Com o rotor mecanicamente travado, aplica-se tensão reduzida até atingir a corrente nominal. Recomenda-se ensaio em frequência reduzida $f_{LR} \approx 0{,}25\,f_{nom}$ para mitigar o efeito pelicular. Da medição de $V_{l,LR}$, $I_{LR}$, $P_{LR}$ e $f_{LR}$:
+
+\begin{equation}
+\label{eq:ieee_zk}
+Z_k = \frac{V_{l,LR}/\sqrt{3}}{I_{LR}}, \quad R_k = \frac{P_{LR}}{3\,I_{LR}^{\,2}}, \quad X_k\big|_{f_{LR}} = \sqrt{Z_k^{\,2} - R_k^{\,2}}.
+\end{equation}
+
+\noindent A correção linear de frequência projeta a reatância para o regime nominal:
+
+\begin{equation}
+\label{eq:ieee_xk_corr}
+X_k\big|_{f_{nom}} = X_k\big|_{f_{LR}} \cdot \frac{f_{NL}}{f_{LR}}, \qquad R_r' = R_k - R_s.
+\end{equation}
+
+\textbf{Distribuição da reatância de curto-circuito.} A norma adota uma fração tabelada $\alpha = X_{ls}/X_k$ dependente da classe construtiva do motor (Tabela~\ref{tab:nema_split}), uma vez que nenhum ensaio físico isolado é capaz de separar $X_{ls}$ de $X_{lr}'$.
+
+\begin{table}[htbp]
+\centering
+\caption{Distribuição $X_{ls}/X_k$ por classe NEMA (IEEE Std 112-2017).}
+\label{tab:nema_split}
+\begin{tabular}{lcc}
+\hline
+\textbf{Classe NEMA} & $X_{ls}/X_k$ & $X_{lr}'/X_k$ \\ \hline
+A & 0,50 & 0,50 \\
+B (padrão) & 0,40 & 0,60 \\
+C & 0,30 & 0,70 \\
+D & 0,50 & 0,50 \\
+Rotor bobinado & 0,50 & 0,50 \\ \hline
+\end{tabular}
+\end{table}
+
+\textbf{Validação de sanidade física.} O estimador executa, ao final do procedimento, um conjunto de verificações automáticas — $R_s,\,R_r' > 0$; $P_{fe} > 0$; $I_\mu^{\,2} > 0$; $R_k < Z_k$; $X_m/X_{ls} \geq 5$; $R_{fe} \geq 50\;\Omega$ —, sinalizando ao usuário inconsistências decorrentes de medidas instáveis, deriva térmica ou contaminação harmônica da fonte. Os parâmetros validados alimentam diretamente o dataclass que parametriza o modelo $dq0$ apresentado na Seção~\ref{sec:modelagem}, fechando o ciclo entre dados experimentais e simulação dinâmica.
+
+\subsection{Modelagem Térmica, Diagnóstico Espectral e Impedância de Rede}
+\label{subsec:diagnostico}
+
+A análise transitória do MIT ganha valor pedagógico e industrial quando complementada por três funcionalidades adicionais incorporadas à IWS: (i) um modelo térmico de primeira ordem desacoplado do referencial $dq0$, (ii) ferramentas espectrais para diagnóstico de falhas incipientes, e (iii) a modelagem da impedância de rede para o estudo de afundamentos de tensão.
+
+\subsubsection{Modelo Térmico de Primeira Ordem}
+
+O aquecimento do enrolamento estatórico é modelado por meio de um circuito térmico equivalente de primeira ordem, integrado em pós-processamento sobre os \textit{arrays} de corrente já computados:
+
+\begin{equation}
+\label{eq:thermal}
+C_{th}\,\frac{d\theta}{dt} = 3\,R_s\,i_{s,rms}^{\,2} - \frac{\theta - T_{amb}}{R_{th}},
+\end{equation}
+
+\noindent em que $\theta$ é a temperatura do enrolamento, $R_{th}$ é a resistência térmica equivalente entre o enrolamento e o ambiente, $C_{th}$ é a capacitância térmica do conjunto rotor-estator e $T_{amb}$ é a temperatura ambiente. A discretização por Euler implícito sobre arrays de corrente previamente integrados evita o erro associado ao pico de \textit{inrush} de magnetização, conforme recomendado por (\citeauthor{karakas2009aggregation}, \citeyear{karakas2009aggregation}). Esse desacoplamento permite ao discente avaliar o estresse térmico em partidas sucessivas e em regimes de sobrecarga sem impactar a estabilidade numérica do solucionador LSODA do núcleo dinâmico.
+
+\subsubsection{Análise Espectral e Diagnóstico de Falhas Incipientes}
+
+A IWS disponibiliza dois recursos espectrais complementares fundamentados na Transformada Rápida de Fourier (FFT) das correntes estatóricas. O primeiro consiste na decomposição harmônica do regime permanente, com o cálculo das amplitudes individuais $I_h$ e da distorção harmônica total (\citeauthor{mohapatra2019steady}, \citeyear{mohapatra2019steady}):
+
+\begin{equation}
+\label{eq:thd}
+\text{THD} = \frac{1}{I_1}\sqrt{\sum_{h=2}^{H} I_h^{\,2}},
+\end{equation}
+
+\noindent permitindo a quantificação do conteúdo harmônico induzido por estratégias de partida não-senoidais (chave de partida suave, chaveamento Y-$\Delta$) ou por assimetrias da fonte. O segundo recurso, dedicado à análise da assinatura da corrente do motor (MCSA), explora as bandas laterais associadas a $f_{sb} = (1 \pm 2ks)f$, com $k \in \mathbb{N}^{*}$, características de barras rotóricas quebradas (\citeauthor{arkan2005modelling}, \citeyear{arkan2005modelling}; \citeauthor{tuanmohamad2024advance}, \citeyear{tuanmohamad2024advance}). A amplitude relativa dessas bandas oferece um indicador quantitativo da severidade da falha:
+
+\begin{equation}
+\label{eq:mcsa_severity}
+\beta_{sb} = 20\log_{10}\!\left(\frac{I_{sb}}{I_1}\right) \quad [\mathrm{dB}].
+\end{equation}
+
+A interface integra ainda módulos dedicados ao desequilíbrio de tensão e à falta de fase. A severidade do desequilíbrio é caracterizada pelo fator de desequilíbrio $\text{VUF}$, expresso pela razão entre as componentes de sequência negativa e positiva (\citeauthor{karakas2009aggregation}, \citeyear{karakas2009aggregation}):
+
+\begin{equation}
+\label{eq:vuf}
+\text{VUF} = \frac{|V_2|}{|V_1|} \times 100\,\%,
+\end{equation}
+
+\noindent permitindo a correlação direta entre a perturbação de rede e a degradação observada nos transientes de torque e corrente.
+
+\subsubsection{Modelagem da Impedância de Rede e Afundamento de Tensão}
+
+A inclusão de uma impedância de rede $\bar{Z}_{grid} = R_{grid} + j\omega_e L_{grid}$ em série com o estator permite reproduzir cenários de afundamento de tensão induzido pela linha de alimentação. A indutância $L_{grid}$ é absorvida na reatância efetiva $X_{ls,eff} = X_{ls} + \omega_b L_{grid}$, mantendo a estrutura do modelo $dq0$ inalterada. A tensão nos terminais do motor passa a depender da corrente instantânea segundo:
+
+\begin{equation}
+\label{eq:vag_grid}
+\bar{V}_{ag} = \bar{V}_{fonte} - \bar{I}_s\,(R_{grid} + j\omega_e L_{grid}).
+\end{equation}
+
+\noindent Essa formulação habilita a simulação de eventos de \textit{voltage sag} com a magnitude e a duração definidos pelo usuário, condição operacional crítica para o estudo da resiliência de acionamentos industriais frente a perturbações da rede de média tensão.
+
+% ==========================================
+% VERSÃO EM INGLÊS (NOVAS FUNCIONALIDADES)
+% ==========================================
+
+\subsection{Automated Estimation of Equivalent-Circuit Parameters}
+\label{subsec:estimation_en}
+
+The fidelity of the dynamic simulation described in Section~\ref{sec:modelagem} hinges on the consistency of the T-equivalent circuit parameters ($R_s,\,R_r',\,X_m,\,X_{ls},\,X_{lr}',\,R_{fe}$). In pedagogical settings and in commissioning projects, these values are rarely directly available. To address this gap, the IWS incorporates two complementary estimation methods that the user selects according to the data at hand: a \textit{Nameplate} estimator, grounded in the statistical assumptions of the NEMA MG-1 standard, and a deterministic estimator based on physical tests in accordance with IEEE Std~112-2017 (\citeauthor{ieee112_2017}, \citeyear{ieee112_2017}).
+
+\subsubsection{Nameplate Estimator}
+
+The \textit{Nameplate} estimator recovers the equivalent circuit from the information on the motor nameplate — rated voltage $V_l$, frequency $f$, output power $P_n$, speed $n_{nom}$, efficiency $\eta$, power factor $\cos\varphi$, and the ratios $I_p/I_n$ and $T_p/T_n$. The slip and the rated current follow from:
+
+\begin{equation}
+\label{eq:nameplate_snom_en}
+s_{nom} = 1 - \frac{n_{nom}}{n_s}, \qquad n_s = \frac{120\,f}{p},
+\end{equation}
+
+\begin{equation}
+\label{eq:nameplate_in_en}
+I_n = \frac{P_n}{\sqrt{3}\,V_l\,\eta\,\cos\varphi}, \qquad T_n = \frac{P_n}{\omega_{r,nom}}.
+\end{equation}
+
+The short-circuit reactance is estimated from the ratio $I_p/I_n$ under the starting power-factor assumption $\cos\varphi_p \approx 0.20$, typical of NEMA Class~B motors (\citeauthor{li2010simulation}, \citeyear{li2010simulation}):
+
+\begin{equation}
+\label{eq:nameplate_xk_en}
+X_k = \frac{V_l/\sqrt{3}}{I_n\,(I_p/I_n)}\sqrt{1 - \cos^2\!\varphi_p}.
+\end{equation}
+
+The split between the leakage reactances follows the NEMA~B convention, $X_{ls} = 0.4\,X_k$ and $X_{lr}' = 0.6\,X_k$. Resistances are derived from the nominal-regime power balance ($P_{cu,s} = 3\,I_n^2\,R_s$ and $P_{cu,r} = 3\,I_n^2\,R_r' = s_{nom}\,P_{ag}$), and $X_m$ results from the subtraction $X_m = X_{cc} - X_{ls}$. The method suits preliminary analyses and sensitivity studies of NEMA~B machines, although it diverges significantly for double-cage, wound-rotor, or IE4 high-efficiency motors.
+
+\subsubsection{IEEE Std~112-2017 Estimator}
+
+When physical tests are available, the IWS performs the deterministic procedure prescribed by IEEE Std~112-2017, which isolates each parameter through three independent tests (\citeauthor{ieee112_2017}, \citeyear{ieee112_2017}).
+
+\textbf{DC test (Cl.~6.4).} A DC voltage $V_{dc}$ is applied between two terminals with the rotor at rest, yielding the per-phase resistance as a function of the winding connection:
+
+\begin{equation}
+\label{eq:ieee_rs_en}
+R_s\big|_Y = \frac{1}{2}\,\frac{V_{dc}}{I_{dc}}, \qquad R_s\big|_\Delta = \frac{3}{2}\,\frac{V_{dc}}{I_{dc}}.
+\end{equation}
+
+\textbf{No-load test (Cl.~6.5).} The motor is driven uncoupled at rated voltage and frequency, and the quantities $V_{l,NL}$, $I_{NL}$, $P_{NL}$ and $f_{NL}$ are measured. The loss separation obeys:
+
+\begin{equation}
+\label{eq:ieee_pnl_en}
+P_{NL} = 3\,R_s\,I_{NL}^{\,2} + P_{fe} + P_{fw},
+\end{equation}
+
+\noindent in which $P_{fw}$ stands for the friction-and-windage losses. When a coast-down measurement is not available, the heuristic $P_{fw} = 0.008\,P_{NL}$ is adopted (\citeauthor{ieee112_2017}, \citeyear{ieee112_2017}). The air-gap voltage $E_{1,NL}$ is refined through a double phasor iteration. The first iteration assumes $I_{NL}$ approximately in phase with $V_{f,NL}$:
+
+\begin{equation}
+\label{eq:ieee_e1_iter1_en}
+E_{1,NL}^{(1)} = \sqrt{\bigl(V_{f,NL} - R_s\,I_{NL}\bigr)^{\,2} + \bigl(X_{ls}\,I_{NL}\bigr)^{\,2}}.
+\end{equation}
+
+\noindent The current is then decomposed into the component $I_{fe} = P_{fe}/(3\,E_{1,NL}^{(1)})$, in phase with $E_1$, and the magnetizing component $I_\mu = \sqrt{I_{NL}^{\,2} - I_{fe}^{\,2}}$. The second iteration corrects $E_1$ through the proper decomposition:
+
+\begin{equation}
+\label{eq:ieee_e1_iter2_en}
+\begin{split}
+E_{1,NL}^{(2)} = \big[\,&(V_{f,NL} - R_s\,I_{fe} - X_{ls}\,I_\mu)^{\,2} \\
+&+\, (X_{ls}\,I_{fe} - R_s\,I_\mu)^{\,2}\,\big]^{1/2}.
+\end{split}
+\end{equation}
+
+\noindent The magnetizing reactance and the iron-loss resistance follow as:
+
+\begin{equation}
+\label{eq:ieee_xm_rfe_en}
+X_m = \frac{E_{1,NL}}{I_\mu} - X_{ls}, \qquad R_{fe} = \frac{3\,E_{1,NL}^{\,2}}{P_{fe}}.
+\end{equation}
+
+\textbf{Locked-rotor test (Cl.~6.6).} With the rotor mechanically blocked, a reduced voltage is applied until rated current is reached. The test is recommended at a reduced frequency $f_{LR} \approx 0.25\,f_{nom}$ to mitigate the skin effect. From the measurement of $V_{l,LR}$, $I_{LR}$, $P_{LR}$ and $f_{LR}$:
+
+\begin{equation}
+\label{eq:ieee_zk_en}
+Z_k = \frac{V_{l,LR}/\sqrt{3}}{I_{LR}}, \quad R_k = \frac{P_{LR}}{3\,I_{LR}^{\,2}}, \quad X_k\big|_{f_{LR}} = \sqrt{Z_k^{\,2} - R_k^{\,2}}.
+\end{equation}
+
+\noindent A linear frequency correction projects the reactance onto the rated regime:
+
+\begin{equation}
+\label{eq:ieee_xk_corr_en}
+X_k\big|_{f_{nom}} = X_k\big|_{f_{LR}} \cdot \frac{f_{NL}}{f_{LR}}, \qquad R_r' = R_k - R_s.
+\end{equation}
+
+\textbf{Short-circuit reactance split.} The standard adopts a tabulated fraction $\alpha = X_{ls}/X_k$ that depends on the motor construction class (Table~\ref{tab:nema_split_en}), because no single physical test can separate $X_{ls}$ from $X_{lr}'$.
+
+\begin{table}[htbp]
+\centering
+\caption{$X_{ls}/X_k$ split per NEMA class (IEEE Std~112-2017).}
+\label{tab:nema_split_en}
+\begin{tabular}{lcc}
+\hline
+\textbf{NEMA class} & $X_{ls}/X_k$ & $X_{lr}'/X_k$ \\ \hline
+A & 0.50 & 0.50 \\
+B (default) & 0.40 & 0.60 \\
+C & 0.30 & 0.70 \\
+D & 0.50 & 0.50 \\
+Wound rotor & 0.50 & 0.50 \\ \hline
+\end{tabular}
+\end{table}
+
+\textbf{Physical-sanity validation.} At the end of the procedure the estimator runs a set of automatic checks — $R_s,\,R_r' > 0$; $P_{fe} > 0$; $I_\mu^{\,2} > 0$; $R_k < Z_k$; $X_m/X_{ls} \geq 5$; $R_{fe} \geq 50\;\Omega$ — flagging to the user inconsistencies arising from unstable measurements, thermal drift, or harmonic contamination of the supply. The validated parameters feed directly into the dataclass that parameterizes the $dq0$ model presented in Section~\ref{sec:modelagem}, closing the loop between experimental data and dynamic simulation.
+
+\subsection{Thermal Modeling, Spectral Diagnostics, and Grid Impedance}
+\label{subsec:diagnostics_en}
+
+The transient analysis of the TIM gains pedagogical and industrial value when complemented by three additional functionalities embedded in the IWS: (i) a first-order thermal model decoupled from the $dq0$ reference frame, (ii) spectral tools for incipient-fault diagnosis, and (iii) the modeling of the grid impedance for voltage-sag studies.
+
+\subsubsection{First-Order Thermal Model}
+
+The heating of the stator winding is modeled by a first-order equivalent thermal circuit, integrated in post-processing over the previously computed current arrays:
+
+\begin{equation}
+\label{eq:thermal_en}
+C_{th}\,\frac{d\theta}{dt} = 3\,R_s\,i_{s,rms}^{\,2} - \frac{\theta - T_{amb}}{R_{th}},
+\end{equation}
+
+\noindent in which $\theta$ is the winding temperature, $R_{th}$ is the equivalent thermal resistance between winding and ambient, $C_{th}$ is the thermal capacitance of the rotor-stator assembly, and $T_{amb}$ is the ambient temperature. An implicit-Euler discretization over previously integrated current arrays avoids the error associated with the magnetizing inrush spike, in agreement with (\citeauthor{karakas2009aggregation}, \citeyear{karakas2009aggregation}). This decoupling allows the student to assess thermal stress in successive startings and in overload regimes without affecting the numerical stability of the LSODA solver used by the dynamic core.
+
+\subsubsection{Spectral Analysis and Incipient-Fault Diagnosis}
+
+The IWS provides two complementary spectral resources based on the Fast Fourier Transform (FFT) of the stator currents. The first computes the harmonic decomposition in steady state, yielding the individual amplitudes $I_h$ and the total harmonic distortion (\citeauthor{mohapatra2019steady}, \citeyear{mohapatra2019steady}):
+
+\begin{equation}
+\label{eq:thd_en}
+\text{THD} = \frac{1}{I_1}\sqrt{\sum_{h=2}^{H} I_h^{\,2}},
+\end{equation}
+
+\noindent quantifying the harmonic content induced by non-sinusoidal starting strategies (soft-starter, Y-$\Delta$ switching) or by supply asymmetries. The second resource, dedicated to motor current signature analysis (MCSA), exploits the sidebands at $f_{sb} = (1 \pm 2ks)f$, with $k \in \mathbb{N}^{*}$, characteristic of broken rotor bars (\citeauthor{arkan2005modelling}, \citeyear{arkan2005modelling}; \citeauthor{tuanmohamad2024advance}, \citeyear{tuanmohamad2024advance}). The relative amplitude of these sidebands provides a quantitative severity indicator:
+
+\begin{equation}
+\label{eq:mcsa_severity_en}
+\beta_{sb} = 20\log_{10}\!\left(\frac{I_{sb}}{I_1}\right) \quad [\mathrm{dB}].
+\end{equation}
+
+The interface additionally embeds modules dedicated to voltage unbalance and phase loss. The severity of unbalance is characterized by the voltage unbalance factor $\text{VUF}$, defined as the ratio between negative and positive sequence components (\citeauthor{karakas2009aggregation}, \citeyear{karakas2009aggregation}):
+
+\begin{equation}
+\label{eq:vuf_en}
+\text{VUF} = \frac{|V_2|}{|V_1|} \times 100\,\%,
+\end{equation}
+
+\noindent enabling direct correlation between the supply disturbance and the degradation observed in the torque and current transients.
+
+\subsubsection{Grid-Impedance Modeling and Voltage Sag}
+
+The inclusion of a grid impedance $\bar{Z}_{grid} = R_{grid} + j\omega_e L_{grid}$ in series with the stator reproduces voltage-sag scenarios induced by the feeding line. The inductance $L_{grid}$ is absorbed into the effective reactance $X_{ls,eff} = X_{ls} + \omega_b L_{grid}$, leaving the $dq0$ model structure unchanged. The motor terminal voltage then depends on the instantaneous current as:
+
+\begin{equation}
+\label{eq:vag_grid_en}
+\bar{V}_{ag} = \bar{V}_{source} - \bar{I}_s\,(R_{grid} + j\omega_e L_{grid}).
+\end{equation}
+
+\noindent This formulation enables the simulation of \textit{voltage sag} events with magnitude and duration defined by the user — a critical operating condition for the study of industrial drives' resilience against medium-voltage grid disturbances.

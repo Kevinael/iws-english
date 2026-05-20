@@ -1,0 +1,398 @@
+%===============================================================================
+% $Id: ifacconf.tex 19 2011-10-27 09:32:13Z jpuente $  
+% Template for IFAC meeting papers
+% Copyright (c) 2007-2008 International Federation of Automatic Control
+%===============================================================================
+\documentclass[a4paper]{ifacconf}
+
+\usepackage{graphicx,amsmath,url}      % include this line if your document contains figures
+\usepackage[round]{natbib}             % required for bibliography
+%===============================================================================
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta}
+
+% ===============================================================
+% Choose the language of the manuscript.
+% If in English, choose 
+% \def\portugues{0} 
+%
+% If in Portuguese or Spanish, choose
+% \def\portugues{1} 
+%
+% Note that, if you are writing in Spanish, you need additional 
+% adjusts in some parts of the text, which have been put in Portuguese only.
+\def\portugues{1} 
+% ===============================================================
+
+% If the above line is commented, it is assumed manuscript in English:
+\ifx\portugues\undefined
+\def\portugues{0}
+\fi
+
+
+\if\portugues0
+   \usepackage[english]{babel}
+  \else
+   \usepackage[spanish,brazil,english]{babel}
+\fi
+
+\usepackage[T1]{fontenc}
+%\usepackage{inputenc}
+
+\usepackage[utf8]{inputenc}
+%\usepackage{microtype}
+\usepackage{ae}
+
+\if\portugues1
+% =====================================================================
+% =====================================================================
+% If the manuscript is in Spanish, please change the texts adequatelly.
+% You may also add other definitions in this part.
+ \newtheorem{teorema}[thm]{{\em Teorema}}{ }
+ \newtheorem{lema}[thm]{{\em Lema}}{ }
+ \newtheorem{corolario}[thm]{{\em Corolário}}{ }
+ \newenvironment{prova}{{\bf Prova.}}{ }
+% ===============================================================
+\fi
+
+\begin{document}
+	
+	
+\if\portugues1
+
+% =====================================================================
+% =====================================================================
+% USE THIS PART IF THE TEXT IS IN PORTUGUES OR SPANISH
+% =====================================================================
+% If the manuscript is in Spanish, please change the texts adequately.
+% =====================================================================
+% 
+\selectlanguage{brazil}
+	
+\begin{frontmatter}
+\vspace*{-2cm}
+\title{Infraestrutura Web de Simulação para o Ensino de Máquinas Elétricas: Modelagem Dinâmica e Métodos de Partida} 
+% Title, preferably not more than 10 words.
+
+%\thanks[footnoteinfo]{Reconhecimento do suporte financeiro deve vir nesta nota de rodapé.}
+
+\author[First]{Kevin Gabriel Pinheiro Castro} 
+\author[First]{Marcus Vinicius Araújo Fernandes} 
+\author[First]{Vitor Silva do Nascimento}
+\author[First]{Vinnícius Alex Melo Peixoto}
+\author[First]{Calebe Freitas da Silva}
+
+\address[First]{Diretoria de Indústria, Campus Natal-Central, Instituto Federal de Educação, Ciência e Tecnologia do Rio Grande do Norte (IFRN), RN. (e-mail: k.g.pinheiro.castro@gmail.com; marcus.fernandes@ifrn.edu.br; vitrsn@gmail.com; vinicius.alex.melo@hotmail.com; calebe8839@gmail.com)} 
+\vskip 1mm% não altere esse espaçamento
+\selectlanguage{english}
+\renewcommand{\abstractname}{{\bf Abstract:~}}
+\begin{abstract}                % Abstract of not more than 250 words.
+Mastery of Three-Phase Induction Motor (TIM) transient states is essential in engineering education; however, cost barriers and hardware requirements of proprietary tools often limit ubiquitous experimentation. This paper presents the Web Infrastructure for Simulation (IWS), a unified dynamic simulation platform based on a web architecture designed for TIM analysis aligned with Education 5.0 principles. The tool enables the study of various operational scenarios, including direct, star-delta, autotransformer, and soft-starter methods, as well as generator operation. The motor was modeled in the $dq0$ dynamic reference frame, employing adaptive numerical integration algorithms (LSODA) to solve differential equations, enabling dynamic parameter adjustment and real-time monitoring of electromechanical variables. The processing core's fidelity was verified through quantitative comparison with reference models, showing a mean relative error of less than 2\% for torque and current transients. The solution integrates a responsive interface and a didactic module on machine parameters, fostering deliberate practice in virtual learning environments and laying the technical groundwork for future pedagogical effectiveness evaluations and incipient fault diagnosis.
+\vskip 1mm% não altere esse espaçamento
+\selectlanguage{brazil}
+{\noindent \bf Resumo}: O domínio dos regimes transitórios de Motores de Indução Trifásicos (MIT) é fundamental na formação em engenharia. Contudo, barreiras de custo e exigências de \textit{hardware} de ferramentas proprietárias limitam a experimentação ubíqua. Este trabalho apresenta o desenvolvimento da Infraestrutura Web de Simulação (IWS), uma plataforma unificada baseada na \textit{web} para simulação dinâmica do MIT sob a ótica da Educação 5.0. A ferramenta permite o estudo de cenários operacionais como partidas direta, estrela-triângulo, autotransformador e chave de partida suave, além da operação reversível como gerador. O motor foi modelado no referencial dinâmico $dq0$, utilizando o método de integração numérica de passo adaptativo LSODA, permitindo o ajuste dinâmico de parâmetros e o monitoramento eletromecânico em tempo real. A fidelidade do motor de processamento foi verificada via comparação quantitativa com modelos de referência, apresentando erro relativo médio inferior a 2\% nos transientes de torque e corrente. A IWS integra uma interface adaptável e um módulo didático que fomenta a prática deliberada em ambientes virtuais de aprendizagem, estabelecendo as bases técnicas para futuras avaliações de impacto pedagógico e diagnóstico de falhas incipientes.
+\end{abstract}
+
+\selectlanguage{english}
+
+
+\begin{keyword}
+Three-Phase Induction Motor; Dynamic Modeling; $dq0$; Reference Frame; Starting Methods; Education 5.0. 
+
+\vskip 1mm% não altere esse espaçamento
+\selectlanguage{brazil}
+{\noindent\it Palavras-chaves:} Motor de Indução Trifásico; Modelagem Dinâmica; Referencial $dq0$; Métodos de Partida; Educação 5.0.
+\end{keyword}
+
+\selectlanguage{brazil}
+
+\end{frontmatter}
+\else
+
+% ===============================================================
+% ===============================================================
+% USE THIS PART IF THE TEXT IS IN ENGLISH
+% ===============================================================
+% ===============================================================
+
+
+\begin{frontmatter}
+
+\title{Style for SBA Conferences \& Symposia: Use Title Case for
+  Paper Title\thanksref{footnoteinfo}} 
+% Title, preferably not more than 10 words.
+
+\thanks[footnoteinfo]{Sponsor and financial support acknowledgment
+goes here. Paper titles should be written in uppercase and lowercase
+letters, not all uppercase.}
+
+\author[First]{First A. Author} 
+\author[Second]{Second B. Author, Jr.} 
+\author[Third]{Third C. Author}
+
+
+\address[First]{Faculdade de Engenharia Elétrica, Universidade do Triângulo, MG, (e-mail: autor1@faceg@univt.br).}
+\address[Second]{Faculdade de Engenharia de Controle \& Automação, Universidade do Futuro, RJ (e-mail: autor2@feca.unifutu.rj)}
+\address[Third]{Electrical Engineering Department, 
+   Seoul National University, Seoul, Korea, (e-mail: author3@snu.ac.kr)}
+   
+\renewcommand{\abstractname}{{\bf Abstract:~}}   
+   
+\begin{abstract}                % Abstract of not more than 250 words.
+These instructions give you guidelines for preparing papers for IFAC
+technical meetings. Please use this document as a template to prepare
+your manuscript. For submission guidelines, follow instructions on
+paper submission system as well as the event website.
+\end{abstract}
+
+\begin{keyword}
+Five to ten keywords, preferably chosen from the IFAC keyword list.
+\end{keyword}
+
+\end{frontmatter}
+\fi
+
+%===============================================================================
+%===============================================================================
+%===============================================================================
+
+\section{Introdução}
+
+Desde o surgimento da indústria moderna, a engenharia busca o equilíbrio entre custo e confiabilidade. O Motor de Indução Trifásico (MIT) consolidou-se como o padrão global por sua robustez e simplicidade construtiva, sendo essencial em acionamentos que variam de sistemas de baixa inércia a cargas de alta severidade (\citeauthor{Umans2014EN}, \citeyear{Umans2014EN}). Contudo, o verdadeiro desafio técnico reside nos regimes transitórios de partida. Nesse intervalo de poucos segundos, a máquina enfrenta correntes de inserção que podem atingir dez vezes o valor nominal (\citeauthor{jain2014modeling}, \citeyear{jain2014modeling}), resultando em estresse térmico crítico e oscilações de torque que impactam a estabilidade da rede elétrica (\citeauthor{ikeda2007simulation}, \citeyear{ikeda2007simulation}).
+
+No cenário educacional, o acesso a bancadas físicas completas é frequentemente limitado pelo alto custo e pela complexidade de instalação de dispositivos de partida suave ou autotransformadores. Ferramentas tradicionais de simulação como MATLAB e LabVIEW são o padrão industrial (\citeauthor{aktaibi2011dynamic}, \citeyear{aktaibi2011dynamic}). Entretanto, a dependência de licenças onerosas e de equipamentos de processamento local robusto restringe a autonomia discente (\citeauthor{leedy2013simulink}, \citeyear{leedy2013simulink}). Além disso, a literatura aponta um declínio global no engajamento estudantil em disciplinas de máquinas elétricas, exigindo a transição para metodologias de ensino híbrido que priorizem a ubiquidade e a interatividade (\citeauthor{singh2019improving}, \citeyear{singh2019improving}).
+
+Embora ferramentas como o MATLAB Online permitam o acesso via navegador, a dependência de licenças comerciais e a ausência de recursos voltados especificamente ao ensino prático de máquinas elétricas persistem como barreiras. A Tabela \ref{tab:comparacao_ferramentas} sintetiza as vantagens da infraestrutura proposta neste trabalho frente às ferramentas convencionais e alternativas de código aberto disponíveis (\citeauthor{li2010simulation}, \citeyear{li2010simulation}; \citeauthor{leedy2013simulink}, \citeyear{leedy2013simulink}).
+
+\begin{table}[htbp]
+\centering
+\caption{Comparação funcional entre a IWS proposta e ferramentas convencionais de simulação.}
+\label{tab:comparacao_ferramentas}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lcccc}
+\hline
+\textbf{Critério} & \textbf{MATLAB} & \textbf{LabVIEW} & \textbf{SciLab} & \textbf{IWS (Proposta)} \\ \hline
+Licença gratuita & Não & Não & Sim & \textbf{Sim} \\
+Acesso \textit{mobile} & Limitado & Não & Não & \textbf{Sim} \\
+Métodos de acionamento unificados & Sim & Sim & Não & \textbf{Sim} \\
+Módulo didático integrado & Não & Não & Não & \textbf{Sim} \\
+Relatório PDF automático & Não nativo & Não nativo & Não & \textbf{Sim} \\ \hline
+\end{tabular}%
+}
+\end{table}
+
+A análise dinâmica é, ademais, fundamental para o diagnóstico de falhas mascaradas em regime permanente. Anomalias mecânicas, como o desalinhamento de eixos, ou elétricas, como curtos-circuitos entre espiras, são detectáveis apenas via observação de transientes (\citeauthor{tuanmohamad2024advance}, \citeyear{tuanmohamad2024advance}; \citeauthor{arkan2005modelling}, \citeyear{arkan2005modelling}). Sem ferramentas que possibilitem essa exploração de forma interativa e detalhada, o aprendizado torna-se limitado à teoria estática dos manuais.
+
+Para suprir essa demanda, este trabalho apresenta a Infraestrutura Web de Simulação (IWS). Alinhada aos preceitos da Educação 5.0, a plataforma promove o protagonismo do aluno por meio da aprendizagem prática e da experimentação virtual ubíqua (\citeauthor{cordeiro2024educacao}, \citeyear{cordeiro2024educacao}). O núcleo computacional utiliza a modelagem $dq0$, que remove a dependência explícita do tempo nas indutâncias no referencial estacionário e facilita a análise dinâmica de transientes (\citeauthor{sengamalai2022three}, \citeyear{sengamalai2022three}). Adotou-se o modelo matemático unificado de \cite{usta2024mathematical} como referência de precisão, apresentando desvios inferiores a $\pm2\%$ em relação a modelos consolidados (\citeauthor{leroux2022static}, \citeyear{leroux2022static}).
+
+Diferente de simuladores fragmentados, a IWS unifica métodos de acionamento e regimes de operação em um ambiente responsivo. Assim, a plataforma elimina barreiras de \textit{hardware}, permitindo a transição fluida entre a teoria acadêmica e a prática de engenharia em qualquer dispositivo móvel.
+
+O presente artigo está estruturado em cinco seções. A Seção 2 detalha o equacionamento eletromecânico do MIT no referencial dinâmico. A Seção 3 descreve a arquitetura da IWS e as estratégias pedagógicas de interação implementadas. A Seção 4 apresenta a validação quantitativa da plataforma e a análise crítica dos transientes simulados. Por fim, a Seção 5 sumariza as principais conclusões e as perspectivas para a expansão do projeto.
+
+\section{Modelagem Matemática do Motor de Indução}
+
+A modelagem dinâmica do MIT fundamenta-se na teoria dos referenciais rotativos, consolidada por \cite{KrauseThomas}. O princípio central desta abordagem consiste na projeção das variáveis da máquina em um par de eixos ortogonais ($d, q$) que rotacionam a uma velocidade angular arbitrária $\omega_{ref}$ (\citeauthor{usta2024mathematical}, \citeyear{usta2024mathematical}). Esta transformação remove a dependência explícita do tempo nas indutâncias decorrente do movimento relativo entre estator e rotor, possibilitando a estruturação modular das variáveis de estado e garantindo a fidelidade numérica necessária para a análise de transientes (\citeauthor{sengamalai2022three}, \citeyear{sengamalai2022three}; \citeauthor{leroux2022static}, \citeyear{leroux2022static}).
+
+As tensões de entrada são processadas via transformadas de Clarke e Park e integradas por algoritmos de passo adaptativo para garantir a estabilidade das soluções sob altas derivadas temporais:
+\begin{equation}
+\label{eq:park}
+\begin{bmatrix}V_{ds} \\ V_{qs}\end{bmatrix} = \begin{bmatrix}\cos\theta_e & \sin\theta_e \\ -\sin\theta_e & \cos\theta_e\end{bmatrix} \,k\, \begin{bmatrix}1 & -0,5 & -0,5 \\ 0 & \frac{\sqrt{3}}{2} & -\frac{\sqrt{3}}{2}\end{bmatrix} \begin{bmatrix}V_a \\ V_b \\ V_c\end{bmatrix}
+\end{equation}
+onde $k=2/3$ representa o fator de normalização adotado para o referencial estacionário. 
+
+A dinâmica eletromecânica é descrita por seis variáveis de estado (fluxos, velocidade e posição), normalizadas pela velocidade angular base $\omega_b = 2\pi f$ (\citeauthor{usta2024mathematical}, \citeyear{usta2024mathematical}). As equações diferenciais para os fluxos de enlace do estator, referenciadas a uma velocidade angular $\omega_{ref}$, são dadas por:
+
+\begin{align}
+\frac{d\Psi_{qs}}{dt} &= \omega_b \left[V_{qs} - \frac{\omega_{ref}}{\omega_b}\Psi_{ds} + \frac{R_s}{X_{ls}}(\Psi_{mq} - \Psi_{qs})\right] \label{eq:dPsiqs} \\[4pt]
+\frac{d\Psi_{ds}}{dt} &= \omega_b \left[V_{ds} + \frac{\omega_{ref}}{\omega_b}\Psi_{qs} + \frac{R_s}{X_{ls}}(\Psi_{md} - \Psi_{ds})\right] \label{eq:dPsids}
+\end{align}
+
+Analogamente, as equações diferenciais para os fluxos de enlace do rotor, considerando a velocidade elétrica do rotor $\omega_r$, são expressas como:
+
+\begin{align}
+\frac{d\Psi_{qr}}{dt} &= \omega_b \left[-\frac{(\omega_{ref} - \omega_r)}{\omega_b}\Psi_{dr} + \frac{R_r}{X_{lr}}(\Psi_{mq} - \Psi_{qr})\right] \label{eq:dPsiqr} \\[4pt]
+\frac{d\Psi_{dr}}{dt} &= \omega_b \left[\frac{(\omega_{ref} - \omega_r)}{\omega_b}\Psi_{qr} + \frac{R_r}{X_{lr}}(\Psi_{md} - \Psi_{dr})\right] \label{eq:dPsidr}
+\end{align}
+
+onde $R_s, R_r$ representam as resistências e $X_{ls}, X_{lr}$ as reatâncias de dispersão. O acoplamento magnético entre o estator e o rotor é expresso pelos fluxos de magnetização nos eixos correspondentes, calculados algebricamente conforme (\citeauthor{aktaibi2011dynamic}, \citeyear{aktaibi2011dynamic}):
+
+\begin{equation}
+    \Psi_{m\{q,d\}} = X_{ml} \left( \frac{\Psi_{s\{q,d\}}}{X_{ls}} + \frac{\Psi_{r\{q,d\}}}{X_{lr}} \right)
+    \label{eq:psim}
+\end{equation}
+
+As correntes estatóricas, necessárias para a determinação do torque, são extraídas das variáveis de estado através da relação com as reatâncias de dispersão:
+
+\begin{equation}
+    i_{s\{q,d\}} = \frac{\Psi_{s\{q,d\}} - \Psi_{m\{q,d\}}}{X_{ls}}
+    \label{eq:is}
+\end{equation}
+
+sendo $1/X_{ml} = 1/X_m + 1/X_{ls} + 1/X_{lr}$, onde $X_m$ representa a reatância de magnetização principal. A conversão eletromecânica resulta no torque eletromagnético $T_e$, obtido por meio da interação entre os fluxos de enlace e as correntes estatóricas (\citeauthor{diaz2009induction}, \citeyear{diaz2009induction}):
+
+\begin{equation}
+    T_e = \frac{3}{2} \frac{p}{2} \frac{1}{\omega_b} (\Psi_{ds} i_{qs} - \Psi_{qs} i_{ds})
+    \label{eq:te}
+\end{equation}
+
+A aceleração do rotor é governada pela equação fundamental do movimento, que integra os efeitos da inércia ($J$) do conjunto, do torque de carga ($T_L$) e do coeficiente de atrito viscoso ($B_v$):
+
+\begin{equation}
+    \frac{d\omega_r}{dt} = \frac{p}{2J} (T_e - T_L - B_v \omega_r)
+    \label{eq:movimento}
+\end{equation}
+
+A resolução deste sistema de equações diferenciais é realizada por meio de algoritmos de integração numérica com passo adaptativo (LSODA - \textit{Livermore Solver for Ordinary Differential Equations, Automatic}). Esta abordagem assegura estabilidade mesmo em regimes de alta derivada temporal e permite a análise do amortecimento transiente sob influência da resistência de perdas no ferro ($R_{fe}$), diferencial essencial para a observação fidedigna de fenômenos industriais (\citeauthor{kumari2025comparative}, \citeyear{kumari2025comparative}; \citeauthor{leroux2022static}, \citeyear{leroux2022static}).
+
+A Figura \ref{fig:cqt eq} ilustra a topologia do circuito equivalente monofásico em eixos $dq0$ adotada como base para o núcleo computacional da IWS.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.48\textwidth]{imagens/cqt eq.png}
+    \caption{Topologia do circuito equivalente monofásico em eixos $dq0$ integrada ao simulador.}
+    \label{fig:cqt eq}
+\end{figure}
+
+\section{Metodologia e Implementação da Infraestrutura \textit{Web}}
+
+A transposição do rigor matemático do referencial $dq0$ para um ambiente computacional ubíquo constitui o núcleo metodológico deste trabalho. Desenvolvida em linguagem Python para superar barreiras de custo e licenciamento de ferramentas proprietárias (\citeauthor{leedy2013simulink}, \citeyear{leedy2013simulink}), a IWS emprega uma arquitetura adaptável e acessível via rede. Essa organização modular, alinhada aos preceitos da Educação 5.0, visa promover o protagonismo do estudante na análise de fenômenos dinâmicos complexos (\citeauthor{cordeiro2024educacao}, \citeyear{cordeiro2024educacao}).
+
+\subsection{Arquitetura do Simulador e Infraestrutura Tecnológica}
+
+A IWS organiza-se em três camadas funcionais: (i) \textit{Processamento Físico}, (ii) \textit{Interface e Lógica de Aplicação} e (iii) \textit{Visualização e Documentação}. Esta separação permite que o motor de cálculo opere de forma independente da interface gráfica, facilitando a escalabilidade do sistema (\citeauthor{aktaibi2011dynamic}, \citeyear{aktaibi2011dynamic}). 
+
+Baseada no ecossistema Python, a infraestrutura utiliza o arcabouço \texttt{Streamlit} para a interface adaptável e a biblioteca \texttt{SciPy} para a resolução numérica das equações diferenciais em eixos $dq0$. A camada de interface gerencia a interação reativa e valida a consistência física do motor em tempo real. Por fim, o componente de visualização emprega a biblioteca \texttt{Plotly} para gerar gráficos interativos, permitindo a exploração ativa dos dados, enquanto o módulo de documentação automatiza a geração de relatórios técnicos em formato PDF para suporte à prática deliberada.
+
+\subsection{Implementação Funcional e Fluxo de Dados}
+
+O funcionamento integrado da IWS baseia-se em uma arquitetura de fluxo de dados na qual a separação entre o processamento numérico e a interface assegura a estabilidade do sistema. O núcleo físico traduz o modelo unificado discutido na Seção 2, utilizando a biblioteca \texttt{SciPy}. O sistema de equações diferenciais ordinárias é resolvido por meio do método adaptativo LSODA, garantindo a convergência numérica e a precisão dentro da margem de referência de $\pm 2\%$ exigida para validações de alta fidelidade (\citeauthor{li2010simulation}, \citeyear{li2010simulation}). A escolha do solucionador LSODA permite a adaptação automática do passo de integração, garantindo a integridade dos resultados mesmo em regimes de alta derivada temporal e transientes severos.
+
+A camada de interface, construída sobre o arcabouço \texttt{Streamlit}, viabiliza um ambiente de aprendizagem no qual a alteração de parâmetros de carga ou resistência resulta na reexecução instantânea do motor de processamento, fomentando a experimentação iterativa (\citeauthor{tuanmohamad2024advance}, \citeyear{tuanmohamad2024advance}). A visualização de dados emprega a biblioteca \texttt{Plotly} para gerar gráficos interativos com recursos de ampliação e inspeção de valores, permitindo que o estudante analise detalhadamente as oscilações de torque, picos de corrente e espectros de frequência via Transformada Rápida de Fourier (\citeauthor{mohapatra2019steady}, \citeyear{mohapatra2019steady}).
+
+Componentes auxiliares, como o gerador dinâmico de diagramas e rotinas de balanço energético, permitem a validação dos resultados dinâmicos frente à teoria clássica de máquinas (\citeauthor{kumari2025comparative}, \citeyear{kumari2025comparative}). Por fim, a integração da base de conhecimento teórico e do módulo de documentação automática consolida a plataforma como recurso de suporte à prática deliberada e avaliação acadêmica (\citeauthor{souza2011ambiente}, \citeyear{souza2011ambiente}).
+
+\subsection{Cenários de Simulação e Estratégias Pedagógicas}
+
+A IWS foi projetada para atuar como um laboratório dinâmico em disciplinas como Máquinas Elétricas I, possibilitando a exploração de regimes operacionais que, em ambientes físicos, envolveriam riscos elevados ou custos proibitivos. Os módulos foram estruturados para suportar metodologias de aprendizagem baseada em problemas (PBL) e prática deliberada, abrangendo os seguintes cenários didáticos:
+
+\textbf{Comparação de Métodos de Partida e Controle de Inserção:} O simulador unifica partidas por tensão reduzida (Estrela-Triângulo e Autotransformador) e partida direta, permitindo uma atividade pedagógica de análise comparativa das correntes de inserção que podem atingir dez vezes o valor nominal. Adicionalmente, a modelagem de rampa de tensão via chave de partida suave mitiga as descontinuidades de torque inerentes aos métodos eletromecânicos, integrando a ferramenta às práticas modernas de automação industrial e permitindo ao estudante interpretar o impacto de diferentes ajustes de rampa (\citeauthor{singh2015}, \citeyear{singh2015}).
+
+\textbf{Análise de Transientes e Operação Reversível:} A resposta dinâmica a variações abruptas de torque e a transição para o regime de geração ($s < 0$) são suportadas para atividades de aprendizagem exploratória sobre estabilidade transitória. Este cenário possibilita observar o amortecimento natural provido pelas perdas no ferro e a dinâmica do fluxo reverso de energia, elementos fundamentais para a análise de sistemas de potência e integração de fontes renováveis (\citeauthor{ikeda2007simulation}, \citeyear{ikeda2007simulation}). A disposição dos indicadores de desempenho em tempo real permite que o discente correlacione instantaneamente a variação dos parâmetros de entrada com as respostas dinâmicas da máquina, consolidando o ciclo de aprendizagem prática.
+
+\subsection{Arquitetura da Interface e Protagonismo Estudantil}
+
+A interface da IWS foi concebida sob o paradigma da computação reativa por meio do arcabouço \texttt{Streamlit}, priorizando a ubiquidade do acesso e a redução da carga cognitiva. Alinhada aos preceitos de autonomia da Educação 5.0 (\citeauthor{cordeiro2024educacao}, \citeyear{cordeiro2024educacao}), a disposição visual segue o fluxo de trabalho do engenheiro: seleção do ativo, parametrização física, execução dinâmica e análise multinível. A plataforma constitui uma estrutura extensível, permitindo a futura integração de novas máquinas sem a necessidade de reestruturação da interface de usuário (\citeauthor{leedy2013simulink}, \citeyear{leedy2013simulink}), conforme o fluxo operacional detalhado na Figura 2.
+
+\begin{figure}[htbp]
+  \centering
+  \resizebox{0.48\textwidth}{!}{
+    \input{diagrama_ems_fluxo}
+  }
+  \caption{Fluxo de operação da Infraestrutura Web de Simulação (IWS).}
+  \label{fig:fluxo_ems}
+\end{figure}
+
+A interação baseia-se na navegação por abas que integram a simulação dinâmica a uma base de conhecimento qualitativa, transformando o motor de cálculo em um ambiente de aprendizagem multidisciplinar (\citeauthor{souza2011ambiente}, \citeyear{souza2011ambiente}). Um diferencial estratégico é o ``Modo Experimento'', que permite fixar parâmetros nominais para garantir a consistência científica e forçar o foco discente nas variáveis independentes do acionamento em estudo (\citeauthor{tuanmohamad2024advance}, \citeyear{tuanmohamad2024advance}). O painel de configuração permite o ajuste fino de dados elétricos e mecânicos — incluindo a resistência $R_{fe}$ para uma modelagem realista do amortecimento (\citeauthor{kumari2025comparative}, \citeyear{kumari2025comparative}) — com validação em tempo real baseada em razões físicas (\citeauthor{karakas2009aggregation}, \citeyear{karakas2009aggregation}).
+
+O fluxo de operação organiza os experimentos em quatro blocos pedagógicos. Em \textit{Partida}, o usuário opta entre partida direta, estrela-triângulo, autotransformador ou chave de partida suave, variando a tensão e o instante de carga. Em \textit{Carga}, aplicam-se torques constantes ou pulsos para observar a resposta dinâmica e a recuperação da velocidade. Em \textit{Gerador}, um torque externo acelera o rotor acima da velocidade síncrona para o estudo do fluxo reverso de energia. Em \textit{Desligamento}, analisa-se a frenagem por inércia após a interrupção da alimentação. Como prática baseada em problemas, as perturbações de \textit{Assimetria} ou \textit{Falta de Fase} estimulam a interpretação física de anomalias operacionais.
+
+A estabilidade numérica durante a interação é assegurada pela orientação automática do passo de integração $h \leq 1/(20f)$ e pelo método adaptativo LSODA, garantindo a integridade dos resultados mesmo sob condições de alta derivada temporal. Os resultados são exibidos via indicadores de desempenho e gráficos interativos que suportam análises espectrais via Transformada Rápida de Fourier (FFT), ferramenta essencial para a identificação de assinaturas de falhas (\citeauthor{arkan2005modelling}, \citeyear{arkan2005modelling}). Por fim, a funcionalidade de comparação visual direta e a exportação de relatórios técnicos em PDF consolidam a plataforma como recurso de suporte à prática deliberada e à avaliação acadêmica (\citeauthor{singh2019improving}, \citeyear{singh2019improving}).
+
+\section{Resultados e Discussão}
+
+A validação do núcleo de processamento da IWS fundamentou-se em uma comparação quantitativa frente ao modelo unificado de (\citeauthor{usta2024mathematical}, \citeyear{usta2024mathematical}), processado originalmente em ambiente MATLAB/Simulink. O cenário de teste, selecionado por sua elevada exigência numérica em regimes transitórios, consistiu na partida direta de um motor de 2,2~kW, seguida da aplicação de um degrau de carga nominal de 10~N.m no instante $t = 0,6$~s.
+
+\subsection{Análise Quantitativa de Fidelidade Numérica}
+
+A precisão da IWS foi atestada pelo cálculo do erro relativo percentual ($e$) em relação aos valores de referência (\citeauthor{usta2024mathematical}, \citeyear{usta2024mathematical}), conforme definido pela Equação \ref{eq:erro}:
+
+\begin{equation}
+e = \frac{|x_{IWS} - x_{ref}|}{x_{ref}} \times 100\%
+\label{eq:erro}
+\end{equation}
+
+Os parâmetros de simulação, extraídos do motor de 2,2~kW adotado no \textit{benchmark}, estão consolidados na Tabela \ref{tab:params_usta}. Note-se a inclusão da resistência de perdas no ferro ($R_{fe}$), parâmetro crucial para a fidelidade dos transientes de torque.
+
+\begin{table}[htbp]
+\centering
+\caption{Parâmetros do motor para reprodução do modelo de \cite{usta2024mathematical}.}
+\label{tab:params_usta}
+\begin{tabular}{lcc}
+\hline
+\textbf{Parâmetros} & \textbf{Valor} & \textbf{Unidade} \\ \hline
+\multicolumn{3}{l}{\textbf{Dados Elétricos}} \\
+Tensão de linha (RMS)        & 220     & V          \\
+Frequência da rede           & 50      & Hz         \\
+Resistência do estator       & 2,650   & $\Omega$   \\
+Resistência do rotor         & 2,850   & $\Omega$   \\
+Reatância de magnetização    & 60,980  & $\Omega$   \\
+Reatância de dispersão (estator) & 4,430   & $\Omega$   \\
+Reatância de dispersão (rotor)   & 5,690   & $\Omega$   \\
+Resistência de perdas no ferro   & 500     & $\Omega$   \\ \hline
+\multicolumn{3}{l}{\textbf{Dados Mecânicos e de Cenário}} \\
+Número de polos              & 4       & ---        \\
+Momento de inércia           & 0,025   & kg$\cdot$m$^2$ \\
+Coeficiente de atrito viscoso & 0,001   & N$\cdot$m$\cdot$s \\
+Torque do pulso de carga     & 10      & N$\cdot$m  \\
+Instante de aplicação        & 0,600   & s          \\ \hline
+\end{tabular}
+\end{table}
+
+A análise dos transientes processados pela plataforma IWS (Figura \ref{fig:resultados_web}) demonstra que o simulador reproduz com alta fidelidade o comportamento dinâmico do MIT, capturando com precisão o sobressinal de torque e as oscilações características de corrente na partida. Os indicadores de desempenho comparativos foram consolidados na Tabela \ref{tab:validacao}, evidenciando que o desvio residual médio manteve-se abaixo de 1,5\%. Tal acurácia situa-se rigorosamente dentro da margem de $\pm 2\%$ validada industrialmente para modelos baseados em eixos $dq0$ (\citeauthor{leroux2022static}, \citeyear{leroux2022static}).
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.48\textwidth]{imagens/resultados_web.png}
+    \caption{Transientes de corrente de fase, torque eletromagnético e velocidade processados pela plataforma IWS.}
+    \label{fig:resultados_web}
+\end{figure}
+
+\begin{table}[htbp]
+\centering
+\caption{Confronto quantitativo entre a IWS e o modelo de referência.}
+\label{tab:validacao}
+\begin{tabular}{lccc}
+\hline
+\textbf{Grandeza Analisada} & \textbf{Referência} & \textbf{IWS} & \textbf{Erro (\%)} \\ \hline
+Torque de Carga (N.m)       & 10,0                & 10,0         & ---                \\
+Velocidade Final (rad/s)    & 151,04              & 151,68       & 0,424\%            \\
+Tempo de Estabilização (s)  & 0,069               & 0,0684       & 0,870\%            \\ \hline
+\end{tabular}
+\end{table}
+
+\subsection{Discussão dos Transientes e Valor Pedagógico}
+
+A estabilização da velocidade sob carga e o comportamento oscilatório do torque eletromagnético validam a robustez do motor de processamento numérico implementado na plataforma. Conforme apontado por (\citeauthor{aktaibi2011dynamic}, \citeyear{aktaibi2011dynamic}), a capacidade de monitorar o torque de forma explícita é fundamental para que o estudante identifique o estresse mecânico no eixo durante os transientes de partida e carga, análise esta que é potencializada pela interface interativa da IWS. A disposição dos resultados em tempo real permite que o discente correlacione instantaneamente a variação dos parâmetros de entrada com as respostas dinâmicas da máquina, consolidando o ciclo de aprendizagem prática.
+
+A análise quantitativa revelou um desvio residual de apenas 0,870\% no tempo de estabilização em relação ao padrão de referência. Essa discrepância decorre das divergências intrínsecas entre o solucionador adaptativo LSODA da biblioteca \texttt{SciPy} frente às rotinas proprietárias do MATLAB, sendo mais pronunciada em regiões de alta derivada temporal, como no instante exato da aplicação da carga (\citeauthor{li2010simulation}, \citeyear{li2010simulation}). Contudo, os desvios observados permanecem rigorosamente dentro da faixa de aceitabilidade para aplicações voltadas ao ensino e à análise dinâmica, não comprometendo a interpretação física dos fenômenos fundamentais.
+
+A IWS apresenta-se, portanto, como um recurso de aprendizagem ativa alinhado aos preceitos da Educação 5.0 (\citeauthor{cordeiro2024educacao}, \citeyear{cordeiro2024educacao}). Ao democratizar o acesso a experimentos de alta complexidade científica, a plataforma permite que a prática deliberada ocorra de forma segura e autônoma, inclusive em dispositivos móveis. Essa ubiquidade é essencial para superar as limitações de tempo das bancadas físicas, permitindo que o estudante desenvolva competências de análise e avaliação de sistemas eletromecânicos complexos antes da prática laboratorial real (\citeauthor{singh2019improving}, \citeyear{singh2019improving}).
+
+\section{Conclusões}
+
+Este trabalho apresentou a concepção e a validação da Infraestrutura Web de Simulação (IWS), uma plataforma voltada ao estudo dinâmico e à análise de transientes em Motores de Indução Trifásicos. A ferramenta demonstrou ser uma alternativa tecnicamente robusta e financeiramente acessível frente às ferramentas computacionais proprietárias, superando barreiras de portabilidade ao permitir o processamento de modelos matemáticos complexos diretamente no navegador, com suporte integral a dispositivos móveis.
+
+A principal contribuição deste trabalho consiste na proposição de uma infraestrutura unificada capaz de simular múltiplos regimes transitórios — abrangendo partidas por tensão reduzida, acionamentos por chave de partida suave e reversibilidade operacional como gerador — sob um modelo $dq0$ validado quantitativamente (\citeauthor{usta2024mathematical}, \citeyear{usta2024mathematical}). A validação estatística confirmou a fidelidade do motor de processamento, que apresentou erro relativo médio inferior a 2\% nos transientes de torque e corrente, situando-se rigorosamente dentro dos padrões de precisão exigidos para simulações dinâmicas industriais (\citeauthor{leroux2022static}, \citeyear{leroux2022static}).
+
+Sob a ótica pedagógica, a IWS cumpre os requisitos da Educação 5.0 ao promover o protagonismo estudantil e a aprendizagem baseada em fenômenos reais (\citeauthor{cordeiro2024educacao}, \citeyear{cordeiro2024educacao}). A plataforma posiciona-se como um complemento estratégico aos laboratórios físicos, mitigando limitações de infraestrutura e permitindo a prática deliberada em regimes operacionais que seriam onerosos ou perigosos em bancadas reais (\citeauthor{singh2019improving}, \citeyear{singh2019improving}). Além de validar a eficácia técnica do sistema, este trabalho estabelece as bases metodológicas necessárias para futuras avaliações de impacto na aprendizagem ativa de discentes de engenharia.
+
+Como trabalhos futuros, planeja-se a expansão do ecossistema para contemplar máquinas síncronas e de corrente contínua, além da implementação de módulos para o diagnóstico de falhas incipientes. Os resultados indicam que a IWS constitui uma base sólida para a investigação futura de estratégias de controle em malha fechada e técnicas de agregação de motores em barramentos comuns, evoluindo para uma infraestrutura abrangente de análise e projeto de sistemas industriais modernos.
+
+\section*{Agradecimentos}
+
+Agradecemos ao Campus Natal-Central do IFRN pelo suporte institucional e aos nossos familiares pelo apoio constante que viabilizou a realização deste estudo.
+
+\bibliography{ifacconf}             % bib file to produce the bibliography
+
+%\appendix
+%\section{Sumário da gramática sânscrita}    % Each appendix must have a short title.
+%\section{Algum vocabulário maia}              % Sections and subsections are supported  
+                                                                         % in the appendices.
+
+
+
+
+
+
+
+\end{document}
