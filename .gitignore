@@ -1,6 +1,7 @@
 .claude/
 ignore/
 docs/
+artigo/
 *.bat
 *.txt
 !requirements.txt
