@@ -486,12 +486,12 @@ def generate_pdf_report(exp_label: str, mp: MachineParams, res: dict,
         section_title(pdf, "Destaques do Experimento")
 
         def _kpis():
-            ias_pk_  = float(np.max(np.abs(b_res["ias"])))
-            Te_max_  = float(np.max(b_res["Te"]))
+            ias_pk_  = b_res.get("ias_pk",  float(np.max(np.abs(b_res["ias"]))))
+            Te_max_  = b_res.get("Te_max",  float(np.max(b_res["Te"])))
             n_ss_    = b_res["n_ss"]
             ias_rms_ = b_res["ias_rms"]
             s_val_   = b_res.get("s", 0.0)
-            fator_   = ias_pk_ / ias_rms_ if ias_rms_ > 0 else 0.0
+            fator_   = b_res.get("fator_pk", ias_pk_ / ias_rms_ if ias_rms_ > 0 else 0.0)
             _dol_em_vazio_pdf = b_exp_type == "dol" and bool(b_t_events)
             if _dol_em_vazio_pdf:
                 n_v_ = float(np.mean(b_res["n"][:max(1, len(b_res["n"])//5)]))

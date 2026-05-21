@@ -386,11 +386,17 @@ def _compute_steady_state(arr: dict, mp: MachineParams) -> dict:
         P_out = max(0.0, abs(P_gap) - P_cu_s - P_fe)
     eta = (P_out / P_in * 100.0) if P_in > 0 else 0.0
 
+    ias_pk  = float(np.max(np.abs(arr["ias"])))
+    Te_max  = float(np.max(arr["Te"]))
+    ias_rms = out.get("ias_rms", 1.0)
+    fator_pk = ias_pk / ias_rms if ias_rms > 0 else 0.0
+
     out.update({
         "P_gap": P_gap,   "P_cu_r": P_cu_r, "P_mec": P_mec,
         "P_cu_s": P_cu_s, "P_fe": P_fe,
         "P_in":  P_in,    "P_out": P_out,   "eta": eta,
         "s": s,  "n_ss": n_med,  "wr_ss": wr_med,  "Te_ss": Te_med,
         "_ss_start": ss_start,
+        "ias_pk": ias_pk, "Te_max": Te_max, "fator_pk": fator_pk,
     })
     return out

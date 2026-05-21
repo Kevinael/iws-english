@@ -86,12 +86,12 @@ def _kpis_destaque(
     t_events: list | None = None,
 ) -> list[tuple]:
     """Retorna lista de (label, valor, unidade) com KPIs prioritários por experimento."""
-    ias_pk  = float(np.max(np.abs(res["ias"])))
-    Te_max  = float(np.max(res["Te"]))
-    n_ss    = res["n_ss"]
-    ias_rms = res["ias_rms"]
-    s_val   = res.get("s", 0.0)
-    fator_pk = ias_pk / ias_rms if ias_rms > 0 else 0.0
+    ias_pk   = res.get("ias_pk",  float(np.max(np.abs(res["ias"]))))
+    Te_max   = res.get("Te_max",  float(np.max(res["Te"])))
+    n_ss     = res["n_ss"]
+    ias_rms  = res["ias_rms"]
+    s_val    = res.get("s", 0.0)
+    fator_pk = res.get("fator_pk", ias_pk / ias_rms if ias_rms > 0 else 0.0)
 
     # DOL com partida em vazio: exibe KPIs de afundamento de velocidade ao aplicar carga
     _dol_em_vazio = exp_type == "dol" and bool(t_events)
