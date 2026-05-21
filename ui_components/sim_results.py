@@ -100,9 +100,10 @@ def _kpis_destaque(
         _tevs_c    = t_events or []
         t_carga_ev = _tevs_c[0] if _tevs_c else 0.0
         idx_tc     = max(int(np.searchsorted(res["t"], t_carga_ev)), 1)
-        n_antes    = float(np.mean(res["n"][:idx_tc]))
+        _w         = max(1, idx_tc // 5)          # últimos 20% do trecho pré-carga
+        n_antes    = float(np.mean(res["n"][idx_tc - _w:idx_tc]))
         delta_n    = n_antes - n_ss
-        delta_i    = ias_rms - float(np.sqrt(np.mean(res["ias"][:idx_tc]**2)))
+        delta_i    = abs(ias_rms - float(np.sqrt(np.mean(res["ias"][idx_tc - _w:idx_tc]**2))))
         lbl_delta  = "Afundamento de Velocidade" if delta_n >= 0 else "Elevação de Velocidade"
         items = [
             ("Corrente de Pico $i_{as}$",        f"{ias_pk:.{d}f}",       "A"),
@@ -148,8 +149,9 @@ def _kpis_destaque(
     elif exp_type == "voltage_sag":
         _tevs  = t_events or []
         # t_end do sag é o último evento registrado (t_sag, t_end)
-        t_sag_start = _tevs[0] if len(_tevs) >= 1 else 0.0
-        t_sag_end   = _tevs[1] if len(_tevs) >= 2 else (t_sag_start + 0.1)
+        # t_events = sorted [tc?, t_sag, t_end] — sag always last two entries
+        t_sag_start = _tevs[-2] if len(_tevs) >= 2 else (_tevs[0] if _tevs else 0.0)
+        t_sag_end   = _tevs[-1] if len(_tevs) >= 1 else (t_sag_start + 0.1)
         t_arr       = np.asarray(res["t"])
         idx_sag     = int(np.searchsorted(t_arr, t_sag_start))
         idx_rec     = int(np.searchsorted(t_arr, t_sag_end))
@@ -157,7 +159,9 @@ def _kpis_destaque(
         # profundidade do afundamento: tensão de linha durante o sag
         Vqs_sag = np.asarray(res["Vqs"])
         Vds_sag = np.asarray(res["Vds"])
-        Va_pre  = float(np.sqrt(np.mean(Vqs_sag[:max(1,idx_sag)]**2 + Vds_sag[:max(1,idx_sag)]**2))) if idx_sag > 0 else 1.0
+        _idx_pre = max(1, idx_sag)
+        Va_pre   = float(np.sqrt(np.mean(Vqs_sag[:_idx_pre]**2 + Vds_sag[:_idx_pre]**2)))
+        Va_pre   = Va_pre if Va_pre > 0 else 1.0
         Va_dur  = float(np.sqrt(np.mean(Vqs_sag[idx_sag:idx_rec]**2 + Vds_sag[idx_sag:idx_rec]**2))) if idx_rec > idx_sag else Va_pre
         depth_pct = (1.0 - Va_dur / Va_pre) * 100.0 if Va_pre > 0 else 0.0
 
@@ -184,11 +188,14 @@ def _kpis_destaque(
         t_cut   = _tevs[1] if len(_tevs) > 1 else (_tevs[0] if _tevs else 0.0)
         t_arr   = res["t"]
         idx_cut = int(np.searchsorted(t_arr, t_cut))
-        w0      = max(1, idx_cut - max(1, idx_cut // 20))
+        _win_sz = max(1, idx_cut // 20)
+        w0      = max(0, idx_cut - _win_sz)
         n_pre   = float(np.mean(res["n"][w0:idx_cut])) if idx_cut > 0 else 0.0
         n_final = float(np.mean(res["n"][-max(1, len(res["n"]) // 10):]))
         thresh  = 0.01 * n_pre if n_pre > 0 else 1.0
-        stop_idx = int(np.searchsorted(np.abs(res["n"][idx_cut:]), thresh, side="right"))
+        _n_abs   = np.abs(np.asarray(res["n"][idx_cut:]))
+        _below   = np.where(_n_abs <= thresh)[0]
+        stop_idx = int(_below[0]) if len(_below) > 0 else len(_n_abs) - 1
         t_stop  = float(t_arr[idx_cut + stop_idx]) if stop_idx < len(t_arr) - idx_cut else float(t_arr[-1])
         items = [
             ("Velocidade pré-desligamento", f"{n_pre:.{d}f}",  "RPM"),
