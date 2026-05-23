@@ -351,51 +351,42 @@ def render_zonas_operacao() -> None:
     st.plotly_chart(fig, width="stretch", config={"displaylogo": False})
 
     # Diagrama vetorial animado
-    _render_diagrama_vetorial(zona, dark)
+    _render_diagrama_vetorial(zona, dark, ns)
 
 
-@st.cache_data(show_spinner=False)
-def _build_fig_vetorial(zona: str, dark: bool) -> tuple[go.Figure, str]:
-    """Diagrama vetorial animado (Plotly frames) — campo girante vs. rotor."""
-    from math import gcd
+def _build_fig_vetorial(zona: str, dark: bool, s_val: float) -> tuple[go.Figure, str]:
+    """Diagrama vetorial animado (Plotly frames) — campo girante vs. rotor.
 
+    θs gira 0..2π em N frames (1 volta do campo).
+    θm = θs − s·2π: separação angular fixa Δθ = s·360° em todos os frames.
+    Motor: rotor atrás do campo. Gerador: rotor à frente. Frenagem: sentido oposto.
+    """
     if zona.startswith("Motor"):
-        wr_frac   = 0.75
         col_rotor = "#4f8ef7" if dark else "#1d4ed8"
-        titulo    = "Motor — ωm < ωs"
-        desc      = "O campo girante puxa o rotor. Torque no mesmo sentido do movimento."
+        titulo    = f"Motor — ωm < ωs  (s = {s_val:.0%})"
+        desc      = f"Campo puxa o rotor. Separação fixa Δθ = {s_val*360:.0f}°. Torque no sentido do movimento."
     elif zona.startswith("Gerador"):
-        wr_frac   = 1.25
         col_rotor = "#34d399" if dark else "#059669"
-        titulo    = "Gerador — ωm > ωs"
-        desc      = "O rotor ultrapassa o campo. Torque opõe-se ao movimento — geração."
+        titulo    = f"Gerador — ωm > ωs  (s = {s_val:.0%})"
+        desc      = f"Rotor à frente do campo em {abs(s_val)*360:.0f}°. Torque opõe-se ao movimento — geração."
     else:
-        wr_frac   = -0.50
         col_rotor = "#f87171" if dark else "#dc2626"
-        titulo    = "Frenagem — ωm < 0 (sentido inverso)"
-        desc      = "Rotor gira ao contrário do campo. Energia cinética + elétrica viram calor."
+        titulo    = f"Frenagem — ωm < 0  (s = {s_val:.2f})"
+        desc      = "Rotor gira no sentido contrário ao campo. Energia cinética + elétrica viram calor."
 
     bg_hex   = "#151a24" if dark else "#ffffff"
     fg_hex   = "#e5e7eb" if dark else "#111111"
     grid_hex = "#2a2a3a" if dark else "#cccccc"
 
-    _STEPS_PER_REV = 48
-    _MAX_REVS      = 6
-    best_p, best_q = 1, 1
-    best_err = abs(wr_frac - 1.0)
-    for q in range(1, 21):
-        p = round(wr_frac * q)
-        if p == 0:
-            continue
-        err = abs(wr_frac - p / q)
-        if err < best_err:
-            best_err, best_p, best_q = err, abs(p), q
-    g = gcd(best_p, best_q)
-    n_revs_s = min(best_q // g, _MAX_REVS)
+    # ── janela de animação: 1 ciclo completo do campo (N frames) ──────────────
+    N       = 72   # 72 frames = 5°/frame por volta do campo
+    theta_s = np.linspace(0.0, 2.0 * np.pi, N, endpoint=False)
+    # defasagem fixa em radianos (positiva = rotor atrás do campo)
+    delta_rad = s_val * 2.0 * np.pi
+    theta_m   = theta_s - delta_rad
 
-    N       = _STEPS_PER_REV * n_revs_s
-    theta_s = np.linspace(0, 2 * np.pi * n_revs_s, N, endpoint=False)
-    theta_m = theta_s * wr_frac
+    # ângulo de separação angular para anotação
+    delta_deg = abs(s_val) * 360.0
 
     circ = np.linspace(0, 2 * np.pi, 120)
 
@@ -431,6 +422,14 @@ def _build_fig_vetorial(zona: str, dark: bool) -> tuple[go.Figure, str]:
                     angleref="previous"),
         name="ωm (rotor)",
     ))
+    # Anotação de separação angular (estática)
+    fig.add_trace(go.Scatter(
+        x=[0], y=[-1.35],
+        mode="text",
+        text=[f"Δθ = {delta_deg:.0f}°  (s = {s_val:+.0%})"],
+        textfont=dict(size=10, color=col_rotor),
+        showlegend=False, hoverinfo="skip",
+    ))
 
     frames = []
     for i in range(N):
@@ -440,19 +439,20 @@ def _build_fig_vetorial(zona: str, dark: bool) -> tuple[go.Figure, str]:
                 go.Scatter(x=[0], y=[0]),
                 go.Scatter(x=[0, np.cos(theta_s[i])], y=[0, np.sin(theta_s[i])]),
                 go.Scatter(x=[0, np.cos(theta_m[i])], y=[0, np.sin(theta_m[i])]),
+                go.Scatter(x=[0], y=[-1.35]),
             ],
             name=str(i),
         ))
     fig.frames = frames
 
     fig.update_layout(
-        width=320, height=340,
+        width=320, height=360,
         paper_bgcolor=bg_hex, plot_bgcolor=bg_hex,
         title=dict(text=titulo, x=0.5, xanchor="center",
                    font=dict(size=11, color=fg_hex)),
-        xaxis=dict(range=[-1.5, 1.5], showgrid=False, zeroline=False,
+        xaxis=dict(range=[-1.6, 1.6], showgrid=False, zeroline=False,
                    showticklabels=False, scaleanchor="y"),
-        yaxis=dict(range=[-1.5, 1.5], showgrid=False, zeroline=False,
+        yaxis=dict(range=[-1.6, 1.6], showgrid=False, zeroline=False,
                    showticklabels=False),
         margin=dict(l=10, r=10, t=40, b=60),
         font=dict(color=fg_hex),
@@ -479,8 +479,22 @@ def _build_fig_vetorial(zona: str, dark: bool) -> tuple[go.Figure, str]:
     return fig, desc
 
 
-def _render_diagrama_vetorial(zona: str, dark: bool) -> None:
-    fig, desc = _build_fig_vetorial(zona, dark)
+@st.fragment
+def _render_diagrama_vetorial(zona: str, dark: bool, ns: float) -> None:
+    if zona.startswith("Motor"):
+        s_val = st.slider("Escorregamento s", 0.01, 0.99, 0.05, step=0.01,
+                          format="%.2f", key="_vetorial_s_motor")
+    elif zona.startswith("Gerador"):
+        s_val = st.slider("Escorregamento s", -0.99, -0.01, -0.05, step=0.01,
+                          format="%.2f", key="_vetorial_s_gen")
+    else:
+        s_val = st.slider("Escorregamento s", 1.01, 2.50, 1.50, step=0.01,
+                          format="%.2f", key="_vetorial_s_brake")
+
+    wr_rpm = ns * (1.0 - s_val)
+    st.caption(f"ωm = {wr_rpm:.0f} RPM  |  ωs = {ns:.0f} RPM  |  Δn = {wr_rpm - ns:.0f} RPM")
+
+    fig, desc = _build_fig_vetorial(zona, dark, s_val)
     st.plotly_chart(fig, config={"displaylogo": False}, use_container_width=False)
     st.caption(desc)
 
@@ -1390,7 +1404,7 @@ def render_fasorial_desequilibrio() -> None:
         ativa_a = st.checkbox("Ativa", value=True, key="_fdeseq_ativa_a")
         delta_a = st.slider("Amplitude δ (%)", -30, 30, 0, key="_fdeseq_da",
                              disabled=not ativa_a, format="%+d%%")
-        freq_a  = st.slider("Frequência (Hz)", f0 - 10.0, f0 + 10.0, f0,
+        freq_a  = st.slider("Frequência (Hz)", 50.0, 70.0, float(np.clip(f0, 50.0, 70.0)),
                              key="_fdeseq_fa", step=0.5, disabled=not ativa_a,
                              format="%.1f Hz")
 
@@ -1400,7 +1414,7 @@ def render_fasorial_desequilibrio() -> None:
         ativa_b = st.checkbox("Ativa", value=True, key="_fdeseq_ativa_b")
         delta_b = st.slider("Amplitude δ (%)", -30, 30, 0, key="_fdeseq_db",
                              disabled=not ativa_b, format="%+d%%")
-        freq_b  = st.slider("Frequência (Hz)", f0 - 10.0, f0 + 10.0, f0,
+        freq_b  = st.slider("Frequência (Hz)", 50.0, 70.0, float(np.clip(f0, 50.0, 70.0)),
                              key="_fdeseq_fb", step=0.5, disabled=not ativa_b,
                              format="%.1f Hz")
 
@@ -1410,7 +1424,7 @@ def render_fasorial_desequilibrio() -> None:
         ativa_c = st.checkbox("Ativa", value=True, key="_fdeseq_ativa_c")
         delta_c = st.slider("Amplitude δ (%)", -30, 30, 0, key="_fdeseq_dc",
                              disabled=not ativa_c, format="%+d%%")
-        freq_c  = st.slider("Frequência (Hz)", f0 - 10.0, f0 + 10.0, f0,
+        freq_c  = st.slider("Frequência (Hz)", 50.0, 70.0, float(np.clip(f0, 50.0, 70.0)),
                              key="_fdeseq_fc", step=0.5, disabled=not ativa_c,
                              format="%.1f Hz")
 
@@ -1655,6 +1669,7 @@ def render_fasorial_desequilibrio() -> None:
   var wIdx    = {json.dumps(wave_anim_idx)};
   var fIdx    = {json.dumps(fas_anim_idx)};
   var T0real  = {T_loop_ms:.4f};   // janela de loop em ms (k·T0, fecha todas as fases)
+  var kBest   = {k_best};          // nº de ciclos nominais no loop
   var tMax    = {t_ms_max:.4f}; // duração do eixo X em ms (== T0real)
   var yMax    = {y_max_wave * 1.25:.4f};
   var PI2      = 2 * Math.PI;
@@ -1677,10 +1692,10 @@ def render_fasorial_desequilibrio() -> None:
 
   function tick(ts){{
     if (!startTs) startTs = ts;
-    var T0ms  = cycleSec * 1000;                 // duração visual de 1 ciclo em ms
-    var frac  = ((ts - startTs) % T0ms) / T0ms;  // fração 0..1 dentro do ciclo visual
-    var tx    = frac * tMax;                     // ms dentro do ciclo para o cursor (fecha em tMax)
-    var tNorm = frac * T0real / 1000;            // segundos: 0..T0real/1000 (1 ciclo real)
+    var T0ms  = cycleSec * 1000 * kBest;         // duração visual do loop completo (k ciclos nominais)
+    var frac  = ((ts - startTs) % T0ms) / T0ms;  // fração 0..1 dentro do loop visual
+    var tx    = frac * tMax;                     // ms dentro do loop para o cursor (fecha em tMax)
+    var tNorm = frac * T0real / 1000;            // segundos: 0..T0real/1000 (loop completo)
 
     // ── VUF instantâneo via Fortescue ────────────────────────────────────────
     // fasores complexos em tNorm
