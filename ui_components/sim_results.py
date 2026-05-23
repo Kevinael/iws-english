@@ -1014,6 +1014,7 @@ def render_results(
                     load_torque=_load_torq,
                     tmax=_tmax_diag,
                     exp_type=exp_type,
+                    exp_config=_cfg,
                 )
                 if not _insights:
                     st.info(
