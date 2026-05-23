@@ -354,13 +354,26 @@ def render_zonas_operacao() -> None:
     _render_diagrama_vetorial(zona, dark, ns)
 
 
-def _build_fig_vetorial(zona: str, dark: bool, s_val: float) -> tuple[go.Figure, str]:
-    """Diagrama vetorial animado (Plotly frames) — campo girante vs. rotor.
+@st.fragment
+def _render_diagrama_vetorial(zona: str, dark: bool, ns: float) -> None:
+    """Diagrama vetorial animado via requestAnimationFrame em iframe HTML.
 
-    θs gira 0..2π em N frames (1 volta do campo).
-    θm = θs − s·2π: separação angular fixa Δθ = s·360° em todos os frames.
-    Motor: rotor atrás do campo. Gerador: rotor à frente. Frenagem: sentido oposto.
+    θs gira continuamente. θm = θs − s·2π (defasagem fixa).
+    Sem botões play/pause — animação inicia automaticamente.
     """
+    if zona.startswith("Motor"):
+        s_val = st.slider("Escorregamento s", 0.01, 0.99, 0.05, step=0.01,
+                          format="%.2f", key="_vetorial_s_motor")
+    elif zona.startswith("Gerador"):
+        s_val = st.slider("Escorregamento s", -0.99, -0.01, -0.05, step=0.01,
+                          format="%.2f", key="_vetorial_s_gen")
+    else:
+        s_val = st.slider("Escorregamento s", 1.01, 2.50, 1.50, step=0.01,
+                          format="%.2f", key="_vetorial_s_brake")
+
+    wr_rpm = ns * (1.0 - s_val)
+    st.caption(f"ωm = {wr_rpm:.0f} RPM  |  ωs = {ns:.0f} RPM  |  Δn = {wr_rpm - ns:.0f} RPM")
+
     if zona.startswith("Motor"):
         col_rotor = "#4f8ef7" if dark else "#1d4ed8"
         titulo    = f"Motor — ωm < ωs  (s = {s_val:.0%})"
@@ -377,125 +390,105 @@ def _build_fig_vetorial(zona: str, dark: bool, s_val: float) -> tuple[go.Figure,
     bg_hex   = "#151a24" if dark else "#ffffff"
     fg_hex   = "#e5e7eb" if dark else "#111111"
     grid_hex = "#2a2a3a" if dark else "#cccccc"
-
-    # ── janela de animação: 1 ciclo completo do campo (N frames) ──────────────
-    N       = 72   # 72 frames = 5°/frame por volta do campo
-    theta_s = np.linspace(0.0, 2.0 * np.pi, N, endpoint=False)
-    # defasagem fixa em radianos (positiva = rotor atrás do campo)
-    delta_rad = s_val * 2.0 * np.pi
-    theta_m   = theta_s - delta_rad
-
-    # ângulo de separação angular para anotação
     delta_deg = abs(s_val) * 360.0
 
-    circ = np.linspace(0, 2 * np.pi, 120)
+    # ciclo visual: 1 volta do campo em 3 segundos
+    cycle_ms = 3000.0
 
-    fig = go.Figure()
+    html_src = f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<style>
+  * {{ box-sizing:border-box; margin:0; padding:0; }}
+  body {{ background:{bg_hex}; display:flex; justify-content:center; }}
+  #gv {{ width:320px; height:360px; }}
+</style>
+</head><body>
+<div id="gv"></div>
+<script>
+(function(){{
+  var PI2      = 2 * Math.PI;
+  var sVal     = {s_val:.6f};
+  var cycleMs  = {cycle_ms:.1f};
+  var colRotor = "{col_rotor}";
+  var colField = "{fg_hex}";
+  var colGrid  = "{grid_hex}";
+  var colBg    = "{bg_hex}";
+  var deltaLbl = "{delta_deg:.0f}°  (s = {s_val:+.2f})";
+  var titulo   = "{titulo}";
 
-    # Círculo de referência (estático)
-    fig.add_trace(go.Scatter(
-        x=np.cos(circ), y=np.sin(circ),
-        mode="lines", line=dict(color=grid_hex, width=1, dash="dot"),
-        showlegend=False, hoverinfo="skip",
-    ))
-    # Centro
-    fig.add_trace(go.Scatter(
-        x=[0], y=[0], mode="markers",
-        marker=dict(color=fg_hex, size=6),
-        showlegend=False, hoverinfo="skip",
-    ))
-    # Vetor campo (estator) — trace 2
-    fig.add_trace(go.Scatter(
-        x=[0, np.cos(theta_s[0])], y=[0, np.sin(theta_s[0])],
-        mode="lines+markers",
-        line=dict(color=fg_hex, width=3),
-        marker=dict(size=[0, 10], color=fg_hex, symbol=["circle", "arrow"],
-                    angleref="previous"),
-        name="ωs (campo)",
-    ))
-    # Vetor rotor — trace 3
-    fig.add_trace(go.Scatter(
-        x=[0, np.cos(theta_m[0])], y=[0, np.sin(theta_m[0])],
-        mode="lines+markers",
-        line=dict(color=col_rotor, width=3, dash="dash"),
-        marker=dict(size=[0, 10], color=col_rotor, symbol=["circle", "arrow"],
-                    angleref="previous"),
-        name="ωm (rotor)",
-    ))
-    # Anotação de separação angular (estática)
-    fig.add_trace(go.Scatter(
-        x=[0], y=[-1.35],
-        mode="text",
-        text=[f"Δθ = {delta_deg:.0f}°  (s = {s_val:+.0%})"],
-        textfont=dict(size=10, color=col_rotor),
-        showlegend=False, hoverinfo="skip",
-    ))
+  // círculo de referência
+  var N = 120;
+  var cx = [], cy = [];
+  for (var i = 0; i <= N; i++) {{
+    cx.push(Math.cos(PI2 * i / N));
+    cy.push(Math.sin(PI2 * i / N));
+  }}
 
-    frames = []
-    for i in range(N):
-        frames.append(go.Frame(
-            data=[
-                go.Scatter(x=np.cos(circ), y=np.sin(circ)),
-                go.Scatter(x=[0], y=[0]),
-                go.Scatter(x=[0, np.cos(theta_s[i])], y=[0, np.sin(theta_s[i])]),
-                go.Scatter(x=[0, np.cos(theta_m[i])], y=[0, np.sin(theta_m[i])]),
-                go.Scatter(x=[0], y=[-1.35]),
-            ],
-            name=str(i),
-        ))
-    fig.frames = frames
+  var data = [
+    // trace 0: círculo
+    {{ x: cx, y: cy, mode:"lines", line:{{color:colGrid, width:1, dash:"dot"}},
+      showlegend:false, hoverinfo:"skip" }},
+    // trace 1: centro
+    {{ x:[0], y:[0], mode:"markers", marker:{{color:colField, size:6}},
+      showlegend:false, hoverinfo:"skip" }},
+    // trace 2: vetor campo (estator)
+    {{ x:[0,1], y:[0,0], mode:"lines+markers",
+      line:{{color:colField, width:3}},
+      marker:{{size:[0,10], color:colField}},
+      name:"ωs (campo)" }},
+    // trace 3: vetor rotor
+    {{ x:[0,1], y:[0,0], mode:"lines+markers",
+      line:{{color:colRotor, width:3, dash:"dash"}},
+      marker:{{size:[0,10], color:colRotor}},
+      name:"ωm (rotor)" }},
+    // trace 4: anotação Δθ
+    {{ x:[0], y:[-1.35], mode:"text",
+      text:["Δθ = " + deltaLbl],
+      textfont:{{size:10, color:colRotor}},
+      showlegend:false, hoverinfo:"skip" }},
+  ];
 
-    fig.update_layout(
-        width=320, height=360,
-        paper_bgcolor=bg_hex, plot_bgcolor=bg_hex,
-        title=dict(text=titulo, x=0.5, xanchor="center",
-                   font=dict(size=11, color=fg_hex)),
-        xaxis=dict(range=[-1.6, 1.6], showgrid=False, zeroline=False,
-                   showticklabels=False, scaleanchor="y"),
-        yaxis=dict(range=[-1.6, 1.6], showgrid=False, zeroline=False,
-                   showticklabels=False),
-        margin=dict(l=10, r=10, t=40, b=60),
-        font=dict(color=fg_hex),
-        legend=dict(orientation="h", x=0.5, xanchor="center", y=-0.08,
-                    font=dict(size=10, color=fg_hex), bgcolor="rgba(0,0,0,0)"),
-        updatemenus=[dict(
-            type="buttons", showactive=False,
-            x=0.5, xanchor="center", y=-0.22,
-            buttons=[
-                dict(label="▶ Play",
-                     method="animate",
-                     args=[None, dict(frame=dict(duration=60, redraw=True),
-                                      fromcurrent=True, mode="immediate")]),
-                dict(label="⏸ Pausar",
-                     method="animate",
-                     args=[[None], dict(frame=dict(duration=0, redraw=False),
-                                        mode="immediate")]),
-            ],
-            font=dict(color=fg_hex),
-            bgcolor=bg_hex,
-            bordercolor=grid_hex,
-        )],
-    )
-    return fig, desc
+  var layout = {{
+    width:320, height:360,
+    paper_bgcolor:colBg, plot_bgcolor:colBg,
+    title:{{text:titulo, x:0.5, xanchor:"center",
+            font:{{size:11, color:colField}}}},
+    xaxis:{{range:[-1.6,1.6], showgrid:false, zeroline:false, showticklabels:false,
+             scaleanchor:"y"}},
+    yaxis:{{range:[-1.6,1.6], showgrid:false, zeroline:false, showticklabels:false}},
+    margin:{{l:10, r:10, t:40, b:30}},
+    font:{{color:colField}},
+    legend:{{orientation:"h", x:0.5, xanchor:"center", y:-0.08,
+             font:{{size:10, color:colField}}, bgcolor:"rgba(0,0,0,0)"}},
+  }};
 
+  var cfg = {{displaylogo:false, staticPlot:false, responsive:false}};
+  var startTs = null;
+  var gv;
 
-@st.fragment
-def _render_diagrama_vetorial(zona: str, dark: bool, ns: float) -> None:
-    if zona.startswith("Motor"):
-        s_val = st.slider("Escorregamento s", 0.01, 0.99, 0.05, step=0.01,
-                          format="%.2f", key="_vetorial_s_motor")
-    elif zona.startswith("Gerador"):
-        s_val = st.slider("Escorregamento s", -0.99, -0.01, -0.05, step=0.01,
-                          format="%.2f", key="_vetorial_s_gen")
-    else:
-        s_val = st.slider("Escorregamento s", 1.01, 2.50, 1.50, step=0.01,
-                          format="%.2f", key="_vetorial_s_brake")
+  Plotly.newPlot('gv', data, layout, cfg).then(function(div){{
+    gv = div;
+    requestAnimationFrame(tick);
+  }});
 
-    wr_rpm = ns * (1.0 - s_val)
-    st.caption(f"ωm = {wr_rpm:.0f} RPM  |  ωs = {ns:.0f} RPM  |  Δn = {wr_rpm - ns:.0f} RPM")
+  function tick(ts) {{
+    if (!startTs) startTs = ts;
+    var frac  = ((ts - startTs) % cycleMs) / cycleMs;
+    var theta = frac * PI2;
+    var thetaM = theta - sVal * PI2;
+    Plotly.restyle(gv,
+      {{ x: [[0, Math.cos(theta)],  [0, Math.cos(thetaM)]],
+         y: [[0, Math.sin(theta)],  [0, Math.sin(thetaM)]] }},
+      [2, 3]
+    );
+    requestAnimationFrame(tick);
+  }}
+}})();
+</script>
+</body></html>"""
 
-    fig, desc = _build_fig_vetorial(zona, dark, s_val)
-    st.plotly_chart(fig, config={"displaylogo": False}, use_container_width=False)
+    st.iframe(html_src, height=370)
     st.caption(desc)
 
 
@@ -875,7 +868,7 @@ def render_park_dinamico() -> None:
         ref_key = "ab"
 
     fig, desc = _build_fig_park(ref_key, dark)
-    st.plotly_chart(fig, config={"displaylogo": False}, use_container_width=True)
+    st.plotly_chart(fig, config={"displaylogo": False}, width="stretch")
     st.caption(desc)
 
 
