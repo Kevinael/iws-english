@@ -236,6 +236,102 @@ def _cell_rich(pdf, text: str, w: float, h: float, main_size: int = 9,
 # Cálculos das seções extras
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _compute_trip_class(res: dict, mp: MachineParams) -> dict | None:
+    """Calcula Trip Class IEC 60947-4-1 / NEMA ICS 2."""
+    try:
+        n_arr  = np.asarray(res.get("n", []), dtype=float)
+        t_arr  = np.asarray(res.get("t", []), dtype=float)
+        n_sync = mp.f / mp.p * 60.0
+        thresh = 0.95 * n_sync
+        above  = np.where(n_arr >= thresh)[0]
+        if len(above) == 0:
+            return None
+        t_accel = float(t_arr[int(above[0])])
+        if t_accel < 10.0:
+            cls, status = 10, "OK"
+        elif t_accel < 20.0:
+            cls, status = 20, "ATENCAO"
+        else:
+            cls, status = 30, "CRITICO"
+        return {"class": cls, "t_accel": t_accel, "status": status, "n_sync": n_sync}
+    except Exception:
+        return None
+
+
+def _compute_thd_harmonics(res: dict, mp: MachineParams) -> list[tuple]:
+    """Retorna lista de (ordem, frequência, amplitude, relativa%) até a 9a harmônica."""
+    rows = []
+    try:
+        ss   = int(res.get("_ss_start", 0))
+        ias  = np.asarray(res["ias"][ss:], dtype=float)
+        t_ss = np.asarray(res["t"][ss:], dtype=float)
+        if len(ias) < 16:
+            return rows
+        dt   = float(t_ss[1] - t_ss[0]) if len(t_ss) > 1 else 1e-4
+        N    = len(ias)
+        spec = np.abs(np.fft.rfft(ias)) * 2.0 / N
+        freq = np.fft.rfftfreq(N, d=dt)
+        mask_f1 = (freq > 0.5 * mp.f) & (freq < 1.5 * mp.f)
+        if not mask_f1.any():
+            return rows
+        A1 = float(spec[mask_f1].max())
+        if A1 <= 0:
+            return rows
+        for k in range(1, 10):
+            f_k  = mp.f * k
+            mask = (freq > f_k * 0.85) & (freq < f_k * 1.15)
+            if not mask.any():
+                continue
+            Ak  = float(spec[mask].max())
+            rows.append((k, f_k, Ak, Ak / A1 * 100.0))
+    except Exception:
+        pass
+    return rows
+
+
+def _compute_energy_v2(res: dict, mp: MachineParams, tarifa: float) -> dict:
+    """Calcula THD total, FP e métricas econômicas para o PDF v2."""
+    t   = np.asarray(res.get("t",   []), dtype=float)
+    Vqs = np.asarray(res.get("Vqs", []), dtype=float)
+    Vds = np.asarray(res.get("Vds", []), dtype=float)
+    iqs = np.asarray(res.get("iqs", []), dtype=float)
+    ids = np.asarray(res.get("ids", []), dtype=float)
+    P_in_inst = (3.0 / 2.0) * (Vqs * iqs + Vds * ids)
+    E_j    = float(np.trapezoid(np.where(np.isfinite(P_in_inst), P_in_inst, 0.0), t)) if len(t) > 1 else 0.0
+    E_kwh  = E_j / 3_600_000.0
+    P_in   = float(res.get("P_in", 0.0))
+    thd    = 0.0
+    fp     = 0.0
+    try:
+        ss   = int(res.get("_ss_start", 0))
+        ias  = np.asarray(res["ias"][ss:], dtype=float)
+        t_ss = t[ss:]
+        if len(ias) >= 16:
+            dt   = float(t_ss[1] - t_ss[0]) if len(t_ss) > 1 else 1e-4
+            N    = len(ias)
+            spec = np.abs(np.fft.rfft(ias)) / N
+            frq  = np.fft.rfftfreq(N, d=dt)
+            mf1  = (frq > 0.5 * mp.f) & (frq < 1.5 * mp.f)
+            if mf1.any():
+                A1     = float(spec[mf1].max())
+                A_harm = spec[frq > 1.5 * mp.f]
+                if A1 > 0 and len(A_harm) > 0:
+                    thd = float(np.sqrt(np.sum(A_harm**2)) / A1 * 100.0)
+        Vqs_ss = Vqs[ss:]; Vds_ss = Vds[ss:]
+        Va_rms = float(np.sqrt(np.mean(Vqs_ss**2 + Vds_ss**2))) / np.sqrt(2.0) if len(Vqs_ss) > 0 else 0.0
+        ias_rms = float(res.get("ias_rms", 0.0))
+        S_ap = 3.0 * Va_rms * ias_rms
+        if S_ap > 0 and np.isfinite(P_in):
+            fp = float(np.clip(abs(P_in) / S_ap, 0.0, 1.0))
+    except Exception:
+        pass
+    custo_exp = E_kwh * tarifa
+    custo_ano = (P_in / 1000.0) * 8_760.0 * tarifa
+    return {"E_kwh": E_kwh, "custo_exp": custo_exp,
+            "P_in_kw": P_in / 1000.0, "custo_ano": custo_ano,
+            "eta": float(res.get("eta", 0.0)), "thd": thd, "fp": fp}
+
+
 def _compute_losses(res: dict, mp: MachineParams) -> dict:
     P_in   = float(res.get("P_in",    0.0))
     P_gap  = float(res.get("P_gap",   0.0))
@@ -525,6 +621,7 @@ def _generate_academico(
     var_keys: list, var_labels: list, t_events: list,
     exp_type: str, energy_tariff: float,
     losses: dict, integrator: dict, broken_bar: dict | None,
+    insights: list | None = None, load_torque: float = 0.0,
 ) -> None:
     import datetime
 
@@ -760,6 +857,91 @@ def _generate_academico(
     else:
         sec_num = "6."
 
+    # ── Qualidade de Energia (THD + FP + Econômica) ───────────────────────
+    if exp_type != "shutdown":
+        _em = _compute_energy_v2(res, mp, energy_tariff)
+        QE_MIN = 60
+        if (pdf.h - pdf.b_margin) - pdf.get_y() < QE_MIN:
+            pdf.add_page()
+        sec(f"Qualidade de Energia e Análise Econômica", sec_num)
+        _thd_status = "OK (< 5%)" if _em["thd"] <= 5.0 else "ELEVADO (> 5% - IEEE 519)"
+        _fp_status  = "OK (>= 0.85)" if _em["fp"] >= 0.85 else "BAIXO (< 0.85)"
+        th([("Grandeza", 110), ("Valor", 45), ("Unidade", 15)])
+        tr([
+            ("Fator de Potência (FP)",                      f"{_em['fp']:.4f}",           f"  {_fp_status}"),
+            ("THD de corrente (I[sub]as[/sub])",             f"{_em['thd']:.2f} %",        f"  {_thd_status}"),
+            ("Energia consumida no experimento",             f"{_em['E_kwh']:.6f}",         "kWh"),
+            ("Custo do experimento",                         f"R$ {_em['custo_exp']:.4f}",  "-"),
+            ("Potência de entrada em regime",                f"{_em['P_in_kw']:.3f}",       "kW"),
+            ("Rendimento em regime permanente",              f"{_em['eta']:.2f}",           "%"),
+            ("Custo operacional anual projetado (8760 h)",   f"R$ {_em['custo_ano']:,.2f}", "-"),
+        ], [110, 45, 15], ["L", "R", "L"])
+        pdf.set_font("Helvetica", "I", 8)
+        pdf.set_text_color(100, 100, 100)
+        pdf.cell(0, 5, f"  Tarifa: R$ {energy_tariff:.2f}/kWh. THD e FP calculados via FFT na janela de regime permanente.",
+                 border=0, new_x="LMARGIN", new_y="NEXT")
+        pdf.ln(2)
+
+        # THD por ordem harmônica
+        _harm_rows = _compute_thd_harmonics(res, mp)
+        if _harm_rows:
+            HARM_MIN = 40
+            if (pdf.h - pdf.b_margin) - pdf.get_y() < HARM_MIN:
+                pdf.add_page()
+            subsec("Espectro Harmônico de I[sub]as[/sub] — Ordens 1 a 9")
+            th([("Ordem", 25), ("Frequência (Hz)", 45), ("Amplitude (A)", 55), ("Relativa (%)", 45)])
+            tr([
+                (f"{k}a", f"{fk:.1f}", f"{Ak:.4f}", f"{pct:.2f}")
+                for k, fk, Ak, pct in _harm_rows
+            ], [25, 45, 55, 45], ["C", "R", "R", "R"])
+            body("Amplitudes relativas normalizadas pela fundamental. Referência: IEEE 519-2022.")
+            pdf.ln(2)
+        sec_num = str(int(sec_num[:-1]) + 1) + "."
+
+    # ── Trip Class ────────────────────────────────────────────────────────
+    if exp_type in ("dol", "yd", "comp", "soft", "voltage_sag"):
+        _tc = _compute_trip_class(res, mp)
+        if _tc is not None:
+            TC_MIN = 40
+            if (pdf.h - pdf.b_margin) - pdf.get_y() < TC_MIN:
+                pdf.add_page()
+            sec("Recomendação de Proteção — Relé de Sobrecarga", sec_num)
+            _tc_color = {10: (22, 163, 74), 20: (217, 119, 6), 30: (220, 38, 38)}
+            r_, g_, b__ = _tc_color.get(_tc["class"], (80, 80, 80))
+            pdf.set_fill_color(r_, g_, b__)
+            pdf.set_text_color(255, 255, 255)
+            pdf.set_font("Helvetica", "B", 10)
+            pdf.cell(0, 8,
+                     f"  Classe {_tc['class']} — t_aceleração = {_tc['t_accel']:.2f} s "
+                     f"(95% de {_tc['n_sync']:.1f} RPM) — {_tc['status']}",
+                     border=0, fill=True, new_x="LMARGIN", new_y="NEXT")
+            body("Referência: IEC 60947-4-1 / NEMA ICS 2. "
+                 "Classe 10: t < 10 s | Classe 20: 10-20 s | Classe 30: > 20 s.")
+            pdf.ln(2)
+            sec_num = str(int(sec_num[:-1]) + 1) + "."
+
+    # ── Diagnóstico Expert ────────────────────────────────────────────────
+    if insights:
+        DIAG_MIN = 40
+        if (pdf.h - pdf.b_margin) - pdf.get_y() < DIAG_MIN:
+            pdf.add_page()
+        sec("Diagnóstico Automatizado", sec_num)
+        _COLORS = {"error": (220, 38, 38), "warning": (217, 119, 6), "info": (22, 163, 74)}
+        _LABELS = {"error": "ERRO", "warning": "ATENCAO", "info": "INFO"}
+        for ins in insights:
+            r_, g_, b__ = _COLORS.get(ins.level, (80, 80, 80))
+            lbl_ = _LABELS.get(ins.level, ins.level.upper())
+            pdf.set_fill_color(r_, g_, b__)
+            pdf.set_text_color(255, 255, 255)
+            pdf.set_font("Helvetica", "B", 9)
+            pdf.cell(0, 7, f"  [{lbl_}]  {ins.title}", border=0, fill=True,
+                     new_x="LMARGIN", new_y="NEXT")
+            pdf.set_text_color(40, 40, 40)
+            pdf.set_font("Helvetica", "", 9)
+            pdf.multi_cell(0, 5, f"  {ins.body}", border=0)
+            pdf.ln(2)
+        sec_num = str(int(sec_num[:-1]) + 1) + "."
+
     # ── 7 (ou 6). Correntes de Fase ABC ──────────────────────────────────
     if any(k in res for k in ("ias", "ibs", "ics")):
         ABC_MIN = 80
@@ -801,6 +983,7 @@ def _generate_dashboard(
     var_keys: list, var_labels: list, t_events: list,
     exp_type: str, energy_tariff: float,
     losses: dict, integrator: dict, broken_bar: dict | None,
+    insights: list | None = None, load_torque: float = 0.0,
 ) -> None:
     import datetime
 
@@ -974,6 +1157,73 @@ def _generate_dashboard(
         ], [115, 55])
         pdf.ln(2)
 
+    # ── Qualidade de Energia ───────────────────────────────────────────────
+    if exp_type != "shutdown":
+        _em = _compute_energy_v2(res, mp, energy_tariff)
+        QE_MIN = 55
+        if (pdf.h - pdf.b_margin) - pdf.get_y() < QE_MIN:
+            pdf.add_page()
+        sec_bar("QUALIDADE DE ENERGIA")
+        _thd_status = "OK (< 5%)" if _em["thd"] <= 5.0 else "ALTO (> 5%)"
+        _fp_status  = "OK (>= 0.85)" if _em["fp"] >= 0.85 else "BAIXO"
+        status_badge(_em["fp"] >= 0.85 and _em["thd"] <= 5.0,
+                     f"FP = {_em['fp']:.3f} ({_fp_status})   |   "
+                     f"THD = {_em['thd']:.2f}% ({_thd_status})")
+        mini_table([
+            ("Energia consumida no experimento",   f"{_em['E_kwh']:.6f} kWh"),
+            ("Custo do experimento",               f"R$ {_em['custo_exp']:.4f}"),
+            ("Potência de entrada em regime",      f"{_em['P_in_kw']:.3f} kW"),
+            ("Rendimento em regime",               f"{_em['eta']:.2f} %"),
+            ("Custo operacional anual (8760 h)",   f"R$ {_em['custo_ano']:,.2f}"),
+        ], [105, 65])
+        pdf.set_font("Helvetica", "I", 8)
+        pdf.set_text_color(*TEXT_LGT)
+        pdf.cell(0, 5, f"  Tarifa: R$ {energy_tariff:.2f}/kWh. Referência IEEE 519-2022.",
+                 border=0, new_x="LMARGIN", new_y="NEXT")
+        pdf.ln(3)
+
+    # ── Trip Class ────────────────────────────────────────────────────────
+    if exp_type in ("dol", "yd", "comp", "soft", "voltage_sag"):
+        _tc = _compute_trip_class(res, mp)
+        if _tc is not None:
+            TC_MIN = 45
+            if (pdf.h - pdf.b_margin) - pdf.get_y() < TC_MIN:
+                pdf.add_page()
+            sec_bar("RECOMENDAÇÃO DE PROTEÇÃO — RELÉ DE SOBRECARGA")
+            _tc_ok = _tc["class"] == 10
+            status_badge(_tc_ok,
+                         f"Classe {_tc['class']} — t_aceleração = {_tc['t_accel']:.2f} s "
+                         f"(95% de {_tc['n_sync']:.1f} RPM) — {_tc['status']}")
+            pdf.set_font("Helvetica", "I", 8)
+            pdf.set_text_color(*TEXT_LGT)
+            pdf.cell(0, 5,
+                     "  Referência: IEC 60947-4-1 / NEMA ICS 2. "
+                     "Classe 10: t < 10 s | Classe 20: 10-20 s | Classe 30: > 20 s",
+                     border=0, new_x="LMARGIN", new_y="NEXT")
+            pdf.ln(3)
+
+    # ── Diagnóstico Expert ────────────────────────────────────────────────
+    if insights:
+        DIAG_MIN = 45
+        if (pdf.h - pdf.b_margin) - pdf.get_y() < DIAG_MIN:
+            pdf.add_page()
+        sec_bar("DIAGNÓSTICO AUTOMATIZADO")
+        _COLORS = {"error": RED, "warning": (217, 119, 6), "info": GREEN}
+        _LABELS = {"error": "ERRO", "warning": "ATENCAO", "info": "INFO"}
+        for ins in insights:
+            r_, g_, b__ = _COLORS.get(ins.level, (80, 80, 80))
+            lbl_ = _LABELS.get(ins.level, ins.level.upper())
+            pdf.set_fill_color(r_, g_, b__)
+            pdf.set_text_color(255, 255, 255)
+            pdf.set_font("Helvetica", "B", 9)
+            pdf.cell(0, 7, f"  [{lbl_}]  {ins.title}", border=0, fill=True,
+                     new_x="LMARGIN", new_y="NEXT")
+            pdf.set_text_color(*TEXT_DRK)
+            pdf.set_font("Helvetica", "", 9)
+            pdf.multi_cell(0, 5, f"  {ins.body}", border=0)
+            pdf.ln(2)
+        pdf.ln(2)
+
     # ── Correntes de Fase ABC ─────────────────────────────────────────────
     if any(k in res for k in ("ias", "ibs", "ics")):
         ABC_MIN = 78
@@ -1032,6 +1282,8 @@ def generate_pdf_report_v2(
     energy_tariff: float = 0.75,
     tmax: float = 0.0,
     h: float = 1e-3,
+    insights: list | None = None,
+    load_torque: float = 0.0,
 ) -> bytes:
     """Gera relatório PDF V2 e retorna como bytes.
 
@@ -1065,6 +1317,7 @@ def generate_pdf_report_v2(
             var_keys, var_labels, t_events,
             exp_type, energy_tariff,
             losses, integrator, broken_bar,
+            insights=insights, load_torque=load_torque,
         )
     else:
         _generate_dashboard(
@@ -1072,6 +1325,7 @@ def generate_pdf_report_v2(
             var_keys, var_labels, t_events,
             exp_type, energy_tariff,
             losses, integrator, broken_bar,
+            insights=insights, load_torque=load_torque,
         )
 
     return bytes(pdf.output())

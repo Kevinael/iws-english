@@ -6,6 +6,64 @@ from viz.eqcircuit_plotter import build_figure as _build_circuit_figure
 from ui.theme import _palette
 
 
+def _compute_trip_class(res: dict, mp) -> dict | None:
+    """Calcula Trip Class IEC 60947-4-1 / NEMA ICS 2 a partir do tempo de aceleração."""
+    try:
+        import math
+        n_arr   = np.asarray(res.get("n",  []), dtype=float)
+        t_arr   = np.asarray(res.get("t",  []), dtype=float)
+        n_sync  = mp.f / mp.p * 60.0
+        thresh  = 0.95 * n_sync
+        above   = np.where(n_arr >= thresh)[0]
+        if len(above) == 0:
+            return None
+        t_accel = float(t_arr[int(above[0])])
+        if t_accel < 10.0:
+            cls, status = 10, "OK"
+        elif t_accel < 20.0:
+            cls, status = 20, "ATENÇÃO"
+        else:
+            cls, status = 30, "CRÍTICO"
+        return {"class": cls, "t_accel": t_accel, "status": status, "n_sync": n_sync}
+    except Exception:
+        return None
+
+
+def _compute_thd_harmonics(res: dict, mp) -> list[tuple]:
+    """Retorna lista de (ordem, frequência, amplitude_rel%) para as 9 primeiras harmônicas."""
+    rows = []
+    try:
+        ss_start = int(res.get("_ss_start", 0))
+        ias_ss   = np.asarray(res["ias"][ss_start:], dtype=float)
+        t_ss     = np.asarray(res["t"][ss_start:], dtype=float)
+        if len(ias_ss) < 16:
+            return rows
+        dt   = float(t_ss[1] - t_ss[0]) if len(t_ss) > 1 else 1e-4
+        N    = len(ias_ss)
+        spec = np.abs(np.fft.rfft(ias_ss)) * 2.0 / N
+        freq = np.fft.rfftfreq(N, d=dt)
+
+        # fundamental
+        mask_f1 = (freq > 0.5 * mp.f) & (freq < 1.5 * mp.f)
+        if not mask_f1.any():
+            return rows
+        A1 = float(spec[mask_f1].max())
+        if A1 <= 0:
+            return rows
+
+        for k in range(1, 10):
+            f_k   = mp.f * k
+            mask  = (freq > f_k * 0.85) & (freq < f_k * 1.15)
+            if not mask.any():
+                continue
+            Ak    = float(spec[mask].max())
+            pct   = Ak / A1 * 100.0
+            rows.append((k, f_k, Ak, pct))
+    except Exception:
+        pass
+    return rows
+
+
 def _compute_energy_pdf(res: dict, tarifa: float) -> dict:
     """Calcula métricas econômicas, THD e FP para inclusão no PDF."""
     t   = np.asarray(res["t"],   dtype=float)
@@ -127,7 +185,7 @@ _DASH_MAP = {"dash": "--", "dot": ":", "solid": "-"}
 
 def _build_pdf_page_fig(res: dict, var_keys: list, var_labels: list,
                          t_events: list, color_offset: int = 0,
-                         ref_list=None) -> "matplotlib.figure.Figure":
+                         ref_list=None, tl_arr=None) -> "matplotlib.figure.Figure":
     """Gera uma figura matplotlib com até N subplots para uma página do PDF.
 
     ref_list: lista de {"res", "color", "dash", "label"} para sobreposição.
@@ -170,6 +228,15 @@ def _build_pdf_page_fig(res: dict, var_keys: list, var_labels: list,
         y = np.asarray(res[key])
         ax.plot(t, y, color=color, linewidth=1.2, solid_capstyle="round",
                 label="Atual" if has_refs else "_nolegend_")
+
+        # ── overlay de torque de carga (TL) no subplot de Te ─────────────
+        if key == "Te" and tl_arr is not None:
+            tl = np.asarray(tl_arr, dtype=float)
+            n_common = min(len(t), len(tl))
+            if n_common > 1:
+                ax.plot(np.asarray(t[:n_common]), tl[:n_common],
+                        color="#d97706", linewidth=1.0, linestyle="--",
+                        label="T[sub]L[/sub] (N·m)", alpha=0.85)
 
         ax.set_ylabel(lbl, fontsize=9, labelpad=4)
         ax.tick_params(labelsize=8)
@@ -229,7 +296,9 @@ def generate_pdf_report(exp_label: str, mp: MachineParams, res: dict,
                         t_events: list | None = None,
                         exp_type: str = "dol",
                         ref_list: list | None = None,
-                        energy_tariff: float = 0.75) -> bytes:
+                        energy_tariff: float = 0.75,
+                        insights: list | None = None,
+                        load_torque: float = 0.0) -> bytes:
     """Gera o relatório técnico em PDF e retorna como bytes (stream).
 
     Estrutura:
@@ -413,7 +482,8 @@ def generate_pdf_report(exp_label: str, mp: MachineParams, res: dict,
     #                      destaques + regime + curvas para um resultado
     # ══════════════════════════════════════════════════════════════════════
     def _write_block(b_res, b_mp, b_exp_label, b_exp_type, b_t_events,
-                     b_var_keys, b_var_labels, b_tariff=0.75):
+                     b_var_keys, b_var_labels, b_tariff=0.75,
+                     b_insights=None, b_load_torque=0.0):
 
         # ── Identificação ──────────────────────────────────────────────────
         section_title(pdf, "Identificação do Experimento")
@@ -542,6 +612,31 @@ def generate_pdf_report(exp_label: str, mp: MachineParams, res: dict,
             zebra_table(pdf, dest_rows, col_widths=[110, 35, 25], col_aligns=["L", "R", "L"])
             pdf.ln(6)
 
+        # ── Trip Class (IEC 60947-4-1 / NEMA ICS 2) ───────────────────────
+        if b_exp_type in ("dol", "yd", "comp", "soft", "voltage_sag"):
+            _tc = _compute_trip_class(b_res, b_mp)
+            if _tc is not None:
+                TC_MIN = 35
+                if (pdf.h - pdf.b_margin) - pdf.get_y() < TC_MIN:
+                    pdf.add_page()
+                section_title(pdf, "Recomendação de Proteção — Relé de Sobrecarga")
+                _tc_color = {10: (22, 163, 74), 20: (217, 119, 6), 30: (220, 38, 38)}
+                r, g, b_ = _tc_color.get(_tc["class"], (80, 80, 80))
+                pdf.set_fill_color(r, g, b_)
+                pdf.set_text_color(255, 255, 255)
+                pdf.set_font("Helvetica", "B", 10)
+                pdf.cell(0, 8,
+                         f"  Classe {_tc['class']} — Tempo de aceleração: {_tc['t_accel']:.2f} s "
+                         f"(95% de {_tc['n_sync']:.1f} RPM) — Status: {_tc['status']}",
+                         border=0, fill=True, ln=True)
+                pdf.set_font("Helvetica", "I", 8)
+                pdf.set_text_color(100, 100, 100)
+                pdf.cell(0, 5,
+                         "  Referência: IEC 60947-4-1 / NEMA ICS 2 — "
+                         "Classe 10: t < 10 s | Classe 20: 10-20 s | Classe 30: > 20 s",
+                         border=0, ln=True)
+                pdf.ln(4)
+
         # ── Indicadores de Regime Permanente ──────────────────────────────
         section_title(pdf, "Indicadores de Regime Permanente")
         pdf.set_fill_color(200, 210, 240)
@@ -630,6 +725,30 @@ def generate_pdf_report(exp_label: str, mp: MachineParams, res: dict,
                          border=0, ln=True)
                 pdf.ln(4)
 
+                # ── THD por Ordem Harmônica ────────────────────────────────
+                _harm_rows = _compute_thd_harmonics(b_res, b_mp)
+                if _harm_rows:
+                    HARM_MIN = 40
+                    if (pdf.h - pdf.b_margin) - pdf.get_y() < HARM_MIN:
+                        pdf.add_page()
+                    section_title(pdf, "Espectro Harmônico — i[sub]as[/sub] (Ordens 1 a 9)")
+                    pdf.set_fill_color(200, 210, 240)
+                    pdf.set_text_color(20, 20, 80)
+                    pdf.set_font("Helvetica", "B", 10)
+                    for lbl, w in [("  Ordem", 30), ("Frequência (Hz)", 45), ("Amplitude (A)", 55), ("Relativa (%)", 40)]:
+                        pdf.cell(w, 7, lbl, border=0, fill=True)
+                    pdf.ln(7)
+                    harm_table = [
+                        (f"{k}a", f"{fk:.1f}", f"{Ak:.4f}", f"{pct:.2f}")
+                        for k, fk, Ak, pct in _harm_rows
+                    ]
+                    zebra_table(pdf, harm_table, col_widths=[30, 45, 55, 40], col_aligns=["C", "R", "R", "R"])
+                    pdf.set_font("Helvetica", "I", 8)
+                    pdf.set_text_color(100, 100, 100)
+                    pdf.cell(0, 5, "  Amplitudes relativas normalizadas pela fundamental (1a harmônica). Referência: IEEE 519-2022.",
+                             border=0, ln=True)
+                    pdf.ln(4)
+
         # ── Assinatura de Corrente (FFT) ───────────────────────────────────
         _fft_key = next((k for k in ("ias", "ibs", "ics") if k in b_res), None)
         if _fft_key is not None and int(b_res.get("_ss_start", 0)) < len(b_res["t"]) - 4:
@@ -657,6 +776,34 @@ def generate_pdf_report(exp_label: str, mp: MachineParams, res: dict,
                      border=0, align="C", new_x="LMARGIN", new_y="NEXT")
             pdf.ln(4)
 
+        # ── Diagnóstico Expert ─────────────────────────────────────────────
+        if b_insights:
+            DIAG_MIN = 40
+            if (pdf.h - pdf.b_margin) - pdf.get_y() < DIAG_MIN:
+                pdf.add_page()
+            section_title(pdf, "Diagnóstico Automatizado")
+            _LEVEL_COLORS = {
+                "error":   (220, 38,  38),
+                "warning": (217, 119, 6),
+                "info":    (22,  163, 74),
+            }
+            _LEVEL_LABELS = {"error": "ERRO", "warning": "ATENÇÃO", "info": "INFO"}
+            for ins in b_insights:
+                r, g, b_ = _LEVEL_COLORS.get(ins.level, (80, 80, 80))
+                lbl = _LEVEL_LABELS.get(ins.level, ins.level.upper())
+                # cabeçalho colorido do insight
+                pdf.set_fill_color(r, g, b_)
+                pdf.set_text_color(255, 255, 255)
+                pdf.set_font("Helvetica", "B", 9)
+                pdf.cell(0, 7, f"  [{lbl}]  {ins.title}", border=0, fill=True, ln=True)
+                # corpo
+                pdf.set_fill_color(245, 247, 255)
+                pdf.set_text_color(40, 40, 40)
+                pdf.set_font("Helvetica", "", 9)
+                pdf.multi_cell(0, 5, f"  {ins.body}", border=0)
+                pdf.ln(2)
+            pdf.ln(2)
+
         # ── Curvas Características ─────────────────────────────────────────
         b_chunks = _make_chunks(b_var_keys, b_var_labels)
         for pg, (ck, cl) in enumerate(b_chunks):
@@ -664,7 +811,9 @@ def generate_pdf_report(exp_label: str, mp: MachineParams, res: dict,
             sfx = f" ({pg+1}/{len(b_chunks)})" if len(b_chunks) > 1 else ""
             section_title(pdf, f"Curvas Características{sfx}")
             pdf.ln(2)
-            _mpl_to_pdf(_build_pdf_page_fig(b_res, ck, cl, b_t_events, color_offset=pg * 4))
+            _tl_overlay = b_res.get("TL") if "Te" in ck else None
+            _mpl_to_pdf(_build_pdf_page_fig(b_res, ck, cl, b_t_events, color_offset=pg * 4,
+                                            tl_arr=_tl_overlay))
             pdf.ln(2)
             pdf.set_font("Helvetica", "I", 8)
             pdf.set_text_color(80, 80, 80)
@@ -682,7 +831,7 @@ def generate_pdf_report(exp_label: str, mp: MachineParams, res: dict,
     # ── Bloco: Simulação Atual ─────────────────────────────────────────────
     _block_banner("Simulação Atual")
     _write_block(res, mp, exp_label, exp_type, t_events, var_keys, var_labels,
-                 b_tariff=energy_tariff)
+                 b_tariff=energy_tariff, b_insights=insights, b_load_torque=load_torque)
 
     # ── Bloco: cada Referência ─────────────────────────────────────────────
     for ref_i, r in enumerate(ref_list or []):

@@ -1073,6 +1073,17 @@ def render_results(
     _tmax_exp = float(res["t"][-1]) if len(res.get("t", [])) > 0 else 1.0
     _h_exp    = float(res["t"][1] - res["t"][0]) if len(res.get("t", [])) > 1 else 1e-3
 
+    # insights e load_torque para todos os PDFs
+    _pdf_load_torque = float((exp_config or {}).get("Tl_final", 0.0))
+    try:
+        _pdf_insights = generate_insights(
+            res=res, mp=mp,
+            load_torque=_pdf_load_torque,
+            tmax=_tmax_exp, exp_type=exp_type,
+        )
+    except Exception:
+        _pdf_insights = []
+
     _ecol1, _ecol2, _ecol3 = st.columns(3)
 
     with _ecol1:
@@ -1085,6 +1096,8 @@ def render_results(
                         exp_type=exp_type,
                         ref_list=ref_list,
                         energy_tariff=energy_tariff,
+                        insights=_pdf_insights,
+                        load_torque=_pdf_load_torque,
                     )
                 st.rerun()
         else:
@@ -1110,6 +1123,8 @@ def render_results(
                         exp_type=exp_type, ref_list=ref_list,
                         energy_tariff=energy_tariff,
                         tmax=_tmax_exp, h=_h_exp,
+                        insights=_pdf_insights,
+                        load_torque=_pdf_load_torque,
                     )
                 st.rerun()
         else:
@@ -1135,6 +1150,8 @@ def render_results(
                         exp_type=exp_type, ref_list=ref_list,
                         energy_tariff=energy_tariff,
                         tmax=_tmax_exp, h=_h_exp,
+                        insights=_pdf_insights,
+                        load_torque=_pdf_load_torque,
                     )
                 st.rerun()
         else:
