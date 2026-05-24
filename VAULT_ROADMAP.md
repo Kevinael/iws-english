@@ -1,223 +1,229 @@
-# VAULT_ROADMAP — Ordem de Escrita das Notas
-> Sequência didática recomendada. Escrever fora de ordem cria dependências não resolvidas.
-> Última atualização: 2026-05-23.
+# VAULT_ROADMAP — Ordem de Construção do Simulador
+> Sequência narrativa: cada nota responde "por que precisei disso aqui".
+> Última atualização: 2026-05-24.
 
 ---
 
-## Princípio de Ordenação
+## Princípio
 
-Cada nota pode referenciar apenas notas de fases anteriores. Matemática → máquina → backend → frontend → integração → extensão. Nunca pular fases.
+A ordem é a ordem em que você **construiria** o simulador do zero.
+Cada nota começa com um problema. A nota seguinte usa a solução da anterior.
+Nunca apresentar uma ferramenta antes do problema que ela resolve.
 
 ---
 
-## Fase F0 — Meta (ancoragem de notação)
+## Capítulo 0 — Setup (ler uma vez, voltar quando precisar)
 
-Escrever primeiro. Toda fórmula posterior referencia estas convenções.
-
-| # | Nota | Dependência |
+| # | Nota | Por que ler |
 |---|------|-------------|
-| 1 | `00_Meta/Convencoes.md` | — |
-| 2 | `00_Meta/Glossario.md` | Convencoes |
-| 3 | `00_Meta/Setup_e_Instalacao.md` | — (dependências, `streamlit run`, venv) |
-| 4 | `00_Meta/Roadmap.md` | Glossario |
-| 5 | `00_Meta/INDEX.md` | tudo (escrever por último dentro da fase) |
+| 1 | `00_Setup/Como_Rodar_o_IWS.md` | Rodar antes de ler qualquer outra nota |
+| 2 | `00_Setup/Mapa_do_Codigo.md` | Saber onde cada coisa fica antes de mergulhar |
+| 3 | `00_Setup/Glossario.md` | Referência — voltar quando aparecer termo desconhecido |
 
 ---
 
-## Fase F0.5 — Python Aplicado ← **NOVA — escrever antes dos fundamentos**
+## Capítulo 1 — O Problema Central: Simular o Motor no Tempo
 
-Engenheiro que nunca programou orientado a objetos trava aqui. Esta fase remove o bloqueio antes de aparecer qualquer EDO.
+**Narrativa:** "Quero ver corrente, torque e velocidade de um motor ao longo do tempo. Como começo?"
 
-| # | Nota | Conceito central | Código IWS que exemplifica |
-|---|------|-----------------|---------------------------|
-| 6 | `00_Python_Aplicado/NumPy_Vetorizacao.md` | arrays, operações sem loop | `_reconstruct_currents` (solver.py:201) |
-| 7 | `00_Python_Aplicado/Typing_Anotacoes.md` | `float \| None`, `Callable` | assinatura de `run_simulation` |
-| 8 | `00_Python_Aplicado/Dataclasses_Python.md` | `@dataclass`, `__post_init__` | `MachineParams` (machine_model.py:40) |
-| 9 | `00_Python_Aplicado/Closures_e_Factories.md` | função que retorna função | `_make_rhs` (machine_model.py:183) |
-| 10 | `00_Python_Aplicado/Scipy_solve_ivp.md` | assinatura `rhs(t,y)→list`, `rtol/atol` | `_solve` (solver.py:51) |
+| # | Nota | Problema que resolve |
+|---|------|---------------------|
+| 4 | `01_Problema_Central/O_Que_Queremos_Simular.md` | Define o objetivo: séries temporais de wr, Te, ias |
+| 5 | `01_Problema_Central/EDO_Como_Ferramenta.md` | Por que o estado do motor obedece EDOs; o que é rhs(t,y) |
+| 6 | `01_Problema_Central/Primeiro_Simulador.md` | Motor CC: 2 estados, código mínimo que funciona |
+| 7 | `01_Problema_Central/Por_Que_8_Estados.md` | De MCC (2 estados) para MIT (8): cada estado adicionado tem razão |
 
-**Ponto de virada:** após nota 10, leitor consegue ler `_solve` e `_make_rhs` sem se perder na sintaxe.
-
----
-
-## Fase F1 — Fundamentos Matemáticos
-
-| # | Nota | Dependência |
-|---|------|-------------|
-| 11 | `01_Fundamentos/EDOs_Numericas.md` | Scipy_solve_ivp (F0.5) |
-| 12 | `01_Fundamentos/Fasores_e_Regime_Permanente.md` | EDOs_Numericas |
-| 13 | `01_Fundamentos/Circuito_Equivalente.md` | Fasores |
-| 14 | `01_Fundamentos/Transformacoes_Park_Clarke.md` | Circuito_Equivalente |
-| 15 | `01_Fundamentos/Componentes_Simetricas.md` | Fasores |
+**Ponto de chegada:** após nota 7, você entende *por que* o IWS tem 8 estados e o que cada um representa.
 
 ---
 
-## Fase F2 — Máquina Âncora (MIT)
+## Capítulo 2 — Organizando os Parâmetros
 
-MIT primeiro: maior cobertura no IWS, todos os exemplos partem daqui.
+**Narrativa:** "Tenho `Rs`, `Rr`, `Xm`, `f`, `p`... como organizo sem virar um caos?"
 
-| # | Nota | Dependência |
-|---|------|-------------|
-| 16 | `02_Maquinas/MIT/MIT_Visao_Geral.md` | Circuito_Equivalente |
-| 17 | `02_Maquinas/MIT/MIT_Parametros.md` | MIT_Visao_Geral |
-| 18 | `02_Maquinas/MIT/MIT_Modelo_dq0.md` | MIT_Parametros + Park_Clarke |
-| 19 | `02_Maquinas/MIT/MIT_Regime_Permanente.md` | MIT_Modelo_dq0 + Fasores |
-| 20 | `02_Maquinas/MIT/MIT_Estimacao_Params.md` | MIT_Parametros + IEEE 112-2017 |
+| # | Nota | Problema que resolve |
+|---|------|---------------------|
+| 8 | `02_Organizando_Parametros/O_Problema_dos_Parametros.md` | Variáveis globais e dicionários falham: por quê |
+| 9 | `02_Organizando_Parametros/Dataclass_Como_Solucao.md` | @dataclass: campos tipados, defaults, __post_init__ |
+| 10 | `02_Organizando_Parametros/MachineParams_Campo_a_Campo.md` | Cada campo do MIT: o que é, unidade, por que existe |
+| 11 | `02_Organizando_Parametros/Campos_Derivados.md` | wb, Xml, Xls_a_eff: calculados em __post_init__, não pelo usuário |
 
----
-
-## Fase F3 — Backend: Modelagem
-
-Implementação segue o modelo matemático — nunca o contrário.
-
-| # | Nota | Conceito central | Código IWS |
-|---|------|-----------------|------------|
-| 21 | `03_Backend/MachineParams_DataClass.md` | todos os campos, defaults | machine_model.py:40–73 |
-| 22 | `03_Backend/MachineParams_Derivacoes.md` | `__post_init__`: Xml, wb, Xls_a_eff | machine_model.py:75–120 |
-| 23 | `03_Backend/Estado_vs_Variavel_Algebrica.md` | por que fluxos são estados | Krause cap. 3 + machine_model.py |
-| 24 | `03_Backend/Vetor_de_Estado_8D.md` | y[0..7] explicados; dTemp=0 e porquê | solver.py:51, machine_model.py:247 |
-| 25 | `03_Backend/Referencial_dq0.md` | `ref_code` {0,1,2}: estacionário/síncrono/rotor; impacto nos resultados | IWS_PY.py, machine_model.py |
-| 26 | `03_Backend/Machine_Model.md` | `_make_rhs`: closure, Krause linha a linha | machine_model.py:183–272 |
-| 27 | `03_Backend/Sources_Tensao.md` | `build_fns`, voltage_fn, torque_fn | sources.py, IWS_PY.py |
-| 28 | `03_Backend/Arquitetura_Camadas.md` | fachada pública, separação de responsabilidades | IWS_PY.py:1–38 |
+**Ponto de chegada:** você consegue instanciar `MachineParams` manualmente e entender o que cada campo faz.
 
 ---
 
-## Fase F4 — Backend: Solver e Pós-processamento
+## Capítulo 3 — Conectando Parâmetros ao Solver
 
-| # | Nota | Conceito central | Código IWS |
-|---|------|-----------------|------------|
-| 29 | `03_Backend/Solver_LSODA.md` | `_solve`: segmentação, clamp, max_step; tuning de rtol/atol para performance | solver.py:51–188 |
-| 30 | `03_Backend/Reconstrucao_Correntes_abc.md` | fluxos dq → abc via Clarke-Park inverso | solver.py:201–236 |
-| 31 | `03_Backend/Deteccao_Regime_Permanente.md` | janela LCM-alinhada | solver.py:237–281 |
-| 32 | `03_Backend/Balanco_Potencia_Regime.md` | RMS, η, P_gap, P_cu, P_fe | solver.py:340–fim |
-| 33 | `03_Backend/Thermal_Post_Processing.md` | Euler implícito; por que separado da ODE | solver.py:282–339 |
+**Narrativa:** "`solve_ivp` só aceita `rhs(t, y)`. Como passo `Rs`, `Rr`, `voltage_fn` para dentro?"
 
----
+| # | Nota | Problema que resolve |
+|---|------|---------------------|
+| 12 | `03_Conectando_Parametros_ao_Solver/O_Problema_da_Assinatura.md` | Por que `rhs(t, y, mp)` não funciona com solve_ivp |
+| 13 | `03_Conectando_Parametros_ao_Solver/Closure_Como_Solucao.md` | Função que retorna função; captura por valor |
+| 14 | `03_Conectando_Parametros_ao_Solver/make_rhs_Construindo.md` | Construir _make_rhs passo a passo a partir das equações de Krause |
+| 15 | `03_Conectando_Parametros_ao_Solver/Performance_No_Hot_Path.md` | Por que `Rs = mp.Rs` antes de `def rhs` importa em 50k chamadas/s |
 
-## Fase F5 — Modos de Operação
-
-DOL é o template. Escrever DOL completo antes dos outros — os outros fazem diff com DOL.
-
-| # | Nota | Novidade em relação a DOL |
-|---|------|--------------------------|
-| 34 | `05_Modos_Operacao/Partida_DOL.md` | template base |
-| 35 | `05_Modos_Operacao/Partida_YD.md` | t_cutoff + chaveamento de tensão |
-| 36 | `05_Modos_Operacao/Partida_SoftStarter.md` | rampa de tensão (`voltage_soft_starter`) |
-| 37 | `05_Modos_Operacao/Partida_Autotransformador.md` | tensão reduzida fixa |
-| 38 | `05_Modos_Operacao/Pulso_de_Carga.md` | `torque_pulse` |
-| 39 | `05_Modos_Operacao/Modo_Gerador.md` | torque negativo, slip < 0 |
-| 40 | `05_Modos_Operacao/Desligamento.md` | `clamp_wr_at_zero` |
-| 41 | `05_Modos_Operacao/Sag_de_Tensao.md` | `voltage_sag` |
+**Ponto de chegada:** você consegue escrever uma `_make_rhs` simples para uma máquina nova.
 
 ---
 
-## Fase F6 — Falhas e Diagnóstico
+## Capítulo 4 — Rodando a Simulação
 
-Falhas pressupõem modo estável funcionando (F5 concluída).
+**Narrativa:** "Tenho `rhs`. Como rodo de t=0 até t=3s com passo controlado, sem instabilidade?"
 
-| # | Nota | Dependência |
-|---|------|-------------|
-| 42 | `06_Falhas_Diagnostico/Desequilibrio_Tensao.md` | Componentes_Simetricas + DOL |
-| 43 | `06_Falhas_Diagnostico/Falta_de_Fase.md` | Desequilibrio_Tensao |
-| 44 | `06_Falhas_Diagnostico/Barra_Quebrada.md` | Machine_Model (Rr modulado) |
-| 45 | `06_Falhas_Diagnostico/Diagnostico_Automatizado.md` | todos acima |
+| # | Nota | Problema que resolve |
+|---|------|---------------------|
+| 16 | `04_Rodando_a_Simulacao/Como_solve_ivp_Funciona.md` | LSODA: rtol/atol, max_step, o que o retorno significa |
+| 17 | `04_Rodando_a_Simulacao/Segmentacao_e_Eventos.md` | Por que _solve divide em segmentos em vez de rodar tudo de uma vez |
+| 18 | `04_Rodando_a_Simulacao/Vetor_de_Estado_Detalhado.md` | y[0..7] linha a linha: ordem importa, unidades importam |
+| 19 | `04_Rodando_a_Simulacao/Clamp_e_Estabilidade.md` | clamp_wr_at_zero: o que acontece sem ele no modo desligamento |
 
----
-
-## Fase F7 — Frontend
-
-UI só faz sentido após backend e modos claros.
-
-| # | Nota | Conceito central | Código IWS |
-|---|------|-----------------|------------|
-| 44 | `04_Frontend/_WK_Pattern.md` | dicionário `_WK`: elo UI↔cálculo; origem do padrão, alternativas descartadas | sim_config.py:87 |
-| 45 | `04_Frontend/Session_State_Widget_Keys.md` | widget key → session_state automático | sim_config.py |
-| 46 | `04_Frontend/Cache_Streamlit.md` | `@st.cache_data` vs. `@st.cache_resource` | sim_results.py |
-| 47 | `04_Frontend/Persistencia_Resultado.md` | `sim_result` persiste; quando invalida | sim_runner.py:116 |
-| 48 | `04_Frontend/Estrutura_Abas.md` | roteamento, `page_config` | IWS_UI.py |
-| 49 | `04_Frontend/Sidebar_e_Controles.md` | `render_machine_selector`, presets | sim_config.py:30 |
-| 50 | `04_Frontend/Plotly_Frames_Zero_Latencia.md` | frames pré-calculados; estado atual vs. objetivo | plotly_charts.py |
-| 51 | `04_Frontend/PDF_Report.md` | pipeline ReportLab: pdf_commons.py (base) + pdf_academico.py + pdf_industrial.py | viz/pdf_commons.py |
+**Ponto de chegada:** você consegue chamar `_solve` manualmente e interpretar o array resultante.
 
 ---
 
-## Fase F8 — Fluxo de Dados E2E
+## Capítulo 5 — Pós-Processamento
 
-Integra tudo. Escrever após F3–F7 completos.
+**Narrativa:** "`_solve` me deu fluxos e velocidade. Quero correntes abc, rendimento e temperatura."
 
-| # | Nota | Descrição |
-|---|------|-----------|
-| 52 | `07_Fluxo_de_Dados/Input_para_MachineParams.md` | widget → _WK → MachineParams campo a campo |
-| 53 | `07_Fluxo_de_Dados/MachineParams_para_Solver.md` | dataclass → build_fns → run_simulation |
-| 54 | `07_Fluxo_de_Dados/Solver_para_Plotly.md` | res dict → figuras → st.plotly_chart |
-| 55 | `07_Fluxo_de_Dados/Diagrama_E2E.md` | diagrama Mermaid das 7 etapas |
+| # | Nota | Problema que resolve |
+|---|------|---------------------|
+| 20 | `05_Pos_Processamento/Correntes_a_Partir_de_Fluxos.md` | Por que integrar fluxos (não correntes); como inverter a transformada |
+| 21 | `05_Pos_Processamento/Detectando_Regime_Permanente.md` | Por que janela LCM-alinhada em vez de média simples |
+| 22 | `05_Pos_Processamento/Balanco_de_Potencia.md` | De onde vêm P_gap, P_cu_s, P_cu_r, P_fe, η no res dict |
+| 23 | `05_Pos_Processamento/Modelo_Termico_Separado.md` | Por que temperatura não está na ODE — problema de escala de tempo |
 
----
-
-## Fase F9 — Guias de Extensão
-
-Só após padrões estabelecidos nas fases anteriores.
-
-| # | Nota |
-|---|------|
-| 58 | `03_Backend/Roteador_de_Maquinas.md` |
-| 59 | `03_Backend/Como_Adicionar_Nova_Maquina.md` |
-| 60 | `05_Modos_Operacao/Como_Adicionar_Novo_Modo.md` |
-| 61 | `04_Frontend/Como_Adicionar_Nova_Aba.md` |
-| 62 | `08_Guias_Extensao/Checklist_Nova_Maquina.md` |
-| 63 | `08_Guias_Extensao/Checklist_Novo_Modo.md` |
-| 64 | `08_Guias_Extensao/Checklist_Nova_Aba.md` |
-| 65 | `08_Guias_Extensao/Padrao_Teste_Unitario.md` |
+**Ponto de chegada:** você entende todo o `res` dict — o que cada chave contém e de onde veio.
 
 ---
 
-## Fase F10 — Máquinas Secundárias ⚠️ PLANEJADO — não implementadas no IWS atual
+## Capítulo 6 — Fontes de Excitação
 
-Motor CC primeiro (EDO mais simples). Transformador segundo (sem rotação). MSIP por último (compartilha estrutura dq0 com MIT).
-Cada nota de teoria inclui disclaimer: _"Esta máquina ainda não possui implementação no IWS. Os snippets são referências para implementação futura."_
-Cada nota `_Implementacao_IWS` é um checklist de 4 arquivos usando o padrão MIT como referência.
+**Narrativa:** "Quero simular DOL, Y-Δ, sag de tensão... sem duplicar `run_simulation` para cada um."
 
-| # | Nota | Razão da ordem |
-|---|------|---------------|
-| 66 | `02_Maquinas/Motor_CC/MCC_Visao_Geral.md` | EDO de 1ª ordem — âncora didática |
-| 67 | `02_Maquinas/Motor_CC/MCC_Modelo_EDO.md` | mais simples que MIT |
-| 68 | `02_Maquinas/Motor_CC/MCC_Implementacao_IWS.md` | checklist padrão MIT; referência cruzada com [[Checklist_Nova_Maquina]] |
-| 69 | `02_Maquinas/Transformador/TR_Visao_Geral.md` | circuito equivalente sem rotação |
-| 70 | `02_Maquinas/Transformador/TR_Circuito_Equivalente.md` | base para entender Xm no MIT |
-| 71 | `02_Maquinas/Transformador/TR_Implementacao_IWS.md` | diferença chave: sem `wr`, sem equação mecânica |
-| 72 | `02_Maquinas/MSIP/MSIP_Visao_Geral.md` | pressupõe MIT_Modelo_dq0 |
-| 73 | `02_Maquinas/MSIP/MSIP_Modelo_dq0.md` | diff com MIT: λ_pm, sem Rr independente |
-| 74 | `02_Maquinas/MSIP/MSIP_Parametros.md` | — |
-| 75 | `02_Maquinas/MSIP/MSIP_Implementacao_IWS.md` | λ_pm no vetor de estado; Te = 1.5·(p/2)·λ_pm·iqs |
+| # | Nota | Problema que resolve |
+|---|------|---------------------|
+| 24 | `06_Fontes_de_Excitacao/voltage_fn_e_torque_fn.md` | Por que funções (não valores fixos) para tensão e torque |
+| 25 | `06_Fontes_de_Excitacao/build_fns_A_Fabrica.md` | Como build_fns fabrica as funções certas para cada exp_type |
+| 26 | `06_Fontes_de_Excitacao/Captura_por_Valor.md` | O bug clássico do lambda sem _x=x — com exemplo que falha |
+| 27 | `06_Fontes_de_Excitacao/Cada_Modo_Explicado.md` | DOL, Y-Δ, soft-starter, sag: o diff de build_fns entre eles |
+
+**Ponto de chegada:** você consegue adicionar um novo modo apenas em `sources.py`.
 
 ---
 
-## Fase F11 — Snapshot e Meta Final
+## Capítulo 7 — Interface Streamlit
 
-| # | Nota |
-|---|------|
-| 76 | `09_Snapshots_IWS/Snapshot_Arquitetura_2026-05.md` |
-| 77 | `09_Snapshots_IWS/Changelog_Decisoes.md` |
-| 78 | `00_Meta/INDEX.md` (revisão final — ligar todas as notas) |
+**Narrativa:** "Quero uma UI onde o usuário digita parâmetros e clica 'Executar'. Como Streamlit funciona?"
+
+| # | Nota | Problema que resolve |
+|---|------|---------------------|
+| 28 | `07_Interface_Streamlit/Como_Streamlit_Funciona.md` | Rerun: o que dispara, o que perde, o que persiste — o modelo mental |
+| 29 | `07_Interface_Streamlit/Session_State.md` | Por que session_state existe; o que guardar nele |
+| 30 | `07_Interface_Streamlit/WK_O_Elo_UI_Backend.md` | _WK: por que o dicionário de mapeamento evita bugs silenciosos |
+| 31 | `07_Interface_Streamlit/Widgets_e_Keys.md` | key= no widget → session_state automático; o que acontece sem key |
+| 32 | `07_Interface_Streamlit/Cache_e_Performance.md` | @st.cache_data: quando usar, quando não usar, armadilhas |
+
+**Ponto de chegada:** você entende por que o IWS não quebra quando o usuário muda um parâmetro e clica Executar.
+
+---
+
+## Capítulo 8 — Mostrando Resultados
+
+**Narrativa:** "Tenho o `res` dict. Como mostro gráficos interativos sem travar a UI?"
+
+| # | Nota | Problema que resolve |
+|---|------|---------------------|
+| 33 | `08_Mostrando_Resultados/O_Res_Dict.md` | Estrutura do dicionário: chaves temporais vs. chaves de regime |
+| 34 | `08_Mostrando_Resultados/Plotly_No_Streamlit.md` | st.plotly_chart, _PLOT_CFG, responsive |
+| 35 | `08_Mostrando_Resultados/Frames_Zero_Latencia.md` | Por que frames pré-calculados em vez de recalcular no slider |
+| 36 | `08_Mostrando_Resultados/KPIs_e_Metricas.md` | st.metric, o que vale a pena exibir e como calcular |
+
+**Ponto de chegada:** você consegue construir uma tela de resultados para uma nova análise.
+
+---
+
+## Capítulo 9 — Arquitetura Completa
+
+**Narrativa:** "Entendo cada peça isolada. Como elas se encaixam?"
+
+| # | Nota | Problema que resolve |
+|---|------|---------------------|
+| 37 | `09_Arquitetura_Completa/Fluxo_E2E.md` | Diagrama Mermaid: widget → MachineParams → solver → Plotly |
+| 38 | `09_Arquitetura_Completa/Por_Que_Cada_Arquivo_Existe.md` | IWS_PY, machine_model, solver, sources: responsabilidade e fronteira |
+| 39 | `09_Arquitetura_Completa/Fachada_IWS_PY.md` | Por que IWS_PY.py existe: ponto único de entrada, retrocompatibilidade |
+| 40 | `09_Arquitetura_Completa/Separacao_de_Responsabilidades.md` | Por que machine_model não importa Streamlit — e por que isso importa |
+
+**Ponto de chegada:** você consegue explicar a arquitetura completa em 5 minutos para alguém novo.
+
+---
+
+## Capítulo 10 — Falhas e Diagnóstico
+
+**Narrativa:** "Quero simular motor com defeito. Como modificar o modelo sem quebrar o caso normal?"
+
+| # | Nota | Problema que resolve |
+|---|------|---------------------|
+| 41 | `10_Falhas_e_Diagnostico/Desequilibrio_de_Tensao.md` | Como aplicar assimetria nas 3 fases sem alterar rhs |
+| 42 | `10_Falhas_e_Diagnostico/Falta_de_Fase.md` | Diferença de implementação vs. desequilíbrio |
+| 43 | `10_Falhas_e_Diagnostico/Barra_Quebrada.md` | rr_fn como closure: Rr modulado no tempo |
+| 44 | `10_Falhas_e_Diagnostico/Diagnostico_Automatizado.md` | generate_insights: como detectar anomalia nos dados do res dict |
+
+---
+
+## Capítulo 11 — Extensão
+
+**Narrativa:** "Quero adicionar nova máquina / novo modo / nova aba. Por onde começo?"
+
+| # | Nota | Problema que resolve |
+|---|------|---------------------|
+| 45 | `11_Extensao/Adicionando_Nova_Maquina.md` | 6 arquivos, motivação de cada passo |
+| 46 | `11_Extensao/Adicionando_Novo_Modo.md` | sources.py + sim_config: onde e por quê |
+| 47 | `11_Extensao/Adicionando_Nova_Aba.md` | sim_results + IWS_UI: padrão e armadilhas |
+| 48 | `11_Extensao/Padrao_de_Testes.md` | Como testar sem UI: invariantes físicos que não mudam |
+
+---
+
+## Capítulo 12 — Referência (consulta, não leitura)
+
+| # | Nota | Quando consultar |
+|---|------|-----------------|
+| 49 | `12_Referencia/API_run_simulation.md` | Todos os parâmetros de run_simulation |
+| 50 | `12_Referencia/API_MachineParams.md` | Todos os campos com unidade e faixa típica |
+| 51 | `12_Referencia/API_build_fns.md` | exp_types, estrutura de exp_config |
+| 52 | `12_Referencia/Snapshot_Arquitetura_2026-05.md` | Estado do código em 2026-05-24 |
 
 ---
 
 ## Resumo de Progresso
 
-| Fase | Notas | Status sugerido |
-|------|-------|----------------|
-| F0 Meta | 1–5 | Escrever no dia 1 |
-| F0.5 Python | 6–10 | Escrever no dia 1–2 |
-| F1 Fundamentos | 11–15 | Dia 2–3 |
-| F2 MIT | 16–20 | Dia 3–4 |
-| F3 Backend Modelagem | 21–28 | Dia 4–6 |
-| F4 Solver + Pós-proc | 29–33 | Dia 6–8 |
-| F5 Modos | 34–41 | Dia 8–10 |
-| F6 Falhas | 42–45 | Dia 10–11 |
-| F7 Frontend | 46–53 (incl. _WK) | Dia 11–13 |
-| F8 Fluxo E2E | 54–57 | Dia 13–14 |
-| F9 Extensão | 58–65 | Dia 14–16 |
-| F10 Máq. Secundárias ⚠️ | 66–75 | Dia 16–20 |
-| F11 Snapshot | 76–78 | Dia 20 |
-| **Total** | **78 notas** | |
+| Cap | Tema | Notas | Status |
+|-----|------|-------|--------|
+| 0 | Setup | 3 | A escrever |
+| 1 | Problema Central | 4 | A escrever |
+| 2 | Parâmetros | 4 | A escrever |
+| 3 | Closure / _make_rhs | 4 | Parcial (Closures_e_Factories reescrita) |
+| 4 | Solver | 4 | A escrever |
+| 5 | Pós-processamento | 4 | A escrever |
+| 6 | Fontes | 4 | A escrever |
+| 7 | Streamlit | 5 | A escrever |
+| 8 | Resultados | 4 | A escrever |
+| 9 | Arquitetura | 4 | A escrever |
+| 10 | Falhas | 4 | A escrever |
+| 11 | Extensão | 4 | Parcial (Como_Adicionar_Nova_Maquina reescrita) |
+| 12 | Referência | 4 | A escrever |
+| **Total** | | **52 notas** | |
+
+---
+
+## Notas Antigas (F0–F9) — Status de Migração
+
+Conteúdo correto, estrutura errada (módulo, não problema).
+Migrar ao reescrever: aplicar template narrativo e mover para capítulo correto.
+
+| Nota antiga | Capítulo novo | Status |
+|---|---|---|
+| `Closures_e_Factories.md` | Cap 3 | ✅ Reescrita |
+| `Machine_Model.md` | Cap 3–4 | ✅ Reescrita |
+| `Como_Adicionar_Nova_Maquina.md` | Cap 11 | ✅ Reescrita |
+| Demais notas F0–F9 | Vários | A migrar |

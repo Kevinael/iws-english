@@ -13,3 +13,4 @@ tests/
 .coverage
 .pytest_cache/
 htmlcov/
+.understand-anything/
