@@ -657,7 +657,7 @@ def generate_pdf_report(exp_label: str, mp: MachineParams, res: dict,
         vcr, ucr = fmt_power(P_cu_r_)
         zebra_table(pdf, [
             ("Velocidade de regime",                                  f"{b_res['n_ss']:.3f}",                       "RPM"),
-            ("Vel. angular do rotor (w[sub]r[/sub])",                 f"{b_res['wr_ss']:.4f}",                      "rad/s"),
+            ("Vel. angular do rotor (ω[sub]r[/sub])",                 f"{b_res['wr_ss']:.4f}",                      "rad/s"),
             ("Torque eletromagnético de regime (T[sub]e[/sub])",      f"{b_res['Te_ss']:.4f}",                      "N.m"),
             ("Torque eletromagnético máximo (T[sub]e,max[/sub])",     f"{float(np.max(b_res['Te'])):.4f}",          "N.m"),
             ("Escorregamento (s)",                                     f"{s_*100:.3f}",                              "%"),
@@ -681,7 +681,7 @@ def generate_pdf_report(exp_label: str, mp: MachineParams, res: dict,
             pdf.set_fill_color(200, 210, 240)
             pdf.set_text_color(20, 20, 80)
             pdf.set_font("Helvetica", "B", 10)
-            for lbl, w in [("  Grandeza", 110), ("Valor", 45), ("Unidade", 15)]:
+            for lbl, w in [("  Grandeza", 110), ("Valor", 40), ("Unidade", 20)]:
                 pdf.cell(w, 7, lbl, border=0, fill=True)
             pdf.ln(7)
             zebra_table(pdf, [
@@ -691,7 +691,7 @@ def generate_pdf_report(exp_label: str, mp: MachineParams, res: dict,
                 ("Rendimento em regime permanente",         f"{_em['eta']:.2f}",              "%"),
                 ("Energia anual projetada (8.760 h/ano)",   f"{_em['P_in_ss_kw']*8760:.1f}", "kWh/ano"),
                 ("Custo operacional anual projetado",       "R$ " + f"{_em['custo_ano']:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),    "-"),
-            ], col_widths=[110, 45, 15], col_aligns=["L", "R", "L"])
+            ], col_widths=[110, 40, 20], col_aligns=["L", "R", "L"])
             pdf.set_font("Helvetica", "I", 8)
             pdf.set_text_color(100, 100, 100)
             pdf.cell(0, 5, f"  Tarifa utilizada: R$ {b_tariff:.2f}/kWh  |  "
@@ -710,15 +710,15 @@ def generate_pdf_report(exp_label: str, mp: MachineParams, res: dict,
                 pdf.set_fill_color(200, 210, 240)
                 pdf.set_text_color(20, 20, 80)
                 pdf.set_font("Helvetica", "B", 10)
-                for lbl, w in [("  Grandeza", 110), ("Valor", 45), ("Unidade", 15)]:
+                for lbl, w in [("  Grandeza", 110), ("Valor", 40), ("Status", 20)]:
                     pdf.cell(w, 7, lbl, border=0, fill=True)
                 pdf.ln(7)
-                _thd_status = "OK (< 5%)" if _thd <= 5.0 else "ELEVADO (> 5% — IEEE 519)"
-                _fp_status  = "OK (>= 0.85)" if _fp >= 0.85 else "BAIXO (< 0.85)"
+                _thd_ok = _thd <= 5.0
+                _fp_ok  = _fp >= 0.85
                 zebra_table(pdf, [
-                    ("Fator de Potência (FP)",                  f"{_fp:.4f}",         f"  {_fp_status}"),
-                    ("THD de corrente (i[sub]as[/sub])",        f"{_thd:.2f} %",      f"  {_thd_status}"),
-                ], col_widths=[110, 45, 15], col_aligns=["L", "R", "L"])
+                    ("Fator de Potência (FP)",                  f"{_fp:.4f}",         "OK" if _fp_ok else "BAIXO"),
+                    ("THD de corrente (i[sub]as[/sub])",        f"{_thd:.2f} %",      "OK" if _thd_ok else "ALTO"),
+                ], col_widths=[110, 40, 20], col_aligns=["L", "R", "L"])
                 pdf.set_font("Helvetica", "I", 8)
                 pdf.set_text_color(100, 100, 100)
                 pdf.cell(0, 5, "  THD via FFT de ias (regime permanente). FP = Pin / Saparente.",

@@ -7,7 +7,7 @@ artigo/
 !requirements.txt
 .gitignore
 CLAUDE.md
-
+Obsidian/
 # testes e artefatos de cobertura
 tests/
 .coverage

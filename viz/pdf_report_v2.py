@@ -864,18 +864,18 @@ def _generate_academico(
         if (pdf.h - pdf.b_margin) - pdf.get_y() < QE_MIN:
             pdf.add_page()
         sec(f"Qualidade de Energia e Análise Econômica", sec_num)
-        _thd_status = "OK (< 5%)" if _em["thd"] <= 5.0 else "ELEVADO (> 5% - IEEE 519)"
-        _fp_status  = "OK (>= 0.85)" if _em["fp"] >= 0.85 else "BAIXO (< 0.85)"
-        th([("Grandeza", 110), ("Valor", 45), ("Unidade", 15)])
+        _thd_ok  = _em["thd"] <= 5.0
+        _fp_ok   = _em["fp"] >= 0.85
+        th([("Grandeza", 110), ("Valor", 40), ("Status / Unidade", 20)])
         tr([
-            ("Fator de Potência (FP)",                      f"{_em['fp']:.4f}",           f"  {_fp_status}"),
-            ("THD de corrente (I[sub]as[/sub])",             f"{_em['thd']:.2f} %",        f"  {_thd_status}"),
-            ("Energia consumida no experimento",             f"{_em['E_kwh']:.6f}",         "kWh"),
-            ("Custo do experimento",                         f"R$ {_em['custo_exp']:.4f}",  "-"),
-            ("Potência de entrada em regime",                f"{_em['P_in_kw']:.3f}",       "kW"),
-            ("Rendimento em regime permanente",              f"{_em['eta']:.2f}",           "%"),
-            ("Custo operacional anual projetado (8760 h)",   f"R$ {_em['custo_ano']:,.2f}", "-"),
-        ], [110, 45, 15], ["L", "R", "L"])
+            ("Fator de Potência (FP)",                      f"{_em['fp']:.4f}",            "OK" if _fp_ok else "BAIXO"),
+            ("THD de corrente (I[sub]as[/sub])",             f"{_em['thd']:.2f} %",         "OK" if _thd_ok else "ALTO"),
+            ("Energia consumida no experimento",             f"{_em['E_kwh']:.6f}",          "kWh"),
+            ("Custo do experimento",                         f"R$ {_em['custo_exp']:.4f}",   "R$"),
+            ("Potência de entrada em regime",                f"{_em['P_in_kw']:.3f}",        "kW"),
+            ("Rendimento em regime permanente",              f"{_em['eta']:.2f}",            "%"),
+            ("Custo operacional anual projetado (8760 h)",   f"R$ {_em['custo_ano']:,.2f}",  "R$/ano"),
+        ], [110, 40, 20], ["L", "R", "L"])
         pdf.set_font("Helvetica", "I", 8)
         pdf.set_text_color(100, 100, 100)
         pdf.cell(0, 5, f"  Tarifa: R$ {energy_tariff:.2f}/kWh. THD e FP calculados via FFT na janela de regime permanente.",
@@ -952,10 +952,9 @@ def _generate_academico(
         _embed_fig(pdf, _fig_to_pdf_bytes(abc_fig), width_mm=165)
         ias_rms = float(res.get("ias_rms", 0.0))
         caption(
-            f"Figura {sec_num[:-1]}.1 — Correntes de fase i[sub]as[/sub], "
-            f"i[sub]bs[/sub], i[sub]cs[/sub] em regime permanente. "
-            f"Tracejado: ± RMS (I[sub]as,rms[/sub] = {ias_rms:.3f} A). "
-            "Sistema equilibrado apresenta amplitudes iguais e defasagem de 120°."
+            f"Figura {sec_num[:-1]}.1 - Correntes de fase ias, ibs, ics em regime permanente. "
+            f"Tracejado: +/- RMS (Ias,rms = {ias_rms:.3f} A). "
+            "Sistema equilibrado: amplitudes iguais, defasagem de 120 graus."
         )
         pdf.ln(2)
         sec_num_curves = str(int(sec_num[:-1]) + 1) + "."
