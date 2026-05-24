@@ -344,7 +344,7 @@ def render_results(
     # ══════════════════════════════════════════════════════════════════════
     with tab_visao:
         # ── BLOCO 1: Painel de Saúde ─────────────────────────────────────────
-        _load_torque = float((exp_config or {}).get("TL", res.get("TL_ss", 0.0)))
+        _load_torque = float((exp_config or {}).get("Tl_final", 0.0))
         _tmax_val    = float(res["t"][-1])
         _insights = generate_insights(res, mp, _load_torque, _tmax_val, exp_type=exp_type, exp_config=exp_config)
         _n_critico  = sum(1 for i in _insights if i.level == "error")

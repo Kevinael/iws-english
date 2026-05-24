@@ -135,14 +135,16 @@ def generate_insights(
                 level="info",
                 title="Balanço de Torques em Regime Permanente",
                 body=(
-                    f"Em regime permanente (n = {n_ss:.1f} RPM), a equação de Newton-Euler "
-                    f"J·(dω/dt) = Te − T_L − B·ωm = 0 é satisfeita. "
-                    f"O torque eletromagnético de regime (Te = {Te_ss:.3f} N·m) excede o "
-                    f"torque de carga aplicado (T_L = {load_torque:.3f} N·m) pela parcela de "
-                    f"atrito viscoso e ventilação: B·ωm = {T_atrito:.4f} N·m "
-                    f"(B = {mp.B:.4f} N·m·s/rad). Esta diferença algébrica não é um erro "
-                    f"numérico — é o torque exato exigido para vencer as perdas mecânicas "
-                    f"na rotação de equilíbrio."
+                    f"Em regime permanente (n = {n_ss:.1f} RPM), a equação de movimento "
+                    f"J·(dω/dt) = Tₑ − T_L − B·ωₘ resulta em dω/dt = 0, confirmando "
+                    f"equilíbrio dinâmico. O torque eletromagnético de regime "
+                    f"(Tₑ = {Te_ss:.3f} N·m) supera o torque de carga "
+                    f"(T_L = {load_torque:.3f} N·m) exatamente pela parcela de atrito "
+                    f"viscoso e ventilação B·ωₘ = {T_atrito:.4f} N·m "
+                    f"(B = {mp.B:.6f} N·m·s/rad). A diferença Tₑ − T_L − B·ωₘ = "
+                    f"{Te_ss - load_torque - T_atrito:.6f} N·m é numericamente nula, "
+                    f"indicando que o integrador convergiu corretamente para o ponto "
+                    f"de operação estacionário."
                 ),
             ))
 
@@ -170,7 +172,7 @@ def generate_insights(
     # ── Regra 8: Tempo de partida prolongado ─────────────────────────────
     _STARTUP_TYPES = ("dol", "yd", "comp", "soft")
     if exp_type in _STARTUP_TYPES and load_torque > 0:
-        _check_startup_time(insights, t_arr, wr_arr, Te_arr, load_torque, ws_mec, mp)
+        _check_startup_time(insights, t_arr, wr_arr, Te_arr, load_torque, ws_mec, mp, cfg)
 
     # ── Regras 9–11: Diagnósticos específicos do modo gerador ─────────────
     if exp_type == "gerador" and steady:
@@ -206,8 +208,8 @@ def _check_acceleration_margin(
             title="Ampla Reserva de Conjugado de Aceleração",
             body=(
                 f"O torque eletromagnético de pico durante o transitório de partida "
-                f"(Te_max = {Te_max:.2f} N·m) representa {ratio:.1f}× o torque de carga "
-                f"(T_L = {load_torque:.2f} N·m). A condição J·(dω/dt) = Te − T_L − B·ω > 0 "
+                f"(Tₑ_max = {Te_max:.2f} N·m) representa {ratio:.1f}× o torque de carga "
+                f"(T_L = {load_torque:.2f} N·m). A condição J·(dω/dt) = Tₑ − T_L − B·ω > 0 "
                 f"foi amplamente satisfeita, garantindo aceleração positiva do rotor em "
                 f"toda a trajetória de partida. O motor apresenta ampla reserva cinética "
                 f"(pull-out safety margin), característica de partida segura."
@@ -218,9 +220,9 @@ def _check_acceleration_margin(
             level="warning",
             title="Margem de Conjugado Reduzida — Partida Moderada",
             body=(
-                f"O torque de pico (Te_max = {Te_max:.2f} N·m) foi apenas {ratio:.2f}× o "
+                f"O torque de pico (Tₑ_max = {Te_max:.2f} N·m) foi apenas {ratio:.2f}× o "
                 f"torque de carga (T_L = {load_torque:.2f} N·m). A margem de aceleração "
-                f"J·α = Te − T_L − B·ωm foi positiva, porém estreita. "
+                f"J·α = Tₑ − T_L − B·ωₘ foi positiva, porém estreita. "
                 f"Perturbações na tensão de alimentação ou variação de carga durante a "
                 f"partida podem resultar em aceleração insuficiente e tempo de partida "
                 f"prolongado, aproximando-se do limite de atuação do relé térmico."
@@ -231,9 +233,9 @@ def _check_acceleration_margin(
             level="error",
             title="RISCO DE TRAVAMENTO DO ROTOR — Partida Pesada",
             body=(
-                f"O torque de pico eletromagnético (Te_max = {Te_max:.2f} N·m) foi inferior "
+                f"O torque de pico eletromagnético (Tₑ_max = {Te_max:.2f} N·m) foi inferior "
                 f"a 1,2× o torque de carga (T_L = {load_torque:.2f} N·m), resultando em "
-                f"razão = {ratio:.2f}. A equação de aceleração J·(dω/dt) = Te − T_L foi "
+                f"razão = {ratio:.2f}. A equação de aceleração J·(dω/dt) = Tₑ − T_L foi "
                 f"marginalmente positiva ou negativa em parte da trajetória, caracterizando "
                 f"uma partida pesada. O rotor operou próximo ao ponto de pull-out, "
                 f"com risco iminente de travamento (stall). Verifique se a carga é "
@@ -264,8 +266,8 @@ def _check_slip_overload(
                 f"Para induzir o torque demandado (Te_ss = {Te_ss:.2f} N·m) a esta "
                 f"velocidade (n = {n_ss:.1f} RPM vs. n_s = {n_sync:.1f} RPM síncrona), "
                 f"o campo magnético girante induziu correntes no rotor muito elevadas "
-                f"pela lei de Faraday (E_r proporcional a s·ωs·Ψ). "
-                f"Isso resulta em perdas Joule no rotor P_Joule_r = s·P_gap desproporcionais, "
+                f"pela lei de Faraday (Eᵣ proporcional a s·ωₛ·Ψ). "
+                f"Isso resulta em perdas Joule no rotor P_Joule_r = s·P_ag desproporcionais, "
                 f"aquecimento acelerado do enrolamento e risco iminente de atuação "
                 f"do relé de sobrecarga térmico (IEC 60947-4-1). "
                 f"Revise o dimensionamento do motor para esta carga."
@@ -279,7 +281,7 @@ def _check_slip_overload(
                 f"O escorregamento de regime permanente é s = {s_ss*100:.2f}%, acima do "
                 f"valor típico de projeto (< 5% para motores de uso geral). "
                 f"O motor opera fora da região de máxima eficiência da curva Te × n. "
-                f"As perdas Joule no rotor (P_Joule_r = s·P_gap) são elevadas, "
+                f"As perdas Joule no rotor (P_Joule_r = s·P_ag) são elevadas, "
                 f"reduzindo o rendimento e aumentando a temperatura do enrolamento. "
                 f"Considere um motor de potência superior ou redução da carga mecânica."
             ),
@@ -294,7 +296,7 @@ def _check_slip_overload(
             body=(
                 f"O escorregamento de regime é s = {s_ss*100:.3f}%, indicando operação "
                 f"próxima ao ponto de sincronismo. As perdas Joule no rotor "
-                f"(P_Joule_r = s·P_gap) são mínimas, característica de operação de "
+                f"(P_Joule_r = s·P_ag) são mínimas, característica de operação de "
                 f"alta eficiência. Este comportamento é esperado em motores de alto "
                 f"rendimento (premium efficiency, IE3/IE4) ou em condição de leve carga."
             ),
@@ -316,7 +318,7 @@ def _check_underload(
             body=(
                 f"O escorregamento s = {s_ss*100:.3f}% indica que o motor opera com "
                 f"carga muito inferior à sua potência nominal. Em subcarga, a corrente "
-                f"de magnetização (I_m = E1/Xm) permanece praticamente constante e "
+                f"de magnetização (Iₘ = E₁/Xₘ) permanece praticamente constante e "
                 f"representa uma fração elevada da corrente total, resultando em "
                 f"fator de potência baixo e rendimento reduzido. "
                 f"Considere substituir por um motor de menor potência nominal para "
@@ -499,6 +501,7 @@ def _check_startup_time(
     load_torque: float,
     ws_mec: float,
     mp,
+    cfg: dict | None = None,
 ) -> None:
     """Regra 8 — Tempo de partida: mede t até 95% de ωs e avalia risco térmico."""
     target_wr = 0.95 * ws_mec
@@ -509,13 +512,26 @@ def _check_startup_time(
     idx_reach  = int(np.argmax(mask_reach))
     t_start_pt = float(t_arr[idx_reach])
 
-    # tempo mínimo de partida esperado para carga resistente (heurística física):
-    # t_min ≈ J·ωs / (Te_médio − T_L) — se disponível J
+    # Tempo mínimo de partida esperado: J·ωs / (Te_med − T_L)
+    # Usa apenas o trecho de aceleração sem carga (antes de t_carga, se existir),
+    # pois load_torque é aplicado após t_carga — incluí-lo antes distorce Te_mean_accel.
     J = getattr(mp, "J", None)
-    Te_mean_accel = float(np.mean(Te_arr[:idx_reach])) if idx_reach > 0 else 0.0
+    t_carga = float((cfg or {}).get("t_carga", 0.0))
+    if t_carga > 0 and t_carga < t_start_pt:
+        # partida em vazio: aceleração ocorre sem carga até t_carga
+        idx_tc = int(np.searchsorted(t_arr, t_carga))
+        Te_accel_slice = Te_arr[:idx_tc] if idx_tc > 0 else Te_arr[:idx_reach]
+        tl_accel = 0.0  # carga ainda não aplicada neste trecho
+    else:
+        Te_accel_slice = Te_arr[:idx_reach]
+        tl_accel = load_torque
 
-    if J and J > 0 and Te_mean_accel > load_torque:
-        t_esperado = J * ws_mec / (Te_mean_accel - load_torque)
+    # Filtra spikes negativos iniciais (transitório de energização)
+    Te_accel_slice = Te_accel_slice[Te_accel_slice > 0] if len(Te_accel_slice) > 0 else Te_accel_slice
+    Te_mean_accel  = float(np.mean(Te_accel_slice)) if len(Te_accel_slice) > 0 else 0.0
+
+    if J and J > 0 and Te_mean_accel > tl_accel:
+        t_esperado = J * ws_mec / (Te_mean_accel - tl_accel)
     else:
         t_esperado = None
 
