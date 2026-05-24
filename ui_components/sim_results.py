@@ -18,8 +18,8 @@ from core.energy_analysis import compute_energy_metrics
 from viz.plotly_charts import (
     build_fig_stacked, build_fig_sidebyside, build_fig_overlay, build_fig_torque_speed,
 )
-from viz.pdf_report import generate_pdf_report
-from viz.pdf_report_v2 import generate_pdf_report_v2
+from viz.pdf_academico import generate_academico
+from viz.pdf_industrial import generate_industrial
 from core.harmonica_analysis import build_fig_fft
 from core.sim_diagnostics import generate_insights
 from utils.text_utils import _strip_latex
@@ -343,77 +343,51 @@ def render_results(
     # ABA 1 — VISÃO GERAL
     # ══════════════════════════════════════════════════════════════════════
     with tab_visao:
-        destaques = _kpis_destaque(res, exp_type, mp, d, t_events)
-        if destaques:
-            st.markdown('<p class="slabel">Destaques do Experimento</p>', unsafe_allow_html=True)
-            # Distribui em até 4 colunas por linha, quebrando para múltiplas linhas se necessário
-            _MAX_COLS = 4
-            for i in range(0, len(destaques), _MAX_COLS):
-                chunk = destaques[i:i + _MAX_COLS]
-                cols = st.columns(_MAX_COLS)
-                for col, (lbl, val, unit) in zip(cols, chunk):
-                    col.metric(f"{lbl} ({unit})", val)
-            st.write("")
+        # ── BLOCO 1: Painel de Saúde ─────────────────────────────────────────
+        _load_torque = float((exp_config or {}).get("TL", res.get("TL_ss", 0.0)))
+        _tmax_val    = float(res["t"][-1])
+        _insights = generate_insights(res, mp, _load_torque, _tmax_val, exp_type=exp_type, exp_config=exp_config)
+        _n_critico  = sum(1 for i in _insights if i.level == "error")
+        _n_alerta   = sum(1 for i in _insights if i.level == "warning")
+        _eta_val    = res.get("eta", 0.0)
+        _s_pct      = res.get("s", 0.0) * 100.0
+        _n_ss_disp  = res["n_ss"]
 
-        # Trip Class
-        if exp_type in ("dol", "yd", "comp", "soft", "voltage_sag"):
-            try:
-                _n_arr    = np.asarray(res["n"], dtype=float)
-                _t_arr    = np.asarray(res["t"], dtype=float)
-                _n_sync   = mp.f / mp.p * 60.0
-                _thresh_n = 0.95 * _n_sync
-                _above    = np.where(_n_arr >= _thresh_n)[0]
-                if len(_above) > 0:
-                    _t_accel = float(_t_arr[int(_above[0])])
-                    if _t_accel < 10.0:
-                        _trip_class, _trip_fn = 10, st.success
-                        _trip_msg = f"Classe 10 — partida em **{_t_accel:.2f} s** (< 10 s)"
-                    elif _t_accel < 20.0:
-                        _trip_class, _trip_fn = 20, st.warning
-                        _trip_msg = f"Classe 20 — partida em **{_t_accel:.2f} s** (10–20 s)"
-                    else:
-                        _trip_class, _trip_fn = 30, st.error
-                        _trip_msg = f"Classe 30 — partida em **{_t_accel:.2f} s** (> 20 s)"
-                    _trip_fn(
-                        f"Recomendação de Proteção: Relé de Sobrecarga Classe {_trip_class} — "
-                        f"{_trip_msg}. (Referência IEC 60947-4-1 / NEMA ICS 2)"
-                    )
-            except Exception:
-                pass
+        if _n_critico > 0:
+            _saude_cor, _saude_ico, _saude_txt = "#dc3545", "🔴", "Anomalia Detectada"
+            _saude_fn = st.error
+        elif _n_alerta > 0:
+            _saude_cor, _saude_ico, _saude_txt = "#fd7e14", "🟡", "Atenção"
+            _saude_fn = st.warning
+        else:
+            _saude_cor, _saude_ico, _saude_txt = "#198754", "🟢", "Operação Normal"
+            _saude_fn = st.success
+
+        _diag_suffix = ""
+        if _n_critico or _n_alerta:
+            _diag_suffix = f" — {_n_critico} crítico(s), {_n_alerta} alerta(s). Ver aba **Diagnóstico e Falhas**."
 
         if exp_type != "shutdown":
-            st.markdown('<p class="slabel">Indicadores de Regime Permanente</p>', unsafe_allow_html=True)
+            _saude_fn(
+                f"{_saude_ico} **{_saude_txt}** — "
+                f"Escorregamento: **{_s_pct:.2f}%** | "
+                f"Rendimento: **{_eta_val:.1f}%** | "
+                f"Velocidade: **{_n_ss_disp:.0f} RPM**"
+                + _diag_suffix
+            )
+        else:
+            _saude_fn(f"{_saude_ico} **{_saude_txt}**" + _diag_suffix)
+
+        st.write("")
+
+        # ── BLOCO 2: Grandezas de Operação (regime, sem duplicatas) ──────────
+        if exp_type != "shutdown":
+            st.markdown('<p class="slabel">Grandezas de Operação</p>', unsafe_allow_html=True)
 
             n_ss    = res["n_ss"]
             Te_ss   = res["Te_ss"]
             wr_ss   = res["wr_ss"]
             ias_rms = res["ias_rms"]
-            Te_max  = float(np.max(res["Te"]))
-            ias_pk  = float(np.max(np.abs(res["ias"])))
-
-            _show_Te_max = exp_type not in ("gerador",)
-            _show_ias_pk = exp_type not in ("pulso_carga",)
-
-            _row1 = [
-                ("Velocidade de Regime (RPM)",       f"{n_ss:.{d}f}"),
-                ("Torque de Regime $T_e$ (N·m)",     f"{Te_ss:.{d}f}"),
-            ]
-            if _show_Te_max:
-                _row1.append(("Torque Máximo $T_{e,max}$ (N·m)", f"{Te_max:.{d}f}"))
-            if _show_ias_pk:
-                _row1.append(("Corrente de Pico $i_{as}$ (A)",   f"{ias_pk:.{d}f}"))
-            _row1 += [
-                ("Corrente RMS $i_{as}$ (A)",        f"{ias_rms:.{d}f}"),
-                ("Vel. Angular $\\omega_r$ (rad/s)", f"{wr_ss:.{d}f}"),
-            ]
-            # Distribui em até 4 colunas por linha
-            _MAX_COLS = 4
-            for i in range(0, len(_row1), _MAX_COLS):
-                chunk = _row1[i:i + _MAX_COLS]
-                cols = st.columns(_MAX_COLS)
-                for col, (lbl, val) in zip(cols, chunk):
-                    col.metric(lbl, val)
-
             s_val   = res.get("s", 0.0)
             gerador = s_val < 0
 
@@ -425,26 +399,140 @@ def render_results(
 
             lbl_in  = f"P. Mec. Turbina ({u_in})"   if gerador else f"P. Entrada ({u_in})"
             lbl_gap = f"P. Entreferro Gerada ({u0})" if gerador else f"P. Entreferro ({u0})"
-            lbl_mec = f"P. Mec. Entrada ({u1})"      if gerador else f"P. Mecanica ({u1})"
+            lbl_mec = f"P. Mec. Entrada ({u1})"      if gerador else f"P. Mecânica ({u1})"
 
-            # Primeira linha — fluxo de potência ativa
-            k2a = st.columns(3)
+            # Linha 1 — velocidade, torque, corrente RMS
+            _op1 = st.columns(3)
+            _op1[0].metric("Velocidade (RPM)",          f"{n_ss:.{d}f}")
+            _op1[1].metric("Torque de Regime $T_e$ (N·m)", f"{Te_ss:.{d}f}")
+            _op1[2].metric("Corrente RMS $i_{as}$ (A)", f"{ias_rms:.{d}f}")
+
+            # Linha 2 — potência útil, rendimento, escorregamento
+            _op2 = st.columns(3)
             if gerador:
-                k2a[0].metric(lbl_in,                      v_in)
-                k2a[1].metric(lbl_gap,                     v0)
-                k2a[2].metric(f"P. Gerada Rede ({u_out})", v_out)
+                _op2[0].metric(f"P. Gerada Rede ({u_out})", v_out)
             else:
-                k2a[0].metric(lbl_in,                      v_in)
-                k2a[1].metric(lbl_gap,                     v0)
-                k2a[2].metric(lbl_mec,                     v1)
+                _op2[0].metric(lbl_mec, v1)
+            _op2[1].metric("Rendimento (%)",     f"{res.get('eta', 0.0):.{d}f}")
+            _op2[2].metric("Escorregamento (%)", f"{s_val * 100:.{d}f}")
 
-            # Segunda linha — perdas e indicadores adimensionais
-            k2b = st.columns(3)
-            k2b[0].metric(f"Perdas Rotor ({u2})", v2)
-            k2b[1].metric("Rendimento (%)",       f"{res.get('eta', 0.0):.{d}f}")
-            k2b[2].metric("Escorregamento (%)",   f"{s_val*100:.{d}f}")
+            # Linha 3 — fluxo de potência (entrada → entreferro → perdas rotor)
+            _op3 = st.columns(3)
+            _op3[0].metric(lbl_in,                f"{v_in}")
+            _op3[1].metric(lbl_gap,               f"{v0}")
+            _op3[2].metric(f"Perdas Rotor ({u2})", v2)
 
-        # resumo econômico compacto na visão geral
+        # ── BLOCO 3: Transiente de Partida (colapsável) ───────────────────────
+        destaques = _kpis_destaque(res, exp_type, mp, d, t_events)
+        _prot_items_exist = exp_type in ("dol", "yd", "comp", "soft", "voltage_sag")
+        if destaques or _prot_items_exist:
+            st.write("")
+            with st.expander("Transiente de Partida e Proteção", expanded=False):
+                if destaques:
+                    st.markdown('<p class="slabel">Grandezas de Partida</p>', unsafe_allow_html=True)
+                    _MAX_COLS = 4
+                    for i in range(0, len(destaques), _MAX_COLS):
+                        chunk = destaques[i:i + _MAX_COLS]
+                        cols = st.columns(_MAX_COLS)
+                        for col, (lbl, val, unit) in zip(cols, chunk):
+                            col.metric(f"{lbl} ({unit})", val)
+                    st.write("")
+
+                if _prot_items_exist:
+                    try:
+                        _n_arr    = np.asarray(res["n"], dtype=float)
+                        _t_arr    = np.asarray(res["t"], dtype=float)
+                        _n_sync   = mp.f / mp.p * 60.0
+                        _thresh_n = 0.95 * _n_sync
+                        _above    = np.where(_n_arr >= _thresh_n)[0]
+                        if len(_above) > 0:
+                            _t_accel = float(_t_arr[int(_above[0])])
+                            if _t_accel < 10.0:
+                                _trip_class, _trip_fn = 10, st.success
+                                _trip_msg = f"Classe 10 — partida em **{_t_accel:.2f} s** (< 10 s)"
+                            elif _t_accel < 20.0:
+                                _trip_class, _trip_fn = 20, st.warning
+                                _trip_msg = f"Classe 20 — partida em **{_t_accel:.2f} s** (10–20 s)"
+                            else:
+                                _trip_class, _trip_fn = 30, st.error
+                                _trip_msg = f"Classe 30 — partida em **{_t_accel:.2f} s** (> 20 s)"
+
+                            st.markdown('<p class="slabel">Recomendações de Proteção</p>', unsafe_allow_html=True)
+                            _trip_fn(
+                                f"**Relé de Sobrecarga Classe {_trip_class}** — "
+                                f"{_trip_msg}. (IEC 60947-4-1 / NEMA ICS 2)"
+                            )
+
+                            _In      = getattr(mp, "In", None)
+                            _Vn      = getattr(mp, "Vn", None)
+                            _ias_pk  = float(np.max(np.abs(res["ias"]))) if "ias" in res else None
+
+                            if _In is not None and _ias_pk is not None:
+                                _icp_ratio = _ias_pk / _In if _In > 0 else 0.0
+                                _mpcb_lo  = 0.80 * _In
+                                _mpcb_hi  = 1.00 * _In
+                                _mpcb_icu = _ias_pk * 1.25
+                                _mpcb_fn  = st.success if _icp_ratio <= 8 else (st.warning if _icp_ratio <= 12 else st.error)
+                                _mpcb_fn(
+                                    f"**Disjuntor Motor (MPCB)** — ajuste térmico: "
+                                    f"{_mpcb_lo:.1f}–{_mpcb_hi:.1f} A; "
+                                    f"capacidade de corte ≥ **{_mpcb_icu:.0f} A** "
+                                    f"(Ipico simulado × 1,25). (IEC 60947-2)"
+                                )
+
+                            if _In is not None:
+                                _fus_lo = 2.0 * _In
+                                _fus_hi = 2.5 * _In
+                                st.info(
+                                    f"**Fusível de Proteção (gG/aM)** — "
+                                    f"corrente nominal recomendada: **{_fus_lo:.0f}–{_fus_hi:.0f} A** "
+                                    f"(2,0–2,5 × In = {_In:.1f} A). "
+                                    f"Classe aM se coordenação com MPCB. (IEC 60269-1)"
+                                )
+                                _cont_rup = 6.0 * _In
+                                st.info(
+                                    f"**Contatora AC-3** — corrente de emprego: ≥ **{_In:.1f} A**; "
+                                    f"capacidade de ruptura: ≥ **{_cont_rup:.0f} A** (6 × In). "
+                                    f"(IEC 60947-4-1, cat. AC-3)"
+                                )
+
+                            if _Vn is not None:
+                                _vn_ll = _Vn
+                                if _vn_ll <= 230:
+                                    _uc, _up_max = 275, 1500
+                                elif _vn_ll <= 400:
+                                    _uc, _up_max = 420, 2500
+                                else:
+                                    _uc, _up_max = int(_vn_ll * 1.1), 4000
+                                st.info(
+                                    f"**DPS (Surtos) Classe II** — Uc ≥ **{_uc} V**; "
+                                    f"nível de proteção Up ≤ **{_up_max} V**. "
+                                    f"Instalar no quadro de comando, entre fase e terra. (IEC 61643-11)"
+                                )
+
+                            _T_max = None
+                            for _k in ("T_s", "Ts", "T_stator", "theta_s", "theta_stator"):
+                                if _k in res:
+                                    _T_max = float(np.max(res[_k]))
+                                    break
+                            if _T_max is not None:
+                                _class_F, _class_H = 155, 180
+                                if _T_max < _class_F:
+                                    _prot_fn, _prot_iso = st.success, "F (155 °C)"
+                                elif _T_max < _class_H:
+                                    _prot_fn, _prot_iso = st.warning, "H (180 °C)"
+                                else:
+                                    _prot_fn, _prot_iso = st.error, "C (> 180 °C) — revisar isolamento"
+                                _prot_fn(
+                                    f"**Termistor PTC / RTD** — temperatura máxima simulada: "
+                                    f"**{_T_max:.1f} °C** → classe de isolamento recomendada: **{_prot_iso}**. "
+                                    f"(IEC 60085 / IEC 60034-1)"
+                                )
+
+                    except Exception:
+                        pass
+
+        # ── BLOCO 4: Resumo Econômico ────────────────────────────────────────
         if _em:
             st.write("")
             st.markdown('<p class="slabel">Resumo Econômico</p>', unsafe_allow_html=True)
@@ -992,9 +1080,31 @@ def render_results(
                     st.info("THD dentro do limite recomendado pela IEEE 519 (< 5%).")
 
                 if _fp < 0.85:
+                    # Identifica causa física do FP baixo
+                    _Te_ss  = float(res.get("Te_ss",  res.get("Te",  [0])[-1]))
+                    _T_nom  = float(getattr(mp, "T_nom", 0) or 0)
+                    _fator_carga = (_Te_ss / _T_nom) if _T_nom > 0 else None
+
+                    if _fator_carga is not None and _fator_carga < 0.5:
+                        _causa = (
+                            f"**Causa provável: motor operando em subcarga** "
+                            f"(torque no eixo ≈ {_Te_ss:.1f} N·m = {_fator_carga*100:.0f}% do nominal). "
+                            f"A corrente de magnetização $I_m = E_1/X_m$ permanece praticamente constante "
+                            f"independente da carga — com torque baixo, a potência ativa $P$ é pequena "
+                            f"enquanto a potência reativa $Q$ (dominada por $I_m$) permanece elevada, "
+                            f"resultando em FP = P/√(P²+Q²) baixo. "
+                            f"Motor superdimensionado para a carga aplicada."
+                        )
+                    else:
+                        _causa = (
+                            f"A corrente de magnetização ($I_m = E_1/X_m$) consome reativo "
+                            f"independente da carga, elevando $Q$ em relação a $P$."
+                        )
+
                     st.warning(
-                        f"Fator de Potência baixo ({_fp:.3f} < 0,85). "
-                        f"Considere banco de capacitores para correção."
+                        f"**Fator de Potência baixo** ({_fp:.3f} < 0,85).  \n"
+                        f"{_causa}  \n"
+                        f"Correção: banco de capacitores em paralelo para compensação do reativo."
                     )
                 st.caption(
                     "THD calculado via FFT de $i_{{as}}$ na janela de regime permanente. "
@@ -1022,10 +1132,12 @@ def render_results(
                         "ou os dados de regime permanente não foram detectados."
                     )
                 else:
+                    _ICONS = {"info": "ℹ️", "warning": "⚠️", "error": "🔴"}
                     _level_fn = {"info": st.info, "warning": st.warning, "error": st.error}
                     for _ins in _insights:
                         _fn = _level_fn.get(_ins.level, st.info)
-                        _fn(f"**{_ins.title}** — {_ins.body}")
+                        _icon = _ICONS.get(_ins.level, "")
+                        _fn(f"**{_icon} {_ins.title}**\n\n{_ins.body}")
             except Exception as _exc:
                 st.warning(f"Diagnóstico indisponível: {_exc}")
 
@@ -1085,40 +1197,39 @@ def render_results(
     except Exception:
         _pdf_insights = []
 
-    _ecol1, _ecol2, _ecol3 = st.columns(3)
+    _ecol1, _ecol2 = st.columns(2)
 
     with _ecol1:
-        if not st.session_state.get("pdf_bytes_v1"):
-            if st.button("Relatório V1 (Clássico)", key="btn_pdf_v1"):
-                with st.spinner("Gerando PDF V1..."):
-                    st.session_state["pdf_bytes_v1"] = generate_pdf_report(
-                        exp_label, mp, res, fig_pdf,
-                        var_keys, var_labels, t_events,
-                        exp_type=exp_type,
-                        ref_list=ref_list,
+        if not st.session_state.get("pdf_bytes_academico"):
+            if st.button("Relatório Acadêmico", key="btn_pdf_academico"):
+                with st.spinner("Gerando Relatório Acadêmico..."):
+                    st.session_state["pdf_bytes_academico"] = generate_academico(
+                        exp_label=exp_label, mp=mp, res=res,
+                        var_keys=var_keys, var_labels=var_labels, t_events=t_events,
+                        exp_type=exp_type, ref_list=ref_list,
                         energy_tariff=energy_tariff,
+                        tmax=_tmax_exp, h=_h_exp,
                         insights=_pdf_insights,
                         load_torque=_pdf_load_torque,
                     )
                 st.rerun()
         else:
             st.download_button(
-                label="Baixar V1 (PDF)",
-                data=st.session_state["pdf_bytes_v1"],
-                file_name="relatorio_ems_v1.pdf",
+                label="Baixar Relatório Acadêmico (PDF)",
+                data=st.session_state["pdf_bytes_academico"],
+                file_name="relatorio_iws_academico.pdf",
                 mime="application/pdf",
-                key="btn_pdf_v1_download",
+                key="btn_pdf_academico_download",
             )
-            if st.button("Regerar V1", key="btn_pdf_v1_regen"):
-                del st.session_state["pdf_bytes_v1"]
+            if st.button("Regerar Acadêmico", key="btn_pdf_academico_regen"):
+                del st.session_state["pdf_bytes_academico"]
                 st.rerun()
 
     with _ecol2:
-        if not st.session_state.get("pdf_bytes_v2_ac"):
-            if st.button("Relatório V2 — Acadêmico", key="btn_pdf_v2_ac"):
-                with st.spinner("Gerando PDF V2 Acadêmico..."):
-                    st.session_state["pdf_bytes_v2_ac"] = generate_pdf_report_v2(
-                        style="academico",
+        if not st.session_state.get("pdf_bytes_industrial"):
+            if st.button("Relatório Industrial", key="btn_pdf_industrial"):
+                with st.spinner("Gerando Relatório Industrial..."):
+                    st.session_state["pdf_bytes_industrial"] = generate_industrial(
                         exp_label=exp_label, mp=mp, res=res,
                         var_keys=var_keys, var_labels=var_labels, t_events=t_events,
                         exp_type=exp_type, ref_list=ref_list,
@@ -1130,43 +1241,16 @@ def render_results(
                 st.rerun()
         else:
             st.download_button(
-                label="Baixar V2 Acadêmico (PDF)",
-                data=st.session_state["pdf_bytes_v2_ac"],
-                file_name="relatorio_ems_academico.pdf",
+                label="Baixar Relatório Industrial (PDF)",
+                data=st.session_state["pdf_bytes_industrial"],
+                file_name="relatorio_iws_industrial.pdf",
                 mime="application/pdf",
-                key="btn_pdf_v2_ac_download",
+                key="btn_pdf_industrial_download",
             )
-            if st.button("Regerar V2 Acadêmico", key="btn_pdf_v2_ac_regen"):
-                del st.session_state["pdf_bytes_v2_ac"]
+            if st.button("Regerar Industrial", key="btn_pdf_industrial_regen"):
+                del st.session_state["pdf_bytes_industrial"]
                 st.rerun()
 
-    with _ecol3:
-        if not st.session_state.get("pdf_bytes_v2_db"):
-            if st.button("Relatório V2 — Dashboard", key="btn_pdf_v2_db"):
-                with st.spinner("Gerando PDF V2 Dashboard..."):
-                    st.session_state["pdf_bytes_v2_db"] = generate_pdf_report_v2(
-                        style="dashboard",
-                        exp_label=exp_label, mp=mp, res=res,
-                        var_keys=var_keys, var_labels=var_labels, t_events=t_events,
-                        exp_type=exp_type, ref_list=ref_list,
-                        energy_tariff=energy_tariff,
-                        tmax=_tmax_exp, h=_h_exp,
-                        insights=_pdf_insights,
-                        load_torque=_pdf_load_torque,
-                    )
-                st.rerun()
-        else:
-            st.download_button(
-                label="Baixar V2 Dashboard (PDF)",
-                data=st.session_state["pdf_bytes_v2_db"],
-                file_name="relatorio_ems_dashboard.pdf",
-                mime="application/pdf",
-                key="btn_pdf_v2_db_download",
-            )
-            if st.button("Regerar V2 Dashboard", key="btn_pdf_v2_db_regen"):
-                del st.session_state["pdf_bytes_v2_db"]
-                st.rerun()
-
-    # compatibilidade: pdf_bytes legado apontado para V1
-    if st.session_state.get("pdf_bytes_v1") and not st.session_state.get("pdf_bytes"):
-        st.session_state["pdf_bytes"] = st.session_state["pdf_bytes_v1"]
+    # compatibilidade: pdf_bytes legado apontado para acadêmico
+    if st.session_state.get("pdf_bytes_academico") and not st.session_state.get("pdf_bytes"):
+        st.session_state["pdf_bytes"] = st.session_state["pdf_bytes_academico"]
