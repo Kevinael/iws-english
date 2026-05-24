@@ -568,15 +568,10 @@ def render_results(
                                              "scale": 3, "height": 600, "width": 1200},
                 }
 
-                cv1, cv2, cv3 = st.columns([1.6, 1, 1.5])
-                with cv1:
-                    _viz_opts = ["Empilhados", "Sobrepostos"] if is_mobile else ["Empilhados", "Lado a lado", "Sobrepostos"]
-                    _cur_modo = st.session_state.get("plot_mode", _viz_opts[0])
-                    if _cur_modo not in _viz_opts:
-                        st.session_state["plot_mode"] = _viz_opts[0]
-                    modo = st.radio("Modo de Visualização", _viz_opts, horizontal=True, key="plot_mode")
-                with cv2:
-                    dark_plot = st.toggle("Fundo escuro", value=dark, key="plot_dark_toggle")
+                _viz_opts = ["Empilhados", "Sobrepostos"] if is_mobile else ["Empilhados", "Lado a lado", "Sobrepostos"]
+                _cur_modo = st.session_state.get("plot_mode", _viz_opts[0])
+                if _cur_modo not in _viz_opts:
+                    st.session_state["plot_mode"] = _viz_opts[0]
 
                 _is_pulso    = (exp_type == "pulso_carga")
                 _t_pulso_on  = float((exp_config or {}).get("t_carga",    0.0))
@@ -587,15 +582,21 @@ def render_results(
                 else:
                     _zoom_opts.append("Partida")
                 _zoom_opts.append("Regime Permanente")
-                # default por experimento: pulso de carga abre no zoom do transitorio
                 _zoom_default = "Pulso de Carga" if _is_pulso else _zoom_opts[0]
                 _saved_zoom   = st.session_state.get("zoom_mode", _zoom_default)
                 _zoom_idx     = _zoom_opts.index(_saved_zoom) if _saved_zoom in _zoom_opts else _zoom_opts.index(_zoom_default)
-                with cv3:
+
+                # Controles numa única linha compacta
+                _cc1, _cc2, _cc3 = st.columns([2, 2, 1])
+                with _cc1:
+                    modo = st.radio("Visualização", _viz_opts, horizontal=True, key="plot_mode")
+                with _cc2:
                     zoom_mode = st.radio(
                         "Zoom", _zoom_opts, index=_zoom_idx,
                         horizontal=True, key="zoom_mode",
                     )
+                with _cc3:
+                    dark_plot = st.toggle("Fundo escuro", value=dark, key="plot_dark_toggle")
 
                 st.write("")
 
@@ -982,16 +983,15 @@ def render_results(
                     for key in var_keys:
                         _nota_apos(key)
 
-                # Conjugado vs. Velocidade
-                st.write("")
-                st.markdown('<p class="slabel">Conjugado vs. Velocidade</p>', unsafe_allow_html=True)
-                _P_mec_ss = float(res.get("P_mec", 0.0))
-                _fig_ts = _cached_fig_torque_speed(
-                    P_nom_kw=max(_P_mec_ss / 1000.0, 0.5),
-                    f=mp.f, p=mp.p, dark=dark_plot,
-                    _cache_key=res_hash, res=res,
-                )
-                st.plotly_chart(_fig_ts, width="stretch")
+                # Conjugado vs. Velocidade (colapsável — análise secundária)
+                with st.expander("Conjugado × Velocidade", expanded=False):
+                    _P_mec_ss = float(res.get("P_mec", 0.0))
+                    _fig_ts = _cached_fig_torque_speed(
+                        P_nom_kw=max(_P_mec_ss / 1000.0, 0.5),
+                        f=mp.f, p=mp.p, dark=dark_plot,
+                        _cache_key=res_hash, res=res,
+                    )
+                    st.plotly_chart(_fig_ts, width="stretch")
 
             _render_dinamica(
                 res=res,
@@ -1014,164 +1014,167 @@ def render_results(
     # ABA 3 — DIAGNÓSTICO E FALHAS
     # ══════════════════════════════════════════════════════════════════════
     with tab_diag:
-        _ac_keys = [k for k in var_keys if k in ("ias", "ibs", "ics", "iar", "ibr", "icr")]
-        if _ac_keys:
-            st.markdown('<p class="slabel">Assinatura de Corrente (FFT)</p>', unsafe_allow_html=True)
-            _fft_var = st.selectbox(
-                "Variável para análise espectral",
-                options=_ac_keys,
-                format_func=lambda k: next((l for kk, l in zip(var_keys, var_labels) if kk == k), k),
-                key="fft_var_select_results",
-            )
-            _fft_lbl = _strip_latex(
-                next((l for kk, l in zip(var_keys, var_labels) if kk == _fft_var), _fft_var)
-            )
-            _dp = st.session_state.get("plot_dark_toggle", dark)
-            fig_fft = _cached_fig_fft(res, _dp, _fft_var, _fft_lbl, _cache_key=_res_hash)
-
-            _alpha = float(res.get("_broken_bar_severity", 0.0))
-            if _alpha > 0:
-                _s_val  = float(res.get("s", 0.0))
-                _f_fund = mp.f
-                _sb_lo  = _f_fund * (1.0 - 2.0 * abs(_s_val))
-                _sb_hi  = _f_fund * (1.0 + 2.0 * abs(_s_val))
-                for _freq, _lbl_sb in [(_sb_lo, f"(1−2s)f={_sb_lo:.1f}Hz"), (_sb_hi, f"(1+2s)f={_sb_hi:.1f}Hz")]:
-                    fig_fft.add_vline(
-                        x=_freq, line_dash="dash", line_color="#f59e0b", line_width=1.5,
-                        annotation_text=_lbl_sb,
-                        annotation_font_color="#f59e0b",
-                        annotation_font_size=9,
-                    )
-                st.caption(
-                    f"Barra quebrada ativa (alfa={_alpha:.2f}) — "
-                    f"componentes laterais em **(1±2s)f**: "
-                    f"{_sb_lo:.1f} Hz e {_sb_hi:.1f} Hz (s={_s_val*100:.2f}%)."
-                )
-            else:
-                st.caption("Linhas vermelhas tracejadas: harmônicas ímpares (1ª, 3ª, 5ª, 7ª, 9ª).")
-            _render_plotly(fig_fft, div_id="ems-fft-results")
+        # ── BLOCO 1: Banner de diagnóstico ───────────────────────────────────
+        if _n_critico > 0:
+            _diag_banner_fn = st.error
+            _diag_banner_ico = "🔴"
+        elif _n_alerta > 0:
+            _diag_banner_fn = st.warning
+            _diag_banner_ico = "🟡"
         else:
-            st.info("Selecione correntes de fase (ias, ibs, ics...) na configuração para habilitar a análise espectral.")
+            _diag_banner_fn = st.success
+            _diag_banner_ico = "🟢"
 
-        # Qualidade de Energia
+        _total_insights = len(_insights)
+        _n_info = _total_insights - _n_critico - _n_alerta
+        _diag_banner_fn(
+            f"{_diag_banner_ico} **{_total_insights} insight(s)** — "
+            f"{_n_critico} crítico(s) · {_n_alerta} alerta(s) · {_n_info} informativo(s)"
+        )
+
+        # ── BLOCO 2: Insights (cards diretos, sem expander) ──────────────────
+        if not _insights:
+            st.info(
+                "Nenhum insight disponível para este tipo de experimento "
+                "ou os dados de regime permanente não foram detectados."
+            )
+        else:
+            _ICONS = {"info": "ℹ️", "warning": "⚠️", "error": "🔴"}
+            _level_fn = {"info": st.info, "warning": st.warning, "error": st.error}
+            for _ins in _insights:
+                _fn   = _level_fn.get(_ins.level, st.info)
+                _icon = _ICONS.get(_ins.level, "")
+                _fn(f"**{_icon} {_ins.title}**\n\n{_ins.body}")
+
+        # ── BLOCO 3: Qualidade de Energia (expander) ─────────────────────────
         if _em:
             _thd = _em.get("thd_pct", 0.0)
             _fp  = _em.get("fp", 0.0)
             if _thd > 0 or _fp > 0:
-                st.divider()
-                st.markdown('<p class="slabel">Qualidade de Energia</p>', unsafe_allow_html=True)
-                _qe1, _qe2 = st.columns(2)
-                _qe1.metric("Fator de Potência (FP)", f"{_fp:.3f}")
-                _qe2.metric("THD de Corrente $i_{{as}}$", f"{_thd:.2f} %")
+                with st.expander("Qualidade de Energia", expanded=False):
+                    _qe1, _qe2 = st.columns(2)
+                    _qe1.metric("Fator de Potência (FP)", f"{_fp:.3f}")
+                    _qe2.metric("THD de Corrente $i_{{as}}$", f"{_thd:.2f} %")
 
-                _sat_active = float(res.get("_broken_bar_severity", 0.0)) > 0 or getattr(mp, "sat_enable", False)
-                if _thd > 5.0:
-                    if _sat_active:
-                        st.warning(
-                            f"THD elevado ({_thd:.1f}%) — provável contribuição da **saturação magnética**. "
-                            f"Considere filtro passivo ou ativo."
-                        )
+                    _sat_active = float(res.get("_broken_bar_severity", 0.0)) > 0 or getattr(mp, "sat_enable", False)
+                    if _thd > 5.0:
+                        if _sat_active:
+                            st.warning(
+                                f"THD elevado ({_thd:.1f}%) — provável contribuição da **saturação magnética**. "
+                                f"Considere filtro passivo ou ativo."
+                            )
+                        else:
+                            st.warning(
+                                f"THD de corrente acima de 5% ({_thd:.1f}%). "
+                                f"Verifique distorções na tensão de alimentação ou carga não-linear."
+                            )
                     else:
+                        st.info("THD dentro do limite recomendado pela IEEE 519 (< 5%).")
+
+                    if _fp < 0.85:
+                        _Te_ss  = float(res.get("Te_ss",  res.get("Te",  [0])[-1]))
+                        _T_nom  = float(getattr(mp, "T_nom", 0) or 0)
+                        _fator_carga = (_Te_ss / _T_nom) if _T_nom > 0 else None
+                        if _fator_carga is not None and _fator_carga < 0.5:
+                            _causa = (
+                                f"**Causa provável: motor operando em subcarga** "
+                                f"(torque no eixo ≈ {_Te_ss:.1f} N·m = {_fator_carga*100:.0f}% do nominal). "
+                                f"A corrente de magnetização $I_m = E_1/X_m$ permanece praticamente constante "
+                                f"independente da carga — com torque baixo, a potência ativa $P$ é pequena "
+                                f"enquanto a potência reativa $Q$ (dominada por $I_m$) permanece elevada, "
+                                f"resultando em FP = P/√(P²+Q²) baixo. "
+                                f"Motor superdimensionado para a carga aplicada."
+                            )
+                        else:
+                            _causa = (
+                                f"A corrente de magnetização ($I_m = E_1/X_m$) consome reativo "
+                                f"independente da carga, elevando $Q$ em relação a $P$."
+                            )
                         st.warning(
-                            f"THD de corrente acima de 5% ({_thd:.1f}%). "
-                            f"Verifique distorções na tensão de alimentação ou carga não-linear."
+                            f"**Fator de Potência baixo** ({_fp:.3f} < 0,85).  \n"
+                            f"{_causa}  \n"
+                            f"Correção: banco de capacitores em paralelo para compensação do reativo."
                         )
-                else:
-                    st.info("THD dentro do limite recomendado pela IEEE 519 (< 5%).")
-
-                if _fp < 0.85:
-                    # Identifica causa física do FP baixo
-                    _Te_ss  = float(res.get("Te_ss",  res.get("Te",  [0])[-1]))
-                    _T_nom  = float(getattr(mp, "T_nom", 0) or 0)
-                    _fator_carga = (_Te_ss / _T_nom) if _T_nom > 0 else None
-
-                    if _fator_carga is not None and _fator_carga < 0.5:
-                        _causa = (
-                            f"**Causa provável: motor operando em subcarga** "
-                            f"(torque no eixo ≈ {_Te_ss:.1f} N·m = {_fator_carga*100:.0f}% do nominal). "
-                            f"A corrente de magnetização $I_m = E_1/X_m$ permanece praticamente constante "
-                            f"independente da carga — com torque baixo, a potência ativa $P$ é pequena "
-                            f"enquanto a potência reativa $Q$ (dominada por $I_m$) permanece elevada, "
-                            f"resultando em FP = P/√(P²+Q²) baixo. "
-                            f"Motor superdimensionado para a carga aplicada."
-                        )
-                    else:
-                        _causa = (
-                            f"A corrente de magnetização ($I_m = E_1/X_m$) consome reativo "
-                            f"independente da carga, elevando $Q$ em relação a $P$."
-                        )
-
-                    st.warning(
-                        f"**Fator de Potência baixo** ({_fp:.3f} < 0,85).  \n"
-                        f"{_causa}  \n"
-                        f"Correção: banco de capacitores em paralelo para compensação do reativo."
+                    st.caption(
+                        "THD calculado via FFT de $i_{{as}}$ na janela de regime permanente. "
+                        "FP = P_in / S_aparente, onde S = 3 × Va_rms × Ias_rms."
                     )
-                st.caption(
-                    "THD calculado via FFT de $i_{{as}}$ na janela de regime permanente. "
-                    "FP = P_in / S_aparente, onde S = 3 × Va_rms × Ias_rms."
-                )
 
-        # ── Diagnóstico Técnico do Especialista ──────────────────────────
-        st.divider()
-        with st.expander("Diagnóstico Técnico do Especialista", expanded=True):
-            try:
-                _cfg       = exp_config or {}
-                _load_torq = float(_cfg.get("Tl_final", 0.0))
-                _tmax_diag = float(res["t"][-1]) if len(res.get("t", [])) > 0 else 0.0
-                _insights  = generate_insights(
-                    res=res,
-                    mp=mp,
-                    load_torque=_load_torq,
-                    tmax=_tmax_diag,
-                    exp_type=exp_type,
-                    exp_config=_cfg,
+        # ── BLOCO 4: Assinatura de Corrente / FFT (expander) ─────────────────
+        _ac_keys = [k for k in var_keys if k in ("ias", "ibs", "ics", "iar", "ibr", "icr")]
+        with st.expander("Assinatura de Corrente (FFT / MCSA)", expanded=False):
+            if _ac_keys:
+                _fft_var = st.selectbox(
+                    "Variável para análise espectral",
+                    options=_ac_keys,
+                    format_func=lambda k: next((l for kk, l in zip(var_keys, var_labels) if kk == k), k),
+                    key="fft_var_select_results",
                 )
-                if not _insights:
-                    st.info(
-                        "Nenhum insight disponível para este tipo de experimento "
-                        "ou os dados de regime permanente não foram detectados."
+                _fft_lbl = _strip_latex(
+                    next((l for kk, l in zip(var_keys, var_labels) if kk == _fft_var), _fft_var)
+                )
+                _dp = st.session_state.get("plot_dark_toggle", dark)
+                fig_fft = _cached_fig_fft(res, _dp, _fft_var, _fft_lbl, _cache_key=_res_hash)
+
+                _alpha = float(res.get("_broken_bar_severity", 0.0))
+                if _alpha > 0:
+                    _s_val  = float(res.get("s", 0.0))
+                    _f_fund = mp.f
+                    _sb_lo  = _f_fund * (1.0 - 2.0 * abs(_s_val))
+                    _sb_hi  = _f_fund * (1.0 + 2.0 * abs(_s_val))
+                    for _freq, _lbl_sb in [(_sb_lo, f"(1−2s)f={_sb_lo:.1f}Hz"), (_sb_hi, f"(1+2s)f={_sb_hi:.1f}Hz")]:
+                        fig_fft.add_vline(
+                            x=_freq, line_dash="dash", line_color="#f59e0b", line_width=1.5,
+                            annotation_text=_lbl_sb,
+                            annotation_font_color="#f59e0b",
+                            annotation_font_size=9,
+                        )
+                    st.caption(
+                        f"Barra quebrada ativa (alfa={_alpha:.2f}) — "
+                        f"componentes laterais em **(1±2s)f**: "
+                        f"{_sb_lo:.1f} Hz e {_sb_hi:.1f} Hz (s={_s_val*100:.2f}%)."
                     )
                 else:
-                    _ICONS = {"info": "ℹ️", "warning": "⚠️", "error": "🔴"}
-                    _level_fn = {"info": st.info, "warning": st.warning, "error": st.error}
-                    for _ins in _insights:
-                        _fn = _level_fn.get(_ins.level, st.info)
-                        _icon = _ICONS.get(_ins.level, "")
-                        _fn(f"**{_icon} {_ins.title}**\n\n{_ins.body}")
-            except Exception as _exc:
-                st.warning(f"Diagnóstico indisponível: {_exc}")
+                    st.caption("Linhas vermelhas tracejadas: harmônicas ímpares (1ª, 3ª, 5ª, 7ª, 9ª).")
+                _render_plotly(fig_fft, div_id="ems-fft-results")
+            else:
+                st.info("Selecione correntes de fase (ias, ibs, ics...) na configuração para habilitar a análise espectral.")
 
     # ══════════════════════════════════════════════════════════════════════
     # ABA 4 — GESTÃO DE ATIVOS (ROI / TÉRMICA)
     # ══════════════════════════════════════════════════════════════════════
     with tab_ativos:
         if _em:
-            st.markdown('<p class="slabel">Análise Econômica (IAS Energy Conservation)</p>', unsafe_allow_html=True)
-            _ec1, _ec2, _ec3 = st.columns(3)
-            _ec1.metric("Energia no Experimento",    f"{_em['E_total_kwh']:.5f} kWh")
-            _ec2.metric("Custo do Experimento",      f"R$ {_em['custo_exp_brl']:.4f}")
-            _ec3.metric("Potência Entrada (regime)", f"{_em['P_in_ss_kw']:.3f} kW")
+            st.markdown('<p class="slabel">Análise Econômica</p>', unsafe_allow_html=True)
 
-            _ec4, _ec5, _ec6 = st.columns(3)
-            _ec4.metric("Rendimento em Regime",    f"{_em['eta_ss']:.2f} %")
-            _ec5.metric("Custo Operacional Anual", f"R$ {_em['custo_ano_brl']:,.2f}",
+            # Linha primária — métricas de decisão
+            _ec1, _ec2, _ec3 = st.columns(3)
+            _ec1.metric("Rendimento em Regime",    f"{_em['eta_ss']:.2f} %")
+            _ec2.metric("Custo Operacional Anual", f"R$ {_em['custo_ano_brl']:,.2f}",
                         help=(
                             f"Estimado como: P_in_regime × 8.760 h/ano × tarifa.\n"
                             f"Suposições: operação contínua 24 h/dia, 365 dias/ano, "
                             f"na potência de regime permanente.\n"
                             f"Tarifa atual: R$ {energy_tariff:.4f}/kWh."
                         ))
-            _ec6.metric("Energia Anual Projetada", f"{_em['P_in_ss_kw'] * _em['horas_op_ano']:,.1f} kWh/ano",
-                        help=(
-                            f"Energia elétrica que o motor consumiria em um ano de "
-                            f"operação contínua à potência de regime "
-                            f"({_em['P_in_ss_kw']:.3f} kW × 8.760 h/ano)."
-                        ))
+            _ec3.metric("Potência Entrada (regime)", f"{_em['P_in_ss_kw']:.3f} kW")
 
-            st.caption(
-                f"Projeção anual baseada em operação contínua (8.760 h/ano) à tarifa de "
-                f"R$ {energy_tariff:.2f}/kWh."
-            )
+            # Detalhes de consumo (expander)
+            with st.expander("Detalhes do Consumo", expanded=False):
+                _ed1, _ed2, _ed3 = st.columns(3)
+                _ed1.metric("Energia no Experimento", f"{_em['E_total_kwh']:.5f} kWh")
+                _ed2.metric("Custo do Experimento",   f"R$ {_em['custo_exp_brl']:.4f}")
+                _ed3.metric("Energia Anual Projetada",
+                            f"{_em['P_in_ss_kw'] * _em['horas_op_ano']:,.1f} kWh/ano",
+                            help=(
+                                f"Energia elétrica que o motor consumiria em um ano de "
+                                f"operação contínua à potência de regime "
+                                f"({_em['P_in_ss_kw']:.3f} kW × 8.760 h/ano)."
+                            ))
+                st.caption(
+                    f"Projeção anual baseada em operação contínua (8.760 h/ano) à tarifa de "
+                    f"R$ {energy_tariff:.2f}/kWh."
+                )
         else:
             st.info("Análise econômica não disponível para o experimento de desligamento.")
 
