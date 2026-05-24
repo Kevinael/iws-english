@@ -1968,7 +1968,7 @@ def render_mcsa() -> None:
                           buttons=[dict(method="animate", args=[None])])],
     )
 
-    st.plotly_chart(fig, width="stretch", config={"displaylogo": False})
+    st.plotly_chart(fig, use_container_width=True, config={"displaylogo": False})
 
     # ── Tabela diagnóstica IEC 60034-26 ──────────────────────────────────────
     alpha_curr = alpha_grid[nom_idx]
