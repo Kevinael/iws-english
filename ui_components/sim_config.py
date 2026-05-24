@@ -48,6 +48,21 @@ def _cached_estimate_ieee(
     )
 
 
+def _tl_sugerido(mp: "MachineParams") -> float:
+    """Estima torque nominal do motor a partir dos parâmetros elétricos (s=5%)."""
+    ws = mp.wb / (mp.p / 2)
+    Vf = mp.Vl / 3.0 ** 0.5
+    s = 0.05
+    Zr = complex(mp.Rr / s, mp.Xlr_a)
+    Zm = complex(0.0, mp.wb * mp.Lm)
+    Zs = complex(mp.Rs, mp.Xls_a)
+    Z_par = Zr * Zm / (Zr + Zm)
+    I_total = Vf / abs(Zs + Z_par)
+    Ir = I_total * abs(Zm) / abs(Zr + Zm)
+    Pmec = 3.0 * (mp.Rr / s - mp.Rr) * Ir ** 2
+    return max(round(Pmec / ws, 2), 0.1)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # CATÁLOGOS DE VARIÁVEIS
 # ─────────────────────────────────────────────────────────────────────────────
@@ -489,7 +504,7 @@ def render_machine_params(
             for key, widget_key in _wk_preset.items():
                 if key in pdata:
                     st.session_state[widget_key] = pdata[key]
-            st.session_state[wk["param_source"]] = _PARAM_SOURCE_LABELS[0]
+            st.session_state["_param_source_idx"] = 0
             st.session_state["_reset_preset_select"] = True
             st.rerun()
 
@@ -499,14 +514,15 @@ def render_machine_params(
     dis = experiment_mode
 
     # ── Seleção da fonte de parâmetros ────────────────────────────────────
+    _ps_idx = int(st.session_state.get("_param_source_idx", 0))
     param_source_label = st.radio(
         "Fonte dos parâmetros do motor",
         _PARAM_SOURCE_LABELS,
-        index=0,
-        key=wk["param_source"],
+        index=_ps_idx,
         disabled=dis,
         horizontal=True,
     )
+    st.session_state["_param_source_idx"] = _PARAM_SOURCE_LABELS.index(param_source_label)
     use_placa = param_source_label.startswith("Estimar")
     use_ieee  = param_source_label.startswith("Determinar")
     if use_placa:
@@ -818,7 +834,7 @@ A separação usa a Tabela 1 da IEEE 112, conforme a **classe NEMA** selecionada
         c_lr1, c_lr2 = st.columns(2)
         Vl_lr = c_lr1.number_input(
             "Tensão de linha — $V_{l,LR}$ (V)",
-            min_value=0.1, max_value=15000.0, value=50.0, step=0.1, format="%.2f",
+            min_value=0.1, max_value=15000.0, value=31.68, step=0.1, format="%.2f",
             key=wk["ieee_Vl_lr"], disabled=dis,
             help="Tensão reduzida aplicada com o rotor travado (cuidado: corrente nominal).",
         )
@@ -831,7 +847,7 @@ A separação usa a Tabela 1 da IEEE 112, conforme a **classe NEMA** selecionada
         c_lr3, c_lr4 = st.columns(2)
         P_lr = c_lr3.number_input(
             "Potência trifásica — $P_{LR}$ (W)",
-            min_value=0.1, max_value=1e7, value=480.0, step=1.0, format="%.2f",
+            min_value=0.1, max_value=1e7, value=735.59, step=1.0, format="%.2f",
             key=wk["ieee_P_lr"], disabled=dis,
         )
         f_lr = c_lr4.number_input(
@@ -954,6 +970,27 @@ A separação usa a Tabela 1 da IEEE 112, conforme a **classe NEMA** selecionada
                     f"$R_{{fe}}$ = {Rfe:.1f} Ω muito baixo — verifique $P_{{NL}}$ "
                     "e a separação de perdas mecânicas (Pfw)."
                 )
+
+            st.divider()
+            if st.button(
+                "✔ Usar estes parâmetros na simulação",
+                key="ieee_apply_btn",
+                type="primary",
+                help="Copia os parâmetros estimados para o modo Manual, permitindo ajustes antes de simular.",
+            ):
+                _p_tmp = int(st.session_state.get(wk["p"], _DEFAULTS["p"]))
+                _mp_tmp = MachineParams(Vl=Vl, f=f, Rs=Rs, Rr=Rr, Xm=Xm, Xls=Xls, Xlr=Xlr, Rfe=Rfe, p=_p_tmp)
+                _tl_tmp = _tl_sugerido(_mp_tmp)
+                st.session_state["_param_source_idx"] = 0  # "Inserir parâmetros manualmente"
+                st.session_state[wk["Rs"]]  = Rs
+                st.session_state[wk["Rr"]]  = Rr
+                st.session_state[wk["Xm"]]  = Xm
+                st.session_state[wk["Xls"]] = Xls
+                st.session_state[wk["Xlr"]] = Xlr
+                st.session_state[wk["Rfe"]] = Rfe
+                st.session_state[wk["Tl_final"]]  = _tl_tmp
+                st.session_state["wi_dol_Tl_nom"] = _tl_tmp
+                st.rerun()
 
         # Parâmetros fixos para MachineParams no modo IEEE
         f_ref      = f
@@ -1151,7 +1188,8 @@ def render_experiment_config(
 
     # Torque de referência do preset carregado — usado como valor inicial em todos os experimentos.
     # Garante que ao comutar entre tipos de experimento o torque não retorne ao padrão fixo 80 N·m.
-    _Tl_ref = float(st.session_state.get(wk["Tl_final"], 80.0))
+    _Tl_ref = float(st.session_state.get(wk["Tl_final"], _tl_sugerido(mp)))
+    st.caption(f"Torque nominal estimado dos parâmetros elétricos (s = 5 %): **{_tl_sugerido(mp):.2f} N·m**")
 
     if exp_type == "dol":
         partir_em_vazio = st.checkbox(
