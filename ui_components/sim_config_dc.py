@@ -123,9 +123,83 @@ def render_dc_machine_params(dark: bool, experiment_mode: bool) -> tuple[DCMachi
     Retorna (DCMachineParams, ref_code).
     ref_code: hash inteiro para cache invalidation.
     """
-    # ── Preset loader ────────────────────────────────────────────────────────
+    from core.dc_estimator import estimate_dc_nameplate, estimate_dc_tests
+
     st.markdown('<p class="slabel">Parâmetros da Máquina</p>', unsafe_allow_html=True)
 
+    # ── Configuração de excitação ────────────────────────────────────────────
+    _wi("wi_dc_excitation", "sep_motor")
+    exc_options = list(_EXC_LABELS.keys())
+    exc_labels  = [_EXC_LABELS[k] for k in exc_options]
+    exc_stored  = st.session_state.get("wi_dc_excitation", "sep_motor")
+    exc_idx     = exc_options.index(exc_stored) if exc_stored in exc_options else 0
+
+    exc_label_sel = st.selectbox(
+        "Configuração", exc_labels, index=exc_idx,
+        key="_dc_exc_sel", label_visibility="visible",
+        disabled=experiment_mode,
+    )
+    exc = exc_options[exc_labels.index(exc_label_sel)]
+    st.session_state["wi_dc_excitation"] = exc
+
+    # ── Fonte de dados: Manual / Placa / Ensaios ─────────────────────────────
+    _wi("wi_dc_input_mode", "Manual")
+    input_mode = st.radio(
+        "Fonte de dados", ["Manual", "Placa de Identificação", "Ensaios"],
+        index=["Manual", "Placa de Identificação", "Ensaios"].index(
+            st.session_state.get("wi_dc_input_mode", "Manual")
+        ),
+        horizontal=True, key="wi_dc_input_mode",
+        disabled=experiment_mode,
+    )
+
+    if input_mode == "Placa de Identificação" and not experiment_mode:
+        _pgroup("Dados da Placa (NEMA)")
+        p1, p2, p3, p4 = st.columns(4)
+        _wi("wi_dc_Pn_kW", 0.5)
+        _wi("wi_dc_Vn_placa", 24.0)
+        _wi("wi_dc_nn_rpm", 6500.0)
+        _wi("wi_dc_eta_placa", 0.85)
+        Pn_kW    = p1.number_input("$P_n$ (kW)",  min_value=0.001, key="wi_dc_Pn_kW",     format="%.3f")
+        Vn_p     = p2.number_input("$V_n$ (V)",   min_value=1.0,   key="wi_dc_Vn_placa",  format="%.1f")
+        nn_rpm   = p3.number_input("$n_n$ (RPM)", min_value=1.0,   key="wi_dc_nn_rpm",    format="%.0f")
+        eta_p    = p4.number_input("$\\eta$",      min_value=0.01, max_value=1.0,
+                                    key="wi_dc_eta_placa", format="%.3f")
+        est = estimate_dc_nameplate(Pn_kW * 1000, Vn_p, nn_rpm, eta_p, exc)
+        for fld, wk in [("Ra","wi_dc_Ra"),("La","wi_dc_La"),("kb","wi_dc_kb"),
+                        ("Va","wi_dc_Va"),("Vf","wi_dc_Vf"),("Rf","wi_dc_Rf"),
+                        ("Lf","wi_dc_Lf"),("J","wi_dc_J"),("B","wi_dc_B")]:
+            if fld in est:
+                st.session_state[wk] = est[fld]
+        st.info(f"Estimado: $R_a$ = {est['Ra']:.4f} Ω | $k_b$ = {est['kb']:.5f} | "
+                f"$V_a$ = {est['Va']:.1f} V")
+
+    elif input_mode == "Ensaios" and not experiment_mode:
+        _pgroup("Ensaio de Resistência CC")
+        e1, e2 = st.columns(2)
+        _wi("wi_dc_V_dc_test", 1.0)
+        _wi("wi_dc_I_dc_test", 0.1)
+        V_dc_t = e1.number_input("$V_{dc}$ (V)", min_value=0.001, key="wi_dc_V_dc_test", format="%.3f")
+        I_dc_t = e2.number_input("$I_{dc}$ (A)", min_value=0.001, key="wi_dc_I_dc_test", format="%.3f")
+
+        _pgroup("Ensaio a Vazio")
+        g1, g2, g3, g4 = st.columns(4)
+        _wi("wi_dc_V_nl_test",  24.0)
+        _wi("wi_dc_I_nl_test",  0.05)
+        _wi("wi_dc_If_nl_test", 8.4)
+        _wi("wi_dc_n_nl_test",  6500.0)
+        V_nl_t  = g1.number_input("$V_{a,nl}$ (V)",    min_value=0.01,  key="wi_dc_V_nl_test",  format="%.3f")
+        I_nl_t  = g2.number_input("$I_{a,nl}$ (A)",    min_value=0.001, key="wi_dc_I_nl_test",  format="%.3f")
+        If_nl_t = g3.number_input("$I_{fd,nl}$ (A)",   min_value=0.001, key="wi_dc_If_nl_test", format="%.3f")
+        n_nl_t  = g4.number_input("$n_{nl}$ (RPM)",    min_value=1.0,   key="wi_dc_n_nl_test",  format="%.1f")
+        est = estimate_dc_tests(V_dc_t, I_dc_t, V_nl_t, I_nl_t, If_nl_t, n_nl_t, exc)
+        for fld, wk in [("Ra","wi_dc_Ra"),("La","wi_dc_La"),("kb","wi_dc_kb"),("Lf","wi_dc_Lf")]:
+            if fld in est:
+                st.session_state[wk] = est[fld]
+        st.info(f"Estimado: $R_a$ = {est['Ra']:.4f} Ω | $k_b$ = {est['kb']:.5f} | "
+                f"$E_{{a,nl}}$ = {est['Ea_nl']:.3f} V")
+
+    # ── Preset loader ────────────────────────────────────────────────────────
     preset_names = ["— Selecionar preset —"] + list(_PRESETS_DC.keys())
     preset_sel = st.selectbox("Preset", preset_names, key="wi_dc_preset",
                                label_visibility="collapsed")
@@ -135,24 +209,6 @@ def render_dc_machine_params(dark: bool, experiment_mode: bool) -> tuple[DCMachi
             st.session_state[f"wi_dc_{k}"] = v
         st.session_state["wi_dc_preset"] = "— Selecionar preset —"
         st.rerun()
-
-    # ── Configuração de excitação ────────────────────────────────────────────
-    _wi("wi_dc_excitation", "sep_motor")
-    exc_options = list(_EXC_LABELS.keys())
-    exc_labels  = [_EXC_LABELS[k] for k in exc_options]
-    exc_idx     = exc_options.index(st.session_state["wi_dc_excitation"]) \
-                  if st.session_state["wi_dc_excitation"] in exc_options else 0
-
-    exc = exc_options[
-        st.selectbox("Configuração", exc_labels, index=exc_idx, key="_dc_exc_sel",
-                     label_visibility="visible",
-                     disabled=experiment_mode)
-        if not experiment_mode else exc_idx
-    ]
-    # normalizar: selectbox retorna índice implicitamente via session_state
-    exc_sel_label = st.session_state.get("_dc_exc_sel", exc_labels[0])
-    exc = exc_options[exc_labels.index(exc_sel_label)] if exc_sel_label in exc_labels else exc_options[0]
-    st.session_state["wi_dc_excitation"] = exc
 
     is_gen    = exc in ("sep_gen", "shunt_gen")
     is_sep    = exc in ("sep_motor", "sep_gen")
