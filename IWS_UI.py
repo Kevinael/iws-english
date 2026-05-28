@@ -25,8 +25,16 @@ from ui_components.sim_config import (
     render_machine_params,
     render_experiment_config,
 )
+from ui_components.sim_config_dc import (
+    render_dc_config_selector,
+    render_dc_params,
+    get_dc_params,
+    _WK_DC,
+)
 from ui_components.sim_results import render_results, render_ref_panel
+from ui_components.sim_results_dc import render_dc_results
 from ui_components.sim_runner import execute_simulation_flow
+from ui_components.sim_runner_dc import execute_dc_simulation_flow
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -114,19 +122,27 @@ def main() -> None:
 
     st.divider()
 
-    tab_sim, tab_teoria, tab_clean = st.tabs(["Simulação", "Teoria", "Visualização para Artigo"])
+    selected_machine = st.session_state["selected_machine"]
 
-    # ── ABA SIMULAÇÃO ─────────────────────────────────────────────────────
-    with tab_sim:
-        # controles globais — agrupados à esquerda; última coluna absorve o espaço restante
-        ct1, ct2, ct3, _ = st.columns([1.2, 1.8, 1.2, 6])
-        with ct1:
-            st.toggle("Modo Escuro", value=dark, key="dark_mode")
-        with ct2:
-            st.toggle("Travar Parâmetros", value=False, key="experiment_mode",
-                      help="Quando ativado, desabilita os campos de parâmetros do motor (Rs, Rr, Xm, Xls, Xlr, p, J, B). Útil para comparar resultados variando apenas o experimento (carga, tensão, falha) sem alterar a máquina.")
-        with ct3:
-            st.number_input("Casas decimais", min_value=0, max_value=6, value=3, step=1, key="decimals")
+    if selected_machine == "dc":
+        tab_sim_dc, tab_teoria, tab_clean = st.tabs(["Simulação MCC", "Teoria", "Visualização para Artigo"])
+        tab_sim = None
+    else:
+        tab_sim, tab_teoria, tab_clean = st.tabs(["Simulação", "Teoria", "Visualização para Artigo"])
+        tab_sim_dc = None
+
+    # ── ABA SIMULAÇÃO (MIT) ───────────────────────────────────────────────
+    if tab_sim is not None:
+        with tab_sim:
+            # controles globais — agrupados à esquerda; última coluna absorve o espaço restante
+            ct1, ct2, ct3, _ = st.columns([1.2, 1.8, 1.2, 6])
+            with ct1:
+                st.toggle("Modo Escuro", value=dark, key="dark_mode")
+            with ct2:
+                st.toggle("Travar Parâmetros", value=False, key="experiment_mode",
+                          help="Quando ativado, desabilita os campos de parâmetros do motor (Rs, Rr, Xm, Xls, Xlr, p, J, B). Útil para comparar resultados variando apenas o experimento (carga, tensão, falha) sem alterar a máquina.")
+            with ct3:
+                st.number_input("Casas decimais", min_value=0, max_value=6, value=3, step=1, key="decimals")
 
         experiment_mode = st.session_state.get("experiment_mode", False)
         dec = int(st.session_state.get("decimals", 3))
@@ -225,6 +241,66 @@ def main() -> None:
                     "- Análise harmônica (FFT) e diagnóstico\n"
                     "- Indicadores de eficiência energética e custo operacional"
                 )
+
+    # ── ABA SIMULAÇÃO (MCC) ───────────────────────────────────────────────
+    if tab_sim_dc is not None:
+        with tab_sim_dc:
+            ct1, ct2, ct3, _ = st.columns([1.2, 1.8, 1.2, 6])
+            with ct1:
+                st.toggle("Modo Escuro", value=dark, key="dark_mode")
+            with ct2:
+                st.toggle("Travar Configuração", value=False, key="dc_lock_config",
+                          help="Quando ativado, desabilita a mudança de tipo de máquina CC.")
+            with ct3:
+                st.number_input("Casas decimais", min_value=0, max_value=6, value=3, step=1, key="decimals")
+
+            dec = int(st.session_state.get("decimals", 3))
+
+            # Seleção e parâmetros DC
+            col_config, col_params = st.columns([1, 1], gap="large")
+
+            with col_config:
+                config = render_dc_config_selector()
+                st.session_state[_WK_DC["dc_config"]] = config
+
+            with col_params:
+                render_dc_params()
+
+            st.write("")
+            run_clicked = st.button("Executar Simulação", key="btn_run_dc", width="stretch")
+
+            if run_clicked:
+                var_keys = ["ia", "ifd", "wm", "Te", "Ea"]
+                var_labels = ["Corrente Armadura (A)", "Corrente Campo (A)", "Velocidade (rad/s)", "Torque (N·m)", "Tensão de Induzida (V)"]
+                params = get_dc_params()
+                exp_config = {
+                    "exp_type": "dol_dc",
+                    "t_carga": 1.0,
+                }
+                tmax = 12.0
+                h = 0.01
+
+                execute_dc_simulation_flow(
+                    config=config,
+                    params=params,
+                    exp_config=exp_config,
+                    var_keys=var_keys,
+                    var_labels=var_labels,
+                    tmax=tmax,
+                    h=h,
+                    dark=dark,
+                )
+
+            dc_result = st.session_state.get("dc_sim_result")
+            if dc_result is not None:
+                render_dc_results(dc_result, decimals=dec, dark=dark)
+            else:
+                with st.container(border=True):
+                    st.markdown(
+                        "### Nenhuma simulação MCC executada ainda\n\n"
+                        "Configure o tipo de máquina CC (motor/gerador) e seus parâmetros, "
+                        "depois clique em **Executar Simulação** para visualizar os resultados."
+                    )
 
     # ── ABA TEORIA ────────────────────────────────────────────────────────
     with tab_teoria:
