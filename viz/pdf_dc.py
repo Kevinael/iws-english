@@ -353,7 +353,7 @@ def generate_dc_academico(
 
     Itera sobre simulação atual + todas as referências em ref_list.
     """
-    var_labels = var_labels or var_keys
+    var_labels = var_labels if var_labels is not None else var_keys
     t_events   = t_events   or []
     ref_list   = ref_list   or []
 

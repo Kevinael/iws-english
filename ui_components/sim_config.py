@@ -375,7 +375,7 @@ def render_machine_selector(dark: bool) -> None:
         with cols[i]:
             # criar container com CSS inline
             st.markdown(
-                f'<div style="margin-bottom: 0.8rem;">'
+                f'<div style="margin-bottom: 0.8rem; font-family: Inter, Segoe UI, system-ui, sans-serif;">'
                 f'<div style="background: {c["surface"]}; border: 2px solid {c["border"]}; border-radius: 14px; padding: 1.8rem 1.4rem; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 0.8rem;">'
                 f'<div style="font-size: 3rem;">{m["icon"]}</div>'
                 f'<div style="font-size: 1.1rem; font-weight: 600; color: {c["text"]};">{m["name"]}</div>'

@@ -10,6 +10,18 @@ A ordem é a ordem em que você **construiria** o simulador do zero.
 Cada nota começa com um problema. A nota seguinte usa a solução da anterior.
 Nunca apresentar uma ferramenta antes do problema que ela resolve.
 
+**Padrão de escrita (revisado em 2026-05-24):** estrutura obrigatória em toda nota:
+
+1. **Tentativa ingênua** — solução óbvia + por que falha (consequência concreta)
+2. **Passos numerados** (mín. 2, máx. 6) — cada passo = uma decisão, um fragmento de código
+3. **Código completo** — consolidação sem novidades
+4. **O Que Você Acabou de Construir** — tabela ligando exemplo ao IWS real (arquivo + linha)
+5. **Exercício** — tarefa verificável sem rodar o IWS completo
+6. **Próxima nota** — obrigatória, indica o problema que a próxima resolve
+
+Ver `VAULT_PLAN.md` → seção "Template de Nota" para o template completo com checklist.
+Piloto: `SimMEE-Vault/01_Problema_Central/Primeiro_Simulador.md` (a escrever).
+
 ---
 
 ## Capítulo 0 — Setup (ler uma vez, voltar quando precisar)
@@ -60,7 +72,7 @@ Nunca apresentar uma ferramenta antes do problema que ela resolve.
 |---|------|---------------------|
 | 12 | `03_Conectando_Parametros_ao_Solver/O_Problema_da_Assinatura.md` | Por que `rhs(t, y, mp)` não funciona com solve_ivp |
 | 13 | `03_Conectando_Parametros_ao_Solver/Closure_Como_Solucao.md` | Função que retorna função; captura por valor |
-| 14 | `03_Conectando_Parametros_ao_Solver/make_rhs_Construindo.md` | Construir _make_rhs passo a passo a partir das equações de Krause |
+| 14 | `03_Conectando_Parametros_ao_Solver/make_rhs_Construindo.md` | Construir _make_rhs; mapeamento referencial estacionário→código; como dq0 de Krause vira as 8 EDOs |
 | 15 | `03_Conectando_Parametros_ao_Solver/Performance_No_Hot_Path.md` | Por que `Rs = mp.Rs` antes de `def rhs` importa em 50k chamadas/s |
 
 **Ponto de chegada:** você consegue escrever uma `_make_rhs` simples para uma máquina nova.
@@ -92,8 +104,9 @@ Nunca apresentar uma ferramenta antes do problema que ela resolve.
 | 21 | `05_Pos_Processamento/Detectando_Regime_Permanente.md` | Por que janela LCM-alinhada em vez de média simples |
 | 22 | `05_Pos_Processamento/Balanco_de_Potencia.md` | De onde vêm P_gap, P_cu_s, P_cu_r, P_fe, η no res dict |
 | 23 | `05_Pos_Processamento/Modelo_Termico_Separado.md` | Por que temperatura não está na ODE — problema de escala de tempo |
+| 23b | `05_Pos_Processamento/Validando_contra_Placa.md` | Motor simulado não bate com a placa: roteiro de debug — parâmetro errado, rtol/atol frouxo, ou erro de equação? |
 
-**Ponto de chegada:** você entende todo o `res` dict — o que cada chave contém e de onde veio.
+**Ponto de chegada:** você entende todo o `res` dict e sabe verificar se os números fazem sentido físico.
 
 ---
 
@@ -107,14 +120,19 @@ Nunca apresentar uma ferramenta antes do problema que ela resolve.
 | 25 | `06_Fontes_de_Excitacao/build_fns_A_Fabrica.md` | Como build_fns fabrica as funções certas para cada exp_type |
 | 26 | `06_Fontes_de_Excitacao/Captura_por_Valor.md` | O bug clássico do lambda sem _x=x — com exemplo que falha |
 | 27 | `06_Fontes_de_Excitacao/Cada_Modo_Explicado.md` | DOL, Y-Δ, soft-starter, sag: o diff de build_fns entre eles |
+| 27b | `06_Fontes_de_Excitacao/Perfis_de_Carga_Mecanica.md` | Construir torque_fn constante, quadrática e rampa; separação explícita entre Te (eletromagnético) e Tl (carga) |
 
-**Ponto de chegada:** você consegue adicionar um novo modo apenas em `sources.py`.
+**Ponto de chegada:** você consegue adicionar um novo modo de tensão ou um novo perfil de carga apenas em `sources.py`.
 
 ---
 
 ## Capítulo 7 — Interface Streamlit
 
-**Narrativa:** "Quero uma UI onde o usuário digita parâmetros e clica 'Executar'. Como Streamlit funciona?"
+**Narrativa:** "Tenho o simulador funcionando. Agora quero uma UI onde o usuário digita parâmetros, clica 'Executar' e vê resultados — e que não quebre quando ele muda qualquer coisa."
+
+O capítulo tem dois blocos: **comportamento** (como Streamlit executa) e **construção** (como programar layout, tema e componentes customizados).
+
+### Bloco A — Comportamento do Streamlit
 
 | # | Nota | Problema que resolve |
 |---|------|---------------------|
@@ -124,7 +142,15 @@ Nunca apresentar uma ferramenta antes do problema que ela resolve.
 | 31 | `07_Interface_Streamlit/Widgets_e_Keys.md` | key= no widget → session_state automático; o que acontece sem key |
 | 32 | `07_Interface_Streamlit/Cache_e_Performance.md` | @st.cache_data: quando usar, quando não usar, armadilhas |
 
-**Ponto de chegada:** você entende por que o IWS não quebra quando o usuário muda um parâmetro e clica Executar.
+### Bloco B — Construindo a UI
+
+| # | Nota | Problema que resolve |
+|---|------|---------------------|
+| 32b | `07_Interface_Streamlit/Arquitetura_da_Pagina.md` | Quero parâmetros e circuito lado a lado, controles no topo, abas separando seções — como programar isso com `st.columns` e `st.tabs`? Tentei empilhar widgets verticalmente: ficou inutilizável. |
+| 32c | `07_Interface_Streamlit/Tema_e_CSS.md` | Quero modo escuro, fonte Inter, sidebar escondida. Tentei o seletor de tema nativo do Streamlit: não controla o suficiente. Como injetar CSS global via `st.markdown` e estruturar `theme.py`? |
+| 32d | `07_Interface_Streamlit/Componentes_HTML_Customizados.md` | Quero uma tabela densa de KPIs com estilo preciso. Tentei `st.dataframe` e `st.table`: sem controle visual. Como e por que usar `st.html()` com HTML puro, e como programar construtores `_row()`, `_section()`, `_fmt()` como fazemos em `clean_view.py`? |
+
+**Ponto de chegada:** você entende o modelo de execução do Streamlit, não quebra o estado ao mudar parâmetros, e consegue construir uma nova tela do zero com layout, tema e componentes customizados — programando cada parte, não copiando.
 
 ---
 
@@ -168,6 +194,9 @@ Nunca apresentar uma ferramenta antes do problema que ela resolve.
 | 42 | `10_Falhas_e_Diagnostico/Falta_de_Fase.md` | Diferença de implementação vs. desequilíbrio |
 | 43 | `10_Falhas_e_Diagnostico/Barra_Quebrada.md` | rr_fn como closure: Rr modulado no tempo |
 | 44 | `10_Falhas_e_Diagnostico/Diagnostico_Automatizado.md` | generate_insights: como detectar anomalia nos dados do res dict |
+| 44b | `10_Falhas_e_Diagnostico/Erros_Comuns_de_Interpretacao.md` | Te ≠ Tl, transitório ≠ regime permanente, MCSA mal-lida: armadilhas clássicas com exemplos concretos |
+
+**Ponto de chegada:** você consegue simular falha, interpretar o diagnóstico corretamente, e não confundir grandezas eletromagnéticas com grandezas de carga.
 
 ---
 
@@ -195,24 +224,49 @@ Nunca apresentar uma ferramenta antes do problema que ela resolve.
 
 ---
 
-## Resumo de Progresso
+## Resumo de Progresso (2026-05-24)
 
-| Cap | Tema | Notas | Status |
-|-----|------|-------|--------|
-| 0 | Setup | 3 | A escrever |
-| 1 | Problema Central | 4 | A escrever |
-| 2 | Parâmetros | 4 | A escrever |
-| 3 | Closure / _make_rhs | 4 | Parcial (Closures_e_Factories reescrita) |
-| 4 | Solver | 4 | A escrever |
-| 5 | Pós-processamento | 4 | A escrever |
-| 6 | Fontes | 4 | A escrever |
-| 7 | Streamlit | 5 | A escrever |
-| 8 | Resultados | 4 | A escrever |
-| 9 | Arquitetura | 4 | A escrever |
-| 10 | Falhas | 4 | A escrever |
-| 11 | Extensão | 4 | Parcial (Como_Adicionar_Nova_Maquina reescrita) |
-| 12 | Referência | 4 | A escrever |
-| **Total** | | **52 notas** | |
+Legenda: ✅ completo · 🔧 existe mas incompleto (falta checklist) · ❌ não existe
+
+| Cap | Tema | Notas planejadas | Existem | Status |
+|-----|------|-----------------|---------|--------|
+| 0 | Setup | 3 | 3 | ✅ Como_Rodar · ✅ Mapa_do_Codigo · ✅ Glossario |
+| 1 | Problema Central | 4 | 4 | 🔧 O_Que_Queremos_Simular · EDO_Como_Ferramenta · Primeiro_Simulador · Por_Que_8_Estados |
+| 2 | Parâmetros | 4 | 0 | ❌ |
+| 3 | Closure / _make_rhs | 4 | 0 | ❌ (rascunhos em F0–F9, localizar) |
+| 4 | Solver | 4 | 4 | 🔧 Migrar checklist |
+| 5 | Pós-processamento | 5 | 4 | 🔧 Migrar checklist + escrever Validando_contra_Placa |
+| 6 | Fontes | 5 | 4 | 🔧 Migrar checklist + escrever Perfis_de_Carga_Mecanica |
+| 7 | Streamlit (comportamento + UI) | 8 | 5 | 🔧 5 existem (migrar checklist) + 3 UI a escrever |
+| 8 | Resultados | 4 | 0 | ❌ |
+| 9 | Arquitetura | 4 | 0 | ❌ |
+| 10 | Falhas | 5 | 0 | ❌ |
+| 11 | Extensão | 4 | 0 | ❌ (rascunho em F0–F9, localizar) |
+| 12 | Referência | 4 | 0 | ❌ |
+| **Total** | | **58 notas** | **24** | **41% existem, 7 prontas (Caps 0–1)** |
+
+**Próxima ação:** escrever `02_Organizando_Parametros/O_Problema_dos_Parametros.md`.
+Depois: `Dataclass_Como_Solucao.md` → `MachineParams_Campo_a_Campo.md` → `Campos_Derivados.md`.
+
+---
+
+## Dívida de Migração — Notas Existentes (Caps 4–7)
+
+17 notas existentes têm conteúdo correto mas violam o template revisado.
+Todas precisam dos mesmos 4 elementos antes de `status: publicado`:
+
+| Elemento ausente | Notas afetadas |
+|---|---|
+| Passos numerados (`## Passo N`) | todas as 17 |
+| Tabela "O Que Você Acabou de Construir" | todas as 17 |
+| Exercício verificável | todas as 17 |
+| "Próxima Nota" | 13 de 17 (Cap 5, 6, 7 incompletos) |
+
+**Critério de migração:** ao reescrever qualquer nota, aplicar checklist completo e mudar `status: rascunho`.
+Não reescrever em massa — fazer nota por nota, na ordem do capítulo.
+
+**Prioridade:** Cap 0 e Cap 1 primeiro (não existem; são pré-requisito de tudo).
+Só depois migrar Caps 4–7.
 
 ---
 
@@ -223,7 +277,7 @@ Migrar ao reescrever: aplicar template narrativo e mover para capítulo correto.
 
 | Nota antiga | Capítulo novo | Status |
 |---|---|---|
-| `Closures_e_Factories.md` | Cap 3 | ✅ Reescrita |
-| `Machine_Model.md` | Cap 3–4 | ✅ Reescrita |
-| `Como_Adicionar_Nova_Maquina.md` | Cap 11 | ✅ Reescrita |
+| `Closures_e_Factories.md` | Cap 3 | ✅ Reescrita (migrar checklist) |
+| `Machine_Model.md` | Cap 3–4 | ✅ Reescrita (migrar checklist) |
+| `Como_Adicionar_Nova_Maquina.md` | Cap 11 | ✅ Reescrita (migrar checklist) |
 | Demais notas F0–F9 | Vários | A migrar |

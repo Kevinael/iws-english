@@ -118,7 +118,7 @@ def _write_sim_block(
     pdf.set_xy(20, 14)
     pdf.set_font("Helvetica", "B", 18)
     pdf.set_text_color(255, 255, 255)
-    pdf.cell(0, 12, "IWS — Relatorio Tecnico de Simulacao",
+    pdf.cell(0, 12, "IWS — Relatório Técnico de Simulação",
              border=0, new_x="LMARGIN", new_y="NEXT")
     pdf.set_xy(20, 30)
     pdf.set_font("Helvetica", "", 12)

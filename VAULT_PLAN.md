@@ -8,7 +8,24 @@
 
 Ensinar **como programar um simulador** usando o IWS como caso real.
 
-O leitor é você mesmo — sabe engenharia elétrica, quer dominar o código, quer ser autônomo para modificar e estender o IWS sem depender de ninguém.
+### Leitor-alvo
+
+Você mesmo — com o seguinte perfil:
+
+| Conhece bem | Conhece pouco ou nada |
+|---|---|
+| Engenharia elétrica (MIT, circuito equivalente, dq0 conceitualmente) | Python além do básico (closures, dataclasses, decorators) |
+| O que é corrente, torque, velocidade síncrona | EDO numérica (o que solve_ivp faz internamente) |
+| Física do motor de indução | Streamlit, Plotly, ReportLab |
+
+O Vault parte do zero em Python avançado e EDO numérica. Não explica circuito equivalente — assume que você sabe o que Rs, Rr, Xm significam fisicamente.
+
+**Objetivo concreto:** ao terminar o Vault, você consegue:
+1. Explicar cada linha de `_make_rhs` em `core/machine_model.py`
+2. Adicionar uma nova máquina ao IWS sem consultar ninguém
+3. Debugar uma simulação que produz números errados
+4. Adicionar um novo modo de operação em `sources.py`
+5. Construir uma nova tela no IWS: layout, tema, widgets e componentes HTML customizados
 
 O Vault não é documentação de referência. É a história de construção: cada capítulo começa com um problema real, mostra por que a solução simples não funciona, e explica a decisão que o código implementa.
 
@@ -23,15 +40,20 @@ Sim: "queríamos Y. Tentamos Z. Não funcionou porque W. Então fizemos assim."
 
 A ordem é a ordem em que *você construiria* o simulador do zero:
 
-```
-1. Simular o motor no tempo
-2. Organizar os parâmetros
-3. Ligar a simulação a uma interface
-4. Suportar múltiplos experimentos
-5. Mostrar o que aconteceu (resultados, gráficos)
-6. Adicionar diagnóstico e análises
-7. Tornar tudo extensível
-```
+| Etapa de construção | Capítulos |
+|---|---|
+| 1. Simular o motor no tempo | Cap 0 (setup) + Cap 1 (EDO, primeiro simulador) |
+| 2. Organizar os parâmetros | Cap 2 (MachineParams, dataclass) |
+| 3. Conectar parâmetros ao integrador | Cap 3 (closure, _make_rhs) |
+| 4. Rodar com precisão e estabilidade | Cap 4 (solver, segmentação) |
+| 5. Extrair resultados úteis | Cap 5 (pós-processamento, balanço de potência) |
+| 6. Suportar múltiplos experimentos | Cap 6 (fontes de tensão/carga) |
+| 7. Ligar tudo a uma interface | Cap 7 (Streamlit: comportamento + layout + design) |
+| 8. Mostrar o que aconteceu | Cap 8 (Plotly, frames, KPIs) |
+| 9. Entender a arquitetura completa | Cap 9 (fluxo E2E, separação de responsabilidades) |
+| 10. Adicionar diagnóstico e análise de falhas | Cap 10 (desequilíbrio, barra quebrada, MCSA) |
+| 11. Tornar tudo extensível | Cap 11 (nova máquina, novo modo, nova aba) |
+| — Referência | Cap 12 (API, snapshot de arquitetura) |
 
 ---
 
@@ -60,7 +82,7 @@ A ordem é a ordem em que *você construiria* o simulador do zero:
 ├── 📁 03_Conectando_Parametros_ao_Solver/
 │   ├── O_Problema_da_Assinatura.md   ← solve_ivp só aceita rhs(t,y): como passar Rs, Rr, Xm?
 │   ├── Closure_Como_Solucao.md       ← função que retorna função, captura por valor
-│   ├── make_rhs_Construindo.md       ← construir _make_rhs passo a passo
+│   ├── make_rhs_Construindo.md       ← construir _make_rhs passo a passo; mapeamento referencial estacionário→código; dq0 nas 8 EDOs
 │   └── Performance_No_Hot_Path.md    ← por que extrair Rs=mp.Rs antes de rhs
 │
 ├── 📁 04_Rodando_a_Simulacao/
@@ -70,23 +92,28 @@ A ordem é a ordem em que *você construiria* o simulador do zero:
 │   └── Clamp_e_Estabilidade.md       ← clamp_wr_at_zero: problema sem ele, solução com ele
 │
 ├── 📁 05_Pos_Processamento/
-│   ├── Correntes_a_Partir_de_Fluxos.md ← por que integrar fluxos e não correntes
+│   ├── Correntes_a_Partir_de_Fluxos.md ← por que integrar fluxos e não correntes; inversão dq0→abc
 │   ├── Detectando_Regime_Permanente.md ← janela LCM-alinhada: por que não média simples
 │   ├── Balanco_de_Potencia.md          ← RMS, η, P_gap, P_cu: de onde vêm os números
-│   └── Modelo_Termico_Separado.md      ← por que temperatura não está na ODE
+│   ├── Modelo_Termico_Separado.md      ← por que temperatura não está na ODE
+│   └── Validando_contra_Placa.md       ← como verificar se simulação bate com dados de placa; debug físico vs. numérico
 │
 ├── 📁 06_Fontes_de_Excitacao/
 │   ├── voltage_fn_e_torque_fn.md     ← por que funções e não valores fixos
 │   ├── build_fns_A_Fabrica.md        ← como build_fns constrói as funções para cada experimento
 │   ├── Captura_por_Valor.md          ← o bug do lambda sem _x=x, e como evitar
-│   └── Cada_Modo_Explicado.md        ← DOL, Y-Δ, soft-starter, sag: diff de build_fns entre eles
+│   ├── Cada_Modo_Explicado.md        ← DOL, Y-Δ, soft-starter, sag: diff de build_fns entre eles
+│   └── Perfis_de_Carga_Mecanica.md   ← construir torque_fn constante, quadrático, rampa; separação Te vs Tl
 │
 ├── 📁 07_Interface_Streamlit/
 │   ├── Como_Streamlit_Funciona.md    ← rerun: o que dispara, o que perde, o que persiste
 │   ├── Session_State.md              ← por que session_state existe, o que guardar nele
 │   ├── WK_O_Elo_UI_Backend.md        ← _WK: por que o dicionário de mapeamento existe
 │   ├── Widgets_e_Keys.md             ← key= no widget → session_state automático
-│   └── Cache_e_Performance.md        ← @st.cache_data: quando usar, quando não usar
+│   ├── Cache_e_Performance.md        ← @st.cache_data: quando usar, quando não usar
+│   ├── Arquitetura_da_Pagina.md      ← st.columns, st.tabs, hierarquia top-to-bottom; por que cada decisão de layout existe
+│   ├── Tema_e_CSS.md                 ← apply_css(): injetar CSS global; dark/light mode; quando Streamlit nativo não basta
+│   └── Componentes_HTML_Customizados.md ← por que st.html() com HTML puro em vez de widgets; _row(), _section(), _fmt() como construtores de UI
 │
 ├── 📁 08_Mostrando_Resultados/
 │   ├── O_Res_Dict.md                 ← estrutura do dicionário de saída de run_simulation
@@ -101,10 +128,11 @@ A ordem é a ordem em que *você construiria* o simulador do zero:
 │   └── Separacao_de_Responsabilidades.md ← regra: machine_model não importa Streamlit; por quê importa
 │
 ├── 📁 10_Falhas_e_Diagnostico/
-│   ├── Desequilibrio_de_Tensao.md    ← como o código aplica assimetria nas fases
-│   ├── Falta_de_Fase.md              ← diferença de implementação vs. desequilíbrio
-│   ├── Barra_Quebrada.md             ← Rr modulado no tempo: rr_fn como closure
-│   └── Diagnostico_Automatizado.md   ← generate_insights: como detectar anomalia no res dict
+│   ├── Desequilibrio_de_Tensao.md          ← como o código aplica assimetria nas fases
+│   ├── Falta_de_Fase.md                    ← diferença de implementação vs. desequilíbrio
+│   ├── Barra_Quebrada.md                   ← Rr modulado no tempo: rr_fn como closure
+│   ├── Diagnostico_Automatizado.md         ← generate_insights: como detectar anomalia no res dict
+│   └── Erros_Comuns_de_Interpretacao.md    ← confundir Te com Tl, transitório vs. regime, outras armadilhas clássicas
 │
 ├── 📁 11_Extensao/
 │   ├── Adicionando_Nova_Maquina.md   ← 6 passos com motivação de cada um
@@ -121,68 +149,215 @@ A ordem é a ordem em que *você construiria* o simulador do zero:
 
 ---
 
-## Template de Nota (Narrativo)
+## Template de Nota (Código Incremental)
 
-Cada nota segue a estrutura problema → solução:
+O objetivo de cada nota é fazer o leitor **construir** o código, não lê-lo.
+
+### Princípio
+
+- Cada passo introduz **uma** decisão ou conceito antes de mostrar código.
+- Nunca apresentar um bloco grande pronto. Construir em camadas.
+- Explicar cada conceito novo antes de usá-lo (ex: "o que é um estado?" antes de escrever `y = [ia, wr]`).
+- O código completo aparece **somente no final**, como consolidação — depois que cada parte foi construída nos passos anteriores.
+- O leitor ao final da nota deve ser capaz de reproduzir o código **sem olhar para ele**.
+- Toda nota termina com um exercício prático mínimo — o leitor faz algo com o que acabou de aprender.
+
+---
+
+### Estrutura completa de uma nota
 
 ```markdown
 ---
 titulo: "..."
 capitulo: 01 | 02 | ... | 12
 status: rascunho | publicado
-iws_arquivo: "..."
-iws_linhas: "..."
+iws_arquivo: "..."          ← arquivo real do IWS onde o conceito aparece
+iws_linhas: "..."           ← intervalo de linhas exato
+prerequisitos: ["...", "..."]  ← notas que o leitor deve ter lido antes
 ---
 
-# Título
+# [Título da Nota]
 
-> Uma frase: qual problema esta nota resolve.
+> [Uma frase: o risco de não entender isso. Ex: "Errar rtol produz resultados silenciosamente errados."]
 
 ---
 
 ## O Problema
 
-[Descreve o que você estava tentando fazer e por que a abordagem óbvia não funciona.
-Sempre começa de uma necessidade concreta, não de um conceito abstrato.]
+[Parágrafo curto: qual necessidade concreta gerou essa nota.
+Sempre em primeira pessoa do leitor: "Quero X. Como faço?"]
+
+---
 
 ## A Tentativa Ingênua
 
-[Código ou raciocínio que parece certo mas não funciona — com explicação de por que falha.]
+[Mostrar a solução óbvia. Código mínimo que parece funcionar.]
 
 ```python
-# isso parece razoável, mas quebra porque...
+# tentativa: código errado ou incompleto
 ```
 
-## A Solução
+[Explicar por que falha — com consequência concreta, não abstrata.
+Ex: "o gráfico de torque aparece suave demais" em vez de "produz imprecisão".]
 
-[A decisão real que o IWS implementa, com a razão por trás dela.]
+---
 
-## No Código
+## Passo 1 — [Nome da primeira decisão de design]
 
-[Localização exata no IWS. Snippet com anotações explicando cada linha relevante.]
+[Uma decisão, uma razão. Sem código ainda.]
+
+[Fragmento mínimo introduzindo apenas essa decisão:]
 
 ```python
-# core/arquivo.py:linha
+# passo 1: fragmento mínimo
 ```
 
-## Consequências e Trade-offs
+[O que mudou e por quê funciona agora.]
 
-[O que essa solução ganha. O que ela sacrifica. O que fica mais difícil por causa dela.]
+---
 
-## Referências
+## Passo 2 — [Nome da segunda decisão]
 
-- IWS: `arquivo.py:linha`
-- [[Nota relacionada]]
+[Usa o resultado do Passo 1. Introduz um conceito novo antes de usá-lo.]
+
+[Fragmento expandido:]
+
+```python
+# passo 2: adiciona sobre o passo 1
+```
+
+[...]
+
+---
+
+## Passo N — [Último ajuste ou caso especial]
+
+[...]
+
+---
+
+## Código Completo
+
+> Consolidação dos passos anteriores. Nenhuma linha nova aqui.
+
+```python
+# código completo — cada linha foi construída acima
 ```
 
 ---
 
-## Notas que já existem (migrar para nova estrutura)
+## O Que Você Acabou de Construir
 
-As notas escritas em F0–F9 têm conteúdo correto mas estrutura errada (módulo, não problema).
-Migrar gradualmente: ao reescrever uma nota, mover para o capítulo correto e aplicar template narrativo.
+| Elemento local | Equivalente no IWS | Arquivo | Linha |
+|---|---|---|---|
+| [variável/função do exemplo] | [nome real no IWS] | [arquivo] | [linha] |
 
-Notas-piloto já reescritas (template narrativo aplicado):
-- `Closures_e_Factories.md` → mover para `03_Conectando_Parametros_ao_Solver/`
-- `Machine_Model.md` → mover para `03_Conectando_Parametros_ao_Solver/` ou `04_Rodando_a_Simulacao/`
-- `Como_Adicionar_Nova_Maquina.md` → mover para `11_Extensao/`
+---
+
+## Exercício
+
+[Uma tarefa que o leitor resolve sozinho, usando exatamente o que foi ensinado.
+Escopo: 5–15 minutos. Sem resposta na nota — o leitor deve conseguir verificar sozinho
+se acertou usando um invariante físico ou teste simples.]
+
+**Exemplo:** "Escreva uma `voltage_fn` que simula queda de 20% em t=1s e retorno em t=2s.
+Verifique: `voltage_fn(0.5)` deve retornar `mp.Vl`; `voltage_fn(1.5)` deve retornar `0.8 * mp.Vl`."
+
+---
+
+## Próxima Nota
+
+[[Nome_Da_Proxima_Nota]] — [frase: que problema ela resolve, por que você precisa dela agora]
+
+---
+
+## Referências
+
+- IWS: `arquivo:linhas` — [o que está lá]
+- [[Nota_Relacionada_1]] — [por quê é relevante]
+- [[Nota_Relacionada_2]] — [por quê é relevante]
+```
+
+---
+
+### Regras de aplicação
+
+**Passos:** mínimo 2, máximo 6. Se precisar de mais de 6, a nota cobre dois conceitos — dividir.
+
+**Fragmentos de código:** cada passo mostra apenas o delta em relação ao passo anterior. O leitor
+vê o código crescer linha a linha.
+
+**Tentativa ingênua:** obrigatória. Sem ela, o leitor não entende por que a solução real existe.
+
+**Exercício:** obrigatório. Sem ele, o leitor sabe o conceito mas não praticou. O exercício deve
+ser verificável por inspeção ou teste simples — nunca depender de rodar o IWS completo.
+
+**Próxima nota:** obrigatória. Sempre indica qual problema a próxima nota resolve. Nunca deixar
+o leitor sem direção.
+
+**Links:** usar `[[NomeDaNota]]` (Obsidian) **e** path relativo como fallback em comentário:
+```markdown
+[[Segmentacao_e_Eventos]]
+<!-- fallback: ../04_Rodando_a_Simulacao/Segmentacao_e_Eventos.md -->
+```
+
+**Frontmatter `prerequisitos`:** listar todos os slugs de notas que o leitor precisa ter lido.
+Permite verificar dependências sem ler o conteúdo.
+
+---
+
+### Checklist antes de marcar `status: publicado`
+
+- [ ] Tentativa ingênua presente e com consequência concreta
+- [ ] Pelo menos 2 passos numerados
+- [ ] Cada passo introduz **uma** decisão/conceito
+- [ ] Nenhum conceito novo no bloco "Código Completo"
+- [ ] Tabela "O Que Você Acabou de Construir" preenchida com linhas reais do IWS
+- [ ] Exercício presente e verificável sem rodar o IWS completo
+- [ ] "Próxima nota" presente com descrição do problema que ela resolve
+- [ ] Links com fallback de path relativo
+
+---
+
+### Piloto aprovado
+
+`SimMEE-Vault/01_Problema_Central/Primeiro_Simulador.md` — referência de estilo para todas as notas.
+(A ser escrito seguindo este template revisado.)
+
+---
+
+## Estado Atual do Vault (2026-05-24)
+
+### Notas existentes — Caps 4–7
+
+17 notas existem nos diretórios Caps 4–7. Conteúdo correto; estrutura incompleta (faltam exercício, passos numerados, tabela IWS, "Próxima nota" em 13/17).
+**Não estão prontas para leitura** — `status: publicado` é incorreto nelas; corrigir para `rascunho` ao migrar.
+
+| Cap | Notas existentes | Faltando |
+|---|---|---|
+| 4 | 4/4 | exercício, passos, tabela, "próxima" em 0/4 |
+| 5 | 4/5 (`Validando_contra_Placa.md` ausente) | exercício, passos, tabela em todos |
+| 6 | 4/5 (`Perfis_de_Carga_Mecanica.md` ausente) | exercício, passos, tabela; "próxima" em 0/4 |
+| 7 | 5/8 (3 notas de UI ausentes) | exercício, passos, tabela; "próxima" em 0/5 existentes |
+
+### Notas inexistentes — Caps 0–3 e 8–12
+
+41 notas não existem. **Prioridade de escrita:**
+
+1. **Cap 0** — pré-requisito de tudo (setup, mapa do código, glossário)
+2. **Cap 1** — núcleo pedagógico (EDO, primeiro simulador, 8 estados)
+3. **Cap 2** — MachineParams (pré-requisito de Cap 3)
+4. **Cap 3** — closure e _make_rhs (pré-requisito de Cap 4)
+5. **Migrar Caps 4–7** — aplicar checklist nas 17 existentes + escrever 5 ausentes
+6. **Caps 8–12** — completar o vault
+
+### Notas Antigas (F0–F9) — Status de Migração
+
+Conteúdo correto, estrutura errada (módulo, não problema). Localização atual desconhecida — verificar antes de migrar.
+
+| Nota | Capítulo destino | Status |
+|---|---|---|
+| `Closures_e_Factories.md` | `03_Conectando_Parametros_ao_Solver/` | ✅ Reescrita (migrar checklist) |
+| `Machine_Model.md` | `03_Conectando_Parametros_ao_Solver/` ou `04_` | ✅ Reescrita (migrar checklist) |
+| `Como_Adicionar_Nova_Maquina.md` | `11_Extensao/` | ✅ Reescrita (migrar checklist) |
+| Demais F0–F9 | Vários | A migrar |
