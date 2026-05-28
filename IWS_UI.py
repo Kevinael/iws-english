@@ -28,6 +28,12 @@ from ui_components.sim_config import (
 from ui_components.sim_results import render_results, render_ref_panel
 from ui_components.sim_runner import execute_simulation_flow
 
+# MCC
+from ui_components.sim_config_dc import render_dc_machine_params, render_experiment_config_dc
+from ui_components.sim_runner_dc import execute_simulation_flow_dc
+from ui_components.sim_results_dc import render_results_dc
+from viz.eqcircuit_plotter_dc import render_circuit_dc as _render_circuit_dc
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # CONFIGURAÇÃO DA PÁGINA
@@ -65,6 +71,27 @@ def main() -> None:
     for key, val in _defaults.items():
         if key not in st.session_state:
             st.session_state[key] = val
+
+    # Defaults DC
+    _DC_DEFAULTS = {
+        "wi_dc_Va": 24.0, "wi_dc_Ra": 0.013, "wi_dc_La": 0.01,
+        "wi_dc_Vf": 12.0, "wi_dc_Rf": 1.43,  "wi_dc_Lf": 0.167,
+        "wi_dc_Rl": 0.0,  "wi_dc_Ll": 0.0,
+        "wi_dc_kb": 0.004, "wi_dc_J": 0.21, "wi_dc_B": 1.074e-6,
+        "wi_dc_Tload": 2.493,
+        "wi_dc_excitation": "sep_motor",
+    }
+    for k, v in _DC_DEFAULTS.items():
+        if k not in st.session_state:
+            st.session_state[k] = v
+
+    # Reset ao trocar máquina
+    _prev_machine = st.session_state.get("_prev_machine")
+    _cur_machine  = st.session_state.get("selected_machine")
+    if _prev_machine is not None and _prev_machine != _cur_machine:
+        st.session_state["sim_result"] = None
+        st.session_state["ref_list"]   = []
+    st.session_state["_prev_machine"] = _cur_machine
 
     # Carrega o preset Krause automaticamente na primeira execução da sessão
     _KRAUSE_KEY = "Padrão — Krause 3 HP (2.2 kW / 12 N·m) 220 V/60 Hz"
@@ -118,7 +145,11 @@ def main() -> None:
 
     st.divider()
 
-    tab_sim, tab_teoria, tab_clean = st.tabs(["Simulação", "Teoria", "Visualização para Artigo"])
+    selected_machine = st.session_state.get("selected_machine", "mit")
+    if selected_machine == "dc":
+        tab_sim, tab_teoria_dc = st.tabs(["Simulação", "Teoria MCC"])
+    else:
+        tab_sim, tab_teoria, tab_clean = st.tabs(["Simulação", "Teoria", "Visualização para Artigo"])
 
     # ── ABA SIMULAÇÃO ─────────────────────────────────────────────────────
     with tab_sim:
@@ -135,108 +166,201 @@ def main() -> None:
         experiment_mode = st.session_state.get("experiment_mode", False)
         dec = int(st.session_state.get("decimals", 3))
 
-        # parâmetros + circuito
-        col_params, col_circuit = st.columns([1, 1], gap="large")
+        if selected_machine == "dc":
+            # ── BRANCH MCC ────────────────────────────────────────────────
+            col_params, col_circuit = st.columns([1, 1], gap="large")
 
-        with col_params:
-            mp, ref_code, energy_tariff = render_machine_params(dark, experiment_mode, _WK)
+            with col_params:
+                mp_dc, ref_code_dc = render_dc_machine_params(dark, experiment_mode)
 
-        with col_circuit:
-            st.markdown('<p class="slabel">Circuito Equivalente Monofásico</p>', unsafe_allow_html=True)
-            _render_circuit(mp, dark)
+            with col_circuit:
+                st.markdown('<p class="slabel">Circuito Equivalente</p>', unsafe_allow_html=True)
+                _render_circuit_dc(mp_dc.excitation, dark)
+                st.write("")
+                exp_config_dc, var_keys_dc, var_labels_dc, tmax_dc, h_dc = \
+                    render_experiment_config_dc(mp_dc)
+
             st.write("")
-            exp_config, var_keys, var_labels, tmax, h = render_experiment_config(mp, _WK)
+            run_clicked_dc = st.button("Executar Simulação", key="btn_run_dc", width="stretch")
 
-        # ── CTA principal ─────────────────────────────────────────────
-        st.write("")
-        run_clicked = st.button(
-            "Executar Simulação", key="btn_run",
-            width="stretch",
-        )
-
-        _can_save = (
-            st.session_state["sim_result"] is not None
-            and len(st.session_state["ref_list"]) < 5
-        )
-        ba1, ba2 = st.columns(2)
-        with ba1:
-            save_ref = st.button(
-                "Salvar como Referência", key="btn_save_ref",
-                width="stretch",
-                disabled=not _can_save,
-                help="Salva o resultado atual para comparação (máx. 5)",
+            _can_save_dc = (
+                st.session_state["sim_result"] is not None
+                and len(st.session_state["ref_list"]) < 5
             )
-        with ba2:
-            clear_ref = st.button(
-                "Limpar Referências", key="btn_clear_ref",
-                width="stretch",
-                disabled=not st.session_state["ref_list"],
-                help="Remove todas as referências salvas",
-            )
+            dc1, dc2 = st.columns(2)
+            with dc1:
+                save_ref_dc = st.button("Salvar como Referência", key="btn_save_ref_dc",
+                                        width="stretch", disabled=not _can_save_dc,
+                                        help="Salva o resultado atual para comparação (máx. 5)")
+            with dc2:
+                clear_ref_dc = st.button("Limpar Referências", key="btn_clear_ref_dc",
+                                          width="stretch",
+                                          disabled=not st.session_state["ref_list"],
+                                          help="Remove todas as referências salvas")
 
-        if save_ref and _can_save:
-            new_ref = dict(st.session_state["sim_result"])
-            _idx    = len(st.session_state["ref_list"])
-            new_ref["color"] = REF_COLORS[_idx % len(REF_COLORS)]
-            new_ref["dash"]  = REF_DASHES[_idx % len(REF_DASHES)]
-            st.session_state["ref_list"].append(new_ref)
-            st.rerun()
-        if clear_ref:
-            st.session_state["ref_list"] = []
-            st.rerun()
+            if save_ref_dc and _can_save_dc:
+                new_ref_dc = dict(st.session_state["sim_result"])
+                _idx_dc = len(st.session_state["ref_list"])
+                new_ref_dc["color"] = REF_COLORS[_idx_dc % len(REF_COLORS)]
+                new_ref_dc["dash"]  = REF_DASHES[_idx_dc % len(REF_DASHES)]
+                st.session_state["ref_list"].append(new_ref_dc)
+                st.rerun()
+            if clear_ref_dc:
+                st.session_state["ref_list"] = []
+                st.rerun()
 
-        if run_clicked:
-            execute_simulation_flow(
-                mp=mp, exp_config=exp_config, var_keys=var_keys, var_labels=var_labels,
-                tmax=tmax, h=h, ref_code=ref_code, dark=dark,
-                energy_tariff=energy_tariff,
-            )
-
-        _toast = st.session_state.pop("_sim_toast", None)
-        if _toast:
-            st.success(_toast)
-
-        sr = st.session_state.get("sim_result")
-        render_ref_panel()
-        ref_list = st.session_state["ref_list"]
-
-        if sr is not None:
-            render_results(
-                res=sr["res"],
-                var_keys=var_keys if var_keys else sr["var_keys"],
-                var_labels=var_labels if var_labels else sr["var_labels"],
-                dark=sr["dark"],
-                t_events=sr["t_events"],
-                mp=sr["mp"],
-                exp_label=sr.get("exp_label", "Simulacao"),
-                exp_type=sr.get("exp_type",   "dol"),
-                decimals=dec,
-                ref_list=ref_list,
-                primary_color=None,
-                is_mobile=is_mobile,
-                energy_tariff=sr.get("energy_tariff", 0.75),
-                exp_config=sr.get("exp_config"),
-                torque_fn=sr.get("torque_fn"),
-            )
-        else:
-            with st.container(border=True):
-                st.markdown(
-                    "### Nenhuma simulação executada ainda\n\n"
-                    "Configure os parâmetros do motor e do experimento acima, "
-                    "depois clique em **Executar Simulação** para visualizar:\n\n"
-                    "- Formas de onda de corrente, torque e velocidade no transitório\n"
-                    "- Métricas de regime permanente (velocidade final, escorregamento, rendimento)\n"
-                    "- Análise harmônica (FFT) e diagnóstico\n"
-                    "- Indicadores de eficiência energética e custo operacional"
+            if run_clicked_dc:
+                execute_simulation_flow_dc(
+                    mp=mp_dc, exp_config=exp_config_dc,
+                    var_keys=var_keys_dc, var_labels=var_labels_dc,
+                    tmax=tmax_dc, h=h_dc, ref_code=ref_code_dc, dark=dark,
                 )
 
-    # ── ABA TEORIA ────────────────────────────────────────────────────────
-    with tab_teoria:
-        render_theory_tab()
+            _toast = st.session_state.pop("_sim_toast", None)
+            if _toast:
+                st.success(_toast)
 
-    # ── ABA VISUALIZAÇÃO PARA ARTIGO ──────────────────────────────────────
-    with tab_clean:
-        render_clean_view()
+            sr_dc = st.session_state.get("sim_result")
+            render_ref_panel()
+            ref_list_dc = st.session_state["ref_list"]
+
+            if sr_dc is not None:
+                render_results_dc(
+                    res=sr_dc["res"],
+                    var_keys=var_keys_dc if var_keys_dc else sr_dc["var_keys"],
+                    var_labels=var_labels_dc if var_labels_dc else sr_dc["var_labels"],
+                    dark=sr_dc["dark"],
+                    t_events=sr_dc.get("t_events", []),
+                    mp=sr_dc["mp"],
+                    exp_label=sr_dc.get("exp_label", "Simulacao DC"),
+                    exp_type=sr_dc.get("exp_type", "dol_dc"),
+                    exp_config=sr_dc.get("exp_config", {}),
+                    tmax=sr_dc.get("tmax", tmax_dc),
+                    h=sr_dc.get("h", h_dc),
+                    decimals=dec,
+                    ref_list=ref_list_dc,
+                )
+            else:
+                with st.container(border=True):
+                    st.markdown(
+                        "### Nenhuma simulação MCC executada ainda\n\n"
+                        "Configure os parâmetros da máquina e do experimento acima, "
+                        "depois clique em **Executar Simulação** para visualizar:\n\n"
+                        "- Formas de onda de $i_a$, $\\omega_m$, $T_e$ no transitório\n"
+                        "- Métricas de regime permanente (velocidade, torque, corrente)\n"
+                        "- Diagnóstico de comutação e análise de perdas"
+                    )
+
+        else:
+            # ── BRANCH MIT ────────────────────────────────────────────────
+            # parâmetros + circuito
+            col_params, col_circuit = st.columns([1, 1], gap="large")
+
+            with col_params:
+                mp, ref_code, energy_tariff = render_machine_params(dark, experiment_mode, _WK)
+
+            with col_circuit:
+                st.markdown('<p class="slabel">Circuito Equivalente Monofásico</p>', unsafe_allow_html=True)
+                _render_circuit(mp, dark)
+                st.write("")
+                exp_config, var_keys, var_labels, tmax, h = render_experiment_config(mp, _WK)
+
+            # ── CTA principal ─────────────────────────────────────────────
+            st.write("")
+            run_clicked = st.button(
+                "Executar Simulação", key="btn_run",
+                width="stretch",
+            )
+
+            _can_save = (
+                st.session_state["sim_result"] is not None
+                and len(st.session_state["ref_list"]) < 5
+            )
+            ba1, ba2 = st.columns(2)
+            with ba1:
+                save_ref = st.button(
+                    "Salvar como Referência", key="btn_save_ref",
+                    width="stretch",
+                    disabled=not _can_save,
+                    help="Salva o resultado atual para comparação (máx. 5)",
+                )
+            with ba2:
+                clear_ref = st.button(
+                    "Limpar Referências", key="btn_clear_ref",
+                    width="stretch",
+                    disabled=not st.session_state["ref_list"],
+                    help="Remove todas as referências salvas",
+                )
+
+            if save_ref and _can_save:
+                new_ref = dict(st.session_state["sim_result"])
+                _idx    = len(st.session_state["ref_list"])
+                new_ref["color"] = REF_COLORS[_idx % len(REF_COLORS)]
+                new_ref["dash"]  = REF_DASHES[_idx % len(REF_DASHES)]
+                st.session_state["ref_list"].append(new_ref)
+                st.rerun()
+            if clear_ref:
+                st.session_state["ref_list"] = []
+                st.rerun()
+
+            if run_clicked:
+                execute_simulation_flow(
+                    mp=mp, exp_config=exp_config, var_keys=var_keys, var_labels=var_labels,
+                    tmax=tmax, h=h, ref_code=ref_code, dark=dark,
+                    energy_tariff=energy_tariff,
+                )
+
+            _toast = st.session_state.pop("_sim_toast", None)
+            if _toast:
+                st.success(_toast)
+
+            sr = st.session_state.get("sim_result")
+            render_ref_panel()
+            ref_list = st.session_state["ref_list"]
+
+            if sr is not None:
+                render_results(
+                    res=sr["res"],
+                    var_keys=var_keys if var_keys else sr["var_keys"],
+                    var_labels=var_labels if var_labels else sr["var_labels"],
+                    dark=sr["dark"],
+                    t_events=sr["t_events"],
+                    mp=sr["mp"],
+                    exp_label=sr.get("exp_label", "Simulacao"),
+                    exp_type=sr.get("exp_type",   "dol"),
+                    decimals=dec,
+                    ref_list=ref_list,
+                    primary_color=None,
+                    is_mobile=is_mobile,
+                    energy_tariff=sr.get("energy_tariff", 0.75),
+                    exp_config=sr.get("exp_config"),
+                    torque_fn=sr.get("torque_fn"),
+                )
+            else:
+                with st.container(border=True):
+                    st.markdown(
+                        "### Nenhuma simulação executada ainda\n\n"
+                        "Configure os parâmetros do motor e do experimento acima, "
+                        "depois clique em **Executar Simulação** para visualizar:\n\n"
+                        "- Formas de onda de corrente, torque e velocidade no transitório\n"
+                        "- Métricas de regime permanente (velocidade final, escorregamento, rendimento)\n"
+                        "- Análise harmônica (FFT) e diagnóstico\n"
+                        "- Indicadores de eficiência energética e custo operacional"
+                    )
+
+    if selected_machine == "dc":
+        # ── ABA TEORIA MCC ────────────────────────────────────────────────
+        with tab_teoria_dc:
+            from ui.theory_dc import render_theory_dc_tab
+            render_theory_dc_tab()
+    else:
+        # ── ABA TEORIA ────────────────────────────────────────────────────
+        with tab_teoria:
+            render_theory_tab()
+
+        # ── ABA VISUALIZAÇÃO PARA ARTIGO ──────────────────────────────────
+        with tab_clean:
+            render_clean_view()
 
 
 if __name__ == "__main__":

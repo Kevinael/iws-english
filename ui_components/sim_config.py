@@ -249,8 +249,9 @@ _PRESETS: dict[str, dict[str, Any]] = {
 # Definição das máquinas disponíveis
 MACHINES: list[dict[str, Any]] = [
     {"key": "mit",  "name": "Motor de Indução Trifásico",  "icon": "MIT", "tag": "Disponível",        "disabled": False},
-    {"key": "sync", "name": "Gerador Sincrono",             "icon": "GS",  "tag": "Em desenvolvimento", "disabled": True},
-    {"key": "tr",   "name": "Transformador",                "icon": "TR",  "tag": "Em desenvolvimento", "disabled": True},
+    {"key": "dc",   "name": "Motor de Corrente Contínua",  "icon": "MCC", "tag": "Disponível",        "disabled": False},
+    {"key": "sync", "name": "Gerador Síncrono",            "icon": "GS",  "tag": "Em desenvolvimento", "disabled": True},
+    {"key": "tr",   "name": "Transformador",               "icon": "TR",  "tag": "Em desenvolvimento", "disabled": True},
 ]
 
 

@@ -1,305 +1,363 @@
 # -*- coding: utf-8 -*-
-"""DC machine configuration UI and parameter handling.
+"""Configuração de parâmetros e experimento para MCC.
 
-Exports:
-  DC_CONFIGS              — 5 configurations with default params
-  render_dc_config_selector — select machine type (sep_motor, shunt_motor, etc.)
-  render_dc_circuit       — exibe circuito equivalente estático por configuração
-  render_dc_params        — input fields for DC parameters
-  get_dc_params           — return DCMachineParams from session_state
+Exporta:
+    render_dc_machine_params        — col_params (seletor + inputs)
+    render_experiment_config_dc     — col_circuit inferior (modo + variáveis)
 """
 
 from __future__ import annotations
 
-import os
 from typing import Any
 
+import numpy as np
 import streamlit as st
 
 from core.dc_machine_model import DCMachineParams
 
-# Localização dos PNGs pré-gerados (relativo ao diretório do projeto)
-_CIRCUIT_DIR = os.path.join(os.path.dirname(__file__), "..", "assets", "circuits_dc")
 
-_CIRCUIT_FILES = {
-    "sep_motor":   "sep_motor.png",
-    "shunt_motor": "shunt_motor.png",
-    "series_motor": "series_motor.png",
-    "sep_gen":     "sep_gen.png",
-    "shunt_gen":   "shunt_gen.png",
-}
+# ─────────────────────────────────────────────────────────────────────────────
+# PRESETS
+# ─────────────────────────────────────────────────────────────────────────────
 
-# Widget key prefixes for DC parameters
-_WK_DC = {
-    "dc_config": "wi_dc_config",  # sep_motor, shunt_motor, series_motor, sep_gen, shunt_gen
-    "Rf": "wi_dc_Rf",
-    "Lf": "wi_dc_Lf",
-    "Vf": "wi_dc_Vf",
-    "Ra": "wi_dc_Ra",
-    "La": "wi_dc_La",
-    "Va": "wi_dc_Va",
-    "J": "wi_dc_J",
-    "B": "wi_dc_B",
-    "kb": "wi_dc_kb",
-    "Tload": "wi_dc_Tload",
-    "Rl": "wi_dc_Rl",
-    "Ll": "wi_dc_Ll",
-}
-
-# Default DC machine parameters (small test machine — from dcmei.sce)
-DC_CONFIGS = {
-    "sep_motor": {
-        "name": "Motor de Campo Independente",
-        "Rf": 1.43,
-        "Lf": 0.1670,
-        "Vf": 12.0,
-        "Ra": 0.013,
-        "La": 0.01,
-        "Va": 24.0,
-        "J": 0.21,
-        "B": 0.000001074,
-        "kb": 0.004,
-        "Tload": 2.493,
-        "Rl": 0.0,
-        "Ll": 0.0,
+_PRESETS_DC: dict[str, dict[str, Any]] = {
+    "Motor Separado (dcmei)": {
+        "excitation": "sep_motor",
+        "Va": 24.0, "Ra": 0.013, "La": 0.01,
+        "Vf": 12.0, "Rf": 1.43,  "Lf": 0.167,
+        "kb": 0.004, "J": 0.21,  "B": 1.074e-6, "Tload": 2.493,
     },
-    "shunt_motor": {
-        "name": "Motor de Campo em Paralelo",
-        "Rf": 1.43,
-        "Lf": 0.1670,
-        "Vf": 0.0,
-        "Ra": 0.013,
-        "La": 0.01,
-        "Va": 24.0,
-        "J": 0.21,
-        "B": 0.000001074,
-        "kb": 0.004,
-        "Tload": 0.0,
-        "Rl": 0.0,
-        "Ll": 0.0,
+    "Motor Shunt (dcmp)": {
+        "excitation": "shunt_motor",
+        "Va": 24.0, "Ra": 0.013, "La": 0.01,
+        "Rf": 1.43, "Lf": 0.167,
+        "kb": 0.004, "J": 0.21,  "B": 1.074e-6, "Tload": 2.493,
     },
-    "series_motor": {
-        "name": "Motor de Campo em Série",
-        "Rf": 0.026,
-        "Lf": 0.1670,
-        "Vf": 0.0,
-        "Ra": 0.013,
-        "La": 0.01,
-        "Va": 24.0,
-        "J": 0.21,
-        "B": 0.000001074,
-        "kb": 0.004,
-        "Tload": 0.0,
-        "Rl": 0.0,
-        "Ll": 0.0,
+    "Motor Série (dcms)": {
+        "excitation": "series_motor",
+        "Va": 24.0, "Ra": 0.013, "La": 0.01,
+        "Rf": 0.026, "Lf": 0.167,
+        "kb": 0.004, "J": 0.21,  "B": 1.074e-6, "Tload": 2.493,
     },
-    "sep_gen": {
-        "name": "Gerador de Campo Independente",
-        "Rf": 1.43,
-        "Lf": 0.1670,
-        "Vf": 48.0,
-        "Ra": 0.013,
-        "La": 0.01,
-        "Va": 0.0,
-        "J": 0.21,
-        "B": 0.000001074,
-        "kb": 0.004,
-        "Tload": 4.0,
-        "Rl": 2.5,
-        "Ll": 1.5,
+    "Gerador Separado (dgmei)": {
+        "excitation": "sep_gen",
+        "Va": 0.0,  "Ra": 0.013, "La": 0.01,
+        "Vf": 48.0, "Rf": 1.43,  "Lf": 0.167,
+        "Rl": 2.5,  "Ll": 1.5,
+        "kb": 0.004, "J": 0.21,  "B": 1.074e-6, "Tload": 4.0,
     },
-    "shunt_gen": {
-        "name": "Gerador de Campo em Paralelo",
-        "Rf": 1.43,
-        "Lf": 0.1670,
-        "Vf": 0.0,
-        "Ra": 0.013,
-        "La": 0.01,
-        "Va": 0.0,
-        "J": 0.21,
-        "B": 0.000001074,
-        "kb": 0.004,
-        "Tload": 4.0,
-        "Rl": 2.5,
-        "Ll": 1.5,
+    "Gerador Shunt (dcgp)": {
+        "excitation": "shunt_gen",
+        "Va": 0.0,  "Ra": 0.013, "La": 0.01,
+        "Rf": 1.43, "Lf": 0.167,
+        "Rl": 2.5,  "Ll": 1.5,
+        "kb": 0.004, "J": 0.21,  "B": 1.074e-6, "Tload": 4.0,
     },
 }
 
+# Variáveis disponíveis para plotar por tipo de grandeza
+_VAR_OPTIONS: dict[str, str] = {
+    "ia":  "Corrente de Armadura $i_a$ (A)",
+    "ifd": "Corrente de Campo $i_{fd}$ (A)",
+    "wm":  "Velocidade Angular $\\omega_m$ (rad/s)",
+    "n":   "Velocidade $n$ (RPM)",
+    "Te":  "Conjugado Eletromagnético $T_e$ (N·m)",
+    "Ea":  "FEM $E_a$ (V)",
+    "Vt":  "Tensão de Terminal $V_t$ (V)",
+}
 
-def render_dc_circuit(config: str) -> None:
-    """Exibe circuito equivalente estático da configuração CC selecionada."""
-    fname = _CIRCUIT_FILES.get(config)
-    if fname is None:
-        return
+_DEFAULT_VARS: list[str] = ["ia", "wm", "Te"]
 
-    path = os.path.normpath(os.path.join(_CIRCUIT_DIR, fname))
-    if not os.path.isfile(path):
-        st.caption(f"Circuito não encontrado: {fname}")
-        return
+# Modos de operação disponíveis por configuração
+_MODES_BY_EXC: dict[str, list[str]] = {
+    "sep_motor":    ["dol_dc", "resistencia_dc", "plugging_dc", "pulso_dc", "campo_fraco_dc"],
+    "shunt_motor":  ["dol_dc", "resistencia_dc", "plugging_dc", "pulso_dc"],
+    "series_motor": ["dol_dc", "resistencia_dc", "plugging_dc", "pulso_dc"],
+    "sep_gen":      ["gerador_dc"],
+    "shunt_gen":    ["gerador_dc"],
+}
 
-    st.markdown('<p class="slabel">Circuito Equivalente</p>', unsafe_allow_html=True)
-    st.image(path, use_container_width=True)
+_MODE_LABELS: dict[str, str] = {
+    "dol_dc":         "Partida Direta (DOL)",
+    "resistencia_dc": "Partida com Resistência Série",
+    "plugging_dc":    "Reversão de Rotação (Plugging)",
+    "pulso_dc":       "Pulso de Carga",
+    "campo_fraco_dc": "Enfraquecimento de Campo",
+    "gerador_dc":     "Gerador — Carga Resistiva",
+}
 
-
-def render_dc_config_selector() -> str:
-    """Render DC machine type selector. Returns config key."""
-    st.subheader("Tipo de Máquina CC")
-
-    col1, col2 = st.columns(2)
-    with col1:
-        mode = st.radio(
-            "Modo de Operação",
-            ["Motor", "Gerador"],
-            key="wi_dc_mode",
-            horizontal=False,
-        )
-    with col2:
-        if mode == "Motor":
-            excitation = st.radio(
-                "Excitação",
-                ["Campo Independente", "Campo em Paralelo", "Campo em Série"],
-                key="wi_dc_excitation_motor",
-                horizontal=False,
-            )
-            config_map = {
-                "Campo Independente": "sep_motor",
-                "Campo em Paralelo": "shunt_motor",
-                "Campo em Série": "series_motor",
-            }
-        else:
-            excitation = st.radio(
-                "Excitação",
-                ["Campo Independente", "Campo em Paralelo"],
-                key="wi_dc_excitation_gen",
-                horizontal=False,
-            )
-            config_map = {
-                "Campo Independente": "sep_gen",
-                "Campo em Paralelo": "shunt_gen",
-            }
-
-        config = config_map[excitation]
-
-    return config
+_EXC_LABELS: dict[str, str] = {
+    "sep_motor":    "Excitação Separada — Motor",
+    "shunt_motor":  "Shunt (Paralelo) — Motor",
+    "series_motor": "Série — Motor",
+    "sep_gen":      "Excitação Separada — Gerador",
+    "shunt_gen":    "Shunt (Paralelo) — Gerador",
+}
 
 
-def render_dc_params() -> dict[str, float]:
-    """Render DC parameter input fields. Returns dict of parameter values."""
-    st.subheader("Parâmetros da Máquina CC")
+# ─────────────────────────────────────────────────────────────────────────────
+# HELPERS
+# ─────────────────────────────────────────────────────────────────────────────
 
-    config = st.session_state.get(_WK_DC["dc_config"], "sep_motor")
-    defaults = DC_CONFIGS.get(config, DC_CONFIGS["sep_motor"])
+def _pgroup(title: str) -> None:
+    st.markdown(f'<div class="pgroup-title">{title}</div>', unsafe_allow_html=True)
 
-    params = {}
 
-    # ── Circuito de Campo ──
-    st.markdown("**Circuito de Campo**")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        params["Rf"] = st.number_input(
-            "Rf (Ω)", value=defaults["Rf"], min_value=0.001, format="%.4f",
-            key=_WK_DC["Rf"],
-        )
-    with col2:
-        params["Lf"] = st.number_input(
-            "Lf (H)", value=defaults["Lf"], min_value=0.0001, format="%.6f",
-            key=_WK_DC["Lf"],
-        )
-    with col3:
-        params["Vf"] = st.number_input(
-            "Vf (V)", value=defaults["Vf"], min_value=0.0, format="%.2f",
-            key=_WK_DC["Vf"],
-            help="Tensão de campo (apenas campo indep.)",
-        )
+def _ibox(html: str) -> None:
+    st.markdown(f'<div class="ibox">{html}</div>', unsafe_allow_html=True)
 
-    # ── Circuito de Armadura ──
-    st.markdown("**Circuito de Armadura**")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        params["Ra"] = st.number_input(
-            "Ra (Ω)", value=defaults["Ra"], min_value=0.001, format="%.6f",
-            key=_WK_DC["Ra"],
-        )
-    with col2:
-        params["La"] = st.number_input(
-            "La (H)", value=defaults["La"], min_value=0.0001, format="%.6f",
-            key=_WK_DC["La"],
-        )
-    with col3:
-        params["Va"] = st.number_input(
-            "Va (V)", value=defaults["Va"], min_value=0.0, format="%.2f",
-            key=_WK_DC["Va"],
-            help="Tensão de armadura (motors only)",
-        )
 
-    # ── Parâmetros Mecânicos ──
-    st.markdown("**Parâmetros Mecânicos**")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        params["J"] = st.number_input(
-            "J (kg·m²)", value=defaults["J"], min_value=1e-6, format="%.8f",
-            key=_WK_DC["J"],
-        )
-    with col2:
-        params["B"] = st.number_input(
-            "B (N·m·s/rad)", value=defaults["B"], min_value=0.0, format="%.10f",
-            key=_WK_DC["B"],
-        )
-    with col3:
-        params["kb"] = st.number_input(
-            "kb (V·s/rad)", value=defaults["kb"], min_value=0.0001, format="%.6f",
-            key=_WK_DC["kb"],
-        )
+def _wi(key: str, default: Any) -> None:
+    """Inicializa session_state se ausente."""
+    if key not in st.session_state:
+        st.session_state[key] = default
 
-    # ── Carga e Gerador (Load para motores, Load+Source para geradores) ──
-    st.markdown("**Torque de Carga**")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        params["Tload"] = st.number_input(
-            "Tload (N·m)", value=defaults["Tload"], min_value=0.0, format="%.4f",
-            key=_WK_DC["Tload"],
-            help="Torque de carga (motors) ou mec. (gerador)",
-        )
 
-    # ── Carga de Saída (para geradores) ──
-    if "gen" in config:
-        st.markdown("**Carga de Saída (Gerador)**")
-        col1, col2 = st.columns(2)
-        with col1:
-            params["Rl"] = st.number_input(
-                "Rl (Ω)", value=defaults["Rl"], min_value=0.001, format="%.4f",
-                key=_WK_DC["Rl"],
-                help="Resistência de carga",
-            )
-        with col2:
-            params["Ll"] = st.number_input(
-                "Ll (H)", value=defaults["Ll"], min_value=0.0, format="%.6f",
-                key=_WK_DC["Ll"],
-                help="Indutância de carga",
-            )
+# ─────────────────────────────────────────────────────────────────────────────
+# RENDER — PARÂMETROS DA MÁQUINA (col_params)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def render_dc_machine_params(dark: bool, experiment_mode: bool) -> tuple[DCMachineParams, int]:
+    """Renderiza seletor de parâmetros MCC.
+
+    Retorna (DCMachineParams, ref_code).
+    ref_code: hash inteiro para cache invalidation.
+    """
+    # ── Preset loader ────────────────────────────────────────────────────────
+    st.markdown('<p class="slabel">Parâmetros da Máquina</p>', unsafe_allow_html=True)
+
+    preset_names = ["— Selecionar preset —"] + list(_PRESETS_DC.keys())
+    preset_sel = st.selectbox("Preset", preset_names, key="wi_dc_preset",
+                               label_visibility="collapsed")
+    if preset_sel != "— Selecionar preset —":
+        ps = _PRESETS_DC[preset_sel]
+        for k, v in ps.items():
+            st.session_state[f"wi_dc_{k}"] = v
+        st.session_state["wi_dc_preset"] = "— Selecionar preset —"
+        st.rerun()
+
+    # ── Configuração de excitação ────────────────────────────────────────────
+    _wi("wi_dc_excitation", "sep_motor")
+    exc_options = list(_EXC_LABELS.keys())
+    exc_labels  = [_EXC_LABELS[k] for k in exc_options]
+    exc_idx     = exc_options.index(st.session_state["wi_dc_excitation"]) \
+                  if st.session_state["wi_dc_excitation"] in exc_options else 0
+
+    exc = exc_options[
+        st.selectbox("Configuração", exc_labels, index=exc_idx, key="_dc_exc_sel",
+                     label_visibility="visible",
+                     disabled=experiment_mode)
+        if not experiment_mode else exc_idx
+    ]
+    # normalizar: selectbox retorna índice implicitamente via session_state
+    exc_sel_label = st.session_state.get("_dc_exc_sel", exc_labels[0])
+    exc = exc_options[exc_labels.index(exc_sel_label)] if exc_sel_label in exc_labels else exc_options[0]
+    st.session_state["wi_dc_excitation"] = exc
+
+    is_gen    = exc in ("sep_gen", "shunt_gen")
+    is_sep    = exc in ("sep_motor", "sep_gen")
+    is_series = exc == "series_motor"
+
+    if experiment_mode:
+        # Modo travado: mostrar resumo
+        _wi("wi_dc_Va",    220.0)
+        _wi("wi_dc_Ra",    1.0)
+        _wi("wi_dc_La",    0.05)
+        _wi("wi_dc_kb",    1.2)
+        _wi("wi_dc_J",     0.05)
+        _wi("wi_dc_B",     0.01)
+        _wi("wi_dc_Tload", 5.0)
+        st.info("Parâmetros travados no modo experimento.")
+        va    = float(st.session_state.get("wi_dc_Va",  220.0))
+        ra    = float(st.session_state.get("wi_dc_Ra",  1.0))
+        la    = float(st.session_state.get("wi_dc_La",  0.05))
+        vf    = float(st.session_state.get("wi_dc_Vf",  va if not is_sep else 220.0))
+        rf    = float(st.session_state.get("wi_dc_Rf",  150.0))
+        lf    = float(st.session_state.get("wi_dc_Lf",  10.0))
+        rl    = float(st.session_state.get("wi_dc_Rl",  0.0))
+        ll    = float(st.session_state.get("wi_dc_Ll",  0.0))
+        kb    = float(st.session_state.get("wi_dc_kb",  1.2))
+        J     = float(st.session_state.get("wi_dc_J",   0.05))
+        B     = float(st.session_state.get("wi_dc_B",   0.01))
+        Tload = float(st.session_state.get("wi_dc_Tload", 5.0))
     else:
-        params["Rl"] = 0.0
-        params["Ll"] = 0.0
+        # Inicializar defaults
+        _wi("wi_dc_Va",    24.0)
+        _wi("wi_dc_Ra",    0.013)
+        _wi("wi_dc_La",    0.01)
+        _wi("wi_dc_Vf",    12.0)
+        _wi("wi_dc_Rf",    1.43)
+        _wi("wi_dc_Lf",    0.167)
+        _wi("wi_dc_Rl",    0.0)
+        _wi("wi_dc_Ll",    0.0)
+        _wi("wi_dc_kb",    0.004)
+        _wi("wi_dc_J",     0.21)
+        _wi("wi_dc_B",     1.074e-6)
+        _wi("wi_dc_Tload", 2.493)
 
-    return params
+        # Grupo armadura
+        _pgroup("Armadura")
+        c1, c2 = st.columns(2)
+        va = c1.number_input("$V_a$ (V)",  min_value=0.0, key="wi_dc_Va",  format="%.3f")
+        ra = c2.number_input("$R_a$ (Ω)",  min_value=1e-6, key="wi_dc_Ra", format="%.4f")
+        la = c1.number_input("$L_a$ (H)",  min_value=1e-6, key="wi_dc_La", format="%.4f")
+        kb = c2.number_input("$k_b$ (V·s/rad)", min_value=1e-6, key="wi_dc_kb", format="%.4f")
+
+        # Grupo campo (sep e shunt — não série)
+        if not is_series:
+            _pgroup("Campo")
+            d1, d2 = st.columns(2)
+            if is_sep:
+                vf = d1.number_input("$V_f$ (V)",  min_value=0.0, key="wi_dc_Vf", format="%.3f")
+            else:
+                vf = va   # shunt: Vf = Va
+                st.caption("Shunt: $V_f = V_a$ (fixo)")
+            rf = d2.number_input("$R_f$ (Ω)",  min_value=1e-6, key="wi_dc_Rf", format="%.4f")
+            lf = d1.number_input("$L_f$ (H)",  min_value=1e-6, key="wi_dc_Lf", format="%.4f")
+        else:
+            _pgroup("Campo (série com armadura)")
+            e1, e2 = st.columns(2)
+            rf = e1.number_input("$R_f$ (Ω)",  min_value=1e-6, key="wi_dc_Rf", format="%.4f")
+            lf = e2.number_input("$L_f$ (H)",  min_value=1e-6, key="wi_dc_Lf", format="%.4f")
+            vf = 0.0
+
+        # Grupo carga elétrica (geradores)
+        if is_gen:
+            _pgroup("Carga Elétrica")
+            f1, f2 = st.columns(2)
+            rl = f1.number_input("$R_l$ (Ω)", min_value=1e-6, key="wi_dc_Rl", format="%.3f")
+            ll = f2.number_input("$L_l$ (H)", min_value=0.0,  key="wi_dc_Ll", format="%.4f")
+        else:
+            rl = float(st.session_state.get("wi_dc_Rl", 0.0))
+            ll = float(st.session_state.get("wi_dc_Ll", 0.0))
+
+        # Grupo mecânico
+        _pgroup("Mecânico")
+        m1, m2, m3 = st.columns(3)
+        J     = m1.number_input("$J$ (kg·m²)", min_value=1e-6, key="wi_dc_J",     format="%.4f")
+        B     = m2.number_input("$B$ (N·m·s)",  min_value=0.0,  key="wi_dc_B",     format="%.2e")
+        Tload = m3.number_input("$T_l$ (N·m)",  min_value=0.0,  key="wi_dc_Tload", format="%.4f")
+
+    mp = DCMachineParams(
+        Va=va, Ra=ra, La=la,
+        Vf=vf, Rf=rf, Lf=lf,
+        Rl=rl, Ll=ll,
+        J=J, B=B, kb=kb,
+        excitation=exc,
+        Tload=Tload,
+    )
+
+    ref_code = hash((va, ra, la, vf, rf, lf, rl, ll, J, B, kb, exc, Tload))
+    return mp, ref_code
 
 
-def get_dc_params() -> DCMachineParams:
-    """Retrieve DC machine parameters from session_state."""
-    config = st.session_state.get(_WK_DC["dc_config"], "sep_motor")
-    params = {
-        "config": config,
-        "Rf": st.session_state.get(_WK_DC["Rf"], DC_CONFIGS[config]["Rf"]),
-        "Lf": st.session_state.get(_WK_DC["Lf"], DC_CONFIGS[config]["Lf"]),
-        "Ra": st.session_state.get(_WK_DC["Ra"], DC_CONFIGS[config]["Ra"]),
-        "La": st.session_state.get(_WK_DC["La"], DC_CONFIGS[config]["La"]),
-        "J": st.session_state.get(_WK_DC["J"], DC_CONFIGS[config]["J"]),
-        "B": st.session_state.get(_WK_DC["B"], DC_CONFIGS[config]["B"]),
-        "kb": st.session_state.get(_WK_DC["kb"], DC_CONFIGS[config]["kb"]),
-        "Vf": st.session_state.get(_WK_DC["Vf"], DC_CONFIGS[config]["Vf"]),
-        "Va": st.session_state.get(_WK_DC["Va"], DC_CONFIGS[config]["Va"]),
-        "Tload": st.session_state.get(_WK_DC["Tload"], DC_CONFIGS[config]["Tload"]),
-        "Rl": st.session_state.get(_WK_DC["Rl"], DC_CONFIGS[config]["Rl"]),
-        "Ll": st.session_state.get(_WK_DC["Ll"], DC_CONFIGS[config]["Ll"]),
-    }
-    return DCMachineParams(**{k: v for k, v in params.items() if k != "config"})
+# ─────────────────────────────────────────────────────────────────────────────
+# RENDER — EXPERIMENTO (col_circuit inferior)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def render_experiment_config_dc(
+    mp: DCMachineParams,
+    _wk: Any = None,
+) -> tuple[dict[str, Any], list[str], list[str], float, float]:
+    """Renderiza seletor de modo e parâmetros do experimento MCC.
+
+    Retorna (exp_config, var_keys, var_labels, tmax, h).
+    """
+    st.markdown('<p class="slabel">Experimento</p>', unsafe_allow_html=True)
+
+    exc = mp.excitation
+    available_modes = _MODES_BY_EXC.get(exc, ["dol_dc"])
+    mode_labels = [_MODE_LABELS[m] for m in available_modes]
+
+    _wi("wi_dc_mode_idx", 0)
+    mode_idx = st.selectbox(
+        "Modo de Operação", mode_labels, index=0, key="_dc_mode_sel",
+        label_visibility="visible",
+    )
+    mode_sel_label = st.session_state.get("_dc_mode_sel", mode_labels[0])
+    mode = available_modes[mode_labels.index(mode_sel_label)] if mode_sel_label in mode_labels else available_modes[0]
+
+    exp_config: dict[str, Any] = {"exp_type": mode, "exp_label": _MODE_LABELS[mode]}
+
+    _pgroup("Parâmetros do Experimento")
+
+    if mode == "dol_dc":
+        tmax_def = 12.0
+        h_def    = 1e-3
+
+    elif mode == "resistencia_dc":
+        c1, c2 = st.columns(2)
+        _wi("wi_dc_R_ini", 5.0)
+        _wi("wi_dc_t_ramp", 2.0)
+        exp_config["R_ini"]  = c1.number_input("$R_{ini}$ (Ω)", min_value=0.0, key="wi_dc_R_ini",  format="%.2f")
+        exp_config["t_ramp"] = c2.number_input("$t_{rampa}$ (s)", min_value=0.1, key="wi_dc_t_ramp", format="%.2f")
+        tmax_def = exp_config["t_ramp"] + 8.0
+        h_def    = 1e-3
+
+    elif mode == "plugging_dc":
+        _wi("wi_dc_t_freia", 3.0)
+        exp_config["t_freia"] = st.number_input("$t_{freia}$ (s)", min_value=0.1, key="wi_dc_t_freia", format="%.2f")
+        tmax_def = exp_config["t_freia"] * 2.5
+        h_def    = 1e-3
+
+    elif mode == "campo_fraco_dc":
+        c1, c2, c3 = st.columns(3)
+        _wi("wi_dc_Vf_fraco",  mp.Vf * 0.5)
+        _wi("wi_dc_t_campo",   3.0)
+        _wi("wi_dc_t_trans",   0.5)
+        exp_config["Vf_fraco"] = c1.number_input("$V_f$ fraco (V)", min_value=0.0,
+                                                   key="wi_dc_Vf_fraco", format="%.2f")
+        exp_config["t_campo"]  = c2.number_input("$t_{campo}$ (s)", min_value=0.1,
+                                                   key="wi_dc_t_campo", format="%.2f")
+        exp_config["t_trans"]  = c3.number_input("$t_{trans}$ (s)", min_value=0.05,
+                                                   key="wi_dc_t_trans", format="%.2f")
+        tmax_def = exp_config["t_campo"] + 10.0
+        h_def    = 1e-3
+
+    elif mode == "pulso_dc":
+        c1, c2 = st.columns(2)
+        _wi("wi_dc_t_pulso",  4.0)
+        _wi("wi_dc_Tl_extra", mp.Tload * 0.5)
+        exp_config["t_pulso"]  = c1.number_input("$t_{pulso}$ (s)",     min_value=0.1, key="wi_dc_t_pulso",  format="%.2f")
+        exp_config["Tl_extra"] = c2.number_input("$\\Delta T_l$ (N·m)", min_value=0.0, key="wi_dc_Tl_extra", format="%.3f")
+        tmax_def = exp_config["t_pulso"] + 8.0
+        h_def    = 1e-3
+
+    elif mode == "gerador_dc":
+        _wi("wi_dc_Tl_gen", abs(mp.Tload))
+        exp_config["Tl_gen"] = st.number_input("$T_l$ gen (N·m)", min_value=0.0, key="wi_dc_Tl_gen", format="%.3f")
+        tmax_def = 150.0
+        h_def    = 5e-3
+    else:
+        tmax_def = 12.0
+        h_def    = 1e-3
+
+    # Tempo e passo
+    _pgroup("Tempo de Simulação")
+    tc1, tc2 = st.columns(2)
+    _wi("wi_dc_tmax", tmax_def)
+    _wi("wi_dc_h",    h_def)
+    tmax = tc1.number_input("$t_{max}$ (s)",     min_value=0.1,  value=tmax_def, key="wi_dc_tmax", format="%.2f")
+    h    = tc2.number_input("$h$ (s)",           min_value=1e-5, value=h_def,    key="wi_dc_h",    format="%.1e")
+
+    # Variáveis a plotar
+    st.markdown('<p class="slabel">Grandezas a Plotar</p>', unsafe_allow_html=True)
+    _wi("wi_dc_vars", _DEFAULT_VARS)
+    sel_labels = st.multiselect(
+        "Grandezas",
+        options=list(_VAR_OPTIONS.values()),
+        default=[_VAR_OPTIONS[k] for k in _DEFAULT_VARS if k in _VAR_OPTIONS],
+        key="wi_dc_vars_ms",
+        label_visibility="collapsed",
+    )
+    label_to_key = {v: k for k, v in _VAR_OPTIONS.items()}
+    var_keys   = [label_to_key[lb] for lb in sel_labels if lb in label_to_key]
+    var_labels = [lb for lb in sel_labels if lb in label_to_key]
+
+    if not var_keys:
+        var_keys, var_labels = _DEFAULT_VARS, [_VAR_OPTIONS[k] for k in _DEFAULT_VARS]
+
+    _ibox(f"<strong>Modo:</strong> {_MODE_LABELS[mode]} &nbsp;|&nbsp; "
+          f"<strong>Excitação:</strong> {_EXC_LABELS.get(exc, exc)}")
+
+    return exp_config, var_keys, var_labels, float(tmax), float(h)

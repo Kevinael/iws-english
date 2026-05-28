@@ -1,21 +1,52 @@
 # -*- coding: utf-8 -*-
-"""Renderização de resultados da simulação MCC: KPIs, gráficos e exportação PDF.
+"""Renderização de resultados MCC — 4 sub-abas espelhando sim_results.py MIT.
 
 Exporta:
-    render_dc_results   — 4 sub-abas: Visão Geral, Análise Dinâmica,
-                          Diagnóstico DC, Gestão de Ativos DC
+    render_results_dc — 4 abas (Visão Geral, Análise Dinâmica, Diagnóstico e Falhas, Gestão de Ativos)
 """
 
 from __future__ import annotations
 
-import time
 from typing import Any
 
 import numpy as np
 import streamlit as st
+import plotly.graph_objects as go
 
 from core.dc_machine_model import DCMachineParams
-from viz.plotly_charts_dc import build_dc_stacked, build_dc_sidebyside
+from viz.plotly_charts_dc import (
+    build_fig_stacked_dc,
+    build_fig_sidebyside_dc,
+    build_fig_overlay_dc,
+    build_fig_torque_speed_dc,
+)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CACHE LAYER (espelha sim_results.py:28–56)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@st.cache_data(show_spinner=False)
+def _cached_fig_stacked_dc(
+    res: dict,
+    var_keys: tuple,
+    var_labels: tuple,
+    dark: bool,
+    t_events: tuple,
+    decimals: int,
+    _cache_key: int = 0,
+) -> go.Figure:
+    return build_fig_stacked_dc(res, list(var_keys), list(var_labels), dark, list(t_events), decimals)
+
+
+@st.cache_data(show_spinner=False)
+def _cached_fig_torque_speed_dc(
+    res: dict,
+    exc: str,
+    dark: bool,
+    _cache_key: int = 0,
+) -> go.Figure:
+    return build_fig_torque_speed_dc(res, exc, dark)
 
 
 _PLOT_CFG: dict[str, Any] = {
@@ -32,715 +63,280 @@ _PLOT_CFG: dict[str, Any] = {
     },
 }
 
+_EXC_LABELS: dict[str, str] = {
+    "sep_motor":    "Excitação Separada — Motor",
+    "shunt_motor":  "Shunt (Paralelo) — Motor",
+    "series_motor": "Série — Motor",
+    "sep_gen":      "Excitação Separada — Gerador",
+    "shunt_gen":    "Shunt (Paralelo) — Gerador",
+}
+
 
 # ─────────────────────────────────────────────────────────────────────────────
-# KPIs POR MODO
+# MAIN
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _kpis_destaque_dc(
-    y: dict[str, np.ndarray],
-    t: np.ndarray,
+def render_results_dc(
+    res: dict,
+    var_keys: list[str],
+    var_labels: list[str],
+    dark: bool,
+    t_events: list,
+    mp: DCMachineParams,
+    exp_label: str,
     exp_type: str,
-    params: DCMachineParams,
-    d: int,
-) -> list[tuple[str, str, str]]:
-    """Retorna lista de (label, valor_str, unidade) com KPIs prioritários por modo DC."""
-
-    ia  = np.asarray(y.get("ia",  [0.0]))
-    wm  = np.asarray(y.get("wm",  [0.0]))
-    Te  = np.asarray(y.get("Te",  [0.0]))
-    Ea  = np.asarray(y.get("Ea",  [0.0]))
-    ifd = np.asarray(y.get("ifd", [0.0]))
-
-    ia_pk   = float(np.max(np.abs(ia)))
-    ia_ss   = float(ia[-1])
-    wm_ss   = float(wm[-1])
-    Te_ss   = float(Te[-1])
-    Te_max  = float(np.max(Te))
-    n_rpm   = wm_ss * 60.0 / (2.0 * np.pi)
-    Ea_ss   = float(Ea[-1])
-    ifd_ss  = float(ifd[-1])
-
-    # Velocidade de regime estimada analiticamente: wm_nom = (Va - ia_ss*Ra) / kb / ifd_ss
-    # Simplificado: wm_nom = Va / (kb * ifd_ss) se Ra*ia << Va
-    kb = params.kb
-    Va = params.Va
-    Ra = params.Ra
-    Vf = params.Vf
-    Rf = params.Rf
-
-    if exp_type == "dol_dc":
-        items = [
-            ("Corrente de Pico $i_a$",    f"{ia_pk:.{d}f}",   "A"),
-            ("Corrente de Regime $i_a$",  f"{ia_ss:.{d}f}",   "A"),
-            ("Velocidade Final $\\omega_m$", f"{wm_ss:.{d}f}", "rad/s"),
-            ("Velocidade (RPM)",           f"{n_rpm:.{d}f}",   "RPM"),
-            ("Torque Máximo $T_e$",        f"{Te_max:.{d}f}",  "N·m"),
-            ("Torque de Regime $T_e$",     f"{Te_ss:.{d}f}",   "N·m"),
-        ]
-
-    elif exp_type == "resistencia_dc":
-        items = [
-            ("Corrente Inicial $i_a$",    f"{ia[0]:.{d}f}",   "A"),
-            ("Corrente de Regime $i_a$",  f"{ia_ss:.{d}f}",   "A"),
-            ("Velocidade Final $\\omega_m$", f"{wm_ss:.{d}f}", "rad/s"),
-            ("Velocidade (RPM)",           f"{n_rpm:.{d}f}",   "RPM"),
-            ("Torque de Regime $T_e$",     f"{Te_ss:.{d}f}",   "N·m"),
-        ]
-
-    elif exp_type == "plugging_dc":
-        # Detectar instante de comutação (wm muda de sinal ou atinge mínimo)
-        idx_switch = int(np.argmin(np.abs(wm))) if len(wm) > 0 else 0
-        wm_pre  = float(wm[max(0, idx_switch - 1)])
-        wm_post = float(wm[-1])
-        items = [
-            ("Velocidade Pré-Plugging",    f"{wm_pre:.{d}f}",  "rad/s"),
-            ("Velocidade Final $\\omega_m$", f"{wm_post:.{d}f}","rad/s"),
-            ("Corrente de Pico $i_a$",    f"{ia_pk:.{d}f}",   "A"),
-            ("Torque Máximo (frenagem)",   f"{Te_max:.{d}f}",  "N·m"),
-            ("Torque de Regime $T_e$",     f"{Te_ss:.{d}f}",   "N·m"),
-        ]
-
-    elif exp_type == "pulso_dc":
-        # Antes e depois do pulso de carga
-        half = len(t) // 2
-        ia_antes = float(np.mean(ia[:max(1, half // 2)]))
-        ia_depois = float(np.mean(ia[half:]))
-        wm_antes  = float(np.mean(wm[:max(1, half // 2)]))
-        wm_depois = float(np.mean(wm[half:]))
-        items = [
-            ("Corrente Pré-Pulso $i_a$",   f"{ia_antes:.{d}f}",  "A"),
-            ("Corrente Pós-Pulso $i_a$",   f"{ia_depois:.{d}f}", "A"),
-            ("Velocidade Pré-Pulso",        f"{wm_antes:.{d}f}",  "rad/s"),
-            ("Velocidade Pós-Pulso",        f"{wm_depois:.{d}f}", "rad/s"),
-            ("Corrente de Pico $i_a$",     f"{ia_pk:.{d}f}",     "A"),
-        ]
-
-    elif exp_type == "gerador_dc":
-        # Gerador: Ea = tensão gerada; ia = corrente de saída
-        Ea_max = float(np.max(Ea))
-        P_out  = float(Ea_ss * ia_ss)  # potência elétrica de saída (aprox.)
-        items = [
-            ("Tensão Gerada $E_a$",        f"{Ea_ss:.{d}f}",   "V"),
-            ("Tensão Máxima Gerada",        f"{Ea_max:.{d}f}",  "V"),
-            ("Corrente de Saída $i_a$",    f"{ia_ss:.{d}f}",   "A"),
-            ("Potência de Saída (aprox.)", f"{P_out:.{d}f}",   "W"),
-            ("Velocidade $\\omega_m$",     f"{wm_ss:.{d}f}",   "rad/s"),
-        ]
-
-    elif exp_type == "campo_fraco_dc":
-        ifd_ini = float(ifd[0])
-        wm_ini  = float(wm[0])
-        items = [
-            ("Velocidade Inicial $\\omega_m$", f"{wm_ini:.{d}f}", "rad/s"),
-            ("Velocidade Final $\\omega_m$",   f"{wm_ss:.{d}f}",  "rad/s"),
-            ("Velocidade (RPM)",               f"{n_rpm:.{d}f}",  "RPM"),
-            ("Corrente de Campo Inicial",      f"{ifd_ini:.{d}f}", "A"),
-            ("Corrente de Campo Final",        f"{ifd_ss:.{d}f}",  "A"),
-            ("Corrente de Armadura Final",     f"{ia_ss:.{d}f}",   "A"),
-        ]
-
-    else:
-        items = [
-            ("Corrente de Regime $i_a$",   f"{ia_ss:.{d}f}",   "A"),
-            ("Velocidade Final $\\omega_m$", f"{wm_ss:.{d}f}", "rad/s"),
-            ("Torque de Regime $T_e$",     f"{Te_ss:.{d}f}",   "N·m"),
-        ]
-
-    return items
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# DIAGNÓSTICO DC
-# ─────────────────────────────────────────────────────────────────────────────
-
-def _gera_diagnostico_dc(
-    y: dict[str, np.ndarray],
-    t: np.ndarray,
-    exp_type: str,
-    params: DCMachineParams,
-    config: str,
-) -> list[dict]:
-    """Gera lista de diagnósticos DC: {level, msg}.
-
-    level: 'error' | 'warning' | 'info'
-    """
-    diags: list[dict] = []
-
-    ia  = np.asarray(y.get("ia",  [0.0]))
-    wm  = np.asarray(y.get("wm",  [0.0]))
-    Te  = np.asarray(y.get("Te",  [0.0]))
-    ifd = np.asarray(y.get("ifd", [0.0]))
-
-    ia_ss  = float(ia[-1])
-    wm_ss  = float(wm[-1])
-    Te_ss  = float(Te[-1])
-    ia_pk  = float(np.max(np.abs(ia)))
-
-    Ra  = params.Ra
-    kb  = params.kb
-    Va  = params.Va
-    Rf  = params.Rf
-    Vf  = params.Vf
-    Tload = params.Tload
-
-    # ── Rotor travado ──────────────────────────────────────────────────────
-    if exp_type not in ("plugging_dc",) and abs(wm_ss) < 0.1 and t[-1] > 2.0:
-        diags.append({
-            "level": "error",
-            "msg": "**Rotor travado** — ωm ≈ 0 após {:.1f}s. Verificar Tload vs torque disponível.".format(t[-1]),
-        })
-
-    # ── Sobrecorrente de armadura ──────────────────────────────────────────
-    # Corrente nominal estimada: In_a ≈ Va / (Ra + kb²/Rf) (sep) ou Va/Ra (série)
-    if Ra > 0:
-        ia_nom_est = Va / (Ra * 10.0)  # heurística conservadora: pico típico ≤ 10× nominal
-        if ia_pk > ia_nom_est and ia_nom_est > 0:
-            diags.append({
-                "level": "warning",
-                "msg": f"**Corrente de pico elevada** — ia_pk = {ia_pk:.2f} A. "
-                       f"Verificar limitador de corrente de partida ou resistência de partida.",
-            })
-
-    # ── Sobrecarga de regime ───────────────────────────────────────────────
-    if exp_type in ("dol_dc", "resistencia_dc", "pulso_dc", "campo_fraco_dc"):
-        # Corrente de regime esperada ≈ Tload / (kb * ifd_ss) para campo independente
-        ifd_ss = float(ifd[-1]) if len(ifd) > 0 else 1.0
-        if kb > 0 and ifd_ss > 0:
-            ia_esperado = Tload / (kb * ifd_ss) if Tload > 0 else 0.0
-            if ia_esperado > 0 and abs(ia_ss - ia_esperado) / (ia_esperado + 1e-9) > 0.30:
-                diags.append({
-                    "level": "warning",
-                    "msg": f"**Corrente de regime desviada** — simulado: {ia_ss:.2f} A, "
-                           f"estimado analítico: {ia_esperado:.2f} A ({abs(ia_ss-ia_esperado)/ia_esperado*100:.1f}% desvio). "
-                           "Verificar parâmetros kb, Tload ou configuração de excitação.",
-                })
-
-    # ── Campo fraco: velocidade acima do nominal ───────────────────────────
-    if exp_type == "campo_fraco_dc":
-        wm_nominal = Va / kb if kb > 0 else 0.0
-        if wm_ss > 1.5 * wm_nominal:
-            diags.append({
-                "level": "warning",
-                "msg": f"**Velocidade acima de 1,5× nominal** — ωm = {wm_ss:.1f} rad/s "
-                       f"(nominal: {wm_nominal:.1f} rad/s). Risco de instabilidade mecânica.",
-            })
-
-    # ── Plugging: verificar parada ─────────────────────────────────────────
-    if exp_type == "plugging_dc":
-        if abs(wm_ss) > 0.5 * abs(float(wm[0])):
-            diags.append({
-                "level": "info",
-                "msg": "**Plugging em andamento** — motor ainda em desaceleração ao final da simulação. "
-                       "Aumentar tmax para observar parada completa.",
-            })
-        else:
-            diags.append({
-                "level": "info",
-                "msg": f"**Frenagem por plugging concluída** — ωm final = {wm_ss:.3f} rad/s.",
-            })
-
-    # ── Gerador: excitação insuficiente ───────────────────────────────────
-    if exp_type == "gerador_dc":
-        Ea_ss = float(y.get("Ea", [0.0])[-1])
-        if Ea_ss < 0.5 * Va and Va > 0:
-            diags.append({
-                "level": "warning",
-                "msg": f"**Tensão gerada baixa** — Ea = {Ea_ss:.2f} V (Va nominal = {Va:.2f} V). "
-                       "Verificar velocidade de acionamento (Tload) e parâmetros de campo.",
-            })
-
-    # ── Torque de regime vs carga ──────────────────────────────────────────
-    if Tload > 0 and exp_type not in ("gerador_dc", "plugging_dc"):
-        delta_Te = abs(Te_ss - Tload) / (Tload + 1e-9)
-        if delta_Te > 0.15:
-            diags.append({
-                "level": "info",
-                "msg": f"**Desequilíbrio torque-carga** — Te_regime = {Te_ss:.3f} N·m, "
-                       f"Tload = {Tload:.3f} N·m (desvio: {delta_Te*100:.1f}%). "
-                       "Verificar parâmetros mecânicos (J, B) ou tempo de simulação.",
-            })
-
-    # ── Comportamento esperado por modo ──────────────────────────────────
-    _modo_desc = {
-        "dol_dc":        "DOL — partida direta. ωm deve subir monotonicamente e estabilizar.",
-        "resistencia_dc": "Partida por resistência — transiente suavizado vs DOL.",
-        "plugging_dc":   "Plugging — torque de frenagem até parada; cuidado com corrente de pico.",
-        "pulso_dc":      "Pulso de carga — observe afundamento de ωm e recuperação.",
-        "gerador_dc":    "Gerador — ωm imposta mecanicamente; Ea e ia determinados pela carga.",
-        "campo_fraco_dc": "Campo fraco — redução de ifd aumenta ωm acima do nominal.",
-    }
-    if exp_type in _modo_desc:
-        diags.append({"level": "info", "msg": _modo_desc[exp_type]})
-
-    return diags
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# ANÁLISE ENERGÉTICA DC
-# ─────────────────────────────────────────────────────────────────────────────
-
-def _compute_energy_dc(
-    y: dict[str, np.ndarray],
-    t: np.ndarray,
-    params: DCMachineParams,
-    config: str,
-    exp_type: str,
-    tariff: float = 0.75,
-) -> dict:
-    """Computa métricas energéticas para MCC."""
-    ia  = np.asarray(y.get("ia",  [0.0]))
-    ifd = np.asarray(y.get("ifd", [0.0]))
-    wm  = np.asarray(y.get("wm",  [0.0]))
-    Te  = np.asarray(y.get("Te",  [0.0]))
-    Ea  = np.asarray(y.get("Ea",  [0.0]))
-
-    ia_ss  = float(ia[-1])
-    wm_ss  = float(wm[-1])
-    Te_ss  = float(Te[-1])
-    ifd_ss = float(ifd[-1])
-    Ea_ss  = float(Ea[-1])
-
-    Ra  = params.Ra
-    Rf  = params.Rf
-    Va  = params.Va
-    Vf  = params.Vf
-
-    # Potências de regime
-    P_campo    = Vf * ifd_ss if config.startswith("sep") else Va * ifd_ss  # circuito de campo
-    P_entrada  = Va * ia_ss + P_campo                                        # total elétrica entrada
-    P_perdas_a = Ra * ia_ss**2                                               # perdas cobre armadura
-    P_perdas_f = Rf * ifd_ss**2                                              # perdas cobre campo
-    P_mecanica = Ea_ss * ia_ss                                               # potência convertida
-    P_carga    = Te_ss * wm_ss                                               # potência mecânica útil
-    P_atrito   = params.B * wm_ss**2                                         # perdas por atrito
-
-    eta = (P_carga / P_entrada * 100.0) if P_entrada > 1e-6 else 0.0
-    eta = max(0.0, min(100.0, eta))
-
-    # Custo operacional anual (regime permanente, operação contínua)
-    P_entrada_kw = P_entrada / 1000.0
-    custo_ano    = P_entrada_kw * 8760.0 * tariff
-
-    return {
-        "P_entrada":   P_entrada,
-        "P_campo":     P_campo,
-        "P_perdas_a":  P_perdas_a,
-        "P_perdas_f":  P_perdas_f,
-        "P_mecanica":  P_mecanica,
-        "P_carga":     P_carga,
-        "P_atrito":    P_atrito,
-        "eta":         eta,
-        "custo_ano":   custo_ano,
-        "P_entrada_kw": P_entrada_kw,
-        "ia_ss":       ia_ss,
-        "wm_ss":       wm_ss,
-        "n_rpm":       wm_ss * 60.0 / (2.0 * np.pi),
-        "Te_ss":       Te_ss,
-        "Ea_ss":       Ea_ss,
-        "ifd_ss":      ifd_ss,
-    }
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# RENDERIZAÇÃO PRINCIPAL
-# ─────────────────────────────────────────────────────────────────────────────
-
-def render_dc_results(
-    result: dict[str, Any],
+    exp_config: dict,
+    tmax: float,
+    h: float,
     decimals: int = 3,
-    dark: bool = False,
-    energy_tariff: float = 0.75,
+    ref_list: list | None = None,
+    **kwargs,
 ) -> None:
-    """Renderiza resultados MCC em 4 sub-abas (padrão MIT).
+    """Renderiza as 4 sub-abas de resultados MCC."""
+    d   = decimals
+    exc = mp.excitation if mp else res.get("excitation", "sep_motor")
+    is_gen = exc in ("sep_gen", "shunt_gen")
 
-    Parâmetros
-    ----------
-    result : dict
-        Saída de execute_dc_simulation_flow. Chaves: config, exp_type,
-        t, y, var_keys, var_labels, params.
-    decimals : int
-        Casas decimais para KPIs.
-    dark : bool
-        Tema escuro.
-    energy_tariff : float
-        Tarifa de energia (R$/kWh) para análise econômica.
-    """
-    config   = result.get("config", "sep_motor")
-    exp_type = result.get("exp_type", "dol_dc")
-    params   = result.get("params")
-    t        = np.asarray(result.get("t", [0.0]))
-    y        = result.get("y", {})
-    var_keys   = result.get("var_keys",   [])
-    var_labels = result.get("var_labels", [])
+    _cache_key = hash(repr(res.get("ia", [])[:5]))
 
-    if params is None or len(t) < 2:
-        st.error("Resultado de simulação inválido.")
-        return
-
-    d = decimals
-
-    st.divider()
-
-    # Pré-calcula métricas (usadas em múltiplas abas)
-    em = _compute_energy_dc(y, t, params, config, exp_type, energy_tariff)
-    diags = _gera_diagnostico_dc(y, t, exp_type, params, config)
-
-    n_erro   = sum(1 for dg in diags if dg["level"] == "error")
-    n_alerta = sum(1 for dg in diags if dg["level"] == "warning")
-
-    # ══════════════════════════════════════════════════════════════════════
-    # ABAS DE RESULTADOS
-    # ══════════════════════════════════════════════════════════════════════
     tab_visao, tab_dinamica, tab_diag, tab_ativos = st.tabs(
-        ["Visão Geral", "Análise Dinâmica", "Diagnóstico DC", "Gestão de Ativos"],
-        key="dc_results_tabs",
+        ["Visão Geral", "Análise Dinâmica", "Diagnóstico e Falhas", "Gestão de Ativos"],
+        key="results_tabs_dc",
     )
 
     # ══════════════════════════════════════════════════════════════════════
     # ABA 1 — VISÃO GERAL
     # ══════════════════════════════════════════════════════════════════════
     with tab_visao:
-        # ── Painel de saúde ──────────────────────────────────────────────
-        if n_erro > 0:
-            _saude_ico, _saude_txt, _saude_fn = "🔴", "Anomalia Detectada", st.error
-        elif n_alerta > 0:
-            _saude_ico, _saude_txt, _saude_fn = "🟡", "Atenção", st.warning
+        n_ss   = res.get("n_ss",   0.0)
+        Te_ss  = res.get("Te_ss",  0.0)
+        ia_ss  = res.get("ia_ss",  0.0)
+        ifd_ss = res.get("ifd_ss", 0.0)
+        Ea_ss  = res.get("Ea_ss",  0.0)
+        Vt_ss  = res.get("Vt_ss",  0.0)
+        wm_ss  = res.get("wm_ss",  0.0)
+
+        # Painel de saúde simplificado
+        ia_peak = float(np.max(np.abs(res["ia"])))
+        Va_nom  = mp.Va if mp else 24.0
+        overcurrent = ia_peak > 10.0 * abs(ia_ss) if abs(ia_ss) > 1e-6 else False
+
+        if not res.get("success", True):
+            st.error("🔴 **Falha Numérica** — integrador não convergiu. Reduza $h$ ou revise parâmetros.")
+        elif overcurrent:
+            st.warning(f"🟡 **Atenção** — pico de $i_a$ = {ia_peak:.1f} A "
+                       f"({ia_peak/max(abs(ia_ss),1e-6):.1f}× regime). "
+                       f"Velocidade regime: **{n_ss:.0f} RPM**")
         else:
-            _saude_ico, _saude_txt, _saude_fn = "🟢", "Operação Normal", st.success
+            st.success(f"🟢 **Operação Normal** — $n$ = **{n_ss:.0f} RPM** | "
+                       f"$T_e$ = **{Te_ss:.{d}f} N·m** | "
+                       f"$i_a$ = **{ia_ss:.{d}f} A**")
 
-        _diag_suffix = ""
-        if n_erro or n_alerta:
-            _diag_suffix = f" — {n_erro} crítico(s), {n_alerta} alerta(s). Ver aba **Diagnóstico DC**."
-
-        n_rpm = em["n_rpm"]
-        eta   = em["eta"]
-
-        _saude_fn(
-            f"{_saude_ico} **{_saude_txt}** — "
-            f"Velocidade: **{n_rpm:.0f} RPM** | "
-            f"Rendimento: **{eta:.1f}%** | "
-            f"Corrente Armadura: **{em['ia_ss']:.{d}f} A**"
-            + _diag_suffix
-        )
         st.write("")
 
-        # ── Grandezas de operação ─────────────────────────────────────────
+        # KPIs
         st.markdown('<p class="slabel">Grandezas de Operação</p>', unsafe_allow_html=True)
+        k1, k2, k3 = st.columns(3)
+        k1.metric("Velocidade (RPM)",       f"{n_ss:.{d}f}")
+        k2.metric("$T_e$ (N·m)",            f"{Te_ss:.{d}f}")
+        k3.metric("$i_a$ (A)",              f"{ia_ss:.{d}f}")
 
-        _op1 = st.columns(3)
-        _op1[0].metric("Velocidade (RPM)", f"{n_rpm:.{d}f}")
-        _op1[1].metric("Torque de Regime $T_e$ (N·m)", f"{em['Te_ss']:.{d}f}")
-        _op1[2].metric("Corrente Armadura $i_a$ (A)", f"{em['ia_ss']:.{d}f}")
+        k4, k5, k6 = st.columns(3)
+        k4.metric("$\\omega_m$ (rad/s)",    f"{wm_ss:.{d}f}")
+        k5.metric("$E_a$ (V)",              f"{Ea_ss:.{d}f}")
+        k6.metric("$V_t$ (V)",              f"{Vt_ss:.{d}f}")
 
-        _op2 = st.columns(3)
-        _op2[0].metric("Tensão Induzida $E_a$ (V)", f"{em['Ea_ss']:.{d}f}")
-        _op2[1].metric("Rendimento (%)", f"{eta:.{d}f}")
+        if exc not in ("series_motor",):
+            k7, k8, _ = st.columns(3)
+            k7.metric("$i_{fd}$ (A)",       f"{ifd_ss:.{d}f}")
+            k8.metric("Excitação",          _EXC_LABELS.get(exc, exc))
 
-        if "sep" in config or "shunt" in config:
-            _op2[2].metric("Corrente de Campo $i_{fd}$ (A)", f"{em['ifd_ss']:.{d}f}")
-        else:
-            _op2[2].metric("Velocidade (rad/s)", f"{em['wm_ss']:.{d}f}")
-
-        _op3 = st.columns(3)
-        def _fmt_pot(v: float) -> tuple[str, str]:
-            return ("kW", f"{v/1000:.{d}f}") if abs(v) >= 1000 else ("W", f"{v:.{d}f}")
-
-        u_in,  v_in  = _fmt_pot(em["P_entrada"])
-        u_mec, v_mec = _fmt_pot(em["P_mecanica"])
-        u_pa,  v_pa  = _fmt_pot(em["P_perdas_a"])
-
-        _op3[0].metric(f"P. Entrada ({u_in})", v_in)
-        _op3[1].metric(f"P. Mecânica ({u_mec})", v_mec)
-        _op3[2].metric(f"Perdas Armadura ({u_pa})", v_pa)
-
-        # ── KPIs por modo ────────────────────────────────────────────────
-        destaques = _kpis_destaque_dc(y, t, exp_type, params, d)
-        if destaques:
-            st.write("")
-            with st.expander("Grandezas de Transiente e Modo de Operação", expanded=False):
-                _MAX_COLS = 4
-                for i in range(0, len(destaques), _MAX_COLS):
-                    chunk = destaques[i:i + _MAX_COLS]
-                    cols  = st.columns(_MAX_COLS)
-                    for col, (lbl, val, unit) in zip(cols, chunk):
-                        col.metric(f"{lbl} ({unit})", val)
-
-        # ── Resumo econômico ─────────────────────────────────────────────
-        st.write("")
-        st.markdown('<p class="slabel">Resumo Econômico</p>', unsafe_allow_html=True)
-        _re1, _re2, _re3 = st.columns(3)
-        _re1.metric("Rendimento em Regime", f"{eta:.2f} %")
-        _re2.metric("Potência Entrada (regime)", f"{em['P_entrada_kw']:.3f} kW")
-        _re3.metric(
-            "Custo Operacional Anual",
-            f"R$ {em['custo_ano']:,.2f}",
-            help=(
-                f"Estimado como P_entrada_regime × 8.760 h/ano × tarifa.\n"
-                f"Tarifa atual: R$ {energy_tariff:.4f}/kWh."
-            ),
-        )
+        # Transitório resumido
+        with st.expander("Transitório de Partida", expanded=False):
+            tc1, tc2 = st.columns(2)
+            tc1.metric("Pico $i_a$ (A)",    f"{float(np.max(np.abs(res['ia']))):.{d}f}")
+            tc2.metric("Pico $T_e$ (N·m)",  f"{float(np.max(res['Te'])):.{d}f}")
 
     # ══════════════════════════════════════════════════════════════════════
     # ABA 2 — ANÁLISE DINÂMICA
     # ══════════════════════════════════════════════════════════════════════
     with tab_dinamica:
-        if not var_keys:
-            st.info("Nenhuma grandeza selecionada. Configure as variáveis e re-execute a simulação.")
+        _cc1, _cc2, _cc3 = st.columns([2, 2, 1])
+        with _cc1:
+            viz_opts  = ["Empilhado", "Lado a Lado", "Sobreposto"]
+            plot_mode = st.radio("Visualização", viz_opts, horizontal=True,
+                                 key="plot_mode_dc", label_visibility="visible")
+        with _cc2:
+            zoom_opts = ["Completo", "Transitório", "Regime"]
+            zoom_mode = st.radio("Zoom", zoom_opts, horizontal=True,
+                                 key="zoom_mode_dc", label_visibility="visible")
+        with _cc3:
+            dark_plot = st.toggle("Fundo escuro", key="plot_dark_dc", value=dark)
+
+        # Filtro de zoom temporal
+        t_arr = res["t"]
+        tmax_sim = float(t_arr[-1])
+        if zoom_mode == "Transitório":
+            t_cut = tmax_sim * 0.3
+            mask  = t_arr <= t_cut
+        elif zoom_mode == "Regime":
+            t_cut = tmax_sim * 0.7
+            mask  = t_arr >= t_cut
         else:
-            @st.fragment
-            def _render_dinamica_dc(
-                y_data, t_arr, var_keys, var_labels, dark, exp_type, decimals, res_hash,
-            ):
-                _viz_opts = ["Empilhados", "Lado a lado"]
-                _cc1, _cc2 = st.columns([2, 1])
-                with _cc1:
-                    modo = st.radio("Visualização", _viz_opts, horizontal=True, key="dc_plot_mode")
-                with _cc2:
-                    dark_plot = st.toggle("Fundo escuro", value=dark, key="dc_plot_dark_toggle")
+            mask = np.ones(len(t_arr), dtype=bool)
 
-                st.write("")
+        res_zoom = {k: (v[mask] if isinstance(v, np.ndarray) and len(v) == len(t_arr) else v)
+                    for k, v in res.items()}
 
-                _res_for_plot = {"t": t_arr, **y_data}
+        tl_arr = res_zoom.get("Tl")
 
-                if modo == "Empilhados":
-                    fig = build_dc_stacked(
-                        _res_for_plot, var_keys, var_labels, dark_plot
-                    )
-                else:
-                    fig = build_dc_sidebyside(
-                        _res_for_plot, var_keys, var_labels, dark_plot
-                    )
+        if plot_mode == "Empilhado":
+            fig = _cached_fig_stacked_dc(
+                res_zoom, tuple(var_keys), tuple(var_labels),
+                dark_plot, tuple(t_events), d, _cache_key=_cache_key,
+            )
+            st.plotly_chart(fig, use_container_width=True, config=_PLOT_CFG, key="dc-stacked")
 
-                st.plotly_chart(fig, width="stretch", config=_PLOT_CFG, key=f"dc_fig_{res_hash}")
+        elif plot_mode == "Lado a Lado":
+            figs = build_fig_sidebyside_dc(
+                res_zoom, var_keys, var_labels, dark_plot, list(t_events), d,
+                ref_list=ref_list, tl_arr=tl_arr,
+            )
+            for i, f in enumerate(figs):
+                st.plotly_chart(f, use_container_width=True, config=_PLOT_CFG, key=f"dc-side-{i}")
 
-            _res_hash = int(hash((
-                float(y.get("wm", [0])[-1]),
-                float(y.get("ia", [0])[-1]),
-                float(t[-1]),
-            )))
+        else:  # Sobreposto
+            fig = build_fig_overlay_dc(
+                res_zoom, var_keys, var_labels, dark_plot, list(t_events), d,
+                ref_list=ref_list, tl_arr=tl_arr,
+            )
+            st.plotly_chart(fig, use_container_width=True, config=_PLOT_CFG, key="dc-overlay")
 
-            _render_dinamica_dc(y, t, var_keys, var_labels, dark, exp_type, d, _res_hash)
+        # Curva T×ωn
+        st.markdown('<p class="slabel">Curva Conjugado × Velocidade</p>', unsafe_allow_html=True)
+        fig_tn = _cached_fig_torque_speed_dc(res, exc, dark_plot, _cache_key=_cache_key)
+        st.plotly_chart(fig_tn, use_container_width=True, config=_PLOT_CFG, key="dc-torque-speed")
 
     # ══════════════════════════════════════════════════════════════════════
-    # ABA 3 — DIAGNÓSTICO DC
+    # ABA 3 — DIAGNÓSTICO E FALHAS
     # ══════════════════════════════════════════════════════════════════════
     with tab_diag:
-        st.markdown("### Diagnóstico Automatizado")
+        st.markdown('<p class="slabel">Análise de Comutação e Corrente</p>', unsafe_allow_html=True)
 
-        if not diags:
-            st.success("Nenhuma anomalia detectada.")
+        ia_arr  = res["ia"]
+        ia_max  = float(np.max(np.abs(ia_arr)))
+        ia_min  = float(np.min(ia_arr[len(ia_arr)//2:]))  # metade final
+        ia_std  = float(np.std(ia_arr[len(ia_arr)//2:]))
+
+        d1, d2, d3 = st.columns(3)
+        d1.metric("Pico $i_a$ (A)",         f"{ia_max:.{d}f}")
+        d2.metric("$i_a$ regime (A)",        f"{ia_ss:.{d}f}")
+        d3.metric("Ripple $\\sigma(i_a)$",   f"{ia_std:.{d}f}")
+
+        # Verificações
+        anomalias: list[tuple[str, str, str]] = []
+
+        if ia_max > 15.0 * max(abs(ia_ss), 1e-6):
+            anomalias.append(("🔴 Crítico", "Sobrecorrente extrema na partida",
+                               f"Pico {ia_max:.1f} A = {ia_max/max(abs(ia_ss),1e-6):.0f}× regime. "
+                               "Use resistência série ou reduza $V_a$."))
+
+        if not res.get("success", True):
+            anomalias.append(("🔴 Crítico", "Falha numérica do integrador",
+                               "Reduza $h$ para 1×10⁻⁵ s ou verifique parâmetros."))
+
+        if exc not in ("series_motor",):
+            ifd_arr = res["ifd"]
+            ifd_std = float(np.std(ifd_arr[len(ifd_arr)//2:]))
+            if ifd_std > 0.05 * max(abs(ifd_ss), 1e-6):
+                anomalias.append(("🟡 Alerta", "Instabilidade de campo",
+                                   f"$\\sigma(i_{{fd}})$ = {ifd_std:.4f} A em regime. "
+                                   "Verifique $R_f$ e $L_f$."))
+
+        wm_arr = res["wm"]
+        if len(wm_arr) > 10 and float(np.mean(wm_arr[-10:])) < 0.01 * abs(wm_ss) and abs(wm_ss) > 1:
+            anomalias.append(("🟡 Alerta", "Regime não atingido",
+                               f"$\\omega_m$ ainda em transitório ao fim da simulação. "
+                               "Aumente $t_{{max}}$."))
+
+        if not anomalias:
+            st.success("🟢 Nenhuma anomalia detectada.")
         else:
-            for dg in diags:
-                lvl = dg["level"]
-                msg = dg["msg"]
-                if lvl == "error":
-                    st.error(msg)
-                elif lvl == "warning":
-                    st.warning(msg)
-                else:
-                    st.info(msg)
+            for sev, titulo, desc in anomalias:
+                with st.expander(f"{sev} — {titulo}", expanded=True):
+                    st.write(desc)
 
-        st.divider()
-
-        # ── Tabela de regime permanente vs analítico ──────────────────────
-        st.markdown("### Regime Permanente — Comparação Analítica")
-
-        kb = params.kb
-        Ra = params.Ra
-        Va = params.Va
-        Rf = params.Rf
-        Vf = params.Vf
-
-        ia_ss  = em["ia_ss"]
-        wm_ss  = em["wm_ss"]
-        ifd_ss = em["ifd_ss"]
-
-        # Estimativa analítica (sep_motor / shunt / series)
-        if "sep" in config:
-            ifd_anl = Vf / Rf if Rf > 0 else 0.0
-            wm_anl  = (Va - ia_ss * Ra) / (kb * ifd_anl) if (kb * ifd_anl) > 0 else 0.0
-            ia_anl  = params.Tload / (kb * ifd_anl) if (kb * ifd_anl) > 0 else 0.0
-        elif "shunt" in config:
-            ifd_anl = Va / Rf if Rf > 0 else 0.0
-            wm_anl  = (Va - ia_ss * Ra) / (kb * ifd_anl) if (kb * ifd_anl) > 0 else 0.0
-            ia_anl  = params.Tload / (kb * ifd_anl) if (kb * ifd_anl) > 0 else 0.0
-        else:  # series
-            ifd_anl = ia_ss  # ia == ifd para série
-            wm_anl  = (Va - ia_ss * (Ra + Rf)) / (kb * ia_ss) if (kb * ia_ss) > 0 else 0.0
-            ia_anl  = float(np.sqrt(params.Tload / kb)) if kb > 0 and params.Tload > 0 else 0.0
-
-        n_anl = wm_anl * 60.0 / (2.0 * np.pi)
-        n_sim = wm_ss  * 60.0 / (2.0 * np.pi)
-
-        def _desvio(sim: float, anl: float) -> str:
-            if abs(anl) < 1e-9:
-                return "—"
-            return f"{abs(sim - anl) / abs(anl) * 100:.2f}%"
-
-        st.markdown(f"""
-| Grandeza | Simulado | Analítico | Desvio |
-|---|---|---|---|
-| $i_a$ (A) | {ia_ss:.{d}f} | {ia_anl:.{d}f} | {_desvio(ia_ss, ia_anl)} |
-| $i_{{fd}}$ (A) | {ifd_ss:.{d}f} | {ifd_anl:.{d}f} | {_desvio(ifd_ss, ifd_anl)} |
-| $\\omega_m$ (rad/s) | {wm_ss:.{d}f} | {wm_anl:.{d}f} | {_desvio(wm_ss, wm_anl)} |
-| $n$ (RPM) | {n_sim:.{d}f} | {n_anl:.{d}f} | {_desvio(n_sim, n_anl)} |
-""")
-
-        st.caption(
-            "Analítico: equações de regime permanente (resistências DC). "
-            "Desvio > 5% indica parâmetro fora de consistência ou regime não atingido."
-        )
+        # FFT de corrente de armadura
+        with st.expander("FFT de $i_a$ (Ripple harmônico)", expanded=False):
+            try:
+                from numpy.fft import rfft, rfftfreq
+                ia_half = ia_arr[len(ia_arr)//2:]
+                N  = len(ia_half)
+                dt = float(res["t"][1] - res["t"][0])
+                f_fft = rfftfreq(N, d=dt)
+                Y     = np.abs(rfft(ia_half - np.mean(ia_half))) * 2 / N
+                fig_f = go.Figure()
+                fig_f.add_trace(go.Bar(x=f_fft[:N//4], y=Y[:N//4], name="Amplitude"))
+                fig_f.update_layout(
+                    title="Espectro de $i_a$", xaxis_title="Frequência (Hz)",
+                    yaxis_title="Amplitude (A)", height=300,
+                    paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                )
+                st.plotly_chart(fig_f, use_container_width=True, config=_PLOT_CFG, key="dc-fft")
+            except Exception:
+                st.caption("FFT indisponível.")
 
     # ══════════════════════════════════════════════════════════════════════
     # ABA 4 — GESTÃO DE ATIVOS
     # ══════════════════════════════════════════════════════════════════════
     with tab_ativos:
-        st.markdown("### Fluxo de Potência")
+        st.markdown('<p class="slabel">Análise de Eficiência e Perdas</p>', unsafe_allow_html=True)
 
-        # Sankey DC: Entrada → Armadura + Campo → Mecânica → Carga + Atrito
-        P_in  = em["P_entrada"]
-        P_pa  = em["P_perdas_a"]
-        P_pf  = em["P_perdas_f"]
-        P_mec = em["P_mecanica"]
-        P_car = em["P_carga"]
-        P_atr = em["P_atrito"]
+        Ra   = mp.Ra if mp else 1.0
+        Rf   = mp.Rf if mp else 0.0
+        B    = mp.B  if mp else 0.0
+        Va   = mp.Va if mp else 24.0
 
-        try:
-            import plotly.graph_objects as _pgo
+        P_Ra   = float(ia_ss ** 2 * Ra)
+        P_Rf   = float(ifd_ss ** 2 * Rf) if exc not in ("series_motor",) else 0.0
+        P_mec  = float(B * wm_ss ** 2)
+        P_elec = float(abs(Va) * abs(ia_ss)) if not is_gen else 0.0
+        P_mec_out = float(abs(Te_ss) * abs(wm_ss))
 
-            def _label(v: float) -> str:
-                return f"{v/1000:.2f} kW" if abs(v) >= 1000 else f"{v:.2f} W"
-
-            fig_sk = _pgo.Figure(_pgo.Sankey(
-                node=dict(
-                    label=["Entrada Elétrica", "Perdas Armadura", "Perdas Campo", "Mecânica", "Carga Útil", "Atrito"],
-                    color=["#1f77b4", "#d62728", "#ff7f0e", "#2ca02c", "#17becf", "#8c564b"],
-                    pad=15,
-                    thickness=20,
-                ),
-                link=dict(
-                    source=[0, 0, 0, 3, 3],
-                    target=[1, 2, 3, 4, 5],
-                    value=[
-                        max(P_pa, 0.001),
-                        max(P_pf, 0.001),
-                        max(P_mec, 0.001),
-                        max(P_car, 0.001),
-                        max(P_atr, 0.001),
-                    ],
-                    label=[
-                        _label(P_pa),
-                        _label(P_pf),
-                        _label(P_mec),
-                        _label(P_car),
-                        _label(P_atr),
-                    ],
-                    color=["rgba(214,39,40,0.4)", "rgba(255,127,14,0.4)",
-                           "rgba(44,160,44,0.4)", "rgba(23,190,207,0.4)",
-                           "rgba(140,86,75,0.4)"],
-                ),
-            ))
-            fig_sk.update_layout(  # type: ignore[union-attr]
-                title="Fluxo de Potência (Regime Permanente)",
-                height=400,
-                paper_bgcolor="#0f1218" if dark else "#ffffff",
-                font=dict(family="Inter, system-ui", size=12,
-                          color="#e5e7eb" if dark else "#000000"),
-                margin=dict(l=30, r=30, t=50, b=30),
-            )
-            st.plotly_chart(fig_sk, width="stretch",
-                            config={"displaylogo": False, "responsive": True},
-                            key="dc_sankey")
-        except Exception:
-            # Fallback: tabela de potências
-            def _fmt_p(v: float) -> str:
-                return f"{v/1000:.3f} kW" if abs(v) >= 1000 else f"{v:.3f} W"
-
-            st.markdown(f"""
-| Componente | Potência |
-|---|---|
-| Entrada Elétrica | {_fmt_p(P_in)} |
-| Perdas Armadura (Ra·ia²) | {_fmt_p(P_pa)} |
-| Perdas Campo (Rf·ifd²) | {_fmt_p(P_pf)} |
-| Potência Mecânica Convertida | {_fmt_p(P_mec)} |
-| Potência Útil (Te·ωm) | {_fmt_p(P_car)} |
-| Perdas por Atrito (B·ωm²) | {_fmt_p(P_atr)} |
-| **Rendimento** | **{em['eta']:.2f} %** |
-""")
-
-        st.divider()
-
-        # ── Análise de custo e ciclo de vida ─────────────────────────────
-        st.markdown("### Análise Econômica e Ciclo de Vida")
-
-        _ec1, _ec2, _ec3 = st.columns(3)
-        _ec1.metric("Rendimento em Regime", f"{em['eta']:.2f} %")
-        _ec2.metric("Custo Anual (24h/dia)", f"R$ {em['custo_ano']:,.2f}",
-                    help=f"Tarifa: R$ {energy_tariff:.4f}/kWh, operação contínua.")
-        _ec3.metric("Potência Entrada (kW)", f"{em['P_entrada_kw']:.4f}")
-
-        st.write("")
-        _ec4, _ec5, _ec6 = st.columns(3)
-        horas_semana = 40.0
-        custo_semana = em["P_entrada_kw"] * horas_semana * energy_tariff
-        custo_mes    = em["P_entrada_kw"] * horas_semana * 4.33 * energy_tariff
-        _ec4.metric("Custo/Semana (40h)", f"R$ {custo_semana:.2f}")
-        _ec5.metric("Custo/Mês (40h/sem)", f"R$ {custo_mes:.2f}")
-        _ec6.metric("Perdas Totais (W)", f"{P_pa + P_pf + P_atr:.3f}")
-
-        st.divider()
-
-        # ── Exportar PDF ──────────────────────────────────────────────────
-        st.markdown("### Exportar Relatório")
-
-        exp_label = f"MCC_{config}_{exp_type}_{int(time.time() % 10000)}"
-        pdf_key   = "pdf_bytes_dc_academico"
-
-        if not st.session_state.get(pdf_key):
-            if st.button("📄 Gerar PDF Acadêmico", use_container_width=True, key="btn_pdf_dc"):
-                try:
-                    from viz.pdf_dc import generate_academico
-
-                    mp_dict = {
-                        "Rf": float(params.Rf), "Lf": float(params.Lf),
-                        "Ra": float(params.Ra), "La": float(params.La),
-                        "kb": float(params.kb), "J":  float(params.J),
-                        "B":  float(params.B),  "Va": float(params.Va),
-                        "Vf": float(params.Vf), "Tload": float(params.Tload),
-                        "f":  60.0, "Rs": params.Ra, "Rfe": 500.0,
-                    }
-
-                    with st.spinner("Gerando Relatório Acadêmico..."):
-                        st.session_state[pdf_key] = generate_academico(
-                            exp_label=exp_label,
-                            mp=mp_dict,
-                            res=result,
-                            var_keys=["ia", "ifd", "wm", "Te", "Ea"],
-                            var_labels=[
-                                "Corrente de Armadura (A)",
-                                "Corrente de Campo (A)",
-                                "Velocidade Mecânica (rad/s)",
-                                "Torque (N·m)",
-                                "Força Contra-Eletromotriz (V)",
-                            ],
-                            exp_type=config + "_" + exp_type,
-                            energy_tariff=energy_tariff,
-                            tmax=float(t[-1]),
-                            h=float(t[1] - t[0]) if len(t) > 1 else 1e-3,
-                        )
-                    st.rerun()
-                except Exception as exc:
-                    st.error(f"Erro ao gerar PDF: {exc}")
+        if is_gen:
+            eta = P_elec / max(P_mec_out, 1e-9) * 100 if P_mec_out > 0 else 0.0
         else:
-            st.download_button(
-                label="⬇️ Baixar Relatório (PDF)",
-                data=st.session_state[pdf_key],
-                file_name=f"{exp_label}_relatorio.pdf",
-                mime="application/pdf",
-                use_container_width=True,
-                key="btn_dl_pdf_dc",
-            )
-            if st.button("🔄 Regerar PDF", use_container_width=True, key="btn_regen_pdf_dc"):
-                del st.session_state[pdf_key]
-                st.rerun()
+            eta = P_mec_out / max(P_elec, 1e-9) * 100 if P_elec > 0 else 0.0
+
+        a1, a2, a3, a4 = st.columns(4)
+        a1.metric("Eficiência η (%)",       f"{eta:.1f}")
+        a2.metric("P. Joule $R_a$ (W)",     f"{P_Ra:.3f}")
+        a3.metric("P. Joule $R_f$ (W)",     f"{P_Rf:.3f}")
+        a4.metric("P. Atrito (W)",           f"{P_mec:.4f}")
+
+        b1, b2 = st.columns(2)
+        b1.metric("P. Elétrica (W)",         f"{P_elec:.3f}")
+        b2.metric("P. Mecânica (W)",          f"{P_mec_out:.3f}")
+
+        Te_nom = mp.Tload if mp else 2.493
+        util   = abs(Te_ss) / max(abs(Te_nom), 1e-9) * 100
+        st.metric("Fator de Utilização (%)", f"{util:.1f}")
+
+        # Sankey simplificado
+        with st.expander("Diagrama de Sankey (Potências)", expanded=False):
+            try:
+                if not is_gen and P_elec > 0:
+                    labels = ["P. Elétrica", "P. Mecânica", "P. Joule Ra", "P. Joule Rf", "P. Atrito"]
+                    source = [0, 0, 0, 0]
+                    target = [1, 2, 3, 4]
+                    value  = [max(P_mec_out, 0), max(P_Ra, 0), max(P_Rf, 0), max(P_mec, 0)]
+                    fig_s  = go.Figure(go.Sankey(
+                        node=dict(label=labels, pad=15, thickness=20),
+                        link=dict(source=source, target=target, value=value),
+                    ))
+                    fig_s.update_layout(height=300, paper_bgcolor="rgba(0,0,0,0)")
+                    st.plotly_chart(fig_s, use_container_width=True, config=_PLOT_CFG, key="dc-sankey")
+                else:
+                    st.caption("Sankey disponível apenas para modo motor.")
+            except Exception:
+                st.caption("Sankey indisponível.")

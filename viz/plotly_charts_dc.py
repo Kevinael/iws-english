@@ -1,9 +1,6 @@
-# -*- coding: utf-8 -*-
-"""Gráficos Plotly para simulação MCC (Motor de Corrente Contínua).
+"""Gráficos Plotly para MCC — espelha plotly_charts.py MIT.
 
-Exporta:
-    build_dc_stacked    — subplots empilhados (padrão MIT build_fig_stacked)
-    build_dc_sidebyside — grade 2×N lado a lado
+Importa tema/cores diretamente do MIT para consistência visual.
 """
 
 from __future__ import annotations
@@ -12,237 +9,299 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# TEMA
-# ─────────────────────────────────────────────────────────────────────────────
-
-def _plot_theme(dark: bool) -> dict:
-    if dark:
-        return dict(
-            plot_bg  = "#151a24",
-            paper_bg = "#0f1218",
-            fg       = "#e5e7eb",
-            grid     = "rgba(255,255,255,0.15)",
-        )
-    return dict(
-        plot_bg  = "#ffffff",
-        paper_bg = "#ffffff",
-        fg       = "#000000",
-        grid     = "#B9ADAD",
-    )
-
-
-_VAR_COLORS = {
-    "ia":  "#1f77b4",   # azul
-    "ifd": "#ff7f0e",   # laranja
-    "wm":  "#2ca02c",   # verde
-    "Te":  "#d62728",   # vermelho
-    "Ea":  "#9467bd",   # roxo
-}
-
-_DEFAULT_COLOR = "#636efa"
+from viz.plotly_charts import _plot_theme, _colors, _TL_COLOR
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# BUILDERS PRINCIPAIS
+# GRÁFICO EMPILHADO
 # ─────────────────────────────────────────────────────────────────────────────
 
-def build_dc_stacked(
+def build_fig_stacked_dc(
     res: dict,
     var_keys: list[str],
     var_labels: list[str],
-    dark: bool = False,
+    dark: bool,
+    t_events: list,
+    decimals: int = 3,
+    tl_arr=None,
 ) -> go.Figure:
-    """Subplots empilhados — um painel por variável, eixo X compartilhado.
-
-    Parâmetros
-    ----------
-    res : dict
-        Deve conter chave 't' + uma chave por variável em var_keys.
-    var_keys : list[str]
-        Variáveis a plotar (e.g. ['ia', 'wm', 'Te']).
-    var_labels : list[str]
-        Rótulos de eixo Y correspondentes.
-    dark : bool
-        Tema escuro.
-    """
+    n  = len(var_keys)
     pt = _plot_theme(dark)
-    t  = np.asarray(res["t"])
+    cl = _colors(dark)
+    has_tl = tl_arr is not None and "Te" in var_keys
 
-    # Filtrar vars disponíveis
-    pairs = [(k, l) for k, l in zip(var_keys, var_labels) if k in res]
-    if not pairs:
-        fig = go.Figure()
-        fig.update_layout(
-            title="Nenhuma variável disponível",
-            paper_bgcolor=pt["paper_bg"],
-        )
-        return fig
-
-    n = len(pairs)
     fig = make_subplots(
-        rows=n,
-        cols=1,
+        rows=n, cols=1,
         shared_xaxes=True,
-        vertical_spacing=0.06 if n <= 3 else 0.04,
+        vertical_spacing=max(0.05, 0.07 / max(n, 1)),
     )
-
-    for i, (key, label) in enumerate(pairs, 1):
-        y_data = np.asarray(res[key])
-        color  = _VAR_COLORS.get(key, _DEFAULT_COLOR)
-
-        fig.add_trace(
-            go.Scatter(
-                x=t,
-                y=y_data,
-                mode="lines",
-                name=label,
-                line=dict(color=color, width=2),
-                hovertemplate=(
-                    f"<b>{label}</b><br>"
-                    "t = %{x:.4f} s<br>"
-                    "valor = %{y:.4f}<extra></extra>"
-                ),
-            ),
-            row=i,
-            col=1,
-        )
-
+    t = res["t"]
+    for i, (key, lbl) in enumerate(zip(var_keys, var_labels), 1):
+        if key not in res:
+            continue
+        fig.add_trace(go.Scatter(
+            x=t, y=res[key], mode="lines", name=lbl,
+            line=dict(color=cl[(i - 1) % len(cl)], width=1.9),
+            hovertemplate=f"<b>{lbl}</b><br>t = %{{x:.4f}} s<br>valor = %{{y:.{decimals}f}}<extra></extra>",
+        ), row=i, col=1)
+        if key == "Te" and has_tl:
+            fig.add_trace(go.Scatter(
+                x=t, y=tl_arr, mode="lines", name="$T_l$ (N·m)",
+                line=dict(color=_TL_COLOR, width=1.6, dash="dash"),
+                hovertemplate=f"<b>Tl</b><br>t = %{{x:.4f}} s<br>valor = %{{y:.{decimals}f}} N·m<extra></extra>",
+            ), row=i, col=1)
+        for te in (t_events or []):
+            fig.add_vline(x=te, line_dash="dot", line_color=pt["event_line"],
+                          line_width=1.1, row=i, col=1)
         fig.update_yaxes(
             row=i, col=1,
-            title_text=label,
-            title_font=dict(size=11, color=pt["fg"]),
-            showgrid=True, gridcolor=pt["grid"], gridwidth=0.5,
+            title_text=lbl,
+            title_font=dict(size=12, color=pt["fg"]),
+            showgrid=True, gridcolor=pt["grid"], gridwidth=0.4,
             zeroline=True, zerolinecolor=pt["grid"],
-            tickfont=dict(size=9, color=pt["fg"]),
-            exponentformat="none",
+            tickfont=dict(size=10, color=pt["fg"]),
+            exponentformat="none", autorange=True, rangemode="normal", fixedrange=False,
         )
 
-    fig.update_xaxes(
-        row=n, col=1,
-        title_text="Tempo (s)",
-        title_font=dict(size=11, color=pt["fg"]),
-        showgrid=True, gridcolor=pt["grid"], gridwidth=0.5,
-        tickfont=dict(size=9, color=pt["fg"]),
-    )
-
-    # Eixos intermediários: mostrar ticks mas sem título
-    for i in range(1, n):
-        fig.update_xaxes(
-            row=i, col=1,
-            showgrid=True, gridcolor=pt["grid"], gridwidth=0.5,
-            tickfont=dict(size=9, color=pt["fg"]),
-        )
-
-    altura = max(250 * n, 400)
+    fig.update_xaxes(row=n, col=1, title_text="Tempo (s)",
+                     showgrid=True, gridcolor=pt["grid"], gridwidth=0.4,
+                     tickfont=dict(size=10, color=pt["fg"]))
     fig.update_layout(
-        height=altura,
-        paper_bgcolor=pt["paper_bg"],
-        plot_bgcolor=pt["plot_bg"],
-        font=dict(family="Inter, system-ui", size=10, color=pt["fg"]),
-        margin=dict(l=65, r=20, t=40, b=50),
+        height=max(300, 280 * n),
+        paper_bgcolor=pt["paper_bg"], plot_bgcolor=pt["plot_bg"],
+        font=dict(family="Inter, system-ui", size=11, color=pt["fg"]),
+        margin=dict(l=55, r=20, t=45, b=40),
         hovermode="x unified",
-        showlegend=False,
-        title=dict(
-            text="Resposta Transiente — Máquina CC",
-            font=dict(size=14, color=pt["fg"]),
-            x=0.5, xanchor="center",
-        ),
+        showlegend=has_tl,
     )
-
     return fig
 
 
-def build_dc_sidebyside(
+# ─────────────────────────────────────────────────────────────────────────────
+# GRÁFICO LADO A LADO
+# ─────────────────────────────────────────────────────────────────────────────
+
+def build_fig_sidebyside_dc(
     res: dict,
     var_keys: list[str],
     var_labels: list[str],
-    dark: bool = False,
-) -> go.Figure:
-    """Grade 2×N — pares de variáveis lado a lado.
+    dark: bool,
+    t_events: list,
+    decimals: int = 3,
+    ref_list: list | None = None,
+    primary_color: str | None = None,
+    compact: bool = False,
+    tl_arr=None,
+) -> list[go.Figure]:
+    cl  = _colors(dark)
+    th  = _plot_theme(dark)
+    t   = res["t"]
+    has_tl = tl_arr is not None and "Te" in var_keys
+    figs = []
 
-    Parâmetros iguais a build_dc_stacked. Variáveis ímpares ocupam coluna da esquerda,
-    pares a da direita (última linha pode ter apenas 1 gráfico).
-    """
-    pt = _plot_theme(dark)
-    t  = np.asarray(res["t"])
+    for i, (key, lbl) in enumerate(zip(var_keys, var_labels)):
+        if key not in res:
+            continue
+        pcol = primary_color or cl[i % len(cl)]
+        fig  = go.Figure()
 
-    pairs = [(k, l) for k, l in zip(var_keys, var_labels) if k in res]
-    if not pairs:
-        fig = go.Figure()
+        for ref_item in (ref_list or []):
+            res_ref = ref_item.get("res")
+            if res_ref is not None and key in res_ref:
+                fig.add_trace(go.Scatter(
+                    x=res_ref["t"], y=res_ref[key], mode="lines",
+                    name=ref_item.get("label", "Referência"),
+                    line=dict(color=ref_item.get("color", "#888"), width=1.4,
+                              dash=ref_item.get("dash", "dash")),
+                    hovertemplate=f"<b>{ref_item.get('label','Ref')}</b><br>t=%{{x:.4f}} s<br>%{{y:.{decimals}f}}<extra></extra>",
+                ))
+
+        fig.add_trace(go.Scatter(
+            x=t, y=res[key], mode="lines", name=lbl,
+            line=dict(color=pcol, width=1.8),
+            hovertemplate=f"<b>{lbl}</b><br>t = %{{x:.4f}} s<br>valor = %{{y:.{decimals}f}}<extra></extra>",
+        ))
+        if key == "Te" and has_tl:
+            fig.add_trace(go.Scatter(
+                x=t, y=tl_arr, mode="lines", name="$T_l$",
+                line=dict(color=_TL_COLOR, width=1.6, dash="dash"),
+            ))
+        for te in (t_events or []):
+            fig.add_vline(x=te, line_dash="dot", line_color=th["event_line"], line_width=1.1)
+
+        _h = 200 if compact else 230
+        _m = dict(l=28, r=8, t=26, b=26) if compact else dict(l=45, r=12, t=36, b=36)
         fig.update_layout(
-            title="Nenhuma variável disponível",
-            paper_bgcolor=pt["paper_bg"],
+            title=dict(text=lbl, x=0.5, xanchor="center",
+                       font=dict(size=11 if compact else 12, color=th["fg"])),
+            height=_h,
+            paper_bgcolor=th["paper_bg"], plot_bgcolor=th["plot_bg"],
+            font=dict(family="Inter, system-ui", size=9 if compact else 10, color=th["fg"]),
+            margin=_m,
+            xaxis=dict(title="Tempo (s)", showgrid=True, gridcolor=th["grid"],
+                       tickfont=dict(size=9, color=th["fg"])),
+            yaxis=dict(showgrid=True, gridcolor=th["grid"], zeroline=True,
+                       zerolinecolor=th["grid"], tickfont=dict(size=9, color=th["fg"]),
+                       exponentformat="none", autorange=True, rangemode="normal",
+                       fixedrange=False),
+            hovermode="x unified",
+            showlegend=True,
         )
-        return fig
+        figs.append(fig)
+    return figs
 
-    n_rows = (len(pairs) + 1) // 2
 
-    specs = [[{"type": "xy"}, {"type": "xy"}]] * n_rows
+# ─────────────────────────────────────────────────────────────────────────────
+# GRÁFICO SOBREPOSTO
+# ─────────────────────────────────────────────────────────────────────────────
 
-    fig = make_subplots(
-        rows=n_rows,
-        cols=2,
-        vertical_spacing=0.10,
-        horizontal_spacing=0.08,
-        specs=specs,
-    )
+def build_fig_overlay_dc(
+    res: dict,
+    var_keys: list[str],
+    var_labels: list[str],
+    dark: bool,
+    t_events: list,
+    decimals: int = 3,
+    ref_list: list | None = None,
+    primary_color: str | None = None,
+    compact: bool = False,
+    tl_arr=None,
+) -> go.Figure:
+    pt   = _plot_theme(dark)
+    cl   = _colors(dark)
+    t    = res["t"]
+    has_tl = tl_arr is not None and "Te" in var_keys
 
-    for idx, (key, label) in enumerate(pairs):
-        row = idx // 2 + 1
-        col = idx % 2 + 1
-        y_data = np.asarray(res[key])
-        color  = _VAR_COLORS.get(key, _DEFAULT_COLOR)
+    fig = go.Figure()
 
-        fig.add_trace(
-            go.Scatter(
-                x=t,
-                y=y_data,
-                mode="lines",
-                name=label,
-                line=dict(color=color, width=2),
-                hovertemplate=(
-                    f"<b>{label}</b><br>"
-                    "t = %{x:.4f} s<br>"
-                    "valor = %{y:.4f}<extra></extra>"
-                ),
-            ),
-            row=row,
-            col=col,
-        )
+    for ref_item in (ref_list or []):
+        res_ref = ref_item.get("res")
+        if res_ref is not None:
+            for key, lbl in zip(var_keys, var_labels):
+                if key not in res_ref:
+                    continue
+                fig.add_trace(go.Scatter(
+                    x=res_ref["t"], y=res_ref[key], mode="lines",
+                    name=f"{ref_item.get('label','Ref')} — {lbl}",
+                    line=dict(color=ref_item.get("color", "#888"), width=1.3,
+                              dash=ref_item.get("dash", "dash")),
+                ))
 
-        fig.update_yaxes(
-            row=row, col=col,
-            title_text=label,
-            title_font=dict(size=10, color=pt["fg"]),
-            showgrid=True, gridcolor=pt["grid"], gridwidth=0.5,
-            zeroline=True, zerolinecolor=pt["grid"],
-            tickfont=dict(size=9, color=pt["fg"]),
-            exponentformat="none",
-        )
-        fig.update_xaxes(
-            row=row, col=col,
-            title_text="Tempo (s)",
-            title_font=dict(size=10, color=pt["fg"]),
-            showgrid=True, gridcolor=pt["grid"], gridwidth=0.5,
-            tickfont=dict(size=9, color=pt["fg"]),
-        )
+    for i, (key, lbl) in enumerate(zip(var_keys, var_labels)):
+        if key not in res:
+            continue
+        pcol = primary_color or cl[i % len(cl)]
+        fig.add_trace(go.Scatter(
+            x=t, y=res[key], mode="lines", name=lbl,
+            line=dict(color=pcol, width=1.8),
+            hovertemplate=f"<b>{lbl}</b><br>t = %{{x:.4f}} s<br>valor = %{{y:.{decimals}f}}<extra></extra>",
+        ))
 
-    altura = max(300 * n_rows, 400)
+    if has_tl:
+        fig.add_trace(go.Scatter(
+            x=t, y=tl_arr, mode="lines", name="$T_l$",
+            line=dict(color=_TL_COLOR, width=1.6, dash="dash"),
+        ))
+
+    for te in (t_events or []):
+        fig.add_vline(x=te, line_dash="dot", line_color=pt["event_line"], line_width=1.1)
+
     fig.update_layout(
-        height=altura,
-        paper_bgcolor=pt["paper_bg"],
-        plot_bgcolor=pt["plot_bg"],
+        height=300 if compact else 400,
+        paper_bgcolor=pt["paper_bg"], plot_bgcolor=pt["plot_bg"],
         font=dict(family="Inter, system-ui", size=10, color=pt["fg"]),
-        margin=dict(l=60, r=20, t=40, b=50),
-        hovermode="closest",
-        showlegend=False,
-        title=dict(
-            text="Resposta Transiente — Máquina CC",
-            font=dict(size=14, color=pt["fg"]),
-            x=0.5, xanchor="center",
-        ),
+        margin=dict(l=45, r=12, t=36, b=36),
+        xaxis=dict(title="Tempo (s)", showgrid=True, gridcolor=pt["grid"],
+                   tickfont=dict(size=9, color=pt["fg"])),
+        yaxis=dict(showgrid=True, gridcolor=pt["grid"], zeroline=True,
+                   zerolinecolor=pt["grid"], tickfont=dict(size=9, color=pt["fg"]),
+                   autorange=True, rangemode="normal", fixedrange=False),
+        hovermode="x unified",
+        showlegend=True,
+        legend=dict(orientation="h", yanchor="bottom", y=1.01,
+                    xanchor="right", x=1, font=dict(size=9), bgcolor="rgba(0,0,0,0)"),
     )
+    return fig
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CURVA CONJUGADO × VELOCIDADE
+# ─────────────────────────────────────────────────────────────────────────────
+
+def build_fig_torque_speed_dc(
+    res: dict,
+    excitation: str,
+    dark: bool,
+    ref_list: list | None = None,
+) -> go.Figure:
+    """Curva analítica T×ωm por excitação + trajetória simulada + ponto SS."""
+    pt = _plot_theme(dark)
+
+    fig = go.Figure()
+
+    wm_sim = res.get("wm", np.array([]))
+    Te_sim = res.get("Te", np.array([]))
+    wm_ss  = float(res.get("wm_ss", 0.0))
+    Te_ss  = float(res.get("Te_ss", 0.0))
+
+    # Overlay referências
+    for ref_item in (ref_list or []):
+        rr = ref_item.get("res")
+        if rr and "wm" in rr and "Te" in rr:
+            fig.add_trace(go.Scatter(
+                x=rr["wm"], y=rr["Te"], mode="lines",
+                name=ref_item.get("label", "Ref"),
+                line=dict(color=ref_item.get("color", "#888"), dash=ref_item.get("dash", "dash"),
+                          width=1.3),
+            ))
+
+    # Trajetória dinâmica
+    if len(wm_sim) > 0:
+        fig.add_trace(go.Scatter(
+            x=wm_sim, y=Te_sim, mode="lines",
+            name="Trajetória dinâmica",
+            line=dict(color=pt["fg"], width=1.2, dash="dot"),
+            opacity=0.6,
+        ))
+
+    # Curva analítica em regime
+    if len(wm_sim) > 0:
+        wm_max = max(float(np.max(np.abs(wm_sim))) * 1.15, abs(wm_ss) * 1.3, 1.0)
+        wm_range = np.linspace(0, wm_max, 300)
+
+        if excitation == "series_motor":
+            # T = kb² * Va / (Raf * (wm + kb²/Raf)²) — hiperbólica
+            pass   # curva analítica série requer parâmetros adicionais; omitida aqui
+
+        fig.add_trace(go.Scatter(
+            x=wm_range, y=np.full_like(wm_range, abs(Te_ss)),
+            mode="lines", name="Regime (carga)",
+            line=dict(color="#6ee7b7", width=1.4, dash="dashdot"),
+        ))
+
+    # Ponto de regime permanente
+    fig.add_trace(go.Scatter(
+        x=[wm_ss], y=[Te_ss],
+        mode="markers", name=f"SS: ω={wm_ss:.2f} rad/s, T={Te_ss:.3f} N·m",
+        marker=dict(symbol="star", size=12, color="#f59e0b",
+                    line=dict(color=pt["fg"], width=1)),
+    ))
+
+    fig.update_layout(
+        title=dict(text="Conjugado × Velocidade Angular", x=0.5, xanchor="center",
+                   font=dict(size=13, color=pt["fg"])),
+        xaxis=dict(title="ωm (rad/s)", showgrid=True, gridcolor=pt["grid"],
+                   tickfont=dict(size=10, color=pt["fg"])),
+        yaxis=dict(title="Te (N·m)", showgrid=True, gridcolor=pt["grid"],
+                   zeroline=True, zerolinecolor=pt["grid"],
+                   tickfont=dict(size=10, color=pt["fg"])),
+        height=380,
+        paper_bgcolor=pt["paper_bg"], plot_bgcolor=pt["plot_bg"],
+        font=dict(family="Inter, system-ui", size=10, color=pt["fg"]),
+        margin=dict(l=55, r=20, t=55, b=45),
+        showlegend=True,
+        legend=dict(orientation="h", yanchor="bottom", y=1.01,
+                    xanchor="right", x=1, font=dict(size=9), bgcolor="rgba(0,0,0,0)"),
+        hovermode="closest",
+    )
     return fig
