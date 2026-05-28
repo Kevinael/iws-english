@@ -17,7 +17,7 @@ _PNG_MAP: dict[str, str] = {
     "series_motor": "serie_motor.png",
 }
 
-_PNG_DIR = Path(__file__).parent.parent / "docs" / "bases para simulação" / "cc"
+_PNG_DIR = Path(__file__).parent.parent / "docs" / "bases para simulação" / "cc" / "imgs"
 
 _CIRCUIT_LABELS: dict[str, str] = {
     "sep_motor":    "Excitação Separada — Motor",

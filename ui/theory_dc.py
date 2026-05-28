@@ -11,7 +11,7 @@ from pathlib import Path
 
 import streamlit as st
 
-_PNG_DIR = Path(__file__).parent.parent / "docs" / "bases para simulação" / "cc"
+_PNG_DIR = Path(__file__).parent.parent / "docs" / "bases para simulação" / "cc" / "imgs"
 
 
 def _png(name: str):
