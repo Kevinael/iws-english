@@ -73,6 +73,61 @@ _EXC_LABELS: dict[str, str] = {
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# HELPERS
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _nota_apos_dc(key: str, mode: str, mp: DCMachineParams) -> None:
+    """Exibe nota técnica contextual abaixo do gráfico, igual MIT sim_results.py."""
+    _tau_a = mp.La / max(mp.Ra, 1e-9)
+    exc = mp.excitation
+    is_series = exc == "series_motor"
+
+    notas: dict[str, str] = {
+        "ia": (
+            f"A corrente de armadura $i_a$ sobe rapidamente ao ligar ($\\tau_a = L_a/R_a = {_tau_a*1000:.2f}\\,\\text{{ms}}$) "
+            f"e limita-se à medida que a fcem $E_a = k_b \\cdot i_{{fd}} \\cdot \\omega_m$ cresce. "
+            f"O regime permanente satisfaz $i_{{a,ss}} = (V_a - E_{{a,ss}}) / R_a$."
+        ),
+        "ifd": (
+            f"A corrente de campo $i_{{fd}}$ determina o fluxo magnético e portanto $k_b$ efetivo. "
+            f"Sua dinâmica é mais lenta que a armadura: $\\tau_f = L_f/R_f = {(mp.Lf/max(mp.Rf,1e-9))*1000:.2f}\\,\\text{{ms}}$."
+        ) if not is_series else (
+            "Motor série: $i_{fd} = i_a$ (campo em série com a armadura). "
+            "O torque é proporcional a $i_a^2$, resultando em alto torque de partida."
+        ),
+        "wm": (
+            f"Aceleração angular: $\\dot{{\\omega}}_m = (T_e - T_l - B\\,\\omega_m) / J$. "
+            f"Com $J = {mp.J:.4f}\\,\\text{{kg·m}}^2$, a constante de tempo mecânica típica é "
+            f"$\\tau_m = J \\cdot R_a / k_b^2 \\approx {(mp.J * mp.Ra / max(mp.kb**2, 1e-9)):.3f}\\,\\text{{s}}$."
+        ),
+        "n": (
+            f"Velocidade em RPM. Regime permanente: $n_{{ss}} = 60 \\cdot \\omega_{{m,ss}} / (2\\pi)$. "
+            f"Enfraquecimento de campo (↓$V_f$ ou ↓$I_{{fd}}$) aumenta a velocidade de regime."
+        ),
+        "Te": (
+            f"Conjugado eletromagnético: $T_e = k_b \\cdot i_{{fd}} \\cdot i_a$"
+            if not is_series else
+            f"Conjugado eletromagnético: $T_e = k_b \\cdot i_a^2$ (série — alto torque de partida)."
+        ),
+        "Ea": (
+            f"Força contra-eletromotriz: $E_a = k_b \\cdot i_{{fd}} \\cdot \\omega_m$. "
+            f"Em regime, $E_a \\approx V_a - R_a \\cdot i_{{a,ss}}$."
+        ),
+        "Vt": (
+            f"Tensão de terminal. Motor: $V_t = V_a - R_a \\cdot i_a$ (queda resistiva). "
+            f"Gerador: $V_t = E_a - R_a \\cdot i_a$ (abaixo da fcem)."
+        ) if not exc.endswith("_gen") else (
+            f"Tensão de terminal do gerador: $V_t = E_a - R_a \\cdot i_a$. "
+            f"Em regime, $V_t$ depende da carga $R_l$."
+        ),
+    }
+
+    nota = notas.get(key)
+    if nota:
+        st.caption(nota)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # MAIN
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -90,6 +145,7 @@ def render_results_dc(
     h: float,
     decimals: int = 3,
     ref_list: list | None = None,
+    energy_tariff: float = 0.75,
     **kwargs,
 ) -> None:
     """Renderiza as 4 sub-abas de resultados MCC."""
@@ -116,7 +172,7 @@ def render_results_dc(
         Vt_ss  = res.get("Vt_ss",  0.0)
         wm_ss  = res.get("wm_ss",  0.0)
 
-        # Painel de saúde simplificado
+        # ── Painel de saúde ──────────────────────────────────────────────
         ia_peak = float(np.max(np.abs(res["ia"])))
         Va_nom  = mp.Va if mp else 24.0
         overcurrent = ia_peak > 10.0 * abs(ia_ss) if abs(ia_ss) > 1e-6 else False
@@ -134,7 +190,7 @@ def render_results_dc(
 
         st.write("")
 
-        # KPIs
+        # ── KPIs de Operação ─────────────────────────────────────────────
         st.markdown('<p class="slabel">Grandezas de Operação</p>', unsafe_allow_html=True)
         k1, k2, k3 = st.columns(3)
         k1.metric("Velocidade (RPM)",       f"{n_ss:.{d}f}")
@@ -151,16 +207,65 @@ def render_results_dc(
             k7.metric("$i_{fd}$ (A)",       f"{ifd_ss:.{d}f}")
             k8.metric("Excitação",          _EXC_LABELS.get(exc, exc))
 
-        # Transitório resumido
+        # ── Transitório de Partida ───────────────────────────────────────
         with st.expander("Transitório de Partida", expanded=False):
             tc1, tc2 = st.columns(2)
             tc1.metric("Pico $i_a$ (A)",    f"{float(np.max(np.abs(res['ia']))):.{d}f}")
             tc2.metric("Pico $T_e$ (N·m)",  f"{float(np.max(res['Te'])):.{d}f}")
 
+        # ── Recomendações de Proteção ────────────────────────────────────
+        Ra_mp   = mp.Ra if mp else 1.0
+        P_mec_out_nom = abs(Te_ss) * abs(wm_ss)
+        if abs(Va_nom) > 1e-6 and P_mec_out_nom > 1e-6:
+            _eta_nom = P_mec_out_nom / max(abs(Va_nom) * abs(ia_ss), 1e-9)
+            Ia_nom = (P_mec_out_nom / max(abs(Va_nom) * _eta_nom, 1e-9))
+        else:
+            Ia_nom = abs(ia_ss)
+
+        with st.expander("Recomendações de Proteção (IEC)", expanded=False):
+            _pk_ratio = ia_peak / max(Ia_nom, 1e-6)
+            _classe_rele = "Classe 10" if _pk_ratio < 6 else ("Classe 20" if _pk_ratio < 8 else "Classe 30")
+            _fusivel    = Ia_nom * 2.0
+            _disjuntor  = f"{Ia_nom:.1f} – {Ia_nom * 1.25:.1f}"
+
+            pr1, pr2, pr3 = st.columns(3)
+            pr1.metric("Relé de Sobrecarga",   _classe_rele,
+                       help="IEC 60947-4-1 — baseado na relação pico/nominal de corrente")
+            pr2.metric("Fusível ≥ (A)",        f"{_fusivel:.1f}",
+                       help="IEC 60269-1 — mínimo 2× corrente nominal")
+            pr3.metric("Disjuntor Motor (A)",  _disjuntor,
+                       help="IEC 60947-2 — faixa 1,0–1,25× corrente nominal")
+            if exc in ("sep_motor", "sep_gen"):
+                st.warning(
+                    "**Proteção de campo aberto:** motores de excitação separada correm risco de "
+                    "disparo em sobretensão se o circuito de campo abrir com o motor em carga — "
+                    "use relé de proteção de campo aberto (IEC 60947-4-1)."
+                )
+
+        # ── Resumo Econômico ─────────────────────────────────────────────
+        _P_elec_ss = abs(Va_nom) * abs(ia_ss)
+        if energy_tariff > 0 and _P_elec_ss > 1e-3 and not is_gen:
+            st.write("")
+            _eta_pct   = P_mec_out_nom / max(_P_elec_ss, 1e-9) * 100
+            _custo_ano = _P_elec_ss / 1000 * 8760 * energy_tariff
+            ec1, ec2, ec3 = st.columns(3)
+            ec1.metric("Rendimento η (%)",     f"{_eta_pct:.1f}")
+            ec2.metric("Custo anual (R$)",     f"{_custo_ano:,.2f}",
+                       help=f"Tarifa: R$ {energy_tariff:.4f}/kWh — operação contínua")
+            ec3.metric("P. entrada (kW)",      f"{_P_elec_ss/1000:.3f}")
+
     # ══════════════════════════════════════════════════════════════════════
     # ABA 2 — ANÁLISE DINÂMICA
     # ══════════════════════════════════════════════════════════════════════
     with tab_dinamica:
+        # ── Painel de Referências Salvas ─────────────────────────────────
+        if ref_list:
+            try:
+                from ui_components.sim_results import render_ref_panel
+                render_ref_panel()
+            except Exception:
+                pass
+
         _cc1, _cc2, _cc3 = st.columns([2, 2, 1])
         with _cc1:
             viz_opts  = ["Empilhado", "Lado a Lado", "Sobreposto"]
@@ -196,6 +301,9 @@ def render_results_dc(
                 dark_plot, tuple(t_events), d, _cache_key=_cache_key,
             )
             st.plotly_chart(fig, use_container_width=True, config=_PLOT_CFG, key="dc-stacked")
+            # Notas contextuais por grandeza
+            for _vk in var_keys:
+                _nota_apos_dc(_vk, exp_type, mp)
 
         elif plot_mode == "Lado a Lado":
             figs = build_fig_sidebyside_dc(
@@ -221,11 +329,16 @@ def render_results_dc(
     # ABA 3 — DIAGNÓSTICO E FALHAS
     # ══════════════════════════════════════════════════════════════════════
     with tab_diag:
+        n_ss   = res.get("n_ss",   0.0)
+        Te_ss  = res.get("Te_ss",  0.0)
+        ia_ss  = res.get("ia_ss",  0.0)
+        ifd_ss = res.get("ifd_ss", 0.0)
+        wm_ss  = res.get("wm_ss",  0.0)
+
         st.markdown('<p class="slabel">Análise de Comutação e Corrente</p>', unsafe_allow_html=True)
 
         ia_arr  = res["ia"]
         ia_max  = float(np.max(np.abs(ia_arr)))
-        ia_min  = float(np.min(ia_arr[len(ia_arr)//2:]))  # metade final
         ia_std  = float(np.std(ia_arr[len(ia_arr)//2:]))
 
         d1, d2, d3 = st.columns(3)
@@ -233,7 +346,12 @@ def render_results_dc(
         d2.metric("$i_a$ regime (A)",        f"{ia_ss:.{d}f}")
         d3.metric("Ripple $\\sigma(i_a)$",   f"{ia_std:.{d}f}")
 
-        # Verificações
+        # Qualidade: ondulação relativa
+        _ripple_rel = ia_std / max(abs(ia_ss), 1e-6) * 100
+        if _ripple_rel > 5.0:
+            st.warning(f"Ondulação relativa de $i_a$ = {_ripple_rel:.1f} % — verifique $L_a$ e frequência de comutação.")
+
+        # Verificações automáticas de anomalia
         anomalias: list[tuple[str, str, str]] = []
 
         if ia_max > 15.0 * max(abs(ia_ss), 1e-6):
@@ -283,6 +401,10 @@ def render_results_dc(
                     paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
                 )
                 st.plotly_chart(fig_f, use_container_width=True, config=_PLOT_CFG, key="dc-fft")
+                st.caption(
+                    "Harmônicos elevados indicam comutação irregular ou ressonância LC no circuito de armadura. "
+                    "O espectro é calculado na segunda metade da simulação (regime)."
+                )
             except Exception:
                 st.caption("FFT indisponível.")
 
@@ -290,6 +412,12 @@ def render_results_dc(
     # ABA 4 — GESTÃO DE ATIVOS
     # ══════════════════════════════════════════════════════════════════════
     with tab_ativos:
+        n_ss   = res.get("n_ss",   0.0)
+        Te_ss  = res.get("Te_ss",  0.0)
+        ia_ss  = res.get("ia_ss",  0.0)
+        ifd_ss = res.get("ifd_ss", 0.0)
+        wm_ss  = res.get("wm_ss",  0.0)
+
         st.markdown('<p class="slabel">Análise de Eficiência e Perdas</p>', unsafe_allow_html=True)
 
         Ra   = mp.Ra if mp else 1.0
@@ -340,6 +468,33 @@ def render_results_dc(
                     st.caption("Sankey disponível apenas para modo motor.")
             except Exception:
                 st.caption("Sankey indisponível.")
+
+        # Análise econômica (igual MIT)
+        if energy_tariff > 0 and P_elec > 1e-3 and not is_gen:
+            with st.expander("Detalhes do Consumo", expanded=False):
+                try:
+                    _t_arr   = res["t"]
+                    _ia_arr  = res["ia"]
+                    _P_elec_arr = np.abs(Va) * np.abs(_ia_arr)
+                    _dt      = float(_t_arr[1] - _t_arr[0]) if len(_t_arr) > 1 else h
+                    _E_kWh   = float(np.sum(_P_elec_arr) * _dt / 3600)
+                    _custo_exp  = _E_kWh * energy_tariff
+                    _tmax_sim   = float(_t_arr[-1])
+                    _E_anual    = _E_kWh * (8760 * 3600 / max(_tmax_sim, 1e-6))
+                    _custo_ano  = _E_anual * energy_tariff
+
+                    ec1, ec2 = st.columns(2)
+                    ec1.metric("Energia no experimento (kWh)",  f"{_E_kWh:.6f}")
+                    ec2.metric("Custo do experimento (R$)",     f"{_custo_exp:.6f}")
+                    ec3, ec4 = st.columns(2)
+                    ec3.metric("Energia anual proj. (kWh/ano)", f"{_E_anual:,.1f}")
+                    ec4.metric("Custo anual proj. (R$/ano)",    f"{_custo_ano:,.2f}")
+                    st.caption(
+                        f"Tarifa: R$ {energy_tariff:.4f}/kWh. "
+                        f"Projeção assume operação contínua (8 760 h/ano) com o mesmo perfil de carga."
+                    )
+                except Exception:
+                    st.caption("Análise econômica indisponível.")
 
     # ══════════════════════════════════════════════════════════════════════
     # EXPORTAÇÃO PDF

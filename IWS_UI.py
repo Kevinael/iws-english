@@ -171,7 +171,7 @@ def main() -> None:
             col_params, col_circuit = st.columns([1.4, 0.8], gap="large")
 
             with col_params:
-                mp_dc, ref_code_dc = render_dc_machine_params(dark, experiment_mode)
+                mp_dc, ref_code_dc, energy_tariff_dc = render_dc_machine_params(dark, experiment_mode)
 
             with col_circuit:
                 st.markdown('<p class="slabel">Circuito Equivalente</p>', unsafe_allow_html=True)
@@ -214,6 +214,7 @@ def main() -> None:
                     mp=mp_dc, exp_config=exp_config_dc,
                     var_keys=var_keys_dc, var_labels=var_labels_dc,
                     tmax=tmax_dc, h=h_dc, ref_code=ref_code_dc, dark=dark,
+                    energy_tariff=energy_tariff_dc,
                 )
 
             _toast = st.session_state.pop("_sim_toast", None)
@@ -239,6 +240,7 @@ def main() -> None:
                     h=sr_dc.get("h", h_dc),
                     decimals=dec,
                     ref_list=ref_list_dc,
+                    energy_tariff=sr_dc.get("energy_tariff", energy_tariff_dc),
                 )
             else:
                 with st.container(border=True):

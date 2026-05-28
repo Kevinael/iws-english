@@ -164,11 +164,12 @@ def _wi(key: str, default: Any) -> None:
 # RENDER — PARÂMETROS DA MÁQUINA (col_params)
 # ─────────────────────────────────────────────────────────────────────────────
 
-def render_dc_machine_params(dark: bool, experiment_mode: bool) -> tuple[DCMachineParams, int]:
+def render_dc_machine_params(dark: bool, experiment_mode: bool) -> tuple[DCMachineParams, int, float]:
     """Renderiza seletor de parâmetros MCC.
 
-    Retorna (DCMachineParams, ref_code).
+    Retorna (DCMachineParams, ref_code, energy_tariff).
     ref_code: hash inteiro para cache invalidation.
+    energy_tariff: tarifa R$/kWh lida de Parâmetros Avançados.
     """
     from core.dc_estimator import estimate_dc_nameplate, estimate_dc_tests
 
@@ -218,16 +219,71 @@ def render_dc_machine_params(dark: bool, experiment_mode: bool) -> tuple[DCMachi
                         ("Lf","wi_dc_Lf"),("J","wi_dc_J"),("B","wi_dc_B")]:
             if fld in est:
                 st.session_state[wk] = est[fld]
-        st.info(f"Estimado: $R_a$ = {est['Ra']:.4f} Ω | $k_b$ = {est['kb']:.5f} | "
-                f"$V_a$ = {est['Va']:.1f} V")
+
+        with st.expander("Como esses parâmetros foram estimados? (NEMA heurístico)", expanded=False):
+            is_sep_placa  = exc in ("sep_motor", "sep_gen")
+            is_shunt_placa = exc == "shunt_motor"
+            _wm_n = nn_rpm * (2 * 3.14159265 / 60)
+            _In   = (Pn_kW * 1000) / (Vn_p * max(eta_p, 0.01))
+            _Ea_n = Vn_p - est["Ra"] * _In
+            st.info(
+                f"**Método:** NEMA heurístico — estimação a partir de dados de placa.  \n"
+                f"**Excitação:** {_EXC_LABELS.get(exc, exc)}  \n"
+                f"**Premissas:** queda resistiva ≈ 5–10 % de $V_n$; "
+                f"τ_a = L_a/R_a ≈ 0,8 s; τ_f = L_f/R_f ≈ 0,1 s."
+            )
+            _mp1, _mp2, _mp3, _mp4 = st.columns(4)
+            _mp1.metric("Ra (Ω)",       f"{est['Ra']:.4f}")
+            _mp2.metric("La (H)",       f"{est['La']:.4f}")
+            _mp3.metric("kb (V·s/rad)", f"{est['kb']:.5f}")
+            _mp4.metric("Va (V)",       f"{est['Va']:.2f}")
+            if not (exc == "series_motor"):
+                _mc1, _mc2, _mc3 = st.columns(3)
+                _Vf_est = est.get("Vf", est["Va"])
+                if is_shunt_placa:
+                    _mc1.metric("Vf = Va (V)", f"{_Vf_est:.2f}")
+                else:
+                    _mc1.metric("Vf (V)",  f"{_Vf_est:.2f}")
+                _mc2.metric("Rf (Ω)",  f"{est.get('Rf', 0):.4f}")
+                _mc3.metric("Lf (H)",  f"{est.get('Lf', 0):.5f}")
+            _mm1, _mm2 = st.columns(2)
+            _mm1.metric("J (kg·m²)", f"{est.get('J', 0):.4f}")
+            _mm2.metric("B (N·m·s)", f"{est.get('B', 0):.2e}")
+            # Avisos de sanidade
+            if est["Ra"] / max(est["Va"], 1e-6) < 0.005:
+                st.warning("$R_a/V_a$ muito baixo — verifique resistência de armadura.")
+            if est["kb"] <= 0:
+                st.error("$k_b$ ≤ 0 — impossível. Revise Vn, nn ou η.")
 
     elif input_mode == "Ensaios" and not experiment_mode:
+        # Guia de procedimento (fechado por padrão)
+        with st.expander("Como realizar os ensaios (Motor CC)...", expanded=False):
+            st.markdown(
+                "| Ensaio | Parâmetros extraídos |\n"
+                "|---|---|\n"
+                "| [1] CC (resistência) | $R_a$ |\n"
+                "| [2] A Vazio | $k_b$, $E_{a,nl}$, $L_a$ (heurístico) |\n\n"
+                "### [1] Ensaio de Resistência CC\n"
+                "Aplique tensão CC conhecida $V_{dc}$ entre dois terminais de armadura e meça a corrente $I_{dc}$:\n\n"
+                "$$R_a = \\frac{V_{dc}}{I_{dc}}$$\n\n"
+                "**Dicas:** use corrente ≤ 25 % de $I_n$ para evitar aquecimento; repita em 3 posições do comutador e use a média.\n\n"
+                "### [2] Ensaio a Vazio\n"
+                "Com o motor girando em vazio (sem carga mecânica) a tensão e velocidade nominais:\n\n"
+                "$$E_{a,nl} = V_{a,nl} - R_a \\cdot I_{a,nl}$$\n\n"
+                "$$k_b = \\frac{E_{a,nl}}{I_{fd,nl} \\cdot \\omega_{nl}}$$\n\n"
+                "**Nota:** motores com saturação magnética têm $k_b$ variável com $I_{fd}$ — "
+                "o ensaio a vazio estima o valor na região nominal de operação."
+            )
+
         _pgroup("Ensaio de Resistência CC")
         e1, e2 = st.columns(2)
         _wi("wi_dc_V_dc_test", 1.0)
         _wi("wi_dc_I_dc_test", 0.1)
         V_dc_t = e1.number_input("$V_{dc}$ (V)", min_value=0.001, key="wi_dc_V_dc_test", format="%.3f")
         I_dc_t = e2.number_input("$I_{dc}$ (A)", min_value=0.001, key="wi_dc_I_dc_test", format="%.3f")
+        # Preview em tempo real de Ra
+        _Ra_preview = V_dc_t / max(I_dc_t, 1e-9)
+        st.caption(f"→ $R_a$ ≈ **{_Ra_preview:.4f} Ω**")
 
         _pgroup("Ensaio a Vazio")
         g1, g2, g3, g4 = st.columns(4)
@@ -243,8 +299,39 @@ def render_dc_machine_params(dark: bool, experiment_mode: bool) -> tuple[DCMachi
         for fld, wk in [("Ra","wi_dc_Ra"),("La","wi_dc_La"),("kb","wi_dc_kb"),("Lf","wi_dc_Lf")]:
             if fld in est:
                 st.session_state[wk] = est[fld]
-        st.info(f"Estimado: $R_a$ = {est['Ra']:.4f} Ω | $k_b$ = {est['kb']:.5f} | "
-                f"$E_{{a,nl}}$ = {est['Ea_nl']:.3f} V")
+
+        # Expander de Detalhes do Cálculo
+        with st.expander("Detalhes do Cálculo", expanded=True):
+            _dc_c1, _dc_c2 = st.columns(2)
+            with _dc_c1:
+                st.markdown("**Ensaio CC**")
+                st.metric("Ra (Ω)",  f"{est['Ra']:.4f}")
+                st.metric("La (H)",  f"{est['La']:.5f}")
+                _tau_a = est["La"] / max(est["Ra"], 1e-9)
+                st.metric("τ_a = La/Ra (ms)", f"{_tau_a * 1000:.2f}")
+            with _dc_c2:
+                st.markdown("**Ensaio a Vazio**")
+                _wm_nl = n_nl_t * (2 * 3.14159265 / 60)
+                st.metric("Ea_nl (V)",       f"{est['Ea_nl']:.3f}")
+                st.metric("kb (V·s/rad)",    f"{est['kb']:.5f}")
+                st.metric("ω_nl (rad/s)",    f"{_wm_nl:.2f}")
+                _Lf_est = est.get("Lf", 0)
+                _Rf_est = float(st.session_state.get("wi_dc_Rf", 1.0))
+                if exc in ("sep_motor", "sep_gen"):
+                    _tau_f = _Lf_est / max(_Rf_est, 1e-9)
+                    st.metric("τ_f = Lf/Rf (ms)", f"{_tau_f * 1000:.2f}")
+            # Avisos de sanidade
+            if est["kb"] <= 0:
+                st.error("$k_b$ ≤ 0 — impossível. Verifique $V_{a,nl}$, $R_a$ e $I_{a,nl}$.")
+            if est["Ra"] / max(V_nl_t, 1e-6) > 0.3:
+                st.warning("$R_a/V_{a,nl}$ > 30 % — Ra parece elevado para esta tensão de operação.")
+
+        if st.button("✔ Usar estes parâmetros na simulação", key="btn_dc_use_tests"):
+            for fld, wk in [("Ra","wi_dc_Ra"),("La","wi_dc_La"),("kb","wi_dc_kb"),("Lf","wi_dc_Lf")]:
+                if fld in est:
+                    st.session_state[wk] = est[fld]
+            st.session_state["wi_dc_input_mode"] = "Manual"
+            st.rerun()
 
     # ── Preset loader — filtrado por excitação ───────────────────────────────
     if st.session_state.pop("_dc_reset_preset", False):
@@ -271,6 +358,8 @@ def render_dc_machine_params(dark: bool, experiment_mode: bool) -> tuple[DCMachi
     is_gen    = exc in ("sep_gen", "shunt_gen")
     is_sep    = exc in ("sep_motor", "sep_gen")
     is_series = exc == "series_motor"
+
+    _wi("wi_dc_energy_tariff", 0.75)
 
     if experiment_mode:
         # Modo travado: resumo compacto com st.metric (igual padrão MIT)
@@ -439,6 +528,30 @@ def render_dc_machine_params(dark: bool, experiment_mode: bool) -> tuple[DCMachi
         )
         st.markdown('</div>', unsafe_allow_html=True)
 
+        # Métricas derivadas
+        _tau_a_ms = (la / max(ra, 1e-9)) * 1000
+        _n0_rpm   = (va / max(kb, 1e-9)) * (60 / (2 * 3.14159265)) - (B * va / max(kb**2, 1e-9)) * (60 / (2 * 3.14159265))
+        _d1, _d2, _d3 = st.columns(3)
+        _d1.metric("τ_a (ms)",      f"{_tau_a_ms:.2f}",   help="Constante de tempo elétrica da armadura = La/Ra")
+        if not is_series and lf > 0 and rf > 0:
+            _tau_f_ms = (lf / max(rf, 1e-9)) * 1000
+            _d2.metric("τ_f (ms)",  f"{_tau_f_ms:.2f}",   help="Constante de tempo do circuito de campo = Lf/Rf")
+        else:
+            _d2.metric("τ_f (ms)",  "—",                  help="Não aplicável para motor série")
+        _d3.metric("n₀ est. (RPM)", f"{max(_n0_rpm, 0):.0f}", help="Velocidade estimada em vazio (regime)")
+
+        # Parâmetros Avançados
+        with st.expander("Parâmetros Avançados", expanded=False):
+            _pgroup("Análise Econômica")
+            _wi("wi_dc_energy_tariff", 0.75)
+            st.number_input(
+                "Tarifa de energia — R$/kWh",
+                min_value=0.0001, max_value=5.0,
+                step=0.01, format="%.4f",
+                key="wi_dc_energy_tariff",
+                help="Tarifa usada para calcular custo operacional anual na aba Gestão de Ativos.",
+            )
+
     mp = DCMachineParams(
         Va=va, Ra=ra, La=la,
         Vf=vf, Rf=rf, Lf=lf,
@@ -449,7 +562,8 @@ def render_dc_machine_params(dark: bool, experiment_mode: bool) -> tuple[DCMachi
     )
 
     ref_code = hash((va, ra, la, vf, rf, lf, rl, ll, J, B, kb, exc, Tload))
-    return mp, ref_code
+    energy_tariff = float(st.session_state.get("wi_dc_energy_tariff", 0.75))
+    return mp, ref_code, energy_tariff
 
 
 # ─────────────────────────────────────────────────────────────────────────────

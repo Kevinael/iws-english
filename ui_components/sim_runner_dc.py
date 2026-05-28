@@ -25,6 +25,7 @@ def execute_simulation_flow_dc(
     h: float,
     ref_code: int,
     dark: bool,
+    energy_tariff: float = 0.75,
 ) -> None:
     """Valida, integra e salva o resultado em st.session_state["sim_result"].
 
@@ -62,7 +63,7 @@ def execute_simulation_flow_dc(
                 exp_config=exp_config,
                 tmax=tmax,
                 h=h,
-                energy_tariff=0.0,
+                energy_tariff=energy_tariff,
                 torque_fn=torque_fn,
             )
             st.session_state["_sim_toast"] = (
