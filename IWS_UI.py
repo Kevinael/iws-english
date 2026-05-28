@@ -34,7 +34,7 @@ from ui_components.sim_config_dc import (
 from ui_components.sim_results import render_results, render_ref_panel
 from ui_components.sim_results_dc import render_dc_results
 from ui_components.sim_runner import execute_simulation_flow
-from ui_components.sim_runner_dc import execute_dc_simulation_flow
+from ui_components.sim_runner_dc import execute_dc_simulation_flow, render_experiment_config_dc
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -253,37 +253,60 @@ def main() -> None:
             with ct1:
                 st.toggle("Modo Escuro", value=dark, key="dark_mode")
             with ct2:
-                st.toggle("Travar Configuração", value=False, key="dc_lock_config",
-                          help="Quando ativado, desabilita a mudança de tipo de máquina CC.")
+                st.toggle("Travar Parâmetros", value=False, key="dc_lock_config",
+                          help="Quando ativado, desabilita os campos de parâmetros da máquina CC. "
+                               "Útil para comparar modos de operação sem alterar a máquina.")
             with ct3:
                 st.number_input("Casas decimais", min_value=0, max_value=6, value=3, step=1, key="decimals")
 
-            dec = int(st.session_state.get("decimals", 3))
+            dec          = int(st.session_state.get("decimals", 3))
+            dc_lock      = st.session_state.get("dc_lock_config", False)
 
-            # Seleção e parâmetros DC
+            # ── Seleção de tipo e parâmetros ──────────────────────────────
             col_config, col_params = st.columns([1, 1], gap="large")
 
             with col_config:
-                config = render_dc_config_selector()
-                st.session_state[_WK_DC["dc_config"]] = config
+                if dc_lock:
+                    config = st.session_state.get(_WK_DC["dc_config"], "sep_motor")
+                    from ui_components.sim_config_dc import DC_CONFIGS
+                    st.markdown(
+                        f'<div style="padding:0.5rem 0.75rem;border-radius:6px;'
+                        f'background:rgba(128,128,128,0.08);font-size:0.92rem;">'
+                        f'<strong>Configuração Travada:</strong><br>'
+                        f'{DC_CONFIGS.get(config, {}).get("name", config)}</div>',
+                        unsafe_allow_html=True,
+                    )
+                else:
+                    config = render_dc_config_selector()
+                    st.session_state[_WK_DC["dc_config"]] = config
 
             with col_params:
-                render_dc_params()
+                if not dc_lock:
+                    render_dc_params()
+                else:
+                    from ui_components.sim_config_dc import DC_CONFIGS
+                    _cfg_vals = DC_CONFIGS.get(config, {})
+                    st.markdown(
+                        f'<div style="padding:0.5rem 0.75rem;border-radius:6px;'
+                        f'background:rgba(128,128,128,0.08);font-size:0.88rem;">'
+                        + "".join(
+                            f"<b>{k}:</b> {v:.6g}&nbsp;&nbsp;"
+                            for k, v in _cfg_vals.items()
+                            if k != "name" and isinstance(v, (int, float))
+                        )
+                        + "</div>",
+                        unsafe_allow_html=True,
+                    )
+
+            params = get_dc_params()
+
+            # ── Configuração do experimento ───────────────────────────────
+            exp_config, var_keys, var_labels, tmax, h = render_experiment_config_dc(params, config)
 
             st.write("")
             run_clicked = st.button("Executar Simulação", key="btn_run_dc", width="stretch")
 
             if run_clicked:
-                var_keys = ["ia", "ifd", "wm", "Te", "Ea"]
-                var_labels = ["Corrente Armadura (A)", "Corrente Campo (A)", "Velocidade (rad/s)", "Torque (N·m)", "Tensão de Induzida (V)"]
-                params = get_dc_params()
-                exp_config = {
-                    "exp_type": "dol_dc",
-                    "t_carga": 1.0,
-                }
-                tmax = 12.0
-                h = 0.01
-
                 execute_dc_simulation_flow(
                     config=config,
                     params=params,
@@ -296,14 +319,25 @@ def main() -> None:
                 )
 
             dc_result = st.session_state.get("dc_sim_result")
+            energy_tariff_dc = 0.75  # tarifa padrão (pode ser exposta em Parâmetros Avançados futuramente)
+
             if dc_result is not None:
-                render_dc_results(dc_result, decimals=dec, dark=dark)
+                render_dc_results(
+                    dc_result,
+                    decimals=dec,
+                    dark=dark,
+                    energy_tariff=energy_tariff_dc,
+                )
             else:
                 with st.container(border=True):
                     st.markdown(
                         "### Nenhuma simulação MCC executada ainda\n\n"
                         "Configure o tipo de máquina CC (motor/gerador) e seus parâmetros, "
-                        "depois clique em **Executar Simulação** para visualizar os resultados."
+                        "selecione o modo de operação e clique em **Executar Simulação** para visualizar:\n\n"
+                        "- Formas de onda de corrente, torque e velocidade no transitório\n"
+                        "- Métricas de regime permanente e comparação analítica\n"
+                        "- Diagnóstico automatizado (sobrecorrente, rotor travado, campo fraco)\n"
+                        "- Análise de fluxo de potência (Sankey) e custo operacional"
                     )
 
     # ── ABA TEORIA ────────────────────────────────────────────────────────
