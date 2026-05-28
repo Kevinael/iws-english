@@ -27,6 +27,7 @@ from ui_components.sim_config import (
 )
 from ui_components.sim_config_dc import (
     render_dc_config_selector,
+    render_dc_circuit,
     render_dc_params,
     get_dc_params,
     _WK_DC,
@@ -262,10 +263,10 @@ def main() -> None:
             dec          = int(st.session_state.get("decimals", 3))
             dc_lock      = st.session_state.get("dc_lock_config", False)
 
-            # ── Seleção de tipo e parâmetros ──────────────────────────────
-            col_config, col_params = st.columns([1, 1], gap="large")
+            # ── Seleção + Circuito + Parâmetros ──────────────────────────
+            col_params_dc, col_circuit_dc = st.columns([1, 1], gap="large")
 
-            with col_config:
+            with col_params_dc:
                 if dc_lock:
                     config = st.session_state.get(_WK_DC["dc_config"], "sep_motor")
                     from ui_components.sim_config_dc import DC_CONFIGS
@@ -276,14 +277,7 @@ def main() -> None:
                         f'{DC_CONFIGS.get(config, {}).get("name", config)}</div>',
                         unsafe_allow_html=True,
                     )
-                else:
-                    config = render_dc_config_selector()
-                    st.session_state[_WK_DC["dc_config"]] = config
-
-            with col_params:
-                if not dc_lock:
-                    render_dc_params()
-                else:
+                    st.write("")
                     from ui_components.sim_config_dc import DC_CONFIGS
                     _cfg_vals = DC_CONFIGS.get(config, {})
                     st.markdown(
@@ -297,6 +291,14 @@ def main() -> None:
                         + "</div>",
                         unsafe_allow_html=True,
                     )
+                else:
+                    config = render_dc_config_selector()
+                    st.session_state[_WK_DC["dc_config"]] = config
+                    st.write("")
+                    render_dc_params()
+
+            with col_circuit_dc:
+                render_dc_circuit(config)
 
             params = get_dc_params()
 

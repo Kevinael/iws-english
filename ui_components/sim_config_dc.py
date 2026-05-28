@@ -1,19 +1,33 @@
+# -*- coding: utf-8 -*-
 """DC machine configuration UI and parameter handling.
 
 Exports:
-  DC_CONFIGS — 5 configurations with default params
+  DC_CONFIGS              — 5 configurations with default params
   render_dc_config_selector — select machine type (sep_motor, shunt_motor, etc.)
-  render_dc_params — input fields for DC parameters
-  get_dc_params — return DCMachineParams from session_state
+  render_dc_circuit       — exibe circuito equivalente estático por configuração
+  render_dc_params        — input fields for DC parameters
+  get_dc_params           — return DCMachineParams from session_state
 """
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 import streamlit as st
 
 from core.dc_machine_model import DCMachineParams
+
+# Localização dos PNGs pré-gerados (relativo ao diretório do projeto)
+_CIRCUIT_DIR = os.path.join(os.path.dirname(__file__), "..", "assets", "circuits_dc")
+
+_CIRCUIT_FILES = {
+    "sep_motor":   "sep_motor.png",
+    "shunt_motor": "shunt_motor.png",
+    "series_motor": "series_motor.png",
+    "sep_gen":     "sep_gen.png",
+    "shunt_gen":   "shunt_gen.png",
+}
 
 # Widget key prefixes for DC parameters
 _WK_DC = {
@@ -110,6 +124,21 @@ DC_CONFIGS = {
         "Ll": 1.5,
     },
 }
+
+
+def render_dc_circuit(config: str) -> None:
+    """Exibe circuito equivalente estático da configuração CC selecionada."""
+    fname = _CIRCUIT_FILES.get(config)
+    if fname is None:
+        return
+
+    path = os.path.normpath(os.path.join(_CIRCUIT_DIR, fname))
+    if not os.path.isfile(path):
+        st.caption(f"Circuito não encontrado: {fname}")
+        return
+
+    st.markdown('<p class="slabel">Circuito Equivalente</p>', unsafe_allow_html=True)
+    st.image(path, use_container_width=True)
 
 
 def render_dc_config_selector() -> str:
