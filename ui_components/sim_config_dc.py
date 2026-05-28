@@ -20,52 +20,99 @@ from core.dc_machine_model import DCMachineParams
 # PRESETS
 # ─────────────────────────────────────────────────────────────────────────────
 
+# Presets por excitação — fontes: Sen (2013), Fitzgerald/Umans (2014)
+_PRESETS_BY_EXC: dict[str, dict[str, dict[str, Any]]] = {
+    "sep_motor": {
+        "Motor Sep. 220 V — Sen Ex. 9.2": {
+            "Va": 220.0, "Ra": 0.5,   "La": 0.01,
+            "Vf": 220.0, "Rf": 220.0, "Lf": 10.0,
+            "kb": 1.05,  "J": 2.5,    "B": 0.05,   "Tload": 25.0,
+        },
+        "Motor Sep. 500 V 100 HP — Fitzgerald Ex. 10.2/10.3": {
+            "Va": 500.0, "Ra": 0.084, "La": 0.01,
+            "Vf": 300.0, "Rf": 109.0, "Lf": 5.0,
+            "kb": 1.91,  "J": 17.5,   "B": 0.1,    "Tload": 286.0,
+        },
+    },
+    "shunt_motor": {
+        "Motor Shunt 100 V 12 kW — Sen Ex. 4.6": {
+            "Va": 100.0, "Ra": 0.1,   "La": 0.01,
+            "Rf": 101.0, "Lf": 5.0,
+            "kb": 0.949, "J": 0.5,    "B": 0.054,  "Tload": 113.9,
+        },
+        "Motor Shunt 450 V 50 kW — Fitzgerald Ex. 7.4": {
+            "Va": 450.0, "Ra": 0.242, "La": 0.02,
+            "Rf": 167.0, "Lf": 8.0,
+            "kb": 4.29,  "J": 5.0,    "B": 0.1,    "Tload": 497.0,
+        },
+    },
+    "series_motor": {
+        "Motor Série 220 V 7 HP — Sen Ex. 4.9": {
+            "Va": 220.0, "Ra": 0.6,  "La": 0.02,
+            "Rf": 0.4,   "Lf": 0.05,
+            "kb": 6.2,   "J": 2.0,   "B": 0.05,   "Tload": 155.2,
+        },
+        "Motor Série 600 V Pesado — Sen Prob. 4.39": {
+            "Va": 600.0, "Ra": 0.5,  "La": 0.05,
+            "Rf": 0.5,   "Lf": 0.1,
+            "kb": 10.02, "J": 10.0,  "B": 0.1,    "Tload": 751.5,
+        },
+    },
+    "sep_gen": {
+        "Gerador Sep. 200 V — Sen Ex. 9.1": {
+            "Va": 200.0, "Ra": 0.25,  "La": 0.02,
+            "Vf": 200.0, "Rf": 100.0, "Lf": 25.0,
+            "kb": 1.91,  "J": 2.5,    "B": 0.1,    "Tload": -25.0,
+            "Rl": 1.0,   "Ll": 0.15,
+        },
+        "Gerador Sep. 250 V 100 kW — Fitzgerald Ex. 7.1": {
+            "Va": 250.0, "Ra": 0.025, "La": 0.005,
+            "Vf": 250.0, "Rf": 100.0, "Lf": 5.0,
+            "kb": 1.99,  "J": 10.0,   "B": 0.2,    "Tload": -800.0,
+            "Rl": 0.625, "Ll": 0.05,
+        },
+    },
+    "shunt_gen": {
+        "Gerador Shunt 100 V 12 kW — Sen Ex. 4.2/4.3": {
+            "Va": 100.0, "Ra": 0.1,   "La": 0.01,
+            "Rf": 100.0, "Lf": 10.0,
+            "kb": 0.95,  "J": 2.0,    "B": 0.05,   "Tload": -115.0,
+            "Rl": 0.83,  "Ll": 0.01,
+        },
+        "Gerador Shunt 250 V 100 kW — Fitzgerald Ex. 7.7": {
+            "Va": 250.0, "Ra": 0.025, "La": 0.005,
+            "Rf": 100.0, "Lf": 5.0,
+            "kb": 1.99,  "J": 10.0,   "B": 0.1,    "Tload": -800.0,
+            "Rl": 0.625, "Ll": 0.05,
+        },
+    },
+}
+
+# Flat dict para compatibilidade legada (não usado na UI nova)
 _PRESETS_DC: dict[str, dict[str, Any]] = {
-    "Motor Separado (dcmei)": {
-        "excitation": "sep_motor",
-        "Va": 24.0, "Ra": 0.013, "La": 0.01,
-        "Vf": 12.0, "Rf": 1.43,  "Lf": 0.167,
-        "kb": 0.004, "J": 0.21,  "B": 1.074e-6, "Tload": 2.493,
-    },
-    "Motor Shunt (dcmp)": {
-        "excitation": "shunt_motor",
-        "Va": 24.0, "Ra": 0.013, "La": 0.01,
-        "Rf": 1.43, "Lf": 0.167,
-        "kb": 0.004, "J": 0.21,  "B": 1.074e-6, "Tload": 2.493,
-    },
-    "Motor Série (dcms)": {
-        "excitation": "series_motor",
-        "Va": 24.0, "Ra": 0.013, "La": 0.01,
-        "Rf": 0.026, "Lf": 0.167,
-        "kb": 0.004, "J": 0.21,  "B": 1.074e-6, "Tload": 2.493,
-    },
-    "Gerador Separado (dgmei)": {
-        "excitation": "sep_gen",
-        "Va": 0.0,  "Ra": 0.013, "La": 0.01,
-        "Vf": 48.0, "Rf": 1.43,  "Lf": 0.167,
-        "Rl": 2.5,  "Ll": 1.5,
-        "kb": 0.004, "J": 0.21,  "B": 1.074e-6, "Tload": 4.0,
-    },
-    "Gerador Shunt (dcgp)": {
-        "excitation": "shunt_gen",
-        "Va": 0.0,  "Ra": 0.013, "La": 0.01,
-        "Rf": 1.43, "Lf": 0.167,
-        "Rl": 2.5,  "Ll": 1.5,
-        "kb": 0.004, "J": 0.21,  "B": 1.074e-6, "Tload": 4.0,
-    },
+    name: {**vals, "excitation": exc}
+    for exc, presets in _PRESETS_BY_EXC.items()
+    for name, vals in presets.items()
 }
 
 # Variáveis disponíveis para plotar por tipo de grandeza
-_VAR_OPTIONS: dict[str, str] = {
-    "ia":  "Corrente de Armadura $i_a$ (A)",
-    "ifd": "Corrente de Campo $i_{fd}$ (A)",
-    "wm":  "Velocidade Angular $\\omega_m$ (rad/s)",
-    "n":   "Velocidade $n$ (RPM)",
-    "Te":  "Conjugado Eletromagnético $T_e$ (N·m)",
-    "Ea":  "FEM $E_a$ (V)",
-    "Vt":  "Tensão de Terminal $V_t$ (V)",
+_VAR_MECANICAS: dict[str, str] = {
+    "Velocidade Angular  ωm  (rad/s)":       "wm",
+    "Velocidade  n  (RPM)":                  "n",
+    "Conjugado Eletromagnético  Tₑ  (N·m)":  "Te",
 }
 
+_VAR_ELETRICAS: dict[str, str] = {
+    "Corrente de Armadura  iₐ  (A)":         "ia",
+    "Corrente de Campo  i_fd  (A)":          "ifd",
+    "FEM  Eₐ  (V)":                          "Ea",
+    "Tensão de Terminal  Vt  (V)":           "Vt",
+}
+
+_VAR_OPTIONS: dict[str, str] = {**_VAR_MECANICAS, **_VAR_ELETRICAS}
+
+_DEFAULT_VARS_MEC: list[str] = ["Conjugado Eletromagnético  Tₑ  (N·m)", "Velocidade  n  (RPM)"]
+_DEFAULT_VARS_ELE: list[str] = ["Corrente de Armadura  iₐ  (A)"]
 _DEFAULT_VARS: list[str] = ["ia", "wm", "Te"]
 
 # Modos de operação disponíveis por configuração
@@ -199,43 +246,85 @@ def render_dc_machine_params(dark: bool, experiment_mode: bool) -> tuple[DCMachi
         st.info(f"Estimado: $R_a$ = {est['Ra']:.4f} Ω | $k_b$ = {est['kb']:.5f} | "
                 f"$E_{{a,nl}}$ = {est['Ea_nl']:.3f} V")
 
-    # ── Preset loader ────────────────────────────────────────────────────────
-    preset_names = ["— Selecionar preset —"] + list(_PRESETS_DC.keys())
-    preset_sel = st.selectbox("Preset", preset_names, key="wi_dc_preset",
-                               label_visibility="collapsed")
-    if preset_sel != "— Selecionar preset —":
-        ps = _PRESETS_DC[preset_sel]
-        for k, v in ps.items():
-            st.session_state[f"wi_dc_{k}"] = v
+    # ── Preset loader — filtrado por excitação ───────────────────────────────
+    if st.session_state.pop("_dc_reset_preset", False):
         st.session_state["wi_dc_preset"] = "— Selecionar preset —"
-        st.rerun()
+
+    _presets_exc = _PRESETS_BY_EXC.get(exc, {})
+    _preset_names = ["— Selecionar preset —"] + list(_presets_exc.keys())
+    pc1, pc2 = st.columns([3, 1], vertical_alignment="bottom")
+    with pc1:
+        preset_sel = st.selectbox(
+            "Preset", _preset_names, key="wi_dc_preset",
+            label_visibility="collapsed",
+            disabled=experiment_mode,
+        )
+    with pc2:
+        if st.button("Carregar", key="btn_dc_load_preset", width="stretch",
+                     disabled=(preset_sel == "— Selecionar preset —" or experiment_mode)):
+            ps = _presets_exc[preset_sel]
+            for k, v in ps.items():
+                st.session_state[f"wi_dc_{k}"] = v
+            st.session_state["_dc_reset_preset"] = True
+            st.rerun()
 
     is_gen    = exc in ("sep_gen", "shunt_gen")
     is_sep    = exc in ("sep_motor", "sep_gen")
     is_series = exc == "series_motor"
 
     if experiment_mode:
-        # Modo travado: mostrar resumo
-        _wi("wi_dc_Va",    220.0)
-        _wi("wi_dc_Ra",    1.0)
-        _wi("wi_dc_La",    0.05)
-        _wi("wi_dc_kb",    1.2)
-        _wi("wi_dc_J",     0.05)
-        _wi("wi_dc_B",     0.01)
-        _wi("wi_dc_Tload", 5.0)
-        st.info("Parâmetros travados no modo experimento.")
-        va    = float(st.session_state.get("wi_dc_Va",  220.0))
-        ra    = float(st.session_state.get("wi_dc_Ra",  1.0))
-        la    = float(st.session_state.get("wi_dc_La",  0.05))
-        vf    = float(st.session_state.get("wi_dc_Vf",  va if not is_sep else 220.0))
-        rf    = float(st.session_state.get("wi_dc_Rf",  150.0))
-        lf    = float(st.session_state.get("wi_dc_Lf",  10.0))
-        rl    = float(st.session_state.get("wi_dc_Rl",  0.0))
-        ll    = float(st.session_state.get("wi_dc_Ll",  0.0))
-        kb    = float(st.session_state.get("wi_dc_kb",  1.2))
-        J     = float(st.session_state.get("wi_dc_J",   0.05))
-        B     = float(st.session_state.get("wi_dc_B",   0.01))
-        Tload = float(st.session_state.get("wi_dc_Tload", 5.0))
+        # Modo travado: resumo compacto com st.metric (igual padrão MIT)
+        va    = float(st.session_state.get("wi_dc_Va",    24.0))
+        ra    = float(st.session_state.get("wi_dc_Ra",    0.013))
+        la    = float(st.session_state.get("wi_dc_La",    0.01))
+        vf    = float(st.session_state.get("wi_dc_Vf",    va if not is_sep else 12.0))
+        rf    = float(st.session_state.get("wi_dc_Rf",    1.43))
+        lf    = float(st.session_state.get("wi_dc_Lf",    0.167))
+        rl    = float(st.session_state.get("wi_dc_Rl",    0.0))
+        ll    = float(st.session_state.get("wi_dc_Ll",    0.0))
+        kb    = float(st.session_state.get("wi_dc_kb",    0.004))
+        J     = float(st.session_state.get("wi_dc_J",     0.21))
+        B     = float(st.session_state.get("wi_dc_B",     1.074e-6))
+        Tload = float(st.session_state.get("wi_dc_Tload", 2.493))
+
+        st.info(
+            "**Parâmetros travados** — desative o toggle no topo da página para editar.  "
+            "Variações no experimento (carga, tensão) não afetarão a máquina."
+        )
+
+        st.markdown('<p class="slabel">Parâmetros de Armadura</p>', unsafe_allow_html=True)
+        e1, e2, e3, e4 = st.columns(4)
+        e1.metric("Va (V)",       f"{va:.3f}")
+        e2.metric("Ra (Ω)",       f"{ra:.4f}")
+        e3.metric("La (H)",       f"{la:.4f}")
+        e4.metric("kb (V·s/rad)", f"{kb:.4f}")
+
+        if not is_series:
+            st.markdown('<p class="slabel">Parâmetros de Campo</p>', unsafe_allow_html=True)
+            f1, f2, f3 = st.columns(3)
+            if is_sep:
+                f1.metric("Vf (V)", f"{vf:.3f}")
+            else:
+                f1.metric("Vf = Va (V)", f"{va:.3f}")
+            f2.metric("Rf (Ω)", f"{rf:.4f}")
+            f3.metric("Lf (H)", f"{lf:.4f}")
+        else:
+            st.markdown('<p class="slabel">Campo (série)</p>', unsafe_allow_html=True)
+            s1, s2 = st.columns(2)
+            s1.metric("Rf_s (Ω)", f"{rf:.4f}")
+            s2.metric("Lf_s (H)", f"{lf:.4f}")
+
+        if is_gen:
+            st.markdown('<p class="slabel">Carga Elétrica</p>', unsafe_allow_html=True)
+            g1, g2 = st.columns(2)
+            g1.metric("Rl (Ω)", f"{rl:.3f}")
+            g2.metric("Ll (H)", f"{ll:.4f}")
+
+        st.markdown('<p class="slabel">Parâmetros Mecânicos</p>', unsafe_allow_html=True)
+        m1, m2, m3 = st.columns(3)
+        m1.metric("J (kg·m²)",   f"{J:.4f}")
+        m2.metric("B (N·m·s)",   f"{B:.2e}")
+        m3.metric("Tl (N·m)",    f"{Tload:.4f}")
     else:
         # Inicializar defaults
         _wi("wi_dc_Va",    24.0)
@@ -252,47 +341,103 @@ def render_dc_machine_params(dark: bool, experiment_mode: bool) -> tuple[DCMachi
         _wi("wi_dc_Tload", 2.493)
 
         # Grupo armadura
-        _pgroup("Armadura")
-        c1, c2 = st.columns(2)
-        va = c1.number_input("$V_a$ (V)",  min_value=0.0, key="wi_dc_Va",  format="%.3f")
-        ra = c2.number_input("$R_a$ (Ω)",  min_value=1e-6, key="wi_dc_Ra", format="%.4f")
-        la = c1.number_input("$L_a$ (H)",  min_value=1e-6, key="wi_dc_La", format="%.4f")
-        kb = c2.number_input("$k_b$ (V·s/rad)", min_value=1e-6, key="wi_dc_kb", format="%.4f")
+        _pgroup("Dados de Armadura")
+        va = st.number_input(
+            "Tensão de armadura — $V_a$ (V)",
+            min_value=0.0, key="wi_dc_Va", format="%.3f",
+            help="Tensão CC aplicada ao enrolamento de armadura.",
+        )
+        ra = st.number_input(
+            "Resistência de armadura — $R_a$ (Ω)",
+            min_value=1e-6, key="wi_dc_Ra", format="%.4f",
+            help="Resistência do enrolamento de armadura (inclui escovas). Afeta perdas Joule e corrente de partida.",
+        )
+        la = st.number_input(
+            "Indutância de armadura — $L_a$ (H)",
+            min_value=1e-6, key="wi_dc_La", format="%.4f",
+            help="Indutância do circuito de armadura. Determina a constante de tempo elétrica τ_a = L_a / R_a.",
+        )
+        kb = st.number_input(
+            "Constante de fcem — $k_b$ (V·s/rad)",
+            min_value=1e-6, key="wi_dc_kb", format="%.4f",
+            help="Relaciona fcem (Ea) e velocidade angular: Ea = kb · ωm. Também igual à constante de torque kt.",
+        )
+        st.markdown('</div>', unsafe_allow_html=True)
 
         # Grupo campo (sep e shunt — não série)
         if not is_series:
-            _pgroup("Campo")
-            d1, d2 = st.columns(2)
+            _pgroup("Dados de Campo")
             if is_sep:
-                vf = d1.number_input("$V_f$ (V)",  min_value=0.0, key="wi_dc_Vf", format="%.3f")
+                vf = st.number_input(
+                    "Tensão de campo — $V_f$ (V)",
+                    min_value=0.0, key="wi_dc_Vf", format="%.3f",
+                    help="Tensão da fonte independente de campo (excitação separada).",
+                )
             else:
                 vf = va   # shunt: Vf = Va
-                st.caption("Shunt: $V_f = V_a$ (fixo)")
-            rf = d2.number_input("$R_f$ (Ω)",  min_value=1e-6, key="wi_dc_Rf", format="%.4f")
-            lf = d1.number_input("$L_f$ (H)",  min_value=1e-6, key="wi_dc_Lf", format="%.4f")
+                st.caption("Shunt: $V_f = V_a$ (fixo — campo em paralelo com a armadura)")
+            rf = st.number_input(
+                "Resistência de campo — $R_f$ (Ω)",
+                min_value=1e-6, key="wi_dc_Rf", format="%.4f",
+                help="Resistência total do circuito de campo (enrolamento + reostato de campo).",
+            )
+            lf = st.number_input(
+                "Indutância de campo — $L_f$ (H)",
+                min_value=1e-6, key="wi_dc_Lf", format="%.4f",
+                help="Indutância do enrolamento de campo. Determina τ_f = L_f / R_f.",
+            )
+            st.markdown('</div>', unsafe_allow_html=True)
         else:
             _pgroup("Campo (série com armadura)")
-            e1, e2 = st.columns(2)
-            rf = e1.number_input("$R_f$ (Ω)",  min_value=1e-6, key="wi_dc_Rf", format="%.4f")
-            lf = e2.number_input("$L_f$ (H)",  min_value=1e-6, key="wi_dc_Lf", format="%.4f")
+            rf = st.number_input(
+                "Resistência do campo série — $R_s$ (Ω)",
+                min_value=1e-6, key="wi_dc_Rf", format="%.4f",
+                help="Resistência do enrolamento de campo série (em série com a armadura).",
+            )
+            lf = st.number_input(
+                "Indutância do campo série — $L_s$ (H)",
+                min_value=1e-6, key="wi_dc_Lf", format="%.4f",
+                help="Indutância do enrolamento de campo série.",
+            )
             vf = 0.0
+            st.markdown('</div>', unsafe_allow_html=True)
 
         # Grupo carga elétrica (geradores)
         if is_gen:
             _pgroup("Carga Elétrica")
-            f1, f2 = st.columns(2)
-            rl = f1.number_input("$R_l$ (Ω)", min_value=1e-6, key="wi_dc_Rl", format="%.3f")
-            ll = f2.number_input("$L_l$ (H)", min_value=0.0,  key="wi_dc_Ll", format="%.4f")
+            rl = st.number_input(
+                "Resistência de carga — $R_l$ (Ω)",
+                min_value=1e-6, key="wi_dc_Rl", format="%.3f",
+                help="Resistência da carga conectada ao gerador.",
+            )
+            ll = st.number_input(
+                "Indutância de carga — $L_l$ (H)",
+                min_value=0.0, key="wi_dc_Ll", format="%.4f",
+                help="Indutância da carga conectada ao gerador (0 para carga puramente resistiva).",
+            )
+            st.markdown('</div>', unsafe_allow_html=True)
         else:
             rl = float(st.session_state.get("wi_dc_Rl", 0.0))
             ll = float(st.session_state.get("wi_dc_Ll", 0.0))
 
         # Grupo mecânico
-        _pgroup("Mecânico")
-        m1, m2, m3 = st.columns(3)
-        J     = m1.number_input("$J$ (kg·m²)", min_value=1e-6, key="wi_dc_J",     format="%.4f")
-        B     = m2.number_input("$B$ (N·m·s)",  min_value=0.0,  key="wi_dc_B",     format="%.2e")
-        Tload = m3.number_input("$T_l$ (N·m)",  min_value=0.0,  key="wi_dc_Tload", format="%.4f")
+        _pgroup("Dados Mecânicos")
+        J = st.number_input(
+            "Momento de inércia — $J$ (kg·m²)",
+            min_value=1e-6, key="wi_dc_J", format="%.4f",
+            help="Inércia total do conjunto motor + carga. Determina τ_m = J·Ra / kb².",
+        )
+        B = st.number_input(
+            "Coef. de atrito viscoso — $B$ (N·m·s/rad)",
+            min_value=0.0, key="wi_dc_B", format="%.2e",
+            help="Coeficiente de atrito viscoso (friccional). Tipicamente muito pequeno.",
+        )
+        Tload = st.number_input(
+            "Torque de carga — $T_l$ (N·m)",
+            min_value=0.0, key="wi_dc_Tload", format="%.4f",
+            help="Torque resistente de regime permanente aplicado ao eixo.",
+        )
+        st.markdown('</div>', unsafe_allow_html=True)
 
     mp = DCMachineParams(
         Va=va, Ra=ra, La=la,
@@ -311,6 +456,16 @@ def render_dc_machine_params(dark: bool, experiment_mode: bool) -> tuple[DCMachi
 # RENDER — EXPERIMENTO (col_circuit inferior)
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _tl_sugerido_dc(mp: DCMachineParams) -> float:
+    """Torque nominal estimado: kb·ia_nominal, onde ia_nominal = (Va-kb·wm_nom)/Ra."""
+    try:
+        wm_nom = mp.Tload if mp.Tload > 0 else mp.Va / mp.kb if mp.kb > 0 else 100.0
+        ia_nom = (mp.Va - mp.kb * wm_nom) / mp.Ra if mp.Ra > 0 else mp.Va / mp.Ra
+        return float(max(abs(mp.kb * ia_nom), 0.01))
+    except Exception:
+        return float(abs(mp.Tload)) if mp.Tload else 1.0
+
+
 def render_experiment_config_dc(
     mp: DCMachineParams,
     _wk: Any = None,
@@ -325,9 +480,8 @@ def render_experiment_config_dc(
     available_modes = _MODES_BY_EXC.get(exc, ["dol_dc"])
     mode_labels = [_MODE_LABELS[m] for m in available_modes]
 
-    _wi("wi_dc_mode_idx", 0)
-    mode_idx = st.selectbox(
-        "Modo de Operação", mode_labels, index=0, key="_dc_mode_sel",
+    mode_sel_label = st.selectbox(
+        "Tipo de Experimento", mode_labels, index=0, key="_dc_mode_sel",
         label_visibility="visible",
     )
     mode_sel_label = st.session_state.get("_dc_mode_sel", mode_labels[0])
@@ -335,11 +489,47 @@ def render_experiment_config_dc(
 
     exp_config: dict[str, Any] = {"exp_type": mode, "exp_label": _MODE_LABELS[mode]}
 
-    _pgroup("Parâmetros do Experimento")
+    _pgroup("Parâmetros de Carga e Tensão")
+
+    _Tl_ref = float(st.session_state.get("wi_dc_Tload", mp.Tload))
+    _tl_sug = _tl_sugerido_dc(mp)
+    st.caption(f"Torque de carga configurado: **{_Tl_ref:.3f} N·m** | τ_a = L_a/R_a = {mp.La/mp.Ra:.4f} s")
 
     if mode == "dol_dc":
         tmax_def = 12.0
         h_def    = 1e-3
+        partir_em_vazio = st.checkbox(
+            "Partir em vazio (aplicar carga após partida)",
+            value=True, key="wi_dc_dol_vazio",
+            help="Quando ativo, o motor parte sem carga e recebe o torque em t_carga. "
+                 "Quando inativo, a carga já está presente desde o instante zero.",
+        )
+        exp_config["partir_em_vazio"] = partir_em_vazio
+        if partir_em_vazio:
+            _wi("wi_dc_dol_t_carga", 2.0)
+            exp_config["t_carga"] = st.number_input(
+                "Instante de aplicação da carga — $t_{carga}$ (s)",
+                min_value=0.0, key="wi_dc_dol_t_carga", format="%.2f",
+            )
+            exp_config["Tl_inicial"] = 0.0
+            exp_config["Tl_final"]   = _Tl_ref
+            tmax_def = max(exp_config["t_carga"] + 8.0, 12.0)
+            _ibox(
+                f"<strong>t = 0 s</strong> — tensão nominal ({mp.Va:.1f} V) aplicada; "
+                f"motor acelera em vazio (T<sub>l</sub> = 0).<br>"
+                f"<strong>t = {exp_config['t_carga']:.2f} s</strong> — carga de "
+                f"<strong>{_Tl_ref:.3f} N·m</strong> aplicada ao eixo; "
+                f"motor acomoda-se ao novo ponto de operação em regime permanente."
+            )
+        else:
+            exp_config["Tl_inicial"] = None
+            exp_config["Tl_final"]   = _Tl_ref
+            exp_config["t_carga"]    = 0.0
+            _ibox(
+                f"<strong>t = 0 s</strong> — tensão nominal ({mp.Va:.1f} V) e carga de "
+                f"<strong>{_Tl_ref:.3f} N·m</strong> aplicadas simultaneamente; "
+                f"motor parte contra carga plena e acelera até o regime permanente."
+            )
 
     elif mode == "resistencia_dc":
         c1, c2 = st.columns(2)
@@ -347,18 +537,31 @@ def render_experiment_config_dc(
         _wi("wi_dc_t_ramp", 2.0)
         exp_config["R_ini"]  = c1.number_input("$R_{ini}$ (Ω)", min_value=0.0, key="wi_dc_R_ini",  format="%.2f")
         exp_config["t_ramp"] = c2.number_input("$t_{rampa}$ (s)", min_value=0.1, key="wi_dc_t_ramp", format="%.2f")
+        exp_config["Tl_final"] = _Tl_ref
         tmax_def = exp_config["t_ramp"] + 8.0
         h_def    = 1e-3
+        _ibox(
+            f"<strong>t = 0 s</strong> — motor parte com resistência série de "
+            f"<strong>{exp_config['R_ini']:.2f} Ω</strong> limitando a corrente de partida.<br>"
+            f"<strong>t = {exp_config['t_ramp']:.2f} s</strong> — resistência removida (curto-circuitada); "
+            f"motor acelera até o regime permanente com carga de {_Tl_ref:.3f} N·m."
+        )
 
     elif mode == "plugging_dc":
         _wi("wi_dc_t_freia", 3.0)
-        exp_config["t_freia"] = st.number_input("$t_{freia}$ (s)", min_value=0.1, key="wi_dc_t_freia", format="%.2f")
+        exp_config["t_freia"]  = st.number_input("Instante de reversão — $t_{freia}$ (s)", min_value=0.1, key="wi_dc_t_freia", format="%.2f")
+        exp_config["Tl_final"] = _Tl_ref
         tmax_def = exp_config["t_freia"] * 2.5
         h_def    = 1e-3
+        _ibox(
+            f"<strong>t = 0 s</strong> — motor parte em sentido positivo com carga de {_Tl_ref:.3f} N·m.<br>"
+            f"<strong>t = {exp_config['t_freia']:.2f} s</strong> — polaridade de armadura invertida (plugging); "
+            f"torque de frenagem somado à carga; rotor desacelera e inverte o sentido de rotação."
+        )
 
     elif mode == "campo_fraco_dc":
         c1, c2, c3 = st.columns(3)
-        _wi("wi_dc_Vf_fraco",  mp.Vf * 0.5)
+        _wi("wi_dc_Vf_fraco",  mp.Vf * 0.5 if mp.Vf > 0 else mp.Va * 0.5)
         _wi("wi_dc_t_campo",   3.0)
         _wi("wi_dc_t_trans",   0.5)
         exp_config["Vf_fraco"] = c1.number_input("$V_f$ fraco (V)", min_value=0.0,
@@ -367,51 +570,137 @@ def render_experiment_config_dc(
                                                    key="wi_dc_t_campo", format="%.2f")
         exp_config["t_trans"]  = c3.number_input("$t_{trans}$ (s)", min_value=0.05,
                                                    key="wi_dc_t_trans", format="%.2f")
+        exp_config["Tl_final"] = _Tl_ref
         tmax_def = exp_config["t_campo"] + 10.0
         h_def    = 1e-3
+        _ibox(
+            f"<strong>t = 0 s</strong> — motor opera em campo nominal; carga de {_Tl_ref:.3f} N·m.<br>"
+            f"<strong>t = {exp_config['t_campo']:.2f} s</strong> — tensão de campo reduzida para "
+            f"<strong>{exp_config['Vf_fraco']:.2f} V</strong> (enfraquecimento de campo); "
+            f"fluxo cai, velocidade aumenta para manter a potência — transitório de {exp_config['t_trans']:.2f} s."
+        )
 
     elif mode == "pulso_dc":
         c1, c2 = st.columns(2)
         _wi("wi_dc_t_pulso",  4.0)
-        _wi("wi_dc_Tl_extra", mp.Tload * 0.5)
-        exp_config["t_pulso"]  = c1.number_input("$t_{pulso}$ (s)",     min_value=0.1, key="wi_dc_t_pulso",  format="%.2f")
-        exp_config["Tl_extra"] = c2.number_input("$\\Delta T_l$ (N·m)", min_value=0.0, key="wi_dc_Tl_extra", format="%.3f")
+        _wi("wi_dc_Tl_extra", _Tl_ref * 0.5)
+        exp_config["t_pulso"]  = c1.number_input("Instante do pulso — $t_{pulso}$ (s)", min_value=0.1, key="wi_dc_t_pulso",  format="%.2f")
+        exp_config["Tl_extra"] = c2.number_input("$\\Delta T_l$ adicional (N·m)", min_value=0.0, key="wi_dc_Tl_extra", format="%.3f")
+        exp_config["Tl_final"] = _Tl_ref
         tmax_def = exp_config["t_pulso"] + 8.0
         h_def    = 1e-3
+        _ibox(
+            f"<strong>t = 0 s</strong> — motor opera em regime com carga de {_Tl_ref:.3f} N·m.<br>"
+            f"<strong>t = {exp_config['t_pulso']:.2f} s</strong> — pulso de carga adicional de "
+            f"<strong>{exp_config['Tl_extra']:.3f} N·m</strong> aplicado; motor desacelera e acomoda-se.<br>"
+            f"<strong>t = {exp_config['t_pulso']*2:.2f} s</strong> — pulso retirado; motor recupera velocidade de regime."
+        )
 
     elif mode == "gerador_dc":
         _wi("wi_dc_Tl_gen", abs(mp.Tload))
-        exp_config["Tl_gen"] = st.number_input("$T_l$ gen (N·m)", min_value=0.0, key="wi_dc_Tl_gen", format="%.3f")
-        tmax_def = 150.0
-        h_def    = 5e-3
+        exp_config["Tl_gen"] = st.number_input("Torque mecânico da primomotriz — $T_{mec}$ (N·m)", min_value=0.0, key="wi_dc_Tl_gen", format="%.3f")
+        tmax_def = 15.0
+        h_def    = 1e-3
+        _ibox(
+            f"<strong>t = 0 s</strong> — máquina acelerada pela primomotriz com torque de "
+            f"<strong>{exp_config['Tl_gen']:.3f} N·m</strong>; campo excitado.<br>"
+            f"<strong>Regime</strong> — tensão de terminal $V_t$ se estabiliza; carga resistiva $R_L$ recebe potência gerada."
+        )
     else:
         tmax_def = 12.0
         h_def    = 1e-3
 
-    # Tempo e passo
-    _pgroup("Tempo de Simulação")
-    tc1, tc2 = st.columns(2)
-    _wi("wi_dc_tmax", tmax_def)
-    _wi("wi_dc_h",    h_def)
-    tmax = tc1.number_input("$t_{max}$ (s)",     min_value=0.1,  value=tmax_def, key="wi_dc_tmax", format="%.2f")
-    h    = tc2.number_input("$h$ (s)",           min_value=1e-5, value=h_def,    key="wi_dc_h",    format="%.1e")
+    st.markdown('</div>', unsafe_allow_html=True)
 
-    # Variáveis a plotar
-    st.markdown('<p class="slabel">Grandezas a Plotar</p>', unsafe_allow_html=True)
-    _wi("wi_dc_vars", _DEFAULT_VARS)
-    sel_labels = st.multiselect(
-        "Grandezas",
-        options=list(_VAR_OPTIONS.values()),
-        default=[_VAR_OPTIONS[k] for k in _DEFAULT_VARS if k in _VAR_OPTIONS],
-        key="wi_dc_vars_ms",
+    # Variáveis para visualização — separadas em Mecânicas / Elétricas (igual MIT)
+    st.write("")
+    st.markdown('<p class="slabel">Variáveis para Visualização</p>', unsafe_allow_html=True)
+    _pgroup("Grandezas Mecânicas")
+    sel_mec = st.multiselect(
+        "Grandezas mecânicas",
+        options=list(_VAR_MECANICAS.keys()),
+        default=_DEFAULT_VARS_MEC,
         label_visibility="collapsed",
+        key="wi_dc_vars_mec",
     )
-    label_to_key = {v: k for k, v in _VAR_OPTIONS.items()}
-    var_keys   = [label_to_key[lb] for lb in sel_labels if lb in label_to_key]
-    var_labels = [lb for lb in sel_labels if lb in label_to_key]
+    _pgroup("Grandezas Elétricas")
+    sel_ele = st.multiselect(
+        "Grandezas elétricas",
+        options=list(_VAR_ELETRICAS.keys()),
+        default=_DEFAULT_VARS_ELE,
+        label_visibility="collapsed",
+        key="wi_dc_vars_ele",
+    )
+    st.markdown('</div>', unsafe_allow_html=True)
 
+    selected_labels = sel_mec + sel_ele
+    var_keys   = [_VAR_OPTIONS[v] for v in selected_labels if v in _VAR_OPTIONS]
+    var_labels = [v for v in selected_labels if v in _VAR_OPTIONS]
     if not var_keys:
-        var_keys, var_labels = _DEFAULT_VARS, [_VAR_OPTIONS[k] for k in _DEFAULT_VARS]
+        var_keys   = _DEFAULT_VARS
+        var_labels = [k for k, v in _VAR_OPTIONS.items() if v in _DEFAULT_VARS]
+
+    # Parâmetros numéricos da simulação
+    st.write("")
+    st.markdown('<p class="slabel">Parâmetros Numéricos da Simulação</p>', unsafe_allow_html=True)
+    _pgroup("Tempo Total e Passo de Integração")
+
+    _t_acomo = float(min(max(15.0 * mp.J, 2.0), 30.0))
+    _tmax_auto_val = round(tmax_def + _t_acomo, 1)
+
+    tc1, tc2 = st.columns(2)
+    with tc1:
+        _tmax_auto = st.checkbox("Calcular tmax automaticamente (inércia do motor)", value=True, key="wi_dc_tmax_auto")
+        _wi("wi_dc_tmax", tmax_def)
+        tmax = st.number_input("Tempo total — $t_{max}$ (s)", min_value=0.001, max_value=3600.0,
+                                value=tmax_def, step=0.1, format="%.1f",
+                                key="wi_dc_tmax", disabled=_tmax_auto)
+        if _tmax_auto:
+            tmax = 0.0  # sentinel: runner resolve
+            st.caption(f"Automático: **{_tmax_auto_val:.1f} s**  (modo + {_t_acomo:.1f} s de acomodação mecânica, J={mp.J:.4f} kg·m²)")
+        else:
+            st.caption(f"Sugestão: ≥ {round(tmax_def + 0.5, 1):.1f} s  (último evento + 0,5 s para atingir regime)")
+
+        _wi("wi_dc_h", h_def)
+        h = st.number_input("Passo de integração — $h$ (s)", min_value=1e-6, max_value=0.1,
+                             value=h_def, step=1e-4, format="%.6f", key="wi_dc_h")
+
+        _tmax_display = _tmax_auto_val if _tmax_auto else tmax
+        n_steps = int(_tmax_display / h) if (_tmax_display > 0 and h > 0) else 0
+        st.caption(f"Total de passos: {n_steps:,}")
+        if n_steps > 500_000:
+            st.warning("Número elevado de passos. A simulação pode demorar vários segundos.")
+
+        # Validação: evento crítico não coberto por tmax
+        if not _tmax_auto:
+            _tmax_check = tmax
+            _critical_dc: list[tuple[str, str, float]] = []
+            if mode == "dol_dc" and exp_config.get("partir_em_vazio"):
+                _critical_dc = [("aplicação da carga", "t_{carga}", exp_config.get("t_carga", 0))]
+            elif mode == "resistencia_dc":
+                _critical_dc = [("remoção da resistência", "t_{rampa}", exp_config.get("t_ramp", 0))]
+            elif mode == "plugging_dc":
+                _critical_dc = [("reversão de polaridade", "t_{freia}", exp_config.get("t_freia", 0))]
+            elif mode == "campo_fraco_dc":
+                _critical_dc = [("enfraquecimento de campo", "t_{campo}", exp_config.get("t_campo", 0))]
+            elif mode == "pulso_dc":
+                _critical_dc = [("pulso de carga", "t_{pulso}", exp_config.get("t_pulso", 0))]
+            for _lbl, _sym, _t in _critical_dc:
+                if _t >= _tmax_check:
+                    st.warning(
+                        f"$t_{{max}}$ ({_tmax_check:.2f} s) ≤ ${_sym}$ ({_t:.2f} s): "
+                        f"o evento de **{_lbl}** não ocorrerá na simulação — aumente $t_{{max}}$."
+                    )
+
+    with tc2:
+        _ibox(
+            "<strong>t<sub>max</sub>:</strong> quanto maior, mais do transitório é capturado, "
+            "porém maior o custo computacional.<br><br>"
+            "<strong>h (passo):</strong> para MCC, recomenda-se h ≤ τ<sub>a</sub>/10, "
+            "onde τ<sub>a</sub> = L<sub>a</sub>/R<sub>a</sub> é a constante de tempo elétrica da armadura."
+        )
+
+    exp_config["_tmax_auto_val"] = _tmax_auto_val
 
     _ibox(f"<strong>Modo:</strong> {_MODE_LABELS[mode]} &nbsp;|&nbsp; "
           f"<strong>Excitação:</strong> {_EXC_LABELS.get(exc, exc)}")

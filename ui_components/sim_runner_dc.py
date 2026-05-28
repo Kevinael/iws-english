@@ -36,6 +36,11 @@ def execute_simulation_flow_dc(
         return
 
     mode = exp_config.get("exp_type", "dol_dc")
+
+    # sentinel tmax==0 → usar valor automático calculado em sim_config_dc
+    if tmax == 0.0:
+        tmax = float(exp_config.get("_tmax_auto_val", 12.0))
+
     voltage_fn = make_voltage_fn_dc(mode, mp, exp_config)
     torque_fn  = make_torque_fn_dc(mode, mp, exp_config)
 

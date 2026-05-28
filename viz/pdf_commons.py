@@ -240,6 +240,13 @@ def compute_energy_metrics(res: dict, mp: MachineParams, tarifa: float) -> dict:
     }
 
 
+def _mp_get(mp, key: str, default=0.0):
+    """Accept both MachineParams object and plain dict."""
+    if isinstance(mp, dict):
+        return mp.get(key, default)
+    return getattr(mp, key, default)
+
+
 def compute_losses(res: dict, mp: dict) -> dict:
     P_in   = float(res.get("P_in",   0.0))
     P_gap  = float(res.get("P_gap",  0.0))
@@ -250,12 +257,12 @@ def compute_losses(res: dict, mp: dict) -> dict:
     ss     = int(res.get("_ss_start", max(0, len(iqs_ss) - 1)))
     iqs_m  = float(np.sqrt(np.mean(iqs_ss[ss:]**2))) if ss < len(iqs_ss) else 0.0
     ids_m  = float(np.sqrt(np.mean(ids_ss[ss:]**2))) if ss < len(ids_ss) else 0.0
-    P_cu_s = (3.0 / 2.0) * mp.get("Rs", 0.435) * (iqs_m**2 + ids_m**2)
+    P_cu_s = (3.0 / 2.0) * _mp_get(mp, "Rs", 0.435) * (iqs_m**2 + ids_m**2)
     Vqs_ss = np.asarray(res["Vqs"][ss:], dtype=float)
     Vds_ss = np.asarray(res["Vds"][ss:], dtype=float)
-    if mp.get("Rfe", 500.0) > 0 and len(Vqs_ss) > 0:
+    if _mp_get(mp, "Rfe", 500.0) > 0 and len(Vqs_ss) > 0:
         V_rms_sq = float(np.mean(Vqs_ss**2)) + float(np.mean(Vds_ss**2))
-        P_fe = (3.0 / 2.0) * V_rms_sq / mp.get("Rfe", 500.0)
+        P_fe = (3.0 / 2.0) * V_rms_sq / _mp_get(mp, "Rfe", 500.0)
     else:
         P_fe = max(abs(P_in - P_gap - P_cu_s), 0.0) if P_in > 0 else 0.0
     P_loss = P_cu_s + P_cu_r + P_fe
@@ -274,11 +281,11 @@ def compute_integrator_params(res: dict, mp: dict, tmax: float, h: float) -> dic
     t       = np.asarray(res["t"], dtype=float)
     n_steps = len(t)
     dt_eff  = float(t[-1] - t[0]) / max(n_steps - 1, 1) if n_steps > 1 else h
-    nyquist_ok = mp.get("f", 60.0) * h <= 0.1
+    nyquist_ok = _mp_get(mp, "f", 60.0) * h <= 0.1
     return {
         "n_steps": n_steps, "dt_eff": dt_eff, "tmax": tmax, "h_req": h,
         "nyquist_ok": nyquist_ok,
-        "samples_per_cycle": 1.0 / (mp.get("f", 60.0) * dt_eff) if mp.get("f", 60.0) * dt_eff > 0 else 0.0,
+        "samples_per_cycle": 1.0 / (_mp_get(mp, "f", 60.0) * dt_eff) if _mp_get(mp, "f", 60.0) * dt_eff > 0 else 0.0,
     }
 
 

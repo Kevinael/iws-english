@@ -32,7 +32,7 @@ from ui_components.sim_runner import execute_simulation_flow
 from ui_components.sim_config_dc import render_dc_machine_params, render_experiment_config_dc
 from ui_components.sim_runner_dc import execute_simulation_flow_dc
 from ui_components.sim_results_dc import render_results_dc
-from viz.eqcircuit_plotter_dc import render_circuit_dc as _render_circuit_dc
+from viz.eqcircuit_plotter_dc_v2 import render_circuit_dc_v2 as _render_circuit_dc_v2
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -168,14 +168,14 @@ def main() -> None:
 
         if selected_machine == "dc":
             # ── BRANCH MCC ────────────────────────────────────────────────
-            col_params, col_circuit = st.columns([1, 1], gap="large")
+            col_params, col_circuit = st.columns([1.4, 0.8], gap="large")
 
             with col_params:
                 mp_dc, ref_code_dc = render_dc_machine_params(dark, experiment_mode)
 
             with col_circuit:
                 st.markdown('<p class="slabel">Circuito Equivalente</p>', unsafe_allow_html=True)
-                _render_circuit_dc(mp_dc.excitation, dark)
+                _render_circuit_dc_v2(mp_dc, dark)
                 st.write("")
                 exp_config_dc, var_keys_dc, var_labels_dc, tmax_dc, h_dc = \
                     render_experiment_config_dc(mp_dc)
