@@ -103,7 +103,10 @@ def _write_dc_sim_block(
     insights: list | None,
     banner_label: str = "",
 ) -> None:
-    losses     = compute_losses(res, mp)
+    try:
+        losses     = compute_losses(res, mp)
+    except KeyError:
+        losses = None
     integrator = compute_integrator_params(res, mp, tmax, h)
     sec_n = 1
 
@@ -185,21 +188,22 @@ def _write_dc_sim_block(
     sec_n += 1
 
     # ── 4. Balanço de Perdas ──────────────────────────────────────────────
-    _ensure_space(pdf, 100)
-    _sec(pdf, "Balanço de Perdas (Regime Permanente)", f"{sec_n}.")
-    lf, uf   = fmt_power(losses["P_cu_s"])
-    lg, ug_  = fmt_power(losses["P_cu_r"])
-    li, ui_  = fmt_power(max(losses["P_mec"], 0.0))
-    _th(pdf, [("Componente", 100), ("Valor", 38), ("Unidade", 18), ("% de P[sub]in[/sub]", 24)])
-    _tr(pdf, [
-        ("Perdas no cobre da armadura (P[sub]cu,a[/sub])", lf,  uf,  f"{losses['pct_cu_s']:.1f}%"),
-        ("Perdas no cobre do campo (P[sub]cu,f[/sub])",    lg,  ug_, f"{losses['pct_cu_r']:.1f}%"),
-        ("Potência mecânica útil (P[sub]mec[/sub])",       li,  ui_, f"{losses['pct_mec']:.1f}%"),
-    ], [100, 38, 18, 24], ["L", "R", "L", "R"])
-    pdf.ln(2)
-    embed_fig_dc(pdf, fig_to_png_bytes(build_losses_bar_fig(losses)), width_mm=170)
-    _caption(pdf, "Distribuição percentual das perdas em regime permanente em relação à potência de entrada.")
-    pdf.ln(2)
+    if losses is not None:
+        _ensure_space(pdf, 100)
+        _sec(pdf, "Balanço de Perdas (Regime Permanente)", f"{sec_n}.")
+        lf, uf   = fmt_power(losses["P_cu_s"])
+        lg, ug_  = fmt_power(losses["P_cu_r"])
+        li, ui_  = fmt_power(max(losses["P_mec"], 0.0))
+        _th(pdf, [("Componente", 100), ("Valor", 38), ("Unidade", 18), ("% de P[sub]in[/sub]", 24)])
+        _tr(pdf, [
+            ("Perdas no cobre da armadura (P[sub]cu,a[/sub])", lf,  uf,  f"{losses['pct_cu_s']:.1f}%"),
+            ("Perdas no cobre do campo (P[sub]cu,f[/sub])",    lg,  ug_, f"{losses['pct_cu_r']:.1f}%"),
+            ("Potência mecânica útil (P[sub]mec[/sub])",       li,  ui_, f"{losses['pct_mec']:.1f}%"),
+        ], [100, 38, 18, 24], ["L", "R", "L", "R"])
+        pdf.ln(2)
+        embed_fig_dc(pdf, fig_to_png_bytes(build_losses_bar_fig(losses)), width_mm=170)
+        _caption(pdf, "Distribuição percentual das perdas em regime permanente em relação à potência de entrada.")
+        pdf.ln(2)
     sec_n += 1
 
     # ── 5. Integrador Numérico ────────────────────────────────────────────
