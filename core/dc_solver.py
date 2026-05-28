@@ -1,117 +1,109 @@
-"""DC machine LSODA integrator.
+"""Integrador LSODA para MCC.
 
-Wraps scipy.integrate.odeint for step-by-step integration of DC ODEs.
-Maintains history: t, x (state), y (outputs).
+run_simulation_dc(params, tmax, h, voltage_fn, torque_fn) → dict
 """
 
-from typing import Callable, List, Tuple
+from __future__ import annotations
+
+from typing import Callable
+
 import numpy as np
-from scipy.integrate import odeint
+from scipy.integrate import solve_ivp
 
-from core.dc_machine_model import DCMachineParams, DCMachineODEs
+from core.dc_machine_model import DCMachineParams, _make_rhs_dc, decode_shunt_gen
 
 
-class DCSolver:
-    """LSODA integrator for DC machine ODEs."""
+def run_simulation_dc(
+    params: DCMachineParams,
+    tmax: float,
+    h: float,
+    voltage_fn: Callable[[float], tuple[float, float]],
+    torque_fn: Callable[[float], float],
+) -> dict:
+    """Integra ODEs da MCC e retorna dict de resultados.
 
-    def __init__(
-        self,
-        config: str,
-        params: DCMachineParams,
-        t_eval: np.ndarray,
-        x0: np.ndarray,
-    ):
-        """
-        Parameters:
-          config: 'sep_motor', 'shunt_motor', etc.
-          params: DCMachineParams instance
-          t_eval: Time vector for integration [t0, t1, ..., tf]
-          x0: Initial state vector
-        """
-        self.config = config
-        self.params = params
-        self.odes = DCMachineODEs(config, params)
-        self.t_eval = np.asarray(t_eval)
-        self.x0 = np.asarray(x0)
+    Chaves obrigatórias (compatibilidade com render_ref_panel):
+      t, ia, ifd, wm, Te, Tl, Ea, Vt, n
+    """
+    exc = params.excitation
+    rhs = _make_rhs_dc(params, voltage_fn, torque_fn)
 
-        # Validate state dimension
-        ode_func, n_states = self.odes.get_ode_func()
-        if len(self.x0) != n_states:
-            raise ValueError(
-                f"x0 has {len(self.x0)} states; config '{config}' expects {n_states}"
-            )
+    # Condições iniciais
+    if exc == "shunt_gen":
+        Llf = params.Ll + params.Lf
+        Lla = params.Ll + params.La
+        Leq = Lla * Llf - params.Ll * params.Ll
+        ifd0 = 0.01
+        ia0  = 0.1
+        x1_0 = (Llf * ifd0 - params.Ll * ia0)
+        x2_0 = (Lla * ia0  - params.Ll * ifd0)
+        y0 = [x1_0, x2_0, 0.0]
+    else:
+        y0 = [0.0, 0.0, 0.0]
 
-        self.ode_func = ode_func
-        self.n_states = n_states
+    t_eval = np.arange(0.0, tmax + h, h)
+    sol = solve_ivp(
+        rhs,
+        [0.0, tmax],
+        y0,
+        method="LSODA",
+        t_eval=t_eval,
+        max_step=1e-4,
+        rtol=1e-6,
+        atol=1e-8,
+    )
 
-        # Storage for results
-        self.t = None
-        self.x = None
-        self.y = None
+    t = sol.t
 
-    def run(self, Va_func: Callable[[float], float]) -> Tuple[np.ndarray, np.ndarray, dict]:
-        """
-        Integrate and store results.
+    if exc == "shunt_gen":
+        ia_arr  = np.zeros(len(t))
+        ifd_arr = np.zeros(len(t))
+        for k in range(len(t)):
+            ia_arr[k], ifd_arr[k] = decode_shunt_gen(sol.y[:, k], params)
+        wm_arr = sol.y[2]
+    else:
+        ia_arr  = sol.y[0]
+        ifd_arr = sol.y[0] if exc == "series_motor" else sol.y[1]
+        wm_arr  = sol.y[2]
 
-        Parameters:
-          Va_func: Function Va(t) returning armature voltage at time t.
+    # Pós-processamento vetorizado
+    Te_arr = params.kb * ia_arr * ifd_arr
+    Ea_arr = params.kb * ifd_arr * wm_arr
+    Tl_arr = np.array([torque_fn(ti) for ti in t])
+    Va_arr = np.array([voltage_fn(ti)[0] for ti in t])
+    n_arr  = wm_arr * 60.0 / (2.0 * np.pi)   # RPM
 
-        Returns:
-          (t, x, y_dict) where:
-            t: time vector (same as t_eval)
-            x: state array, shape (n_steps, n_states)
-            y_dict: dict with keys ['ia', 'ifd', 'wm', 'Te', 'Ea'], each shape (n_steps,)
-        """
+    if exc in ("sep_gen", "shunt_gen"):
+        Rla = params.Ra + params.Rl
+        Vt_arr = params.Rl * ia_arr
+    else:
+        Vt_arr = Va_arr - params.Ra * ia_arr   # Vt = Va − Ra·ia
 
-        def ode_wrapper(x, t):
-            """scipy.integrate.odeint expects f(x, t); we wrap to apply Va(t)."""
-            Va = Va_func(t)
-            return self.ode_func(t, x, Va)
+    # Regime permanente: média dos últimos 10%
+    n_ss = int(max(1, len(t) * 0.1))
+    def ss(arr: np.ndarray) -> float:
+        return float(np.mean(arr[-n_ss:]))
 
-        # Integrate
-        self.x = odeint(ode_wrapper, self.x0, self.t_eval, full_output=False)
-        self.t = self.t_eval
-
-        # Compute outputs at each step
-        self.y = self._compute_outputs_all()
-
-        return self.t, self.x, self.y
-
-    def _compute_outputs_all(self) -> dict:
-        """Compute outputs at all time steps."""
-        n_steps = len(self.t)
-        outputs = {
-            "ia": np.zeros(n_steps),
-            "ifd": np.zeros(n_steps),
-            "wm": np.zeros(n_steps),
-            "Te": np.zeros(n_steps),
-            "Ea": np.zeros(n_steps),
-        }
-
-        for i in range(n_steps):
-            y_dict = DCMachineODEs.compute_outputs(self.config, self.x[i], self.params)
-            for key in outputs:
-                if key in y_dict:
-                    outputs[key][i] = y_dict[key]
-
-        return outputs
-
-    def get_results(self) -> Tuple[np.ndarray, np.ndarray, dict]:
-        """Return (t, x, y) after run()."""
-        if self.x is None:
-            raise RuntimeError("Must call run() first")
-        return self.t, self.x, self.y
-
-    def get_final_state(self) -> dict:
-        """Return final values of key variables."""
-        if self.y is None:
-            raise RuntimeError("Must call run() first")
-
-        return {
-            "ia": self.y["ia"][-1],
-            "ifd": self.y["ifd"][-1],
-            "wm": self.y["wm"][-1],
-            "Te": self.y["Te"][-1],
-            "Ea": self.y["Ea"][-1],
-            "t_final": self.t[-1],
-        }
+    return {
+        "t":      t,
+        "ia":     ia_arr,
+        "ifd":    ifd_arr,
+        "wm":     wm_arr,
+        "Te":     Te_arr,
+        "Tl":     Tl_arr,
+        "Ea":     Ea_arr,
+        "Vt":     Vt_arr,
+        "n":      n_arr,
+        # steady-state scalars
+        "ia_ss":  ss(ia_arr),
+        "ifd_ss": ss(ifd_arr),
+        "wm_ss":  ss(wm_arr),
+        "n_ss":   ss(n_arr),
+        "Te_ss":  ss(Te_arr),
+        "Ea_ss":  ss(Ea_arr),
+        "Vt_ss":  ss(Vt_arr),
+        # metadados
+        "excitation": exc,
+        "tmax": tmax,
+        "success": bool(sol.success),
+    }

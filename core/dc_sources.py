@@ -1,174 +1,101 @@
-"""DC machine voltage sources for 6 modes of operation.
+"""Fontes de tensão e torque para simulação MCC.
 
-Modes: dol_dc, resistencia_dc, plugging_dc, pulso_dc, gerador_dc, campo_fraco_dc.
-Each mode defines Va(t) for the integrator.
+make_voltage_fn_dc(mode, params, exp_config) → callable(t) → (Va, Vf)
+make_torque_fn_dc(mode, params, exp_config)  → callable(t) → Tl
 """
 
+from __future__ import annotations
+
 from typing import Callable
-import numpy as np
+
+from core.dc_machine_model import DCMachineParams
 
 
-class DCSourceMode:
-    """Base class for DC source modes."""
+def make_voltage_fn_dc(
+    mode: str,
+    params: DCMachineParams,
+    exp_config: dict,
+) -> Callable[[float], tuple[float, float]]:
+    """Retorna função tensão (Va(t), Vf(t)) para o modo dado."""
+    Va_nom = params.Va
+    Vf_nom = params.Vf
 
-    def __init__(self, name: str):
-        self.name = name
-
-    def Va(self, t: float) -> float:
-        """Armature voltage at time t."""
-        raise NotImplementedError
-
-
-# ─────────────────────────────────────────────────────────────────────
-# dol_dc: Direct On-Line (constant Va)
-# ─────────────────────────────────────────────────────────────────────
-class DOL_DC(DCSourceMode):
-    """Direct On-Line: constant armature voltage from t=0."""
-
-    def __init__(self, Va_nom: float):
-        super().__init__("dol_dc")
-        self.Va_nom = Va_nom
-
-    def Va(self, t: float) -> float:
-        return self.Va_nom
-
-
-# ─────────────────────────────────────────────────────────────────────
-# resistencia_dc: Series resistance (soft-start equivalent)
-# ─────────────────────────────────────────────────────────────────────
-class Resistencia_DC(DCSourceMode):
-    """Series resistance: Va ramps from 0 to Va_nom over t_ramp."""
-
-    def __init__(self, Va_nom: float, t_ramp: float = 1.0):
-        super().__init__("resistencia_dc")
-        self.Va_nom = Va_nom
-        self.t_ramp = t_ramp
-
-    def Va(self, t: float) -> float:
-        if t <= self.t_ramp:
-            return self.Va_nom * (t / self.t_ramp)
-        else:
-            return self.Va_nom
-
-
-# ─────────────────────────────────────────────────────────────────────
-# plugging_dc: Plugging (reverse voltage reversal)
-# ─────────────────────────────────────────────────────────────────────
-class Plugging_DC(DCSourceMode):
-    """Plugging: DOL until t_switch, then Va → -Va_nom for braking."""
-
-    def __init__(self, Va_nom: float, t_switch: float):
-        super().__init__("plugging_dc")
-        self.Va_nom = Va_nom
-        self.t_switch = t_switch
-
-    def Va(self, t: float) -> float:
-        if t <= self.t_switch:
-            return self.Va_nom
-        else:
-            return -self.Va_nom
-
-
-# ─────────────────────────────────────────────────────────────────────
-# pulso_dc: Load pulse (step up, then step down)
-# ─────────────────────────────────────────────────────────────────────
-class Pulso_DC(DCSourceMode):
-    """Load pulse: constant Va, but Tload changes at t_pulse.
-
-    (This is a load perturbation, not a voltage source change.
-    Va remains constant; used with adjustable Tload in sim context.)
-    """
-
-    def __init__(self, Va_nom: float):
-        super().__init__("pulso_dc")
-        self.Va_nom = Va_nom
-
-    def Va(self, t: float) -> float:
-        """Constant armature voltage."""
-        return self.Va_nom
-
-    # Tload pulse is handled separately in simulator
-
-
-# ─────────────────────────────────────────────────────────────────────
-# gerador_dc: Generator (no source; driven mechanically)
-# ─────────────────────────────────────────────────────────────────────
-class Gerador_DC(DCSourceMode):
-    """Generator mode: Va = 0 (driven by mechanical torque Tload > 0)."""
-
-    def __init__(self):
-        super().__init__("gerador_dc")
-
-    def Va(self, t: float) -> float:
-        """No armature source voltage."""
-        return 0.0
-
-
-# ─────────────────────────────────────────────────────────────────────
-# campo_fraco_dc: Field weakening (reduce Vf for speed boost)
-# ─────────────────────────────────────────────────────────────────────
-class CampoFraco_DC(DCSourceMode):
-    """Field weakening: constant Va, but Vf reduces at t_weaken for speed boost."""
-
-    def __init__(self, Va_nom: float):
-        super().__init__("campo_fraco_dc")
-        self.Va_nom = Va_nom
-
-    def Va(self, t: float) -> float:
-        """Constant armature voltage (Vf reduction handled separately)."""
-        return self.Va_nom
-
-    # Vf reduction is handled separately in simulator
-
-
-# ─────────────────────────────────────────────────────────────────────
-# Factory
-# ─────────────────────────────────────────────────────────────────────
-def create_dc_source(
-    mode: str, Va_nom: float = None, **kwargs
-) -> Callable[[float], float]:
-    """
-    Create a voltage source function.
-
-    Parameters:
-      mode: 'dol_dc', 'resistencia_dc', 'plugging_dc', 'pulso_dc', 'gerador_dc', 'campo_fraco_dc'
-      Va_nom: nominal armature voltage (V) [required for all except gerador_dc]
-      **kwargs: mode-specific parameters (t_ramp, t_switch, etc.)
-
-    Returns:
-      Va(t) function.
-    """
     if mode == "dol_dc":
-        if Va_nom is None:
-            raise ValueError("dol_dc requires Va_nom")
-        source = DOL_DC(Va_nom)
+        def fn(t: float) -> tuple[float, float]:
+            return Va_nom, Vf_nom
+        return fn
 
-    elif mode == "resistencia_dc":
-        if Va_nom is None:
-            raise ValueError("resistencia_dc requires Va_nom")
-        t_ramp = kwargs.get("t_ramp", 1.0)
-        source = Resistencia_DC(Va_nom, t_ramp)
+    if mode == "resistencia_dc":
+        R_ini  = float(exp_config.get("R_ini", 5.0))
+        t_ramp = float(exp_config.get("t_ramp", 2.0))
+        Ra     = params.Ra
 
-    elif mode == "plugging_dc":
-        if Va_nom is None:
-            raise ValueError("plugging_dc requires Va_nom")
-        t_switch = kwargs.get("t_switch", 1.0)
-        source = Plugging_DC(Va_nom, t_switch)
+        def fn(t: float) -> tuple[float, float]:
+            # Reduz R_serie de R_ini → 0 linearmente até t_ramp
+            r = R_ini * max(0.0, 1.0 - t / t_ramp) if t_ramp > 0 else 0.0
+            # Va efetivo equivale a Va com queda em R_serie pré-calculada
+            # Mantemos Va nominal; r é tratado no modelo como parâmetro Ra temporário
+            # Para simplificar, escalamos Va: Vef = Va * Ra/(Ra+r) → ia mesma corrente
+            Va_eff = Va_nom * params.Ra / (params.Ra + r) if (params.Ra + r) > 0 else Va_nom
+            return Va_eff, Vf_nom
+        return fn
 
-    elif mode == "pulso_dc":
-        if Va_nom is None:
-            raise ValueError("pulso_dc requires Va_nom")
-        source = Pulso_DC(Va_nom)
+    if mode == "plugging_dc":
+        t_freia = float(exp_config.get("t_freia", 3.0))
 
-    elif mode == "gerador_dc":
-        source = Gerador_DC()
+        def fn(t: float) -> tuple[float, float]:
+            Va = -Va_nom if t >= t_freia else Va_nom
+            return Va, Vf_nom
+        return fn
 
-    elif mode == "campo_fraco_dc":
-        if Va_nom is None:
-            raise ValueError("campo_fraco_dc requires Va_nom")
-        source = CampoFraco_DC(Va_nom)
+    if mode == "campo_fraco_dc":
+        Vf_fraco = float(exp_config.get("Vf_fraco", Vf_nom * 0.5))
+        t_campo  = float(exp_config.get("t_campo", 3.0))
+        t_trans  = float(exp_config.get("t_trans", 0.5))
 
-    else:
-        raise ValueError(f"Unknown mode: {mode}")
+        def fn(t: float) -> tuple[float, float]:
+            if t < t_campo:
+                Vf = Vf_nom
+            elif t < t_campo + t_trans:
+                alpha = (t - t_campo) / t_trans
+                Vf = Vf_nom + alpha * (Vf_fraco - Vf_nom)
+            else:
+                Vf = Vf_fraco
+            return Va_nom, Vf
+        return fn
 
-    return source.Va
+    if mode in ("pulso_dc", "gerador_dc"):
+        def fn(t: float) -> tuple[float, float]:
+            return Va_nom, Vf_nom
+        return fn
+
+    raise ValueError(f"Modo de tensão desconhecido: {mode!r}")
+
+
+def make_torque_fn_dc(
+    mode: str,
+    params: DCMachineParams,
+    exp_config: dict,
+) -> Callable[[float], float]:
+    """Retorna função torque Tl(t)."""
+    Tl_nom = params.Tload
+
+    if mode == "pulso_dc":
+        t_pulso  = float(exp_config.get("t_pulso", 4.0))
+        Tl_extra = float(exp_config.get("Tl_extra", Tl_nom * 0.5))
+
+        def fn(t: float) -> float:
+            return Tl_nom + Tl_extra if t >= t_pulso else Tl_nom
+        return fn
+
+    if mode == "gerador_dc":
+        Tl_gen = float(exp_config.get("Tl_gen", abs(Tl_nom)))
+
+        def fn(t: float) -> float:
+            return Tl_gen   # tração mecânica (positivo → acelera gerador)
+        return fn
+
+    # Demais modos: torque constante
+    def fn(t: float) -> float:
+        return Tl_nom
+    return fn
