@@ -362,26 +362,34 @@ def render_machine_selector(dark: bool) -> None:
     # apenas máquinas disponíveis são exibidas
     available = [m for m in MACHINES if not m["disabled"]]
 
-    # grade centralizada: CSS "machine-grid-solo" para 1 card centrado
-    cards_html = '<div class="machine-grid-solo">'
-    for m in available:
-        active  = st.session_state.get("selected_machine") == m["key"]
-        cls     = "mcard mcard-solo" + (" active" if active else "")
-        cards_html += (
-            f'<div class="{cls}">'
-            f'  <span class="mcard-icon">{m["icon"]}</span>'
-            f'  <div class="mcard-name">{m["name"]}</div>'
-            f'  <span class="mcard-tag">{m["tag"]}</span>'
-            f'</div>'
-        )
-    cards_html += '</div>'
-    st.markdown(cards_html, unsafe_allow_html=True)
+    # atualiza selected_machine se query param mudou
+    if "machine" in st.query_params:
+        st.session_state["selected_machine"] = st.query_params["machine"]
 
-    # botão centralizado, logo abaixo do card
-    _, btn_col, _ = st.columns([2, 1, 2])
-    for m in available:
-        with btn_col:
-            if st.button("Iniciar Simulação", key=f"sel_{m['key']}", width="stretch"):
+    # cores do tema (ja importado no topo)
+    c = _palette(dark)
+
+    # cards renderizados com st.columns + botões Streamlit
+    cols = st.columns(len(available), gap="small")
+    for i, m in enumerate(available):
+        with cols[i]:
+            # criar container com CSS inline
+            st.markdown(
+                f'<div style="margin-bottom: 0.8rem;">'
+                f'<div style="background: {c["surface"]}; border: 2px solid {c["border"]}; border-radius: 14px; padding: 1.8rem 1.4rem; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 0.8rem;">'
+                f'<div style="font-size: 3rem;">{m["icon"]}</div>'
+                f'<div style="font-size: 1.1rem; font-weight: 600; color: {c["text"]};">{m["name"]}</div>'
+                f'<div style="font-size: 0.75rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; color: {c["muted"]};">{m["tag"]}</div>'
+                f'</div>'
+                f'</div>',
+                unsafe_allow_html=True
+            )
+            # botão invisível embaixo
+            if st.button(
+                "Selecionar",
+                key=f"card_{m['key']}",
+                use_container_width=True
+            ):
                 st.session_state["selected_machine"] = m["key"]
                 st.rerun()
 

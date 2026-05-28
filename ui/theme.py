@@ -463,6 +463,51 @@ def apply_css(dark: bool) -> None:
             overflow-x: auto !important;
             -webkit-overflow-scrolling: touch !important;
         }}
+
+        /* ── cards de seleção de máquina ── */
+        .card-button-wrapper {{
+            margin-bottom: 0.8rem !important;
+        }}
+        .card-button {{
+            background: {c["surface"]} !important;
+            border: 2px solid {c["border"]} !important;
+            border-radius: 14px !important;
+            padding: 1.8rem 1.4rem 1.4rem !important;
+            text-align: center !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 0.8rem !important;
+            transition: border-color .18s, box-shadow .18s !important;
+        }}
+        .card-button:hover {{
+            border-color: {c["accent"]} !important;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.14) !important;
+        }}
+        .card-icon {{
+            font-size: 3rem !important;
+            line-height: 1 !important;
+        }}
+        .card-title {{
+            flex: 1 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }}
+        .card-name {{
+            font-size: 1.1rem !important;
+            font-weight: 600 !important;
+            color: {c["text"]} !important;
+            line-height: 1.3 !important;
+        }}
+        .card-tag {{
+            font-size: 0.75rem !important;
+            font-weight: 500 !important;
+            color: {c["muted"]} !important;
+            letter-spacing: 0.05em !important;
+            text-transform: uppercase !important;
+        }}
     }}
     </style>
     """, unsafe_allow_html=True)

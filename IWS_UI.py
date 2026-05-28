@@ -103,6 +103,10 @@ def main() -> None:
         unsafe_allow_html=True,
     )
 
+    # detecta máquina via query param (antes de verificar selected_machine)
+    if "machine" in st.query_params and not st.session_state["selected_machine"]:
+        st.session_state["selected_machine"] = st.query_params["machine"]
+
     if not st.session_state["selected_machine"]:
         render_machine_selector(dark)
         return
