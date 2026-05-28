@@ -340,3 +340,41 @@ def render_results_dc(
                     st.caption("Sankey disponível apenas para modo motor.")
             except Exception:
                 st.caption("Sankey indisponível.")
+
+    # ══════════════════════════════════════════════════════════════════════
+    # EXPORTAÇÃO PDF
+    # ══════════════════════════════════════════════════════════════════════
+    from viz.pdf_dc import generate_dc  # noqa: E402
+
+    st.markdown("---")
+    st.markdown('<p class="slabel">Exportar Relatório</p>', unsafe_allow_html=True)
+
+    if not st.session_state.get("pdf_bytes_dc"):
+        if st.button("Relatório MCC (PDF)", key="btn_pdf_dc"):
+            with st.spinner("Gerando relatório MCC..."):
+                st.session_state["pdf_bytes_dc"] = generate_dc(
+                    exp_label=exp_label,
+                    mp=mp,
+                    res=res,
+                    var_keys=var_keys,
+                    var_labels=var_labels,
+                    t_events=t_events,
+                    exp_type=exp_type,
+                    tmax=tmax,
+                    h=h,
+                )
+            st.rerun()
+    else:
+        st.download_button(
+            label="Baixar Relatório MCC (PDF)",
+            data=st.session_state["pdf_bytes_dc"],
+            file_name="relatorio_iws_mcc.pdf",
+            mime="application/pdf",
+            key="btn_pdf_dc_download",
+        )
+        if st.button("Regerar MCC", key="btn_pdf_dc_regen"):
+            del st.session_state["pdf_bytes_dc"]
+            st.rerun()
+
+    if st.session_state.get("pdf_bytes_dc") and not st.session_state.get("pdf_bytes"):
+        st.session_state["pdf_bytes"] = st.session_state["pdf_bytes_dc"]
