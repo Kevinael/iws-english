@@ -28,7 +28,7 @@ def _build_sep_motor(d, wire):
     import schemdraw.elements as elm
     d.push()
     Rf = d.add(elm.Inductor2().right().color(wire).label("$N_f$", loc="top"))
-    If = d.add(elm.Line().down().color(wire))
+    d.add(elm.Line().down().color(wire))
     d.add(elm.Line().down().color(wire).dot(open=True))
     d.pop()
     d.push()
@@ -42,19 +42,17 @@ def _build_sep_motor(d, wire):
     d.add(elm.Line().down().color(wire))
     Neg = d.add(elm.Line().right().color(wire).dot(open=True))
     d.pop()
-    Ia = d.add(elm.Line().up().color(wire))
+    d.add(elm.Line().up().color(wire))
     d.add(elm.Resistor().right().color(wire).label("$R_a$", loc="top").dot(open=True))
     import schemdraw.elements as elm2
     d.add(elm2.Gap().down().toy(Neg.end).color(wire).label(("+", "$V_t$", "−")))
-    d.add(elm.CurrentLabel(top=False, length=1.25, ofst=0.3).at(Ia).reverse().label("$I_a$"))
-    d.add(elm.CurrentLabel(top=False, length=1.25, ofst=0.3).at(If).label("$I_f$"))
 
 
 def _build_shunt_motor(d, wire):
     import schemdraw.elements as elm
     d.push()
     Nf = d.add(elm.Inductor2().right().color(wire).label("$N_f$", loc="top"))
-    If = d.add(elm.Line().up().color(wire))
+    d.add(elm.Line().up().color(wire))
     d.add(elm.Resistor().up().color(wire).label("$R_{fw}$", loc="right"))
     d.add(elm.Line().right().color(wire).dot(open=True))
     d.pop()
@@ -66,12 +64,9 @@ def _build_shunt_motor(d, wire):
     d.pop()
     d.add(elm.Line().up().color(wire))
     d.add(elm.Motor().up().color(wire).label("$E_a$", loc="right"))
-    Ra = d.add(elm.Resistor().up().color(wire).label("$R_a$", loc="right"))
+    d.add(elm.Resistor().up().color(wire).label("$R_a$", loc="right"))
     Vtp = d.add(elm.Line().right().color(wire).dot(open=True))
     d.add(elm.Gap().down().color(wire).label(("+", "$V_t$", "−")).endpoints(Vtp.end, Vtm.end))
-    d.add(elm.CurrentLabel(top=False, length=1.25, ofst=0.3).reverse().at(Ra).label("$I_a$"))
-    d.add(elm.CurrentLabel(top=True,  length=1.25, ofst=0.3).reverse().at(If).label("$I_f$"))
-    d.add(elm.CurrentLabel(top=True,  length=1.25, ofst=0.3).reverse().at(Vtp).label("$I_t$"))
 
 
 def _build_series_motor(d, wire):
@@ -83,7 +78,7 @@ def _build_series_motor(d, wire):
     d.add(elm.Line().right().color(wire))
     T2 = d.add(elm.Dot(open=True))
     d.pop()
-    Ra = d.add(elm.Resistor().up().color(wire).label("$R_a$", loc="right"))
+    d.add(elm.Resistor().up().color(wire).label("$R_a$", loc="right"))
     d.add(elm.Line().right().color(wire))
     d.add(elm.Line().down().color(wire))
     d.add(elm.Inductor2().right().color(wire).label("$N_s$", loc="top"))
@@ -91,14 +86,13 @@ def _build_series_motor(d, wire):
     d.add(elm.Resistor().right().color(wire).label("$R_s$", loc="top"))
     T1 = d.add(elm.Dot(open=True))
     d.add(elm.Gap().down().color(wire).label(("+", "$V_t$", "−")).endpoints(T1.end, T2.end))
-    d.add(elm.CurrentLabel(top=False, length=1.25, ofst=0.3).at(Ra).reverse().label("$I_a$"))
 
 
 def _build_sep_gen(d, wire):
     import schemdraw.elements as elm
     d.push()
     Rf = d.add(elm.Inductor2().right().color(wire).label("$N_f$", loc="top"))
-    If = d.add(elm.Line().down().color(wire))
+    d.add(elm.Line().down().color(wire))
     d.add(elm.Line().down().color(wire).dot(open=True))
     d.pop()
     d.push()
@@ -112,7 +106,7 @@ def _build_sep_gen(d, wire):
     d.add(elm.Line().down().color(wire))
     Vtm = d.add(elm.Line().right().color(wire).dot(open=True))
     d.pop()
-    Ia = d.add(elm.Line().up().color(wire))
+    d.add(elm.Line().up().color(wire))
     Vtp = d.add(elm.Resistor().right().color(wire).label("$R_a$", loc="top").dot(open=True))
     d.add(elm.Line().right().color(wire))
     d.add(elm.Line().down().color(wire))
@@ -120,15 +114,13 @@ def _build_sep_gen(d, wire):
     d.add(elm.Line().down().color(wire))
     d.add(elm.Line().left().color(wire))
     d.add(elm.Gap().down().color(wire).label(("+", "$V_t$", "−")).endpoints(Vtp.end, Vtm.end))
-    d.add(elm.CurrentLabel(top=False, length=1.25, ofst=0.3).at(Ia).label("$I_a$"))
-    d.add(elm.CurrentLabel(top=False, length=1.25, ofst=0.3).at(If).label("$I_f$"))
 
 
 def _build_shunt_gen(d, wire):
     import schemdraw.elements as elm
     d.push()
     Nf = d.add(elm.Inductor2().right().color(wire).label("$N_f$", loc="top"))
-    If = d.add(elm.Line().up().color(wire))
+    d.add(elm.Line().up().color(wire))
     d.add(elm.Resistor().up().color(wire).label("$R_{fw}$", loc="right"))
     d.add(elm.Line().right().color(wire).dot(open=True))
     d.pop()
@@ -140,7 +132,7 @@ def _build_shunt_gen(d, wire):
     d.pop()
     d.add(elm.Line().up().color(wire))
     d.add(elm.Motor().up().color(wire).label("$E_a$", loc="right"))
-    Ra = d.add(elm.Resistor().up().color(wire).label("$R_a$", loc="right"))
+    d.add(elm.Resistor().up().color(wire).label("$R_a$", loc="right"))
     Vtp = d.add(elm.Line().right().color(wire).dot(open=True))
     d.add(elm.Line().right().color(wire))
     d.add(elm.Line().down().color(wire))
@@ -148,9 +140,6 @@ def _build_shunt_gen(d, wire):
     d.add(elm.Line().down().color(wire))
     d.add(elm.Line().left().color(wire))
     d.add(elm.Gap().down().color(wire).label(("+", "$V_t$", "−")).endpoints(Vtp.end, Vtm.end))
-    d.add(elm.CurrentLabel(top=False, length=1.25, ofst=0.3).at(Ra).label("$I_a$"))
-    d.add(elm.CurrentLabel(top=True,  length=1.25, ofst=0.3).reverse().at(If).label("$I_f$"))
-    d.add(elm.CurrentLabel(top=True,  length=1.25, ofst=0.3).at(Vtp).label("$I_t$"))
 
 
 _BUILDERS = {
