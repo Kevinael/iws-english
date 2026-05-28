@@ -6,6 +6,7 @@ Exports:
 
 from __future__ import annotations
 
+import time
 from typing import Any
 
 import numpy as np
@@ -104,6 +105,48 @@ def render_dc_results(
 """
 
     st.markdown(summary)
+
+    st.divider()
+    st.subheader("Exportar Relatório")
+
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        if st.button("📄 Gerar PDF Acadêmico", use_container_width=True):
+            try:
+                from viz.pdf_dc import generate_dc_academico
+
+                # Extract params
+                exp_label = f"{result.get('config_type', 'DC_SIM')}_{int(time.time() % 10000)}"
+                mp = {
+                    'Rf': result.get('Rf', 'N/A'), 'Lf': result.get('Lf', 'N/A'),
+                    'Ra': result.get('Ra', 'N/A'), 'La': result.get('La', 'N/A'),
+                    'kb': result.get('kb', 'N/A'), 'J': result.get('J', 'N/A'),
+                    'B': result.get('B', 'N/A'),
+                }
+                var_keys = ['ia', 'ifd', 'wm', 'Te', 'Ea']
+                var_labels = ['Corrente de Armadura (A)', 'Corrente de Campo (A)',
+                              'Velocidade Mecânica (rad/s)', 'Torque (N·m)', 'Força Contra-Eletromotriz (V)']
+
+                pdf_bytes = generate_dc_academico(
+                    exp_label=exp_label,
+                    mp=mp,
+                    res=result,
+                    var_keys=var_keys,
+                    var_labels=var_labels,
+                    exp_type=result.get('config_type', 'sep_motor_dol'),
+                    energy_tariff=0.75,
+                    tmax=result['t'][-1] if 't' in result else 1.0,
+                    h=1e-3,
+                )
+                st.download_button(
+                    label="⬇️ Baixar PDF",
+                    data=pdf_bytes,
+                    file_name=f"{exp_label}_relatorio.pdf",
+                    mime="application/pdf",
+                )
+                st.success("PDF gerado com sucesso!")
+            except Exception as e:
+                st.error(f"Erro ao gerar PDF: {str(e)}")
 
 
 def _plot_dc_trace(
