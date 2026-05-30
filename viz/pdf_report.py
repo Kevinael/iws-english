@@ -298,7 +298,9 @@ def generate_pdf_report(exp_label: str, mp: MachineParams, res: dict,
                         ref_list: list | None = None,
                         energy_tariff: float = 0.75,
                         insights: list | None = None,
-                        load_torque: float = 0.0) -> bytes:
+                        load_torque: float = 0.0,
+                        exp_config: dict | None = None,
+                        input_mode: str | None = None) -> bytes:
     """Gera o relatório técnico em PDF e retorna como bytes (stream).
 
     Estrutura:
@@ -483,7 +485,7 @@ def generate_pdf_report(exp_label: str, mp: MachineParams, res: dict,
     # ══════════════════════════════════════════════════════════════════════
     def _write_block(b_res, b_mp, b_exp_label, b_exp_type, b_t_events,
                      b_var_keys, b_var_labels, b_tariff=0.75,
-                     b_insights=None, b_load_torque=0.0):
+                     b_insights=None, b_load_torque=0.0, b_is_main=False):
 
         # ── Identificação ──────────────────────────────────────────────────
         section_title(pdf, "Identificação do Experimento")
@@ -804,6 +806,163 @@ def generate_pdf_report(exp_label: str, mp: MachineParams, res: dict,
                 pdf.ln(2)
             pdf.ln(2)
 
+        # ── Análise do Modo de Operação ────────────────────────────────────
+        if exp_config and b_is_main:
+            _mode = exp_config.get("exp_type", exp_type)
+
+            if _mode == "frenagem":
+                if (pdf.h - pdf.b_margin) - pdf.get_y() < 50:
+                    pdf.add_page()
+                section_title(pdf, "Análise de Frenagem Elétrica")
+                _brake = exp_config.get("brake_method", "plugging")
+                _BRAKE_NOMES = {
+                    "plugging":    "Reversão de Polaridade (Plugging)",
+                    "injecao_cc":  "Injeção de Corrente Contínua",
+                    "regenerativo":"Frenagem Regenerativa",
+                }
+                pdf.set_font("Helvetica", "B", 10)
+                pdf.set_text_color(22, 54, 120)
+                pdf.cell(0, 6, f"  Método: {_BRAKE_NOMES.get(_brake, _brake)}", ln=True)
+                pdf.set_text_color(40, 40, 40)
+                t_freia = exp_config.get("t_brake", exp_config.get("t_freia", 0.0))
+                _wm_arr = np.asarray(b_res.get("wr", b_res.get("wm", [0.0])))
+                _t_arr  = np.asarray(b_res.get("t", [0.0]))
+                _ia_arr = np.asarray(b_res.get("ias", b_res.get("ia", [0.0])))
+                _idx_f  = int(np.searchsorted(_t_arr, t_freia))
+                _wm_bef = float(_wm_arr[max(_idx_f-1, 0)]) if len(_wm_arr) > 0 else 0.0
+                _ia_pk  = float(np.max(np.abs(_ia_arr[_idx_f:]))) if _idx_f < len(_ia_arr) else 0.0
+                _idx_stop = next((i for i in range(_idx_f, len(_wm_arr)) if abs(_wm_arr[i]) < 1.0), len(_wm_arr)-1)
+                _t_stop = float(_t_arr[_idx_stop]) - t_freia if _idx_stop < len(_t_arr) else None
+                _rows_b = [
+                    ("Instante de frenagem",         f"{t_freia:.3f} s"),
+                    ("Velocidade antes da frenagem",  f"{_wm_bef * 60/(2*3.14159):.1f} RPM"),
+                    ("Corrente de pico pós-frenagem", f"{_ia_pk:.3f} A"),
+                ]
+                if _t_stop is not None:
+                    _rows_b.append(("Tempo até parada estimado", f"{_t_stop:.3f} s"))
+                if _brake == "injecao_cc":
+                    _rows_b.append(("Tensão CC injetada", f"{exp_config.get('Vcc_inj', 0.0):.2f} V"))
+                elif _brake == "regenerativo":
+                    _rows_b.append(("Tensão reduzida (%)", f"{exp_config.get('V_regen', 0):.0f}%"))
+                pdf.set_fill_color(200, 210, 245)
+                pdf.set_font("Helvetica", "B", 9)
+                for lbl, val in [("Indicador", "Valor")]:
+                    pdf.cell(115, 6, f"  {lbl}", border=0, fill=True)
+                    pdf.cell(55,  6, f"  {val}", border=0, fill=True, ln=True)
+                for idx, (lbl, val) in enumerate(_rows_b):
+                    _fill = (242, 245, 255) if idx % 2 == 0 else (255, 255, 255)
+                    pdf.set_fill_color(*_fill)
+                    pdf.set_font("Helvetica", "", 9)
+                    pdf.set_text_color(40, 40, 40)
+                    pdf.cell(115, 6, f"  {lbl}", border=0, fill=True)
+                    pdf.cell(55,  6, f"  {val}", border=0, fill=True, ln=True)
+                pdf.ln(3)
+
+            elif _mode == "gerador":
+                if (pdf.h - pdf.b_margin) - pdf.get_y() < 50:
+                    pdf.add_page()
+                section_title(pdf, "Análise do Modo Gerador")
+                _wr_ss = float(b_res.get("wr_ss", 0.0))
+                _Te_ss = float(b_res.get("Te_ss", 0.0))
+                _P_mec = abs(_Te_ss) * abs(_wr_ss)
+                _P_ele = float(b_res.get("P_out_ss", _P_mec * 0.9))
+                _eta_g = _P_ele / _P_mec * 100 if _P_mec > 1e-3 else 0.0
+                _rows_g = [
+                    ("Velocidade de regime",       f"{_wr_ss * 60/(2*3.14159):.1f} RPM"),
+                    ("Torque de entrada (T_e,ss)",  f"{_Te_ss:.3f} N·m"),
+                    ("Potência mecânica de entrada", f"{_P_mec:.2f} W"),
+                    ("Potência elétrica gerada",    f"{_P_ele:.2f} W"),
+                    ("Rendimento estimado",         f"{_eta_g:.1f} %"),
+                ]
+                pdf.set_fill_color(200, 210, 245)
+                pdf.set_font("Helvetica", "B", 9)
+                pdf.cell(115, 6, "  Indicador", border=0, fill=True)
+                pdf.cell(55,  6, "  Valor",     border=0, fill=True, ln=True)
+                for idx, (lbl, val) in enumerate(_rows_g):
+                    _fill = (242, 245, 255) if idx % 2 == 0 else (255, 255, 255)
+                    pdf.set_fill_color(*_fill)
+                    pdf.set_font("Helvetica", "", 9)
+                    pdf.set_text_color(40, 40, 40)
+                    pdf.cell(115, 6, f"  {lbl}", border=0, fill=True)
+                    pdf.cell(55,  6, f"  {val}", border=0, fill=True, ln=True)
+                pdf.ln(3)
+
+            # Evolução Térmica (se dados disponíveis)
+            _theta_s = b_res.get("theta_s") or b_res.get("Temp")
+            _t_therm = b_res.get("t")
+            if _theta_s is not None and _t_therm is not None:
+                import matplotlib
+                matplotlib.use("Agg")
+                import matplotlib.pyplot as plt
+                _ts = np.asarray(_theta_s)
+                _tt = np.asarray(_t_therm)
+                if len(_ts) == len(_tt) and len(_ts) > 2 and _ts.max() - _ts.min() > 0.1:
+                    if (pdf.h - pdf.b_margin) - pdf.get_y() < 70:
+                        pdf.add_page()
+                    section_title(pdf, "Evolução Térmica")
+                    _fig_th, _ax_th = plt.subplots(figsize=(9, 3))
+                    _fig_th.patch.set_facecolor("white")
+                    _ax_th.plot(_tt, _ts, color="#1d4ed8", linewidth=1.2, label="θ estator")
+                    _theta_r = b_res.get("theta_r")
+                    if _theta_r is not None:
+                        _tr2 = np.asarray(_theta_r)
+                        if len(_tr2) == len(_tt):
+                            _ax_th.plot(_tt, _tr2, color="#dc2626", linewidth=1.2, label="θ rotor")
+                    _ax_th.set_xlabel("Tempo (s)", fontsize=8)
+                    _ax_th.set_ylabel("Temperatura (°C)", fontsize=8)
+                    _ax_th.legend(fontsize=8)
+                    _ax_th.grid(True, color="#dde4f5", linewidth=0.4)
+                    _ax_th.spines[["top", "right"]].set_visible(False)
+                    _ax_th.tick_params(labelsize=8)
+                    _fig_th.subplots_adjust(left=0.1, right=0.97, top=0.94, bottom=0.2)
+                    embed_fig(pdf, _fig_th, w=175)
+                    plt.close(_fig_th)
+                    pdf.ln(2)
+
+        # ── Estimação de Parâmetros ────────────────────────────────────────
+        if input_mode and input_mode != "Inserir parâmetros manualmente" and b_is_main:
+            if (pdf.h - pdf.b_margin) - pdf.get_y() < 60:
+                pdf.add_page()
+            section_title(pdf, "Estimação de Parâmetros")
+            if "Nameplate" in input_mode:
+                pdf.set_font("Helvetica", "B", 10)
+                pdf.set_text_color(22, 54, 120)
+                pdf.cell(0, 6, "  Método: Nameplate (NEMA MG-1 — Heurístico)", ln=True)
+                pdf.set_font("Helvetica", "", 9)
+                pdf.set_text_color(40, 40, 40)
+                pdf.multi_cell(0, 5, "  Parâmetros estimados a partir da placa de identificação "
+                               "usando heurísticas NEMA MG-1. Utilizados diretamente na simulação.")
+            else:
+                pdf.set_font("Helvetica", "B", 10)
+                pdf.set_text_color(22, 54, 120)
+                pdf.cell(0, 6, "  Método: IEEE Std 112-2017 — Ensaios Físicos", ln=True)
+                pdf.set_font("Helvetica", "", 9)
+                pdf.set_text_color(40, 40, 40)
+                pdf.multi_cell(0, 5, "  Parâmetros determinados pelo procedimento iterativo "
+                               "IEEE Std 112-2017 Eq. (38)-(49): ensaio CC (Rs), ensaio a vazio "
+                               "(Xm, Rfe, Pfw) e ensaio de rotor bloqueado (Rr, Xls, Xlr).")
+            pdf.ln(2)
+            _est_rows = [
+                ("Resistência do estator (R_s)",        f"{mp.Rs:.5f} Ω"),
+                ("Resistência do rotor (R_r)",          f"{mp.Rr:.5f} Ω"),
+                ("Reatância de magnetização (X_m)",     f"{mp.Xm:.4f} Ω"),
+                ("Reatância de dispersão estator (X_ls)", f"{mp.Xls:.5f} Ω"),
+                ("Reatância de dispersão rotor (X_lr)",  f"{mp.Xlr:.5f} Ω"),
+                ("Resistência de perdas no ferro (R_fe)", f"{mp.Rfe:.1f} Ω"),
+            ]
+            pdf.set_fill_color(200, 210, 245)
+            pdf.set_font("Helvetica", "B", 9)
+            pdf.cell(115, 6, "  Parâmetro", border=0, fill=True)
+            pdf.cell(55,  6, "  Valor",     border=0, fill=True, ln=True)
+            for idx, (lbl, val) in enumerate(_est_rows):
+                _fill = (242, 245, 255) if idx % 2 == 0 else (255, 255, 255)
+                pdf.set_fill_color(*_fill)
+                pdf.set_font("Helvetica", "", 9)
+                pdf.set_text_color(40, 40, 40)
+                pdf.cell(115, 6, f"  {lbl}", border=0, fill=True)
+                pdf.cell(55,  6, f"  {val}", border=0, fill=True, ln=True)
+            pdf.ln(3)
+
         # ── Curvas Características ─────────────────────────────────────────
         b_chunks = _make_chunks(b_var_keys, b_var_labels)
         for pg, (ck, cl) in enumerate(b_chunks):
@@ -831,7 +990,8 @@ def generate_pdf_report(exp_label: str, mp: MachineParams, res: dict,
     # ── Bloco: Simulação Atual ─────────────────────────────────────────────
     _block_banner("Simulação Atual")
     _write_block(res, mp, exp_label, exp_type, t_events, var_keys, var_labels,
-                 b_tariff=energy_tariff, b_insights=insights, b_load_torque=load_torque)
+                 b_tariff=energy_tariff, b_insights=insights, b_load_torque=load_torque,
+                 b_is_main=True)
 
     # ── Bloco: cada Referência ─────────────────────────────────────────────
     for ref_i, r in enumerate(ref_list or []):

@@ -131,6 +131,9 @@ def _write_sim_block(
     t_events: list, var_keys: list, var_labels: list,
     energy_tariff: float, tmax: float, h: float,
     insights: list | None,
+    exp_config: dict | None = None,
+    input_mode: str | None = None,
+    is_main: bool = False,
 ) -> None:
     losses     = compute_losses(res, mp)
     integrator = compute_integrator_params(res, mp, tmax, h)
@@ -323,6 +326,79 @@ def _write_sim_block(
                    border=0, align="C")
     pdf.ln(2)
 
+    # ── Análise do Modo de Operação ────────────────────────────────────────
+    if exp_config and is_main:
+        import numpy as _np
+        _mode = exp_config.get("exp_type", exp_type)
+        if _mode == "frenagem":
+            _ensure_space(pdf, 50)
+            _sec_bar(pdf, "ANÁLISE DE FRENAGEM ELÉTRICA")
+            _brake = exp_config.get("brake_method", "plugging")
+            _BRAKE_NOMES = {
+                "plugging":    "Reversão de Polaridade (Plugging)",
+                "injecao_cc":  "Injeção de Corrente Contínua",
+                "regenerativo":"Frenagem Regenerativa",
+            }
+            pdf.set_font("Helvetica", "", 9)
+            pdf.set_text_color(*_TEXT_MID)
+            pdf.multi_cell(0, 5, f"  Método: {_BRAKE_NOMES.get(_brake, _brake)}")
+            pdf.ln(1)
+            t_freia = exp_config.get("t_brake", exp_config.get("t_freia", 0.0))
+            _wr_a = _np.asarray(res.get("wr", [0.0]))
+            _t_a  = _np.asarray(res.get("t",  [0.0]))
+            _ia_a = _np.asarray(res.get("ias", [0.0]))
+            _idx_f = int(_np.searchsorted(_t_a, t_freia))
+            _wm_b  = float(_wr_a[max(_idx_f-1, 0)]) * 60 / (2*3.14159) if len(_wr_a) > 0 else 0.0
+            _ia_pk = float(_np.max(_np.abs(_ia_a[_idx_f:]))) if _idx_f < len(_ia_a) else 0.0
+            _idx_stop = next((i for i in range(_idx_f, len(_wr_a)) if abs(_wr_a[i]) < 1.0), len(_wr_a)-1)
+            _t_stop = float(_t_a[_idx_stop]) - t_freia if _idx_stop < len(_t_a) else None
+            _rows_b = [
+                ("Instante de frenagem",          f"{t_freia:.3f} s"),
+                ("Velocidade antes da frenagem",   f"{_wm_b:.1f} RPM"),
+                ("Corrente de pico pos-frenagem",  f"{_ia_pk:.3f} A"),
+            ]
+            if _t_stop is not None:
+                _rows_b.append(("Tempo ate parada estimado", f"{_t_stop:.3f} s"))
+            _mini_table(pdf, _rows_b, [115, 55])
+
+        elif _mode == "gerador":
+            _ensure_space(pdf, 50)
+            _sec_bar(pdf, "ANÁLISE DO MODO GERADOR")
+            _wr_ss = float(res.get("wr_ss", 0.0))
+            _Te_ss = float(res.get("Te_ss", 0.0))
+            _P_mec = abs(_Te_ss) * abs(_wr_ss)
+            _P_ele = float(res.get("P_out", _P_mec * 0.9))
+            _eta_g = _P_ele / _P_mec * 100 if _P_mec > 1e-3 else 0.0
+            _rows_g = [
+                ("Velocidade de regime",        f"{_wr_ss * 60/(2*3.14159):.1f} RPM"),
+                ("Torque de entrada (Te,ss)",   f"{_Te_ss:.3f} N.m"),
+                ("Potencia mecanica de entrada", f"{_P_mec:.2f} W"),
+                ("Potencia eletrica gerada",    f"{_P_ele:.2f} W"),
+                ("Rendimento estimado",         f"{_eta_g:.1f} %"),
+            ]
+            _mini_table(pdf, _rows_g, [115, 55])
+
+    # ── Estimacao de Parametros ────────────────────────────────────────────
+    if input_mode and input_mode != "Inserir parâmetros manualmente" and is_main:
+        _ensure_space(pdf, 60)
+        _sec_bar(pdf, "ESTIMAÇÃO DE PARÂMETROS")
+        pdf.set_font("Helvetica", "", 9)
+        pdf.set_text_color(*_TEXT_MID)
+        if "Nameplate" in input_mode:
+            pdf.multi_cell(0, 5, "  Metodo: Nameplate (NEMA MG-1). Parametros estimados por heuristicas a partir da placa de identificacao.")
+        else:
+            pdf.multi_cell(0, 5, "  Metodo: IEEE Std 112-2017 Eq.(38)-(49). Ensaios CC, vazio e rotor bloqueado.")
+        pdf.ln(1)
+        _rows_e = [
+            ("Resistencia do estator (Rs)",         f"{mp.Rs:.5f} Ohm"),
+            ("Resistencia do rotor (Rr)",           f"{mp.Rr:.5f} Ohm"),
+            ("Reatancia de magnetizacao (Xm)",      f"{mp.Xm:.4f} Ohm"),
+            ("Reatancia de dispersao estator (Xls)", f"{mp.Xls:.5f} Ohm"),
+            ("Reatancia de dispersao rotor (Xlr)",   f"{mp.Xlr:.5f} Ohm"),
+            ("Resistencia de perdas no ferro (Rfe)", f"{mp.Rfe:.1f} Ohm"),
+        ]
+        _mini_table(pdf, _rows_e, [115, 55])
+
     # ── Curvas Características ────────────────────────────────────────────
     chunks = make_chunks(var_keys, var_labels)
     for pg, (ck, cl) in enumerate(chunks):
@@ -421,6 +497,8 @@ def generate_industrial(
     h: float = 1e-3,
     insights: list | None = None,
     load_torque: float = 0.0,
+    exp_config: dict | None = None,
+    input_mode: str | None = None,
 ) -> bytes:
     """Gera relatório industrial em PDF e retorna como bytes.
 
@@ -448,6 +526,7 @@ def generate_industrial(
     _write_sim_block(
         pdf, res, mp, exp_label, exp_type, t_events,
         var_keys, var_labels, energy_tariff, tmax_eff, h, insights,
+        exp_config=exp_config, input_mode=input_mode, is_main=True,
     )
 
     # ── Bloco: cada referência salva ─────────────────────────────────────

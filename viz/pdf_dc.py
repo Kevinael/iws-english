@@ -247,6 +247,8 @@ def _write_sim_block_dc(
     var_labels: list,
     tmax: float,
     h: float,
+    exp_config: dict | None = None,
+    input_mode: str | None = None,
 ) -> None:
     exc    = mp.excitation if mp else "sep_motor"
     is_gen = exc in ("sep_gen", "shunt_gen")
@@ -473,7 +475,110 @@ def _write_sim_block_dc(
             pdf.set_xy(x0, pdf.get_y() + 6)
     sec_n += 1
 
-    # ── 7. Parâmetros do Integrador ───────────────────────────────────────
+    # ── 7. Análise do Modo de Operação ────────────────────────────────────
+    if exp_config:
+        _ensure_space(pdf, 40)
+        _sec(pdf, "Análise do Modo de Operação", f"{sec_n}.")
+        mode = exp_config.get("exp_type", exp_type)
+
+        if mode == "frenagem_dc":
+            brake = exp_config.get("brake_method", "plugging")
+            _BRAKE_NAMES = {
+                "plugging":    "Reversão de Polaridade (Plugging)",
+                "injecao_cc":  "Injeção de Corrente Contínua",
+                "regenerativo":"Frenagem Regenerativa",
+            }
+            _subsec(pdf, f"Frenagem Elétrica — {_BRAKE_NAMES.get(brake, brake)}")
+            t_freia = exp_config.get("t_freia", 0.0)
+            wm_arr  = np.asarray(res.get("wm", [0.0]))
+            t_arr_m = np.asarray(res.get("t",  [0.0]))
+            ia_arr  = np.asarray(res.get("ia",  [0.0]))
+            idx_f   = int(np.searchsorted(t_arr_m, t_freia))
+            wm_before = float(wm_arr[max(idx_f - 1, 0)]) if len(wm_arr) > 0 else 0.0
+            ia_pk_brake = float(np.max(np.abs(ia_arr[idx_f:]))) if idx_f < len(ia_arr) else 0.0
+            idx_stop = next((i for i in range(idx_f, len(wm_arr)) if abs(wm_arr[i]) < 1.0), len(wm_arr) - 1)
+            t_stop = float(t_arr_m[idx_stop]) - t_freia if idx_stop < len(t_arr_m) else None
+            rows_b = [
+                ("Instante de frenagem (t_freia)", f"{t_freia:.3f} s"),
+                ("Velocidade antes da frenagem",   f"{wm_before * 60 / (2*3.14159):.1f} RPM"),
+                ("Corrente de pico pós-frenagem",  f"{ia_pk_brake:.3f} A"),
+            ]
+            if t_stop is not None:
+                rows_b.append(("Tempo até parada estimado", f"{t_stop:.3f} s"))
+            if brake == "injecao_cc":
+                rows_b.append(("Tensão CC injetada (V_inj)", f"{exp_config.get('Vdc_inj', 0.0):.2f} V"))
+            elif brake == "regenerativo":
+                rows_b.append(("Tensão reduzida (V_a,regen)", f"{exp_config.get('Va_regen', 0.0):.2f} V"))
+            _th(pdf, [("Indicador", 115), ("Valor", 55)])
+            _tr(pdf, rows_b, [115, 55], ["L", "L"])
+
+        elif mode == "campo_fraco_dc":
+            _subsec(pdf, "Enfraquecimento de Campo")
+            t_campo = exp_config.get("t_campo", 0.0)
+            Vf_fraco = exp_config.get("Vf_fraco", 0.0)
+            wm_arr = np.asarray(res.get("wm", [0.0]))
+            t_arr_m = np.asarray(res.get("t", [0.0]))
+            idx_c = int(np.searchsorted(t_arr_m, t_campo))
+            wm_before = float(wm_arr[max(idx_c - 1, 0)]) * 60 / (2*3.14159) if len(wm_arr) > 0 else 0.0
+            wm_after  = float(wm_arr[-1]) * 60 / (2*3.14159) if len(wm_arr) > 0 else 0.0
+            _th(pdf, [("Indicador", 115), ("Valor", 55)])
+            _tr(pdf, [
+                ("Instante de enfraquecimento (t_campo)", f"{t_campo:.3f} s"),
+                ("Tensão de campo reduzida (V_f,fraco)",  f"{Vf_fraco:.2f} V"),
+                ("Velocidade antes do enfraquecimento",   f"{wm_before:.1f} RPM"),
+                ("Velocidade após enfraquecimento (regime)", f"{wm_after:.1f} RPM"),
+                ("Ganho de velocidade",                   f"{wm_after - wm_before:+.1f} RPM"),
+            ], [115, 55], ["L", "L"])
+
+        elif mode == "gerador_dc":
+            _subsec(pdf, "Modo Gerador — Análise de Potência")
+            ia_ss  = float(res.get("ia_ss",  0.0))
+            wm_ss  = float(res.get("wm_ss",  0.0))
+            Te_ss  = float(res.get("Te_ss",  0.0))
+            Rl     = mp.Rl if hasattr(mp, "Rl") else 0.0
+            Ea_ss  = float(res.get("Ea_ss",  0.0))
+            Vt_ss  = float(res.get("Vt_ss",  0.0))
+            P_mec_in  = abs(Te_ss) * abs(wm_ss)
+            P_elec_out = Vt_ss ** 2 / Rl if Rl > 1e-6 else abs(ia_ss) * abs(Vt_ss)
+            eta_gen = P_elec_out / P_mec_in * 100 if P_mec_in > 1e-3 else 0.0
+            _th(pdf, [("Indicador", 115), ("Valor", 55)])
+            _tr(pdf, [
+                ("Velocidade de regime (n_ss)",        f"{wm_ss * 60 / (2*3.14159):.1f} RPM"),
+                ("Tensão de terminal (V_t,ss)",        f"{Vt_ss:.3f} V"),
+                ("Corrente de armadura (I_a,ss)",      f"{ia_ss:.4f} A"),
+                ("Força contra-eletromotriz (E_a,ss)", f"{Ea_ss:.3f} V"),
+                ("Potência mecânica de entrada",       f"{P_mec_in:.2f} W"),
+                ("Potência elétrica gerada",           f"{P_elec_out:.2f} W"),
+                ("Rendimento estimado",                f"{eta_gen:.1f} %"),
+            ], [115, 55], ["L", "L"])
+        sec_n += 1
+
+    # ── 8. Estimação de Parâmetros ────────────────────────────────────────
+    if input_mode and input_mode != "Inserir parâmetros manualmente":
+        _ensure_space(pdf, 50)
+        _sec(pdf, "Estimação de Parâmetros", f"{sec_n}.")
+        if "Nameplate" in input_mode:
+            _subsec(pdf, "Método Nameplate (NEMA — Heurístico)")
+            _body(pdf, "  Parâmetros estimados a partir da placa de identificação da máquina "
+                  "utilizando heurísticas NEMA. Os valores abaixo foram utilizados na simulação.")
+        else:
+            _subsec(pdf, "Método por Ensaios (IEEE Std 113-1985)")
+            _body(pdf, "  Parâmetros determinados por ensaios laboratoriais conforme "
+                  "IEEE Std 113-1985: ensaio CC de armadura, ensaio CC de campo, "
+                  "ensaio CA de indutância (Sec. 7.5.1) e ensaio a vazio (Sec. 5.6).")
+        _th(pdf, [("Parâmetro", 85), ("Símbolo", 30), ("Valor", 55)])
+        _tr(pdf, [
+            ("Resistência de armadura",   "R_a",  f"{mp.Ra:.5f} Ω"),
+            ("Indutância de armadura",    "L_a",  f"{mp.La:.5f} H"),
+            ("Constante de fcem",         "k_b",  f"{mp.kb:.6f} V·s/rad"),
+            ("Resistência de campo",      "R_f",  f"{mp.Rf:.4f} Ω"),
+            ("Indutância de campo",       "L_f",  f"{mp.Lf:.5f} H"),
+            ("Momento de inércia",        "J",    f"{mp.J:.4f} kg·m²"),
+            ("Coef. de atrito viscoso",   "B",    f"{mp.B:.2e} N·m·s/rad"),
+        ], [85, 30, 55], ["L", "C", "L"])
+        sec_n += 1
+
+    # ── 9. Parâmetros do Integrador ───────────────────────────────────────
     _ensure_space(pdf, 55)
     _sec(pdf, "Parâmetros do Integrador Numérico (LSODA)", f"{sec_n}.")
     t_arr  = np.asarray(res.get("t", [0.0, 1.0]))
@@ -507,11 +612,15 @@ def generate_dc(
     exp_type: str = "dol",
     tmax: float = 0.0,
     h: float = 1e-4,
+    exp_config: dict | None = None,
+    input_mode: str | None = None,
+    ref_list: list | None = None,
 ) -> bytes:
     """Gera relatório técnico MCC em PDF e retorna como bytes."""
     var_keys   = var_keys   or []
     var_labels = var_labels or []
     t_events   = t_events   or []
+    ref_list   = ref_list   or []
 
     PDF = make_pdf_class("MCC")
     pdf = PDF(orientation="P", unit="mm", format="A4")
@@ -520,9 +629,29 @@ def generate_dc(
     pdf.set_auto_page_break(auto=True, margin=20)
     pdf.set_top_margin(20)
 
+    # Bloco principal
     _write_sim_block_dc(
         pdf, res, mp, exp_label, exp_type,
         t_events, var_keys, var_labels, tmax, h,
+        exp_config=exp_config, input_mode=input_mode,
     )
+
+    # Blocos de referência (sem seções extras de modo/estimação)
+    for ref_i, ref in enumerate(ref_list):
+        ref_res = ref.get("res")
+        if ref_res is None:
+            continue
+        ref_mp     = ref.get("mp", mp)
+        ref_label  = ref.get("exp_label", f"Referência {ref_i+1}")
+        ref_type   = ref.get("exp_type", exp_type)
+        ref_tevs   = ref.get("t_events", [])
+        ref_vkeys  = ref.get("var_keys") or var_keys
+        ref_vlbls  = ref.get("var_labels") or var_labels
+        ref_tmax   = ref.get("tmax", tmax)
+        ref_h      = ref.get("h", h)
+        _write_sim_block_dc(
+            pdf, ref_res, ref_mp, ref_label, ref_type,
+            ref_tevs, ref_vkeys, ref_vlbls, ref_tmax, ref_h,
+        )
 
     return bytes(pdf.output())

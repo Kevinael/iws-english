@@ -209,7 +209,6 @@ def build_circuit_png_dc(mp, dark: bool) -> bytes:
         fig.patch.set_facecolor(bg_hex)
         ax.set_facecolor(bg_hex)
         ax.set_axis_off()
-        ax.set_title(_CIRCUIT_LABELS.get(mp.excitation, mp.excitation), color=text_c, fontsize=13, pad=8)
 
         with schemdraw.Drawing(canvas=ax) as d:
             d.config(unit=2, fontsize=13, color=wire)
@@ -217,7 +216,7 @@ def build_circuit_png_dc(mp, dark: bool) -> bytes:
             builder(d, wire, mp)
 
         buf = io.BytesIO()
-        fig.savefig(buf, format="png", dpi=150, facecolor=bg_hex, bbox_inches="tight")
+        fig.savefig(buf, format="png", dpi=300, facecolor=bg_hex, bbox_inches="tight")
         plt.close(fig)
 
     return buf.getvalue()
@@ -243,7 +242,8 @@ def render_circuit_dc_v2(mp, dark: bool) -> None:
     except Exception:
         png = build_circuit_png_dc(mp, dark)
 
-    st.image(png, width="stretch")
+    _l, _c, _r = st.columns([1, 4, 1])
+    _c.image(png, use_container_width=True)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -299,7 +299,6 @@ if __name__ == "__main__":
                 fig.patch.set_facecolor(bg_hex)
                 ax.set_facecolor(bg_hex)
                 ax.set_axis_off()
-                ax.set_title(_CIRCUIT_LABELS.get(exc_type, exc_type), color=text_c, fontsize=13, pad=8)
                 with schemdraw.Drawing(canvas=ax) as d:
                     d.config(unit=2, fontsize=13, color=wire)
                     builder = _BUILDERS.get(exc_type, _build_sep_motor)
