@@ -179,8 +179,11 @@ def apply_css(dark: bool) -> None:
         color: {c["text"]} !important;
     }}
 
-    /* ── botao principal ── */
-    .stButton > button {{
+    /* ── botao principal — todos os tipos, monocromático ── */
+    .stButton > button,
+    .stButton > button[kind="primary"],
+    .stButton > button[kind="secondary"],
+    [data-testid="stFormSubmitButton"] > button {{
         background: {c["accent"]} !important;
         color: {c["on_accent"]} !important; border: none !important;
         border-radius: 8px !important; font-weight: 700 !important;
@@ -191,7 +194,9 @@ def apply_css(dark: bool) -> None:
         line-height: 1 !important;
         transition: opacity .15s;
     }}
-    .stButton > button:hover {{ opacity: .86 !important; }}
+    .stButton > button:hover,
+    .stButton > button[kind="primary"]:hover,
+    [data-testid="stFormSubmitButton"] > button:hover {{ opacity: .86 !important; }}
     .stButton > button:disabled,
     .stButton > button[disabled] {{
         background: {c["surface2"]} !important;

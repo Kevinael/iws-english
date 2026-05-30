@@ -1214,6 +1214,11 @@ def render_results(
                         tmax=_tmax_exp, h=_h_exp,
                         insights=_pdf_insights,
                         load_torque=_pdf_load_torque,
+                        exp_config=st.session_state.get("sim_result", {}).get("exp_config"),
+                        input_mode=["Inserir parâmetros manualmente",
+                                    "Estimar por dados de placa (Nameplate)",
+                                    "Determinar por Ensaios IEEE 112"][
+                                       st.session_state.get("_param_source_idx", 0)],
                     )
                 st.rerun()
         else:
@@ -1240,6 +1245,11 @@ def render_results(
                         tmax=_tmax_exp, h=_h_exp,
                         insights=_pdf_insights,
                         load_torque=_pdf_load_torque,
+                        exp_config=st.session_state.get("sim_result", {}).get("exp_config"),
+                        input_mode=["Inserir parâmetros manualmente",
+                                    "Estimar por dados de placa (Nameplate)",
+                                    "Determinar por Ensaios IEEE 112"][
+                                       st.session_state.get("_param_source_idx", 0)],
                     )
                 st.rerun()
         else:

@@ -168,7 +168,7 @@ def main() -> None:
 
         if selected_machine == "dc":
             # ── BRANCH MCC ────────────────────────────────────────────────
-            col_params, col_circuit = st.columns([1.4, 0.8], gap="large")
+            col_params, col_circuit = st.columns([1, 1], gap="large")
 
             with col_params:
                 mp_dc, ref_code_dc, energy_tariff_dc = render_dc_machine_params(dark, experiment_mode)

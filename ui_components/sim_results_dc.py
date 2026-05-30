@@ -384,29 +384,6 @@ def render_results_dc(
                 with st.expander(f"{sev} — {titulo}", expanded=True):
                     st.write(desc)
 
-        # FFT de corrente de armadura
-        with st.expander("FFT de $i_a$ (Ripple harmônico)", expanded=False):
-            try:
-                from numpy.fft import rfft, rfftfreq
-                ia_half = ia_arr[len(ia_arr)//2:]
-                N  = len(ia_half)
-                dt = float(res["t"][1] - res["t"][0])
-                f_fft = rfftfreq(N, d=dt)
-                Y     = np.abs(rfft(ia_half - np.mean(ia_half))) * 2 / N
-                fig_f = go.Figure()
-                fig_f.add_trace(go.Bar(x=f_fft[:N//4], y=Y[:N//4], name="Amplitude"))
-                fig_f.update_layout(
-                    title="Espectro de $i_a$", xaxis_title="Frequência (Hz)",
-                    yaxis_title="Amplitude (A)", height=300,
-                    paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                )
-                st.plotly_chart(fig_f, use_container_width=True, config=_PLOT_CFG, key="dc-fft")
-                st.caption(
-                    "Harmônicos elevados indicam comutação irregular ou ressonância LC no circuito de armadura. "
-                    "O espectro é calculado na segunda metade da simulação (regime)."
-                )
-            except Exception:
-                st.caption("FFT indisponível.")
 
     # ══════════════════════════════════════════════════════════════════════
     # ABA 4 — GESTÃO DE ATIVOS
@@ -517,6 +494,9 @@ def render_results_dc(
                     exp_type=exp_type,
                     tmax=tmax,
                     h=h,
+                    exp_config=st.session_state.get("sim_result", {}).get("exp_config"),
+                    input_mode=st.session_state.get("wi_dc_input_mode"),
+                    ref_list=ref_list,
                 )
             st.rerun()
     else:
