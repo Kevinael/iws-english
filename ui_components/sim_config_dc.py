@@ -117,20 +117,26 @@ _DEFAULT_VARS: list[str] = ["ia", "wm", "Te"]
 
 # Modos de operação disponíveis por configuração
 _MODES_BY_EXC: dict[str, list[str]] = {
-    "sep_motor":    ["dol_dc", "resistencia_dc", "plugging_dc", "pulso_dc", "campo_fraco_dc"],
-    "shunt_motor":  ["dol_dc", "resistencia_dc", "plugging_dc", "pulso_dc"],
-    "series_motor": ["dol_dc", "resistencia_dc", "plugging_dc", "pulso_dc"],
+    "sep_motor":    ["campo_fraco_dc", "frenagem_dc", "gerador_dc", "resistencia_dc", "dol_dc", "pulso_dc"],
+    "shunt_motor":  ["frenagem_dc", "resistencia_dc", "dol_dc", "pulso_dc"],
+    "series_motor": ["frenagem_dc", "resistencia_dc", "dol_dc", "pulso_dc"],
     "sep_gen":      ["gerador_dc"],
     "shunt_gen":    ["gerador_dc"],
 }
 
 _MODE_LABELS: dict[str, str] = {
-    "dol_dc":         "Partida Direta (DOL)",
-    "resistencia_dc": "Partida com Resistência Série",
-    "plugging_dc":    "Reversão de Rotação (Plugging)",
-    "pulso_dc":       "Pulso de Carga",
     "campo_fraco_dc": "Enfraquecimento de Campo",
+    "frenagem_dc":    "Frenagem Elétrica",
     "gerador_dc":     "Gerador — Carga Resistiva",
+    "resistencia_dc": "Partida com Resistência Série",
+    "dol_dc":         "Partida Direta (DOL)",
+    "pulso_dc":       "Pulso de Carga",
+}
+
+_BRAKE_LABELS: dict[str, str] = {
+    "plugging":    "Reversão de Polaridade (Plugging)",
+    "injecao_cc":  "Injeção de Corrente Contínua",
+    "regenerativo":"Frenagem Regenerativa",
 }
 
 _EXC_LABELS: dict[str, str] = {
@@ -175,6 +181,15 @@ def render_dc_machine_params(dark: bool, experiment_mode: bool) -> tuple[DCMachi
 
     st.markdown('<p class="slabel">Parâmetros da Máquina</p>', unsafe_allow_html=True)
 
+    # ── Carga automática do preset padrão na primeira abertura ───────────────
+    if "wi_dc_Va" not in st.session_state:
+        _default_preset = _PRESETS_BY_EXC["sep_motor"]["Motor Sep. 220 V — Sen Ex. 9.2"]
+        for k, v in _default_preset.items():
+            st.session_state[f"wi_dc_{k}"] = v
+        st.session_state["wi_dc_excitation"] = "sep_motor"
+        st.session_state["wi_dc_preset"]     = "Motor Sep. 220 V — Sen Ex. 9.2"
+        st.rerun()
+
     # ── Configuração de excitação ────────────────────────────────────────────
     _wi("wi_dc_excitation", "sep_motor")
     exc_options = list(_EXC_LABELS.keys())
@@ -191,17 +206,22 @@ def render_dc_machine_params(dark: bool, experiment_mode: bool) -> tuple[DCMachi
     st.session_state["wi_dc_excitation"] = exc
 
     # ── Fonte de dados: Manual / Placa / Ensaios ─────────────────────────────
-    _wi("wi_dc_input_mode", "Manual")
+    _PARAM_SOURCE_LABELS_DC = [
+        "Inserir parâmetros manualmente",
+        "Estimar por dados de placa (Nameplate)",
+        "Determinar por Ensaios IEEE 113",
+    ]
+    _wi("wi_dc_input_mode", _PARAM_SOURCE_LABELS_DC[0])
     input_mode = st.radio(
-        "Fonte de dados", ["Manual", "Placa de Identificação", "Ensaios"],
-        index=["Manual", "Placa de Identificação", "Ensaios"].index(
-            st.session_state.get("wi_dc_input_mode", "Manual")
+        "Fonte de dados", _PARAM_SOURCE_LABELS_DC,
+        index=_PARAM_SOURCE_LABELS_DC.index(
+            st.session_state.get("wi_dc_input_mode", _PARAM_SOURCE_LABELS_DC[0])
         ),
         horizontal=True, key="wi_dc_input_mode",
         disabled=experiment_mode,
     )
 
-    if input_mode == "Placa de Identificação" and not experiment_mode:
+    if input_mode == "Estimar por dados de placa (Nameplate)" and not experiment_mode:
         _pgroup("Dados da Placa (NEMA)")
         p1, p2, p3, p4 = st.columns(4)
         _wi("wi_dc_Pn_kW", 0.5)
@@ -255,37 +275,222 @@ def render_dc_machine_params(dark: bool, experiment_mode: bool) -> tuple[DCMachi
             if est["kb"] <= 0:
                 st.error("$k_b$ ≤ 0 — impossível. Revise Vn, nn ou η.")
 
-    elif input_mode == "Ensaios" and not experiment_mode:
+    elif input_mode == "Determinar por Ensaios IEEE 113" and not experiment_mode:
         # Guia de procedimento (fechado por padrão)
-        with st.expander("Como realizar os ensaios (Motor CC)...", expanded=False):
-            st.markdown(
-                "| Ensaio | Parâmetros extraídos |\n"
-                "|---|---|\n"
-                "| [1] CC (resistência) | $R_a$ |\n"
-                "| [2] A Vazio | $k_b$, $E_{a,nl}$, $L_a$ (heurístico) |\n\n"
-                "### [1] Ensaio de Resistência CC\n"
-                "Aplique tensão CC conhecida $V_{dc}$ entre dois terminais de armadura e meça a corrente $I_{dc}$:\n\n"
-                "$$R_a = \\frac{V_{dc}}{I_{dc}}$$\n\n"
-                "**Dicas:** use corrente ≤ 25 % de $I_n$ para evitar aquecimento; repita em 3 posições do comutador e use a média.\n\n"
-                "### [2] Ensaio a Vazio\n"
-                "Com o motor girando em vazio (sem carga mecânica) a tensão e velocidade nominais:\n\n"
-                "$$E_{a,nl} = V_{a,nl} - R_a \\cdot I_{a,nl}$$\n\n"
-                "$$k_b = \\frac{E_{a,nl}}{I_{fd,nl} \\cdot \\omega_{nl}}$$\n\n"
-                "**Nota:** motores com saturação magnética têm $k_b$ variável com $I_{fd}$ — "
-                "o ensaio a vazio estima o valor na região nominal de operação."
-            )
+        with st.expander("Como realizar os ensaios IEEE 113 (procedimento, fórmulas e dicas)", expanded=False):
+            st.markdown("""
+**Visão geral.** O método IEEE Std 113-1985 determina os parâmetros do circuito equivalente de
+um motor CC por meio de **dois ensaios físicos complementares**:
 
-        _pgroup("Ensaio de Resistência CC")
+| Ensaio | Seção IEEE 113 | Parâmetros extraídos |
+|--------|--------------|---------------------|
+| **[1a] CC Armadura** | Sec. 4.2.2.2 | $R_a$ |
+| **[1b] CC Campo** | Sec. 4.2.2.1 | $R_f$ (excitação separada) |
+| **[2] CA Armadura** | Sec. 7.5.1 | $L_a$ (rotor travado, campo curto-circuitado) |
+| **[3] Degrau de Campo** | Sec. 7.5.3 | $L_f$ (constante de tempo $\tau_f$) |
+| **[4] Vazio** | Sec. 5.6 | $k_b$, $E_{a,nl}$, $R_f$ (shunt via $V_a/I_f$) |
+
+Os ensaios [2] e [3] são opcionais — se não realizados, $L_a$ e $L_f$ são estimados
+por heurística ($L_a = R_a \\cdot 0{,}8$; $L_f = R_f \\cdot 0{,}1$).
+            """)
+
+            st.markdown("### [1a] Ensaio CC — Resistência da Armadura")
+            st.markdown("""
+**Objetivo.** Medir $R_a$ com o motor parado e desconectado da alimentação CC de operação.
+
+**Equipamento.** Fonte CC ajustável, voltímetro CC, amperímetro CC.
+
+**Procedimento (IEEE 113 Sec. 3):**
+1. Garanta o motor **frio** (à temperatura ambiente) — a resistência varia ~0,4%/°C.
+2. Conecte a fonte CC entre os **dois terminais de armadura** (A1–A2).
+3. Eleve a tensão até a corrente atingir aproximadamente **25% de $I_n$**.
+4. Aguarde **1 minuto** para estabilização térmica.
+5. Anote $V_{dc,a}$ e $I_{dc,a}$ simultaneamente.
+
+**Fórmula aplicada:**
+
+$$R_a = \\frac{V_{dc,a}}{I_{dc,a}}$$
+
+**Dicas práticas:**
+- Não exceda 25% de $I_n$ — correntes maiores aquecem a armadura e falseiam $R_a$.
+- Repita o ensaio em **3 posições distintas do comutador** e use a média — evita erros de contato de escova.
+- Valor típico: 0,01–5 Ω, conforme a potência e tensão nominal do motor.
+            """)
+
+            st.markdown("### [1b] Ensaio CC — Resistência do Campo (excitação separada)")
+            st.markdown("""
+**Objetivo.** Medir $R_f$ com o circuito de campo isolado da armadura.
+
+**Equipamento.** Fonte CC ajustável, voltímetro CC, amperímetro CC.
+
+**Procedimento (IEEE 113 Sec. 3):**
+1. Garanta o motor **frio** — desconecte a alimentação de armadura.
+2. Conecte a fonte CC entre os **terminais de campo** (F1–F2).
+3. Eleve a tensão até a corrente atingir aproximadamente **25% de $I_{f,n}$**.
+4. Aguarde **1 minuto** para estabilização térmica.
+5. Anote $V_{dc,f}$ e $I_{dc,f}$ simultaneamente.
+
+**Fórmula aplicada:**
+
+$$R_f = \\frac{V_{dc,f}}{I_{dc,f}}$$
+
+**Nota:** Para excitação **shunt**, $R_f$ é calculado a partir do ensaio a vazio: $R_f = V_{a,nl}/I_{fd,nl}$.
+
+**Dicas práticas:**
+- Valor típico: 10–500 Ω para excitação separada (alta resistência, baixa corrente).
+- Para motores shunt, o ensaio direto também é válido e mais preciso.
+            """)
+
+            st.markdown("### [2] Ensaio CA — Indutância de Armadura (Sec. 7.5.1)")
+            st.markdown("""
+**Objetivo.** Medir $L_a$ por impedância CA com o rotor travado mecanicamente.
+
+**Equipamento.** Fonte CA monofásica ajustável (50 ou 60 Hz), voltímetro CA, amperímetro CA,
+osciloscópio ou wattímetro (para medição do ângulo de fase).
+
+**Procedimento (IEEE 113 Sec. 7.5.1):**
+1. **Trave o rotor** mecanicamente — não pode girar durante o ensaio.
+2. **Curto-circuite o enrolamento de campo** (shunt) para evitar sobretensões induzidas.
+3. Aplique tensão CA monofásica entre os terminais de armadura (A1–A2).
+4. Limite a corrente CA a **≤ 20% de $I_n$** para evitar superaquecimento das escovas.
+5. Meça $V_{ac}$, $I_{ac}$ e o ângulo de fase $\\theta$ entre tensão e corrente.
+
+**Fórmula aplicada (IEEE 113 Sec. 7.5.1):**
+
+$$L_a = \\frac{V_{ac} \\cdot \\sin\\theta}{I_{ac} \\cdot 2\\pi f}$$
+
+**Dicas práticas:**
+- Use osciloscópio para observar a forma de onda e medir $\\theta$ com precisão.
+- Alternativamente, use wattímetro: $\\cos\\theta = P/(V_{ac}\\cdot I_{ac})$, logo $\\sin\\theta = \\sqrt{1 - \\cos^2\\theta}$.
+- Execute o ensaio rapidamente — corrente CA aquece escovas e comutador.
+- Se o ângulo $\\theta = 0$, a indutância é desprezível — verifique o circuito.
+            """)
+
+            st.markdown("### [3] Ensaio de Degrau — Indutância de Campo (Sec. 7.5.3)")
+            st.markdown("""
+**Objetivo.** Medir $L_f$ a partir da constante de tempo de campo $\\tau_f$ (excitação separada).
+
+**Equipamento.** Fonte CC ajustável, osciloscópio ou registrador, interruptor rápido.
+
+**Procedimento (IEEE 113 Sec. 7.5.3):**
+1. Acione o motor à velocidade nominal em pleno campo (armadura aberta ou em vazio).
+2. Reduza a tensão de campo para ~50% do valor nominal.
+3. **Abra o circuito de campo** e ajuste a fonte para o valor nominal $V_f$.
+4. **Feche abruptamente** o circuito — aplique degrau de tensão ao campo.
+5. Registre $i_f(t)$ com osciloscópio e determine $\\tau_f$ = tempo para atingir **63,2%** de $I_{f,final}$.
+
+**Fórmula aplicada (IEEE 113 Sec. 7.5.3):**
+
+$$L_f = R_f \\cdot \\tau_f$$
+
+**Dicas práticas:**
+- Ciclar o campo duas vezes entre 50% e 100% antes do ensaio para estabilizar a saturação.
+- A norma define também $L_{f,ef}$ usando a tensão de armadura como indicador de fluxo — mais precisa em máquinas saturadas.
+- Valor típico: $\\tau_f$ = 0,1–2 s para motores industriais de excitação separada.
+            """)
+
+            st.markdown("### [4] Ensaio a Vazio — Constante de Máquina")
+            st.markdown("""
+**Objetivo.** Determinar $k_b$ e $E_{a,nl}$ operando o motor **sem carga mecânica no eixo**
+em tensão e velocidade nominais.
+
+**Equipamento.** Fonte CC de armadura ajustável, fonte CC de campo (excitação separada),
+voltímetro CC, amperímetro CC, tacômetro.
+
+**Procedimento (IEEE 113 Sec. 4):**
+1. **Desacople** qualquer carga mecânica do eixo (motor gira livre).
+2. Aplique a tensão de armadura nominal $V_{a,nom}$ e a corrente de campo nominal $I_{fd,nom}$.
+3. Deixe o motor estabilizar em velocidade (regime permanente).
+4. Anote $V_{a,nl}$, $I_{a,nl}$, $I_{fd,nl}$ e $n_{nl}$ (RPM).
+
+**Fórmulas aplicadas:**
+
+$$E_{a,nl} = V_{a,nl} - R_a \\cdot I_{a,nl}$$
+
+$$k_b = \\frac{E_{a,nl}}{I_{fd,nl} \\cdot \\omega_{nl}}, \\quad \\omega_{nl} = \\frac{2\\pi \\cdot n_{nl}}{60}$$
+
+**Sobre a indutância $L_a$:**
+- $L_a$ não é determinada diretamente por ensaio a vazio.
+- O estimador adota a heurística IEEE 113: $\\tau_a = L_a/R_a \\approx 10\\text{–}50\\,\\text{ms}$ para máquinas industriais.
+- Para medição direta, aplique degrau de tensão à armadura (motor travado) e meça a constante de tempo da corrente.
+
+**Dicas práticas:**
+- $I_{a,nl}$ típica: 5–15% de $I_n$ (perdas em vazio dominadas por atrito e ventilação).
+- Motores com **saturação magnética** têm $k_b$ variável com $I_{fd}$ — o ensaio fornece o valor na região nominal.
+- Para excitação **shunt**, $I_{fd} = V_a / R_f$ — verificar consistência com $R_f$ medido.
+            """)
+
+            st.markdown("---")
+            st.markdown("""
+**Referências bibliográficas:**
+- IEEE Std 113-1985 — *Guide on Test Procedures for DC Machines*, Sec. 4.2 (resistência), Sec. 5.6 (vazio), Sec. 7.5 (indutância).
+- Sen, P. C. — *Principles of Electric Machines and Power Electronics*, 3ª ed., §7.3 ("Testing of DC Machines").
+- Chapman, S. J. — *Máquinas Elétricas*, 5ª ed., §8.5 ("Determinação dos Parâmetros do Motor CC").
+            """)
+
+        _pgroup("Ensaio de Resistência CC — Armadura (IEEE 113 Sec. 3)")
         e1, e2 = st.columns(2)
         _wi("wi_dc_V_dc_test", 1.0)
         _wi("wi_dc_I_dc_test", 0.1)
-        V_dc_t = e1.number_input("$V_{dc}$ (V)", min_value=0.001, key="wi_dc_V_dc_test", format="%.3f")
-        I_dc_t = e2.number_input("$I_{dc}$ (A)", min_value=0.001, key="wi_dc_I_dc_test", format="%.3f")
-        # Preview em tempo real de Ra
+        V_dc_t = e1.number_input("$V_{dc,a}$ (V)", min_value=0.001, key="wi_dc_V_dc_test", format="%.3f")
+        I_dc_t = e2.number_input("$I_{dc,a}$ (A)", min_value=0.001, key="wi_dc_I_dc_test", format="%.3f")
         _Ra_preview = V_dc_t / max(I_dc_t, 1e-9)
         st.caption(f"→ $R_a$ ≈ **{_Ra_preview:.4f} Ω**")
 
-        _pgroup("Ensaio a Vazio")
+        # Ensaio CC de campo — só para excitação separada (IEEE 113 Sec. 3, terminais F1–F2)
+        _is_sep_test = exc in ("sep_motor", "sep_gen")
+        V_dc_f_t = 0.0
+        I_dc_f_t = 0.0
+        if _is_sep_test:
+            _pgroup("Ensaio de Resistência CC — Campo (IEEE 113 Sec. 3)")
+            f1, f2 = st.columns(2)
+            _wi("wi_dc_V_dc_f_test", 1.0)
+            _wi("wi_dc_I_dc_f_test", 0.1)
+            V_dc_f_t = f1.number_input("$V_{dc,f}$ (V)", min_value=0.001, key="wi_dc_V_dc_f_test", format="%.3f")
+            I_dc_f_t = f2.number_input("$I_{dc,f}$ (A)", min_value=0.001, key="wi_dc_I_dc_f_test", format="%.3f")
+            _Rf_preview = V_dc_f_t / max(I_dc_f_t, 1e-9)
+            st.caption(f"→ $R_f$ ≈ **{_Rf_preview:.4f} Ω**")
+
+        # Ensaio CA de indutância de armadura (IEEE 113 Sec. 7.5.1)
+        _pgroup("Ensaio CA — Indutância de Armadura (IEEE 113 Sec. 7.5.1)")
+        h1, h2, h3, h4 = st.columns(4)
+        _wi("wi_dc_V_ac_test",    0.0)
+        _wi("wi_dc_I_ac_test",    0.0)
+        _wi("wi_dc_theta_test",   0.0)
+        _wi("wi_dc_f_ac_test",   60.0)
+        V_ac_t     = h1.number_input("$V_{ac}$ (V)",   min_value=0.0, key="wi_dc_V_ac_test",  format="%.3f",
+                                     help="Tensão CA aplicada à armadura (rotor travado, campo curto-circuitado). 0 = usar heurística.")
+        I_ac_t     = h2.number_input("$I_{ac}$ (A)",   min_value=0.0, key="wi_dc_I_ac_test",  format="%.3f",
+                                     help="Corrente CA medida (≤ 20% de I_n conforme IEEE 113).")
+        theta_t    = h3.number_input("$\\theta$ (°)",  min_value=0.0, max_value=90.0, key="wi_dc_theta_test", format="%.1f",
+                                     help="Ângulo de fase entre V e I medido por osciloscópio ou wattímetro.")
+        f_ac_t     = h4.number_input("$f_{ac}$ (Hz)",  min_value=1.0, key="wi_dc_f_ac_test",  format="%.1f",
+                                     help="Frequência da fonte CA (50 ou 60 Hz conforme IEEE 113).")
+        if V_ac_t > 1e-9 and I_ac_t > 1e-9 and theta_t > 0.1:
+            import math as _math
+            _La_prev = V_ac_t * _math.sin(_math.radians(theta_t)) / (I_ac_t * 2 * _math.pi * max(f_ac_t, 1.0))
+            st.caption(f"→ $L_a$ ≈ **{_La_prev*1000:.3f} mH**")
+        else:
+            st.caption("→ $L_a$: heurística ($R_a \\cdot 0{,}8$) — informe $V_{{ac}}$, $I_{{ac}}$, $\\theta$ para cálculo IEEE 113.")
+
+        # Ensaio de degrau de campo — indutância de campo (IEEE 113 Sec. 7.5.3)
+        if _is_sep_test:
+            _pgroup("Ensaio de Degrau — Indutância de Campo (IEEE 113 Sec. 7.5.3)")
+            _wi("wi_dc_tau_f_ms_test", 0.0)
+            tau_f_t = st.number_input(
+                "$\\tau_f$ medido (ms)", min_value=0.0, key="wi_dc_tau_f_ms_test", format="%.1f",
+                help="Tempo para 63,2% da corrente de campo final após degrau de tensão. 0 = usar heurística (Rf·0,1).",
+            )
+            if tau_f_t > 1e-3:
+                _Rf_prev = V_dc_f_t / max(I_dc_f_t, 1e-9)
+                _Lf_prev = _Rf_prev * (tau_f_t / 1000.0)
+                st.caption(f"→ $L_f$ ≈ **{_Lf_prev:.5f} H**  ($R_f \\cdot \\tau_f$ = {_Rf_prev:.4f}·{tau_f_t/1000:.4f})")
+            else:
+                st.caption("→ $L_f$: heurística ($R_f \\cdot 0{,}1$) — informe $\\tau_f$ para cálculo IEEE 113.")
+        else:
+            tau_f_t = 0.0
+
+        _pgroup("Ensaio a Vazio (IEEE 113 Sec. 5.6)")
         g1, g2, g3, g4 = st.columns(4)
         _wi("wi_dc_V_nl_test",  24.0)
         _wi("wi_dc_I_nl_test",  0.05)
@@ -295,65 +500,128 @@ def render_dc_machine_params(dark: bool, experiment_mode: bool) -> tuple[DCMachi
         I_nl_t  = g2.number_input("$I_{a,nl}$ (A)",    min_value=0.001, key="wi_dc_I_nl_test",  format="%.3f")
         If_nl_t = g3.number_input("$I_{fd,nl}$ (A)",   min_value=0.001, key="wi_dc_If_nl_test", format="%.3f")
         n_nl_t  = g4.number_input("$n_{nl}$ (RPM)",    min_value=1.0,   key="wi_dc_n_nl_test",  format="%.1f")
-        est = estimate_dc_tests(V_dc_t, I_dc_t, V_nl_t, I_nl_t, If_nl_t, n_nl_t, exc)
-        for fld, wk in [("Ra","wi_dc_Ra"),("La","wi_dc_La"),("kb","wi_dc_kb"),("Lf","wi_dc_Lf")]:
+        est = estimate_dc_tests(
+            V_dc_t, I_dc_t, V_nl_t, I_nl_t, If_nl_t, n_nl_t, exc,
+            V_dc_f=V_dc_f_t, I_dc_f=I_dc_f_t,
+            V_ac=V_ac_t, I_ac=I_ac_t, theta_deg=theta_t, f_ac=f_ac_t,
+            tau_f_ms=tau_f_t,
+        )
+        for fld, wk in [("Ra","wi_dc_Ra"),("La","wi_dc_La"),("kb","wi_dc_kb"),
+                        ("Lf","wi_dc_Lf"),("Rf","wi_dc_Rf")]:
             if fld in est:
                 st.session_state[wk] = est[fld]
 
         # Expander de Detalhes do Cálculo
-        with st.expander("Detalhes do Cálculo", expanded=True):
-            _dc_c1, _dc_c2 = st.columns(2)
-            with _dc_c1:
-                st.markdown("**Ensaio CC**")
-                st.metric("Ra (Ω)",  f"{est['Ra']:.4f}")
-                st.metric("La (H)",  f"{est['La']:.5f}")
-                _tau_a = est["La"] / max(est["Ra"], 1e-9)
-                st.metric("τ_a = La/Ra (ms)", f"{_tau_a * 1000:.2f}")
-            with _dc_c2:
+        with st.expander("Detalhes do Cálculo (IEEE Std 113-1985)", expanded=True):
+            # Cabeçalho — método e configuração
+            _exc_label_map = {
+                "sep_motor": "Excitação separada (motor)",
+                "sep_gen":   "Excitação separada (gerador)",
+                "shunt":     "Shunt",
+                "series_motor": "Série",
+            }
+            st.markdown(
+                f"**Método:** IEEE Std 113-1985 — dois ensaios físicos. "
+                f"**Configuração:** {_exc_label_map.get(exc, exc)}."
+            )
+
+            # ── Ensaios físicos: duas ou três colunas lado a lado ────
+            st.markdown("##### Ensaios físicos")
+            _has_rf = "Rf" in est
+            _t1, _t2, *_t3 = st.columns(3 if _has_rf else 2)
+            with _t1:
+                st.markdown("**Ensaio CC — Armadura**")
+                st.markdown(f"$R_a$ = **{est['Ra']:.4f} Ω**")
+                st.caption(f"via $V_{{dc,a}}/I_{{dc,a}}$ = {V_dc_t / max(I_dc_t, 1e-9):.4f} Ω")
+            if _has_rf and _t3:
+                with _t3[0]:
+                    st.markdown("**Ensaio CC — Campo**")
+                    st.markdown(f"$R_f$ = **{est['Rf']:.4f} Ω**")
+                    st.caption(f"via $V_{{dc,f}}/I_{{dc,f}}$ = {V_dc_f_t / max(I_dc_f_t, 1e-9):.4f} Ω")
+            with _t2:
                 st.markdown("**Ensaio a Vazio**")
                 _wm_nl = n_nl_t * (2 * 3.14159265 / 60)
-                st.metric("Ea_nl (V)",       f"{est['Ea_nl']:.3f}")
-                st.metric("kb (V·s/rad)",    f"{est['kb']:.5f}")
-                st.metric("ω_nl (rad/s)",    f"{_wm_nl:.2f}")
-                _Lf_est = est.get("Lf", 0)
+                st.markdown(
+                    f"$E_{{a,nl}}$ = **{est['Ea_nl']:.3f} V**  \n"
+                    f"$\\omega_{{nl}}$ = **{_wm_nl:.2f} rad/s**  \n"
+                    f"$k_b$ = **{est['kb']:.5f} V·s/rad**"
+                )
+                st.caption(
+                    f"via $E_{{a,nl}} = V_{{a,nl}} - R_a \\cdot I_{{a,nl}}$ "
+                    f"= {V_nl_t:.3f} − {est['Ra']:.4f}·{I_nl_t:.3f}"
+                )
+
+            st.divider()
+
+            # ── Indicadores intermediários ───────────────────────────
+            st.markdown("##### Indicadores intermediários")
+            _tau_a = est["La"] / max(est["Ra"], 1e-9)
+            _im_c1, _im_c2, _im_c3, _im_c4 = st.columns(4)
+            _im_c1.metric("Ea_nl (V)",        f"{est['Ea_nl']:.3f}")
+            _im_c2.metric("ω_nl (rad/s)",     f"{_wm_nl:.2f}")
+            _im_c3.metric("τ_a = La/Ra (ms)", f"{_tau_a * 1000:.2f}")
+            if exc in ("sep_motor", "sep_gen"):
+                _Lf_est = est.get("Lf", 0.0)
                 _Rf_est = float(st.session_state.get("wi_dc_Rf", 1.0))
-                if exc in ("sep_motor", "sep_gen"):
-                    _tau_f = _Lf_est / max(_Rf_est, 1e-9)
-                    st.metric("τ_f = Lf/Rf (ms)", f"{_tau_f * 1000:.2f}")
+                _tau_f = _Lf_est / max(_Rf_est, 1e-9)
+                _im_c4.metric("τ_f = Lf/Rf (ms)", f"{_tau_f * 1000:.2f}")
+
+            # ── Parâmetros estimados ──────────────────────────────────
+            st.markdown("##### Parâmetros estimados (circuito equivalente)")
+            _p1 = st.columns(3)
+            _p1[0].metric("Ra (Ω)",       f"{est['Ra']:.4f}")
+            _p1[1].metric("La (H)",       f"{est['La']:.5f}")
+            _p1[2].metric("kb (V·s/rad)", f"{est['kb']:.5f}")
+            if exc in ("sep_motor", "sep_gen"):
+                _p2 = st.columns(3)
+                _p2[0].metric("Lf (H)",   f"{est.get('Lf', 0):.5f}")
+                _p2[1].metric("Rf (Ω)",   f"{est.get('Rf', 0):.4f}" if "Rf" in est else "—")
+                _p2[2].metric("If_nl (A)", f"{If_nl_t:.4f}")
+            elif exc == "shunt_motor" and "Rf" in est:
+                _p2 = st.columns(3)
+                _p2[0].metric("Lf (H)",  f"{est.get('Lf', 0):.5f}")
+                _p2[1].metric("Rf (Ω)",  f"{est['Rf']:.4f}")
+                _p2[2].metric("If_nl (A)", f"{If_nl_t:.4f}")
+
             # Avisos de sanidade
             if est["kb"] <= 0:
                 st.error("$k_b$ ≤ 0 — impossível. Verifique $V_{a,nl}$, $R_a$ e $I_{a,nl}$.")
             if est["Ra"] / max(V_nl_t, 1e-6) > 0.3:
                 st.warning("$R_a/V_{a,nl}$ > 30 % — Ra parece elevado para esta tensão de operação.")
 
-        if st.button("✔ Usar estes parâmetros na simulação", key="btn_dc_use_tests"):
+        if st.button(
+            "✔ Usar estes parâmetros na simulação",
+            key="btn_dc_use_tests",
+            help="Copia os parâmetros estimados para o modo Manual, permitindo ajustes antes de simular.",
+        ):
             for fld, wk in [("Ra","wi_dc_Ra"),("La","wi_dc_La"),("kb","wi_dc_kb"),("Lf","wi_dc_Lf")]:
                 if fld in est:
                     st.session_state[wk] = est[fld]
-            st.session_state["wi_dc_input_mode"] = "Manual"
+            st.session_state["wi_dc_input_mode"] = "Inserir parâmetros manualmente"
             st.rerun()
 
-    # ── Preset loader — filtrado por excitação ───────────────────────────────
-    if st.session_state.pop("_dc_reset_preset", False):
-        st.session_state["wi_dc_preset"] = "— Selecionar preset —"
+    # ── Preset loader — só no modo manual (estimadores têm própria fonte de dados) ──
+    if input_mode == "Inserir parâmetros manualmente":
+        if st.session_state.pop("_dc_reset_preset", False):
+            st.session_state["wi_dc_preset"] = "— Selecionar preset —"
 
-    _presets_exc = _PRESETS_BY_EXC.get(exc, {})
-    _preset_names = ["— Selecionar preset —"] + list(_presets_exc.keys())
-    pc1, pc2 = st.columns([3, 1], vertical_alignment="bottom")
-    with pc1:
-        preset_sel = st.selectbox(
-            "Preset", _preset_names, key="wi_dc_preset",
-            label_visibility="collapsed",
-            disabled=experiment_mode,
-        )
-    with pc2:
-        if st.button("Carregar", key="btn_dc_load_preset", width="stretch",
-                     disabled=(preset_sel == "— Selecionar preset —" or experiment_mode)):
-            ps = _presets_exc[preset_sel]
-            for k, v in ps.items():
-                st.session_state[f"wi_dc_{k}"] = v
-            st.session_state["_dc_reset_preset"] = True
-            st.rerun()
+        _presets_exc = _PRESETS_BY_EXC.get(exc, {})
+        _preset_names = ["— Selecionar preset —"] + list(_presets_exc.keys())
+        pc1, pc2 = st.columns([3, 1], vertical_alignment="bottom")
+        with pc1:
+            preset_sel = st.selectbox(
+                "Preset", _preset_names, key="wi_dc_preset",
+                label_visibility="collapsed",
+                disabled=experiment_mode,
+            )
+        with pc2:
+            if st.button("Carregar", key="btn_dc_load_preset", width="stretch",
+                         disabled=(preset_sel == "— Selecionar preset —" or experiment_mode)):
+                ps = _presets_exc[preset_sel]
+                for k, v in ps.items():
+                    st.session_state[f"wi_dc_{k}"] = v
+                st.session_state["_dc_reset_preset"] = True
+                st.rerun()
 
     is_gen    = exc in ("sep_gen", "shunt_gen")
     is_sep    = exc in ("sep_motor", "sep_gen")
@@ -429,69 +697,122 @@ def render_dc_machine_params(dark: bool, experiment_mode: bool) -> tuple[DCMachi
         _wi("wi_dc_B",     1.074e-6)
         _wi("wi_dc_Tload", 2.493)
 
-        # Grupo armadura
-        _pgroup("Dados de Armadura")
-        va = st.number_input(
-            "Tensão de armadura — $V_a$ (V)",
-            min_value=0.0, key="wi_dc_Va", format="%.3f",
-            help="Tensão CC aplicada ao enrolamento de armadura.",
-        )
-        ra = st.number_input(
-            "Resistência de armadura — $R_a$ (Ω)",
-            min_value=1e-6, key="wi_dc_Ra", format="%.4f",
-            help="Resistência do enrolamento de armadura (inclui escovas). Afeta perdas Joule e corrente de partida.",
-        )
-        la = st.number_input(
-            "Indutância de armadura — $L_a$ (H)",
-            min_value=1e-6, key="wi_dc_La", format="%.4f",
-            help="Indutância do circuito de armadura. Determina a constante de tempo elétrica τ_a = L_a / R_a.",
-        )
-        kb = st.number_input(
-            "Constante de fcem — $k_b$ (V·s/rad)",
-            min_value=1e-6, key="wi_dc_kb", format="%.4f",
-            help="Relaciona fcem (Ea) e velocidade angular: Ea = kb · ωm. Também igual à constante de torque kt.",
-        )
-        st.markdown('</div>', unsafe_allow_html=True)
+        _is_manual    = (input_mode == "Inserir parâmetros manualmente")
+        _is_nameplate = (input_mode == "Estimar por dados de placa (Nameplate)")
+        _is_ieee      = (input_mode == "Determinar por Ensaios IEEE 113")
 
-        # Grupo campo (sep e shunt — não série)
-        if not is_series:
-            _pgroup("Dados de Campo")
-            if is_sep:
-                vf = st.number_input(
-                    "Tensão de campo — $V_f$ (V)",
-                    min_value=0.0, key="wi_dc_Vf", format="%.3f",
-                    help="Tensão da fonte independente de campo (excitação separada).",
+        if _is_manual:
+            # ── Grupo armadura completo ──────────────────────────────
+            _pgroup("Dados de Armadura")
+            va = st.number_input(
+                "Tensão de armadura — $V_a$ (V)",
+                min_value=0.0, key="wi_dc_Va", format="%.3f",
+                help="Tensão CC aplicada ao enrolamento de armadura.",
+            )
+            ra = st.number_input(
+                "Resistência de armadura — $R_a$ (Ω)",
+                min_value=1e-6, key="wi_dc_Ra", format="%.4f",
+                help="Resistência do enrolamento de armadura (inclui escovas). Afeta perdas Joule e corrente de partida.",
+            )
+            la = st.number_input(
+                "Indutância de armadura — $L_a$ (H)",
+                min_value=1e-6, key="wi_dc_La", format="%.4f",
+                help="Indutância do circuito de armadura. Determina a constante de tempo elétrica τ_a = L_a / R_a.",
+            )
+            kb = st.number_input(
+                "Constante de fcem — $k_b$ (V·s/rad)",
+                min_value=1e-6, key="wi_dc_kb", format="%.4f",
+                help="Relaciona fcem (Ea) e velocidade angular: Ea = kb · ωm. Também igual à constante de torque kt.",
+            )
+            st.markdown('</div>', unsafe_allow_html=True)
+
+            # ── Grupo campo ──────────────────────────────────────────
+            if not is_series:
+                _pgroup("Dados de Campo")
+                if is_sep:
+                    vf = st.number_input(
+                        "Tensão de campo — $V_f$ (V)",
+                        min_value=0.0, key="wi_dc_Vf", format="%.3f",
+                        help="Tensão da fonte independente de campo (excitação separada).",
+                    )
+                else:
+                    vf = va
+                    st.caption("Shunt: $V_f = V_a$ (fixo — campo em paralelo com a armadura)")
+                rf = st.number_input(
+                    "Resistência de campo — $R_f$ (Ω)",
+                    min_value=1e-6, key="wi_dc_Rf", format="%.4f",
+                    help="Resistência total do circuito de campo (enrolamento + reostato de campo).",
                 )
+                lf = st.number_input(
+                    "Indutância de campo — $L_f$ (H)",
+                    min_value=1e-6, key="wi_dc_Lf", format="%.4f",
+                    help="Indutância do enrolamento de campo. Determina τ_f = L_f / R_f.",
+                )
+                st.markdown('</div>', unsafe_allow_html=True)
             else:
-                vf = va   # shunt: Vf = Va
-                st.caption("Shunt: $V_f = V_a$ (fixo — campo em paralelo com a armadura)")
-            rf = st.number_input(
-                "Resistência de campo — $R_f$ (Ω)",
-                min_value=1e-6, key="wi_dc_Rf", format="%.4f",
-                help="Resistência total do circuito de campo (enrolamento + reostato de campo).",
-            )
-            lf = st.number_input(
-                "Indutância de campo — $L_f$ (H)",
-                min_value=1e-6, key="wi_dc_Lf", format="%.4f",
-                help="Indutância do enrolamento de campo. Determina τ_f = L_f / R_f.",
-            )
-            st.markdown('</div>', unsafe_allow_html=True)
-        else:
-            _pgroup("Campo (série com armadura)")
-            rf = st.number_input(
-                "Resistência do campo série — $R_s$ (Ω)",
-                min_value=1e-6, key="wi_dc_Rf", format="%.4f",
-                help="Resistência do enrolamento de campo série (em série com a armadura).",
-            )
-            lf = st.number_input(
-                "Indutância do campo série — $L_s$ (H)",
-                min_value=1e-6, key="wi_dc_Lf", format="%.4f",
-                help="Indutância do enrolamento de campo série.",
-            )
-            vf = 0.0
-            st.markdown('</div>', unsafe_allow_html=True)
+                _pgroup("Campo (série com armadura)")
+                rf = st.number_input(
+                    "Resistência do campo série — $R_s$ (Ω)",
+                    min_value=1e-6, key="wi_dc_Rf", format="%.4f",
+                    help="Resistência do enrolamento de campo série (em série com a armadura).",
+                )
+                lf = st.number_input(
+                    "Indutância do campo série — $L_s$ (H)",
+                    min_value=1e-6, key="wi_dc_Lf", format="%.4f",
+                    help="Indutância do enrolamento de campo série.",
+                )
+                vf = 0.0
+                st.markdown('</div>', unsafe_allow_html=True)
 
-        # Grupo carga elétrica (geradores)
+        else:
+            # Ra, La, kb, Lf estimados em ambos os modos — ler silenciosamente
+            ra = float(st.session_state.get("wi_dc_Ra", 0.013))
+            la = float(st.session_state.get("wi_dc_La", 0.01))
+            kb = float(st.session_state.get("wi_dc_kb", 0.004))
+            lf = float(st.session_state.get("wi_dc_Lf", 0.167))
+
+            if _is_nameplate:
+                # Nameplate estima tudo elétrico — ler Va, Vf, Rf silenciosamente
+                va = float(st.session_state.get("wi_dc_Va", 24.0))
+                rf = float(st.session_state.get("wi_dc_Rf", 1.43))
+                vf = float(st.session_state.get("wi_dc_Vf", va if not is_sep else 12.0))
+            else:
+                # IEEE 113: Va e Vf não estimados — editáveis; Rf estimado pelo ensaio CC campo
+                _pgroup("Dados de Armadura")
+                va = st.number_input(
+                    "Tensão de armadura — $V_a$ (V)",
+                    min_value=0.0, key="wi_dc_Va", format="%.3f",
+                    help="Tensão CC aplicada ao enrolamento de armadura.",
+                )
+                st.markdown('</div>', unsafe_allow_html=True)
+
+                if not is_series:
+                    _pgroup("Dados de Campo")
+                    if is_sep:
+                        vf = st.number_input(
+                            "Tensão de campo — $V_f$ (V)",
+                            min_value=0.0, key="wi_dc_Vf", format="%.3f",
+                            help="Tensão da fonte independente de campo (excitação separada).",
+                        )
+                        # Rf estimado pelo ensaio CC campo — ler silenciosamente
+                        rf = float(st.session_state.get("wi_dc_Rf", 1.43))
+                    else:
+                        vf = va
+                        st.caption("Shunt: $V_f = V_a$ (fixo — campo em paralelo com a armadura)")
+                        # Rf estimado via V_nl/If_nl — ler silenciosamente
+                        rf = float(st.session_state.get("wi_dc_Rf", 1.43))
+                    st.markdown('</div>', unsafe_allow_html=True)
+                else:
+                    _pgroup("Campo (série com armadura)")
+                    rf = st.number_input(
+                        "Resistência do campo série — $R_s$ (Ω)",
+                        min_value=1e-6, key="wi_dc_Rf", format="%.4f",
+                        help="Resistência do enrolamento de campo série (em série com a armadura).",
+                    )
+                    vf = 0.0
+                    st.markdown('</div>', unsafe_allow_html=True)
+
+        # Grupo carga elétrica (geradores) — não estimado, sempre visível
         if is_gen:
             _pgroup("Carga Elétrica")
             rl = st.number_input(
@@ -509,24 +830,30 @@ def render_dc_machine_params(dark: bool, experiment_mode: bool) -> tuple[DCMachi
             rl = float(st.session_state.get("wi_dc_Rl", 0.0))
             ll = float(st.session_state.get("wi_dc_Ll", 0.0))
 
-        # Grupo mecânico
-        _pgroup("Dados Mecânicos")
-        J = st.number_input(
-            "Momento de inércia — $J$ (kg·m²)",
-            min_value=1e-6, key="wi_dc_J", format="%.4f",
-            help="Inércia total do conjunto motor + carga. Determina τ_m = J·Ra / kb².",
-        )
-        B = st.number_input(
-            "Coef. de atrito viscoso — $B$ (N·m·s/rad)",
-            min_value=0.0, key="wi_dc_B", format="%.2e",
-            help="Coeficiente de atrito viscoso (friccional). Tipicamente muito pequeno.",
-        )
-        Tload = st.number_input(
-            "Torque de carga — $T_l$ (N·m)",
-            min_value=0.0, key="wi_dc_Tload", format="%.4f",
-            help="Torque resistente de regime permanente aplicado ao eixo.",
-        )
-        st.markdown('</div>', unsafe_allow_html=True)
+        # Grupo mecânico — Nameplate estima J e B; IEEE não estima nenhum
+        if _is_nameplate:
+            J     = float(st.session_state.get("wi_dc_J",     0.21))
+            B     = float(st.session_state.get("wi_dc_B",     1.074e-6))
+            Tload = float(st.session_state.get("wi_dc_Tload", 2.493))
+        else:
+            # Manual e Ensaios: J, B, Tload editáveis
+            _pgroup("Dados Mecânicos")
+            J = st.number_input(
+                "Momento de inércia — $J$ (kg·m²)",
+                min_value=1e-6, key="wi_dc_J", format="%.4f",
+                help="Inércia total do conjunto motor + carga. Determina τ_m = J·Ra / kb².",
+            )
+            B = st.number_input(
+                "Coef. de atrito viscoso — $B$ (N·m·s/rad)",
+                min_value=0.0, key="wi_dc_B", format="%.2e",
+                help="Coeficiente de atrito viscoso (friccional). Tipicamente muito pequeno.",
+            )
+            Tload = st.number_input(
+                "Torque de carga — $T_l$ (N·m)",
+                min_value=0.0, key="wi_dc_Tload", format="%.4f",
+                help="Torque resistente de regime permanente aplicado ao eixo.",
+            )
+            st.markdown('</div>', unsafe_allow_html=True)
 
         # Métricas derivadas
         _tau_a_ms = (la / max(ra, 1e-9)) * 1000
@@ -661,17 +988,89 @@ def render_experiment_config_dc(
             f"motor acelera até o regime permanente com carga de {_Tl_ref:.3f} N·m."
         )
 
-    elif mode == "plugging_dc":
-        _wi("wi_dc_t_freia", 3.0)
-        exp_config["t_freia"]  = st.number_input("Instante de reversão — $t_{freia}$ (s)", min_value=0.1, key="wi_dc_t_freia", format="%.2f")
-        exp_config["Tl_final"] = _Tl_ref
-        tmax_def = exp_config["t_freia"] * 2.5
-        h_def    = 1e-3
-        _ibox(
-            f"<strong>t = 0 s</strong> — motor parte em sentido positivo com carga de {_Tl_ref:.3f} N·m.<br>"
-            f"<strong>t = {exp_config['t_freia']:.2f} s</strong> — polaridade de armadura invertida (plugging); "
-            f"torque de frenagem somado à carga; rotor desacelera e inverte o sentido de rotação."
+    elif mode == "frenagem_dc":
+        brake_labels = list(_BRAKE_LABELS.values())
+        brake_keys   = list(_BRAKE_LABELS.keys())
+        _wi("wi_dc_brake_method", brake_labels[0])
+        brake_sel = st.selectbox(
+            "Método de Frenagem", brake_labels,
+            index=brake_labels.index(st.session_state.get("wi_dc_brake_method", brake_labels[0])),
+            key="wi_dc_brake_method",
         )
+        brake = brake_keys[brake_labels.index(brake_sel)]
+        exp_config["brake_method"] = brake
+        exp_config["Tl_final"]     = _Tl_ref
+
+        _BRAKE_DESC_DC = {
+            "plugging":    "Inverte a polaridade da tensão de armadura enquanto o motor ainda gira. "
+                           "Produz torque contrário ao movimento — frenagem muito rápida, mas com alta "
+                           "corrente de armadura e possível inversão de sentido se não houver chave de parada.",
+            "injecao_cc":  "Corta a alimentação de operação e injeta tensão CC reduzida na armadura. "
+                           "O fluxo de campo mantido produz torque de frenagem sem inverter o sentido. "
+                           "Frenagem suave e controlada — corrente limitada pela resistência de armadura.",
+            "regenerativo":"Reduz a tensão de armadura abaixo da fcem do motor. A corrente de armadura "
+                           "inverte — o motor opera como gerador, devolvendo energia à fonte. Frenagem "
+                           "suave; eficaz apenas em cargas com alta inércia ou velocidade elevada.",
+        }
+        st.info(_BRAKE_DESC_DC[brake])
+
+        if brake == "plugging":
+            _wi("wi_dc_t_freia", 3.0)
+            exp_config["t_freia"] = st.number_input(
+                "Instante de reversão — $t_{freia}$ (s)", min_value=0.1,
+                key="wi_dc_t_freia", format="%.2f",
+            )
+            tmax_def = exp_config["t_freia"] * 2.5
+            h_def    = 1e-3
+            _ibox(
+                f"<strong>t = 0 s</strong> — motor parte em sentido positivo com carga de {_Tl_ref:.3f} N·m.<br>"
+                f"<strong>t = {exp_config['t_freia']:.2f} s</strong> — polaridade de armadura invertida; "
+                f"torque de frenagem opõe-se ao movimento; rotor desacelera e inverte o sentido."
+            )
+
+        elif brake == "injecao_cc":
+            c1, c2 = st.columns(2)
+            _wi("wi_dc_t_freia",   3.0)
+            _wi("wi_dc_Vdc_inj",   mp.Va * 0.1)
+            exp_config["t_freia"]  = c1.number_input(
+                "Instante de corte — $t_{freia}$ (s)", min_value=0.1,
+                key="wi_dc_t_freia", format="%.2f",
+            )
+            exp_config["Vdc_inj"]  = c2.number_input(
+                "Tensão CC injetada — $V_{inj}$ (V)", min_value=0.0,
+                key="wi_dc_Vdc_inj", format="%.2f",
+                help="Tensão CC aplicada à armadura após corte da alimentação CA. Tipicamente 5–15% de Va.",
+            )
+            tmax_def = exp_config["t_freia"] * 2.5
+            h_def    = 1e-3
+            _ibox(
+                f"<strong>t = 0 s</strong> — motor opera em regime com carga de {_Tl_ref:.3f} N·m.<br>"
+                f"<strong>t = {exp_config['t_freia']:.2f} s</strong> — alimentação cortada; "
+                f"tensão CC de <strong>{exp_config['Vdc_inj']:.2f} V</strong> injetada na armadura; "
+                f"corrente produz torque oposto ao movimento — frenagem controlada sem inversão."
+            )
+
+        elif brake == "regenerativo":
+            c1, c2 = st.columns(2)
+            _wi("wi_dc_t_freia",  3.0)
+            _wi("wi_dc_Va_regen", mp.Va * 0.5)
+            exp_config["t_freia"]   = c1.number_input(
+                "Instante de frenagem — $t_{freia}$ (s)", min_value=0.1,
+                key="wi_dc_t_freia", format="%.2f",
+            )
+            exp_config["Va_regen"]  = c2.number_input(
+                "Tensão de armadura reduzida — $V_{a,regen}$ (V)", min_value=0.0,
+                key="wi_dc_Va_regen", format="%.2f",
+                help="Tensão abaixo da fcem — motor opera como gerador devolvendo energia.",
+            )
+            tmax_def = exp_config["t_freia"] * 2.5
+            h_def    = 1e-3
+            _ibox(
+                f"<strong>t = 0 s</strong> — motor opera em regime com carga de {_Tl_ref:.3f} N·m.<br>"
+                f"<strong>t = {exp_config['t_freia']:.2f} s</strong> — tensão de armadura reduzida para "
+                f"<strong>{exp_config['Va_regen']:.2f} V</strong> (abaixo da fcem); "
+                f"corrente inverte — motor opera como gerador, devolvendo energia à fonte."
+            )
 
     elif mode == "campo_fraco_dc":
         c1, c2, c3 = st.columns(3)
@@ -793,8 +1192,8 @@ def render_experiment_config_dc(
                 _critical_dc = [("aplicação da carga", "t_{carga}", exp_config.get("t_carga", 0))]
             elif mode == "resistencia_dc":
                 _critical_dc = [("remoção da resistência", "t_{rampa}", exp_config.get("t_ramp", 0))]
-            elif mode == "plugging_dc":
-                _critical_dc = [("reversão de polaridade", "t_{freia}", exp_config.get("t_freia", 0))]
+            elif mode == "frenagem_dc":
+                _critical_dc = [("frenagem", "t_{freia}", exp_config.get("t_freia", 0))]
             elif mode == "campo_fraco_dc":
                 _critical_dc = [("enfraquecimento de campo", "t_{campo}", exp_config.get("t_campo", 0))]
             elif mode == "pulso_dc":

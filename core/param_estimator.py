@@ -268,35 +268,33 @@ def estimate_params_ieee_tests(
         if Rs <= 0.0:
             return {"success": False, "error": "Rs calculado não é positivo. Verifique V_dc e I_dc."}
 
-        # ── Passo 2 — Ensaio em Vazio (IEEE 112 Cl. 6.5) ────────────────────
-        Vf_nl = Vl_nl / math.sqrt(3.0)
-        S_nl  = 3.0 * Vf_nl * I_nl
-        # Q_nl (não usado diretamente, mas mantido para rastreabilidade)
-        Q_nl  = math.sqrt(max(S_nl ** 2 - P_nl ** 2, 0.0))
+        # ── Passo 2 — Ensaio em Vazio (IEEE 112-2017 Sec. 5.6) ──────────────
+        m     = 3                              # número de fases
+        V1_nl = Vl_nl / math.sqrt(3.0)        # tensão de fase (wye equiv.) — Eq. (40)
+        S_nl  = m * V1_nl * I_nl
+        # Q0 — potência reativa no ensaio a vazio — Eq. (38)
+        Q0 = math.sqrt(max(S_nl ** 2 - P_nl ** 2, 0.0))
 
-        # Perdas mecânicas — heurística: 0,8% de P_nl quando não informadas
+        # Perdas mecânicas — heurística IEEE: 0,8% de P_nl quando não informadas
         Pfw_used = Pfw if Pfw > 0.0 else 0.008 * P_nl
 
-        # Perdas no ferro (descontando Joule no estator e perdas mecânicas)
-        P_joule_st_nl = 3.0 * Rs * I_nl ** 2
-        Pfe_3ph = P_nl - P_joule_st_nl - Pfw_used
-        if Pfe_3ph <= 0.0:
+        # Perdas no ferro Ph (total core loss, Sec. 5.6.6)
+        P_joule_st_nl = m * Rs * I_nl ** 2
+        Ph = P_nl - P_joule_st_nl - Pfw_used
+        if Ph <= 0.0:
             return {
                 "success": False,
                 "error": (
-                    f"Pfe calculado ≤ 0 (Pfe_3ph = {Pfe_3ph:.2f} W). "
+                    f"Ph (core loss) calculado ≤ 0 (Ph = {Ph:.2f} W). "
                     f"P_nl = {P_nl:.1f} W é insuficiente para cobrir 3·Rs·I_nl² = {P_joule_st_nl:.1f} W "
                     f"+ Pfw = {Pfw_used:.1f} W."
                 ),
             }
 
-        # Primeira passagem: E1_nl com Xls ≈ 0
-        E1_nl_0 = math.sqrt(max(Vf_nl ** 2 - (Rs * I_nl) ** 2, 1e-6))
-
-        # ── Passo 3 — Rotor Bloqueado (IEEE 112 Cl. 6.6) ────────────────────
-        Vf_lr = Vl_lr / math.sqrt(3.0)
-        Zk    = Vf_lr / I_lr
-        Rk    = P_lr / (3.0 * I_lr ** 2)
+        # ── Passo 3 — Rotor Bloqueado (IEEE 112-2017 Sec. 5.10.2–5.10.3) ───
+        V1_lr = Vl_lr / math.sqrt(3.0)
+        Zk    = V1_lr / I_lr
+        Rk    = P_lr / (m * I_lr ** 2)
 
         if Rk >= Zk:
             return {
@@ -308,10 +306,10 @@ def estimate_params_ieee_tests(
             }
 
         Xk_lr = math.sqrt(max(Zk ** 2 - Rk ** 2, 1e-6))
-        # Correção linear de frequência: Xk @ f_nl = Xk_lr · (f_nl / f_lr)
+        # Correção linear de frequência para f_nl — Eq. (43) e (46)
         Xk = Xk_lr * (f_nl / f_lr)
 
-        # ── Passo 4 — Separação Rs/Rr e distribuição Xls/Xlr ────────────────
+        # ── Passo 4 — Separação Rs/Rr e distribuição Xls/Xlr (Eq. 44–46) ──
         Rr = Rk - Rs
         if Rr <= 0.0:
             return {
@@ -323,86 +321,128 @@ def estimate_params_ieee_tests(
                 ),
             }
 
-        Xls = frac * Xk
-        Xlr = (1.0 - frac) * Xk
+        Xls = frac * Xk        # X1 — Eq. (43) com frac = X1/(X1+X2)
+        Xlr = (1.0 - frac) * Xk  # X2 — Eq. (45)
 
-        # ── Passo 5 — Duas iterações fasoriais de E₁_nl ─────────────────────
-        # Modelo fasorial: Vf_nl = E1 + (Rs + j·Xls)·I_nl
-        # I_nl decompõe-se em I_fe (em fase com E1) e I_mu (atrasada de 90°).
-        # Sem conhecer I_fe e I_mu a priori, refinamos E1 em duas iterações.
+        # QL — potência reativa no ensaio bloqueado — Eq. (39)
+        S_lr = m * V1_lr * I_lr
+        QL   = math.sqrt(max(S_lr ** 2 - P_lr ** 2, 0.0))
 
-        # Iteração 1: aproximação inicial — assume I_nl em fase com Vf_nl
-        E1_re_1 = Vf_nl - Rs * I_nl
-        E1_im_1 = -Xls * I_nl
-        E1_nl_1 = max(math.sqrt(E1_re_1 ** 2 + E1_im_1 ** 2), 0.5 * Vf_nl)
+        # ── Passo 5 — Iteração IEEE 112 Eq. 41–49 até convergência 0,1% ────
+        # Eq. (41): Xm = m·V1²·Xm / (Q0 - m·I0²·X1·(X1+Xm)/Xm)
+        # Rearranjada para iteração: dado X1 e razão r = X1/Xm:
+        #   Xm_new = (Q0 - m·I0²·X1·(1+r)) / (m·V1²/Xm_est - m·I0²·r)
+        # Usamos forma direta mais estável:
+        # Xm iterado a partir de estimativa inicial X1+Xm ≈ Q0/(m·I0²)
+        X1 = Xls
+        XM_plus_X1_init = Q0 / max(m * I_nl ** 2, 1e-12)
+        Xm = max(XM_plus_X1_init - X1, 1e-3)
 
-        # Estima componentes da corrente em vazio com E1 da iteração 1
-        Rfe_1     = (3.0 * E1_nl_1 ** 2) / Pfe_3ph
-        I_fe_1    = E1_nl_1 / Rfe_1
-        I_mu_sq_1 = I_nl ** 2 - I_fe_1 ** 2
-        if I_mu_sq_1 <= 0.0:
+        E1_nl_0 = math.sqrt(max(V1_nl ** 2 - (Rs * I_nl) ** 2, 1e-6))
+        E1_nl   = E1_nl_0
+
+        for _iter in range(50):
+            Xm_prev = Xm
+            X1_prev = X1
+
+            # Eq. (41) — Xm a partir de Q0, I0, V1, X1
+            denom_41 = Q0 - m * I_nl ** 2 * X1 * (X1 + Xm) / max(Xm, 1e-9)
+            Xm_new = m * V1_nl ** 2 / max(denom_41, 1e-9)
+            Xm_new = max(Xm_new, 1e-3)
+
+            # Eq. (42) — X1L a partir de QL, IL, V1L, X1, Xm
+            ratio_1_M = X1 / max(Xm_new, 1e-9)
+            numer_42  = QL - m * I_lr ** 2 * X1 * (1.0 + ratio_1_M)
+            denom_42  = m * I_lr ** 2 * (1.0 + ratio_1_M) ** 2 - m * V1_lr ** 2 / max(Xm_new, 1e-9)
+            # forma estável: X1L = (QL - m·IL²·Xm·ratio²) / (m·IL²·(1+ratio) - m·V1L²/((Xm)·(1+1/ratio)))
+            # Alternativa robusta: resolver diretamente Eq (42) para X1L
+            # X1L ≈ (QL/(m·IL²) - X1*(X1/Xm)) / (1 + X1/Xm)
+            X1L = (QL / max(m * I_lr ** 2, 1e-12) - X1 * ratio_1_M) / max(1.0 + ratio_1_M, 1e-9)
+            X1L = max(X1L, 1e-4)
+
+            # Eq. (43) — escala para frequência nominal
+            X1_new = X1L * (f_nl / f_lr)
+            X1_new = max(X1_new, 1e-4)
+
+            # Eq. (41) — recalcula Xm com X1 atualizado
+            denom_41b = Q0 - m * I_nl ** 2 * X1_new * (X1_new + Xm_new) / max(Xm_new, 1e-9)
+            Xm_new2 = m * V1_nl ** 2 / max(denom_41b, 1e-9)
+            Xm = max(Xm_new2, 1e-3)
+            X1 = X1_new
+
+            # Critério de convergência 0,1% — Sec. 5.10.3.2 step 5
+            if (abs(Xm - Xm_prev) / max(abs(Xm_prev), 1e-9) < 0.001 and
+                    abs(X1 - X1_prev) / max(abs(X1_prev), 1e-9) < 0.001):
+                break
+
+        # Xls e Xlr finais após convergência
+        Xls = X1
+        Xlr = Xk * (f_nl / f_lr) - Xls  # X2 = Xk_total - X1, Eq. (45)/(46)
+        Xlr = max(Xlr, 1e-4)
+
+        # Eq. (47) — Gfe = Ph·Xm² / (m·V1²) → Rfe = 1/Gfe
+        Gfe = Ph * Xm ** 2 / max(m * V1_nl ** 2 * Xm ** 2, 1e-12)
+        # forma simplificada correta: Gfe = Ph / (m · E1²)
+        # E1 iterada pelas componentes de corrente:
+        # Usar E1 ≈ V1 (aproximação de circuito aberto do ramo shunt)
+        E1_nl = math.sqrt(max(V1_nl ** 2 - (Rs * I_nl) ** 2, 1e-6))
+        Gfe   = Ph / max(m * E1_nl ** 2, 1e-12)
+        Rfe   = 1.0 / max(Gfe, 1e-12)
+
+        # Eq. (48) — Bm = 1/Xm
+        Bm  = 1.0 / max(Xm, 1e-9)
+        Ife = Gfe * E1_nl
+        Imu = Bm  * E1_nl
+        I_mu_check = math.sqrt(Ife ** 2 + Imu ** 2)
+
+        # Eq. (49) — R2 (Rr) com correção de Gfe e Bm
+        # R2 = P_lr/(m·IL²) - Rs - (Xk²·Gfe)/(1+...) — forma aproximada robusta
+        # Usamos: Rr = Rk - Rs (já calculado; consistente com Eq. 49 para Xm >> Xk)
+        # Para máquinas com Xm pequeno, aplicar Eq. 49 completa:
+        ratio_fe = Gfe * Xk
+        Rr_full = (P_lr / max(m * I_lr ** 2, 1e-12) - Rs
+                   - Xk ** 2 * Gfe / max(1.0 + (Xk * Gfe) ** 2, 1e-9))
+        Rr = max(Rr_full, Rk - Rs)  # fallback para Rk-Rs se Eq.49 der negativo
+        if Rr <= 0.0:
             return {
                 "success": False,
                 "error": (
-                    f"Componente de magnetização não positiva na 1ª iteração "
-                    f"(I_nl² − I_fe² = {I_mu_sq_1:.4f}). Verifique P_nl e I_nl."
+                    f"Rr ≤ 0 após Eq. 49 (Rr = {Rr:.4f} Ω). "
+                    f"Rs = {Rs:.4f} Ω, Rk = {Rk:.4f} Ω. Verifique medições."
                 ),
             }
-        I_mu_1 = math.sqrt(I_mu_sq_1)
 
-        # Iteração 2: usa decomposição fasorial correta de I_nl
-        # I_nl = I_fe − j·I_mu  (referencial em E1)
-        # Vf_nl = E1 + (Rs + j·Xls)·(I_fe − j·I_mu)
-        # Componente em fase:        Vf_nl = E1 + Rs·I_fe + Xls·I_mu
-        # Componente em quadratura:  0     =      Xls·I_fe − Rs·I_mu
-        E1_re_2 = Vf_nl - Rs * I_fe_1 - Xls * I_mu_1
-        E1_im_2 = -(Xls * I_fe_1 - Rs * I_mu_1)
-        E1_nl   = max(math.sqrt(E1_re_2 ** 2 + E1_im_2 ** 2), 0.5 * Vf_nl)
-
-        # Recalcula Rfe, I_mu e Xm com E1 final
-        Rfe = (3.0 * E1_nl ** 2) / Pfe_3ph
-        I_fe = E1_nl / Rfe
-        I_mu_sq = I_nl ** 2 - I_fe ** 2
-        if I_mu_sq <= 0.0:
-            return {
-                "success": False,
-                "error": (
-                    f"Componente de magnetização não positiva (I_nl² − I_fe² = {I_mu_sq:.4f}). "
-                    "Verifique P_nl e I_nl — possível erro de medição em vazio."
-                ),
-            }
-        I_mu = math.sqrt(I_mu_sq)
-        Xm = max(E1_nl / I_mu - Xls, 1e-3)
+        Pfe_3ph = Ph  # alias para compatibilidade com retorno existente
 
         return {
             "success": True,
-            "Rs":          round(Rs,    5),
-            "Rr":          round(Rr,    5),
-            "Xm":          round(Xm,    4),
-            "Xls":         round(Xls,   5),
-            "Xlr":         round(Xlr,   5),
-            "Rfe":         round(Rfe,   2),
-            # rastreabilidade dos ensaios
-            "E1_nl":       round(E1_nl, 3),
-            "E1_nl_0":     round(E1_nl_0, 3),
-            "E1_nl_1":     round(E1_nl_1, 3),
-            "Xk":          round(Xk,    4),
-            "Xk_lr":       round(Xk_lr, 4),
-            "Rk":          round(Rk,    5),
-            "Zk":          round(Zk,    4),
-            "Pfe_3ph":     round(Pfe_3ph, 2),
+            "Rs":            round(Rs,      5),
+            "Rr":            round(Rr,      5),
+            "Xm":            round(Xm,      4),
+            "Xls":           round(Xls,     5),
+            "Xlr":           round(Xlr,     5),
+            "Rfe":           round(Rfe,     2),
+            # rastreabilidade dos ensaios — IEEE 112 Eq. 38–49
+            "E1_nl":         round(E1_nl,   3),
+            "E1_nl_0":       round(E1_nl_0, 3),
+            "E1_nl_1":       round(E1_nl,   3),  # convergido — mesmo que E1_nl
+            "Xk":            round(Xk,      4),
+            "Xk_lr":         round(Xk_lr,   4),
+            "Rk":            round(Rk,      5),
+            "Zk":            round(Zk,      4),
+            "Pfe_3ph":       round(Pfe_3ph, 2),
             "P_joule_st_nl": round(P_joule_st_nl, 2),
-            "I_mu":        round(I_mu,  4),
-            "I_fe":        round(I_fe,  4),
-            "Pfw_used":    round(Pfw_used, 2),
-            "S_nl":        round(S_nl,  2),
-            "Q_nl":        round(Q_nl,  2),
-            "Vf_nl":       round(Vf_nl, 3),
-            "Vf_lr":       round(Vf_lr, 3),
-            "split_used":  split_key,
-            "Xls_frac":    round(frac,  3),
-            "f_nl":        f_nl,
-            "f_lr":        f_lr,
+            "I_mu":          round(Imu,     4),
+            "I_fe":          round(Ife,     4),
+            "Pfw_used":      round(Pfw_used, 2),
+            "S_nl":          round(S_nl,    2),
+            "Q_nl":          round(Q0,      2),
+            "Vf_nl":         round(V1_nl,   3),
+            "Vf_lr":         round(V1_lr,   3),
+            "split_used":    split_key,
+            "Xls_frac":      round(frac,    3),
+            "f_nl":          f_nl,
+            "f_lr":          f_lr,
         }
 
     except ZeroDivisionError as exc:

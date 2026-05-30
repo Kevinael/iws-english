@@ -48,6 +48,34 @@ def make_voltage_fn_dc(
             return Va, Vf_nom
         return fn
 
+    if mode == "frenagem_dc":
+        brake  = exp_config.get("brake_method", "plugging")
+        t_freia = float(exp_config.get("t_freia", 3.0))
+
+        if brake == "plugging":
+            def fn(t: float) -> tuple[float, float]:
+                return (-Va_nom if t >= t_freia else Va_nom), Vf_nom
+            return fn
+
+        if brake == "injecao_cc":
+            Vdc_inj = float(exp_config.get("Vdc_inj", Va_nom * 0.1))
+            def fn(t: float) -> tuple[float, float]:
+                Va = Vdc_inj if t >= t_freia else Va_nom
+                return Va, Vf_nom
+            return fn
+
+        if brake == "regenerativo":
+            Va_regen = float(exp_config.get("Va_regen", Va_nom * 0.5))
+            def fn(t: float) -> tuple[float, float]:
+                Va = Va_regen if t >= t_freia else Va_nom
+                return Va, Vf_nom
+            return fn
+
+        # fallback
+        def fn(t: float) -> tuple[float, float]:
+            return Va_nom, Vf_nom
+        return fn
+
     if mode == "campo_fraco_dc":
         Vf_fraco = float(exp_config.get("Vf_fraco", Vf_nom * 0.5))
         t_campo  = float(exp_config.get("t_campo", 3.0))

@@ -141,6 +141,26 @@ def build_fns(config: dict, mp: MachineParams):
         tfn = lambda t, _Tl=Tl, _tc=tc: torque_step(t, 0.0, _Tl, _tc)
         t_ev = sorted(set(v for v in [tc, t_sag, t_end] if v > 0))
 
+    elif exp == "frenagem":
+        Tl     = config["Tl_final"]
+        tc     = config.get("t_carga", 0.3)
+        tb     = config["t_brake"]
+        brake  = config.get("brake_method", "plugging")
+
+        if brake == "plugging":
+            vfn = lambda t, _Vl=mp.Vl, _tb=tb: (-_Vl if t >= _tb else _Vl)
+        elif brake == "injecao_cc":
+            Vinj = float(config.get("Vcc_inj", mp.Vl * 0.1))
+            vfn = lambda t, _Vl=mp.Vl, _Vi=Vinj, _tb=tb: (_Vi if t >= _tb else _Vl)
+        elif brake == "regenerativo":
+            Vr = mp.Vl * float(config.get("V_regen", 50)) / 100.0
+            vfn = lambda t, _Vl=mp.Vl, _Vr=Vr, _tb=tb: (_Vr if t >= _tb else _Vl)
+        else:
+            vfn = lambda t: mp.Vl
+
+        tfn = lambda t, _Tl=Tl, _tc=tc: torque_step(t, 0.0, _Tl, _tc)
+        t_ev = sorted(v for v in [tc, tb] if v > 0)
+
     else:
         vfn = lambda t: mp.Vl
         tfn = lambda t: 0.0

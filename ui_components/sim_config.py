@@ -983,7 +983,6 @@ A separação usa a Tabela 1 da IEEE 112, conforme a **classe NEMA** selecionada
             if st.button(
                 "✔ Usar estes parâmetros na simulação",
                 key="ieee_apply_btn",
-                type="primary",
                 help="Copia os parâmetros estimados para o modo Manual, permitindo ajustes antes de simular.",
             ):
                 _p_tmp = int(st.session_state.get(wk["p"], _DEFAULTS["p"]))
@@ -1179,14 +1178,21 @@ def render_experiment_config(
     st.markdown('<p class="slabel">Experimento</p>', unsafe_allow_html=True)
 
     exp_options: dict[str, str] = {
-        "Partida Direta (DOL)":                       "dol",
-        "Partida Estrela-Triângulo (Y-D)":             "yd",
-        "Partida com Autotransformador":               "comp",
-        "Soft-Starter (Rampa de Tensão)":              "soft",
-        "Pulso de Carga (aplica e retira)":            "pulso_carga",
-        "Operação como Gerador":                       "gerador",
-        "Desligamento (Corte de Alimentação)":         "shutdown",
         "Afundamento de Tensão (Voltage Sag)":         "voltage_sag",
+        "Desligamento (Corte de Alimentação)":         "shutdown",
+        "Frenagem Elétrica":                           "frenagem",
+        "Operação como Gerador":                       "gerador",
+        "Partida com Autotransformador":               "comp",
+        "Partida Direta (DOL)":                        "dol",
+        "Partida Estrela-Triângulo (Y-D)":             "yd",
+        "Pulso de Carga (aplica e retira)":            "pulso_carga",
+        "Soft-Starter (Rampa de Tensão)":              "soft",
+    }
+
+    _BRAKE_LABELS_MIT: dict[str, str] = {
+        "plugging":    "Reversão de Polaridade (Plugging)",
+        "injecao_cc":  "Injeção de Corrente Contínua",
+        "regenerativo":"Frenagem Regenerativa",
     }
     exp_label = st.selectbox("Tipo de Experimento", list(exp_options.keys()), key=wk["exp_type"])
     exp_type  = exp_options[exp_label]
@@ -1394,6 +1400,86 @@ def render_experiment_config(
             st.warning("Duração < 20 ms — sag sub-transitório; reduza o passo $h$ para capturar o transitório.")
         if sag_mag <= 0.1:
             st.warning("Sag profundo (≤ 10%) — o motor pode desacelerar significativamente e a corrente de re-partida pode superar a corrente de rotor bloqueado.")
+
+    elif exp_type == "frenagem":
+        tmax_def = 10.0  # fallback; cada sub-método sobrescreve
+        brake_labels = list(_BRAKE_LABELS_MIT.values())
+        brake_keys   = list(_BRAKE_LABELS_MIT.keys())
+        _wi_brake_key = "wi_brake_method"
+        if _wi_brake_key not in st.session_state:
+            st.session_state[_wi_brake_key] = brake_labels[0]
+        brake_sel = st.selectbox(
+            "Método de Frenagem", brake_labels,
+            index=brake_labels.index(st.session_state.get(_wi_brake_key, brake_labels[0])),
+            key=_wi_brake_key,
+        )
+        brake = brake_keys[brake_labels.index(brake_sel)]
+        config["brake_method"] = brake
+
+        _BRAKE_DESC_MIT = {
+            "plugging":    "Inverte a polaridade da tensão de alimentação enquanto o motor ainda gira. "
+                           "Produz torque contrário ao movimento — frenagem muito rápida, mas com alta "
+                           "corrente e possível inversão de sentido se não houver chave de parada.",
+            "injecao_cc":  "Corta a alimentação CA e injeta tensão CC no estator. O campo magnético fixo "
+                           "induz correntes no rotor que produzem torque de frenagem sem inverter o sentido. "
+                           "Frenagem suave e controlada, sem risco de inversão.",
+            "regenerativo":"Reduz a tensão de alimentação abaixo da fcem do motor. A corrente inverte — "
+                           "o motor opera como gerador, devolvendo energia à rede. Frenagem mais suave; "
+                           "eficaz apenas em cargas com alta inércia ou velocidade elevada.",
+        }
+        st.info(_BRAKE_DESC_MIT[brake])
+
+        config["Tl_final"] = st.number_input(
+            "Torque de carga — $T_l$ (N·m)", value=_Tl_ref, min_value=0.0, key=wk["Tl_final"],
+        )
+        config["t_carga"] = st.number_input(
+            "Instante de aplicação da carga — $t_{carga}$ (s)", value=0.3, min_value=0.0, key=wk["t_carga"],
+        )
+        config["t_brake"] = st.number_input(
+            "Instante de frenagem — $t_{freia}$ (s)", value=1.5, min_value=0.001, key="wi_brake_t_freia",
+        )
+
+        if brake == "plugging":
+            tmax_def = config["t_brake"] * 2.5
+            _ibox(
+                f"<strong>t = 0 s</strong> — motor parte com tensão nominal {mp.Vl:.0f} V.<br>"
+                f"<strong>t = {config['t_carga']:.2f} s</strong> — carga de <strong>{config['Tl_final']:.2f} N·m</strong> aplicada.<br>"
+                f"<strong>t = {config['t_brake']:.2f} s</strong> — polaridade de tensão invertida; "
+                f"torque de frenagem opõe-se ao movimento — rotor desacelera e pode inverter sentido."
+            )
+
+        elif brake == "injecao_cc":
+            config["Vcc_inj"] = st.number_input(
+                "Tensão CC injetada — $V_{inj}$ (V)", value=float(mp.Vl * 0.1),
+                min_value=0.0, key="wi_brake_Vcc_inj",
+                help="Tensão CC aplicada ao estator após corte da alimentação CA. Tipicamente 5–15% de Vl.",
+            )
+            tmax_def = config["t_brake"] * 2.5
+            _ibox(
+                f"<strong>t = 0 s</strong> — motor parte com tensão nominal {mp.Vl:.0f} V.<br>"
+                f"<strong>t = {config['t_carga']:.2f} s</strong> — carga de <strong>{config['Tl_final']:.2f} N·m</strong> aplicada.<br>"
+                f"<strong>t = {config['t_brake']:.2f} s</strong> — alimentação CA cortada; "
+                f"tensão CC de <strong>{config['Vcc_inj']:.1f} V</strong> injetada no estator; "
+                f"campo fixo produz torque contrário ao movimento — frenagem sem inversão."
+            )
+
+        elif brake == "regenerativo":
+            config["V_regen"] = st.number_input(
+                "Tensão reduzida — $V_{regen}$ (% de $V_l$)",
+                value=50, min_value=5, max_value=95, key="wi_brake_V_regen",
+                help="Tensão abaixo da fcem — motor opera como gerador devolvendo energia à rede.",
+            )
+            tmax_def = config["t_brake"] * 2.5
+            _Vregen_v = mp.Vl * config["V_regen"] / 100.0
+            _ibox(
+                f"<strong>t = 0 s</strong> — motor parte com tensão nominal {mp.Vl:.0f} V.<br>"
+                f"<strong>t = {config['t_carga']:.2f} s</strong> — carga de <strong>{config['Tl_final']:.2f} N·m</strong> aplicada.<br>"
+                f"<strong>t = {config['t_brake']:.2f} s</strong> — tensão reduzida para "
+                f"<strong>{_Vregen_v:.1f} V ({config['V_regen']}%)</strong>; "
+                f"fcem supera tensão aplicada — corrente inverte; motor opera como gerador."
+            )
+
+        h_def = 5e-4
 
     st.markdown('</div>', unsafe_allow_html=True)
 
