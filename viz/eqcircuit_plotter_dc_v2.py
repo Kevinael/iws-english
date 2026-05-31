@@ -1,34 +1,34 @@
-"""Circuito equivalente MCC — topologia fiel a mcc_desenhos.py + injeção de valores.
+"""DC machine equivalent circuit — topology matching mcc_desenhos.py + value injection.
 
-Atributos disponíveis em DCMachineParams (use conforme excitação):
-  mp.Ra      — resistência de armadura [Ω]
-  mp.La      — indutância de armadura [H]
-  mp.Rf      — resistência de campo (sep/shunt) [Ω]
-  mp.Lf      — indutância de campo (sep/shunt) [H]
-  mp.Rs_ser  — resistência série de campo [Ω]  (series_motor)
-  mp.Ls_ser  — indutância série de campo [H]   (series_motor)
-  mp.Vt      — tensão de armadura [V]
-  mp.Vf      — tensão de campo (sep) [V]
+Available attributes in DCMachineParams (use according to excitation):
+  mp.Ra      — armature resistance [Ω]
+  mp.La      — armature inductance [H]
+  mp.Rf      — field resistance (sep/shunt) [Ω]
+  mp.Lf      — field inductance (sep/shunt) [H]
+  mp.Rs_ser  — series field resistance [Ω]  (series_motor)
+  mp.Ls_ser  — series field inductance [H]   (series_motor)
+  mp.Vt      — armature voltage [V]
+  mp.Vf      — field voltage (sep) [V]
   mp.excitation — "sep_motor"|"shunt_motor"|"series_motor"|"sep_gen"|"shunt_gen"
 
-Campos calculados opcionais (use getattr):
-  mp.Ea      — fcem nominal [V]
-  mp.Ke      — constante de fcem
+Optional computed fields (use getattr):
+  mp.Ea      — nominal back-EMF [V]
+  mp.Ke      — back-EMF constant
 """
 
 from __future__ import annotations
 import io
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TÍTULOS
+# TITLES
 # ─────────────────────────────────────────────────────────────────────────────
 
 _CIRCUIT_LABELS: dict[str, str] = {
-    "sep_motor":    "Excitação Separada — Motor",
-    "sep_gen":      "Excitação Separada — Gerador",
-    "shunt_motor":  "Shunt (Paralelo) — Motor",
-    "shunt_gen":    "Shunt (Paralelo) — Gerador",
-    "series_motor": "Série — Motor",
+    "sep_motor":    "Separately Excited — Motor",
+    "sep_gen":      "Separately Excited — Generator",
+    "shunt_motor":  "Shunt (Parallel) — Motor",
+    "shunt_gen":    "Shunt (Parallel) — Generator",
+    "series_motor": "Series — Motor",
 }
 
 
@@ -42,11 +42,11 @@ def _ea_label(mp) -> str:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# BUILDERS — topologia idêntica a mcc_desenhos.py
+# BUILDERS — topology identical to mcc_desenhos.py
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _build_series_motor(d, wire, mp):
-    """Série — motor. Topologia idêntica a mcc_desenhos.py::serie_motor."""
+    """Series — motor. Topology identical to mcc_desenhos.py::serie_motor."""
     import schemdraw.elements as elm
 
     d.push()
@@ -68,7 +68,7 @@ def _build_series_motor(d, wire, mp):
 
 
 def _build_shunt_motor(d, wire, mp):
-    """Shunt — motor. Topologia idêntica a mcc_desenhos.py::shunt_motor."""
+    """Shunt — motor. Topology identical to mcc_desenhos.py::shunt_motor."""
     import schemdraw.elements as elm
 
     d.push()
@@ -93,7 +93,7 @@ def _build_shunt_motor(d, wire, mp):
 
 
 def _build_sep_motor(d, wire, mp):
-    """Excitação separada — motor. Topologia idêntica a mcc_desenhos.py::sep_motor."""
+    """Separately excited — motor. Topology identical to mcc_desenhos.py::sep_motor."""
     import schemdraw.elements as elm
 
     d.push()
@@ -118,7 +118,7 @@ def _build_sep_motor(d, wire, mp):
 
 
 def _build_sep_gen(d, wire, mp):
-    """Excitação separada — gerador. Topologia idêntica a mcc_desenhos.py::sep_gerador."""
+    """Separately excited — generator. Topology identical to mcc_desenhos.py::sep_gerador."""
     import schemdraw.elements as elm
 
     d.push()
@@ -148,7 +148,7 @@ def _build_sep_gen(d, wire, mp):
 
 
 def _build_shunt_gen(d, wire, mp):
-    """Shunt — gerador. Topologia idêntica a mcc_desenhos.py::shunt_gerador."""
+    """Shunt — generator. Topology identical to mcc_desenhos.py::shunt_gerador."""
     import schemdraw.elements as elm
 
     d.push()
@@ -188,7 +188,7 @@ _BUILDERS = {
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# GERADOR DE BYTES (cacheável, sem Streamlit)
+# BYTE GENERATOR (cacheable, no Streamlit)
 # ─────────────────────────────────────────────────────────────────────────────
 
 def build_circuit_png_dc(mp, dark: bool) -> bytes:
@@ -223,7 +223,7 @@ def build_circuit_png_dc(mp, dark: bool) -> bytes:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# RENDER (Streamlit) — substitui render_circuit_dc() após integração
+# RENDER (Streamlit) — replaces render_circuit_dc() after integration
 # ─────────────────────────────────────────────────────────────────────────────
 
 def render_circuit_dc_v2(mp, dark: bool) -> None:
@@ -270,7 +270,7 @@ if __name__ == "__main__":
     elif exc in _EXC_ALL:
         targets = [exc]
     else:
-        print(f"Excitação inválida. Opções: {_EXC_ALL + ['all']}")
+        print(f"Invalid excitation. Options: {_EXC_ALL + ['all']}")
         sys.exit(1)
 
     mp_mock = SimpleNamespace(
@@ -306,13 +306,13 @@ if __name__ == "__main__":
                 figs.append(fig)
 
         plt.pause(0.05)
-        print(f"[preview] atualizado — {time.strftime('%H:%M:%S')}")
+        print(f"[preview] updated — {time.strftime('%H:%M:%S')}")
 
     figs: list = []
     _draw(figs)
     last_mtime = os.stat(THIS_FILE).st_mtime
 
-    print("[preview] monitorando alterações — feche a janela para sair")
+    print("[preview] monitoring for changes — close the window to exit")
     while plt.get_fignums():
         plt.pause(0.5)
         try:

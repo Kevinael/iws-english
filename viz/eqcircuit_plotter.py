@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
 """
-eqcircuit_plotter.py — Circuito Equivalente Monofasico em T (MIT)
-Desenha o circuito com schemdraw + matplotlib.
+eqcircuit_plotter.py — Single-Phase T Equivalent Circuit (IM)
+Draws the circuit with schemdraw + matplotlib.
 
-Uso como modulo (Streamlit):
+Module usage (Streamlit):
     from eqcircuit_plotter import render_circuit
     render_circuit(mp, dark, _palette)
 
-Uso standalone:
-    python eqcircuit_plotter.py           # fundo escuro
-    python eqcircuit_plotter.py --light   # fundo claro
+Standalone usage:
+    python eqcircuit_plotter.py           # dark background
+    python eqcircuit_plotter.py --light   # light background
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ from typing import Any, Callable
 
 
 def build_figure(mp: Any, dark: bool, palette_fn: Callable[[bool], dict[str, str]]) -> "matplotlib.figure.Figure":
-    # Lazy import: matplotlib + schemdraw só carregam quando o circuito é desenhado
+    # Lazy import: matplotlib + schemdraw only load when the circuit is drawn
     import matplotlib
     try:
         matplotlib.use("Agg")
@@ -46,13 +46,13 @@ def build_figure(mp: Any, dark: bool, palette_fn: Callable[[bool], dict[str, str
     with schemdraw.Drawing(canvas=ax) as d:
         d.config(fontsize=10, color=wire)
 
-        # ── fonte Vs ────────────────────────────────────────────────────
+        # ── Vs source ───────────────────────────────────────────────────
         src = d.add(
             elm.SourceSin().up().color(wire)
             .length(d.unit)
         )
 
-        # ── fio superior ────────────────────────────────────────────────
+        # ── top wire ────────────────────────────────────────────────────
         d.add(elm.Line().right().length(0.4))
 
         # ── Rs ──────────────────────────────────────────────────────────
@@ -67,11 +67,11 @@ def build_figure(mp: Any, dark: bool, palette_fn: Callable[[bool], dict[str, str
             .label(f"{mp.Xls:.3f} \u03a9", loc="bottom", ofst=OFST, fontsize=FS_VAL, color=wire)
         )
 
-        # ── no T ────────────────────────────────────────────────────────
+        # ── T node ──────────────────────────────────────────────────────
         T_node = d.add(elm.Line().right().length(0))
         T_pos  = T_node.end
 
-        # ── fio separador para acomodar o paralelo
+        # ── separator wire to accommodate the parallel branch
         d.add(elm.Line().right().length(1.6))
 
         # ── jXlr ────────────────────────────────────────────────────────
@@ -86,12 +86,12 @@ def build_figure(mp: Any, dark: bool, palette_fn: Callable[[bool], dict[str, str
             .label(f"{mp.Rr:.3f} \u03a9/s",  loc="bottom", ofst=OFST, fontsize=FS_VAL, color=wire)
         )
 
-        # ── fio de retorno direito + inferior + esquerdo ─────────────────
+        # ── return wire: right + bottom + left ───────────────────────────
         d.add(elm.Line().down().length(d.unit))
         d.add(elm.Line().left().tox(src.start))
         d.add(elm.Line().up().toy(src.start))
 
-        # ── ramo shunt paralelo: Rfe // jXm ─────────────────────────────
+        # ── parallel shunt branch: Rfe // jXm ───────────────────────────
         sep = 1.6
 
         xm_el = d.add(
@@ -110,7 +110,7 @@ def build_figure(mp: Any, dark: bool, palette_fn: Callable[[bool], dict[str, str
 
         d.add(elm.Line().at(xm_bot).right().tox(rfe_bot))
 
-    # ── labels via ax.text (mathtext seguro) ─────────────────────────────
+    # ── labels via ax.text (safe mathtext) ───────────────────────────────
     src_cx = (src.start[0] + src.end[0]) / 2
     src_cy = (src.start[1] + src.end[1]) / 2
     ax.text(src_cx - 0.55, src_cy, r"$V_s$",
@@ -143,7 +143,7 @@ def build_figure(mp: Any, dark: bool, palette_fn: Callable[[bool], dict[str, str
 
 
 def _build_circuit_png(mp: Any, dark: bool, palette_fn: Callable[[bool], dict[str, str]]) -> bytes:
-    """Gera os bytes PNG do circuito (cacheável)."""
+    """Generates circuit PNG bytes (cacheable)."""
     import matplotlib
     import matplotlib.pyplot as plt
     bg_hex = "#0d1117" if dark else "#ffffff"
@@ -156,7 +156,7 @@ def _build_circuit_png(mp: Any, dark: bool, palette_fn: Callable[[bool], dict[st
 
 
 def render_circuit(mp: Any, dark: bool, palette_fn: Callable[[bool], dict[str, str]]) -> None:
-    """Gera o circuito e exibe via st.image (uso Streamlit)."""
+    """Generates the circuit and displays via st.image (Streamlit usage)."""
     import streamlit as st
 
     try:
@@ -173,7 +173,7 @@ def render_circuit(mp: Any, dark: bool, palette_fn: Callable[[bool], dict[str, s
     st.image(png_bytes, width='stretch')
 
 
-# ── Execucao standalone ──────────────────────────────────────────────────────
+# ── Standalone execution ─────────────────────────────────────────────────────
 if __name__ == "__main__":
     from dataclasses import dataclass, field
     import numpy as np

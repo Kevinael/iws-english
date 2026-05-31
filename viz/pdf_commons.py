@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-pdf_commons.py — Utilitários compartilhados para geração de relatórios PDF.
+pdf_commons.py — Shared utilities for PDF report generation.
 
-Exporta funções puras e a classe base SimBlock usada por pdf_academico e pdf_industrial.
+Exports pure functions and the SimBlock base class used by pdf_academico and pdf_industrial.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ from ui.theme import _palette
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Mapa Unicode → latin-1
+# Unicode → latin-1 map
 # ─────────────────────────────────────────────────────────────────────────────
 
 _LATIN1_MAP: dict[str, str] = {
@@ -28,7 +28,7 @@ _LATIN1_MAP: dict[str, str] = {
     "⁴": "4", "⁵": "5", "⁶": "6", "⁷": "7", "⁸": "8", "⁹": "9", "⁻": "-",
     "₀": "0", "₁": "1", "₂": "2", "₃": "3", "₄": "4",
     "₅": "5", "₆": "6", "₇": "7", "₈": "8", "₉": "9",
-    "≥": ">=", "≤": "<=", "×": "x", "°": " graus", "≠": "!=", "≈": "~",
+    "≥": ">=", "≤": "<=", "×": "x", "°": " deg", "≠": "!=", "≈": "~",
     "'": "'", "'": "'", "“": '"', "”": '"', "…": "...",
     "½": "1/2", "∞": "inf", "Δ": "Delta", "Φ": "Phi", "φ": "phi",
     "σ": "sigma", "λ": "lambda", "∂": "d", "∫": "int", "√": "sqrt", "±": "+/-",
@@ -93,7 +93,7 @@ def build_circuit_bytes(mp: MachineParams) -> bytes:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Rich text: sub/sobrescritos inline  [sub]...[/sub]  [sup]...[/sup]
+# Rich text: inline sub/superscripts  [sub]...[/sub]  [sup]...[/sup]
 # ─────────────────────────────────────────────────────────────────────────────
 
 def render_rich(pdf, text: str, main_size: int = 10, cell_h: float = 6.0,
@@ -143,7 +143,7 @@ def cell_rich(pdf, text: str, w: float, h: float, main_size: int = 9,
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Cálculos analíticos
+# Analytical computations
 # ─────────────────────────────────────────────────────────────────────────────
 
 def compute_trip_class(res: dict, mp: MachineParams) -> dict | None:
@@ -159,9 +159,9 @@ def compute_trip_class(res: dict, mp: MachineParams) -> dict | None:
         if t_accel < 10.0:
             cls, status = 10, "OK"
         elif t_accel < 20.0:
-            cls, status = 20, "ATENCAO"
+            cls, status = 20, "WARNING"
         else:
-            cls, status = 30, "CRITICO"
+            cls, status = 30, "CRITICAL"
         return {"class": cls, "t_accel": t_accel, "status": status, "n_sync": n_sync}
     except Exception:
         return None
@@ -316,7 +316,7 @@ def compute_broken_bar(res: dict, mp: MachineParams) -> dict | None:
                     return float(spec[lo:hi].max()) if lo < hi else 0.0
                 sb_lo = _amp(f_lo) / A1 * 100.0
                 sb_hi = _amp(f_hi) / A1 * 100.0
-    label = "Severa" if alpha >= 0.5 else ("Moderada" if alpha >= 0.2 else "Leve")
+    label = "Severe" if alpha >= 0.5 else ("Moderate" if alpha >= 0.2 else "Mild")
     return {
         "alpha": alpha, "s_val": s_val,
         "f_lo": f_lo, "f_hi": f_hi,
@@ -326,7 +326,7 @@ def compute_broken_bar(res: dict, mp: MachineParams) -> dict | None:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Figuras matplotlib
+# Matplotlib figures
 # ─────────────────────────────────────────────────────────────────────────────
 
 AFFINITY_GROUPS = [
@@ -375,14 +375,14 @@ def build_abc_currents_fig(res: dict):
                     label=f"RMS = {y_rms:.3f} A")
         ax.axhline(-y_rms, color=color, linewidth=0.8, linestyle="--", alpha=0.65)
         ax.set_title(lbl, fontsize=9, fontweight="bold")
-        ax.set_xlabel("Tempo (s)", fontsize=8)
+        ax.set_xlabel("Time (s)", fontsize=8)
         ax.tick_params(labelsize=7)
         ax.set_facecolor("#f9fafc")
         ax.grid(True, color="#dde4f5", linewidth=0.4)
         ax.spines[["top", "right"]].set_visible(False)
         ax.legend(fontsize=7, framealpha=0.8)
-    axes[0].set_ylabel("Corrente (A)", fontsize=8)
-    fig.suptitle("Correntes de Fase ABC — Regime Permanente", fontsize=10, fontweight="bold")
+    axes[0].set_ylabel("Current (A)", fontsize=8)
+    fig.suptitle("ABC Phase Currents — Steady State", fontsize=10, fontweight="bold")
     fig.tight_layout()
     return fig
 
@@ -392,10 +392,10 @@ def build_losses_bar_fig(losses: dict):
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     cats   = [
-        "Perdas cobre\nestator  Pcu,s",
-        "Perdas cobre\nrotor  Pcu,r",
-        "Perdas no\nferro  Pfe",
-        "Potencia\nmecanica  Pmec",
+        "Stator copper\nlosses  Pcu,s",
+        "Rotor copper\nlosses  Pcu,r",
+        "Iron\nlosses  Pfe",
+        "Mechanical\npower  Pmec",
     ]
     vals   = [losses["P_cu_s"], losses["P_cu_r"], losses["P_fe"], max(losses["P_mec"], 0.0)]
     colors = ["#1d4ed8", "#7c3aed", "#dc2626", "#16a34a"]
@@ -408,8 +408,8 @@ def build_losses_bar_fig(losses: dict):
         v_str, u_str = fmt_power(val)
         ax.text(bar.get_width() + max_val * 0.01, bar.get_y() + bar.get_height() / 2,
                 f"{v_str} {u_str}  ({pct:.1f}%)", va="center", fontsize=8, color="#1e293b")
-    ax.set_xlabel("Potencia (W)", fontsize=8)
-    ax.set_title("Balanco de Perdas — Regime Permanente", fontsize=9, fontweight="bold")
+    ax.set_xlabel("Power (W)", fontsize=8)
+    ax.set_title("Loss Balance — Steady State", fontsize=9, fontweight="bold")
     ax.tick_params(labelsize=8)
     ax.set_facecolor("#f9fafc")
     ax.grid(True, axis="x", color="#dde4f5", linewidth=0.4)
@@ -437,7 +437,7 @@ def build_curves_fig(res: dict, var_keys: list, var_labels: list,
         color = COLORS[(i + color_offset) % len(COLORS)]
         y     = np.asarray(res.get(key, np.zeros_like(t)), dtype=float)
         ax.plot(t, y, color=color, linewidth=1.1, solid_capstyle="round",
-                label="Atual", zorder=3)
+                label="Current", zorder=3)
         if ref_list:
             for ref_i, ref in enumerate(ref_list):
                 r_res = ref.get("res", {})
@@ -451,7 +451,7 @@ def build_curves_fig(res: dict, var_keys: list, var_labels: list,
                         linewidth=0.9, linestyle="--", alpha=0.75,
                         label=ref.get("label", f"Ref {ref_i+1}"), zorder=2)
         ax.set_ylabel(lbl, fontsize=9)
-        ax.set_xlabel("Tempo (s)", fontsize=8)
+        ax.set_xlabel("Time (s)", fontsize=8)
         ax.tick_params(labelsize=8)
         ax.set_facecolor("#f9fafc")
         ax.grid(True, color="#dde4f5", linewidth=0.4)
@@ -462,7 +462,7 @@ def build_curves_fig(res: dict, var_keys: list, var_labels: list,
         pk_idx = int(np.argmax(np.abs(y)))
         ax.plot(float(t[pk_idx]), float(y[pk_idx]), "^",
                 color="#dc2626", markersize=5, zorder=5,
-                label=f"Pico: {float(np.abs(y[pk_idx])):.2f}")
+                label=f"Peak: {float(np.abs(y[pk_idx])):.2f}")
         ss = int(res.get("_ss_start", len(y) - 1))
         if ss < len(y):
             ax.axvline(x=float(t[ss]), color="#16a34a",
@@ -474,7 +474,7 @@ def build_curves_fig(res: dict, var_keys: list, var_labels: list,
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Classe base FPDF com cabeçalho/rodapé parametrizável
+# Base FPDF class with parametric header/footer
 # ─────────────────────────────────────────────────────────────────────────────
 
 def make_pdf_class(style_label: str):
@@ -493,18 +493,18 @@ def make_pdf_class(style_label: str):
             self.set_font("Helvetica", "B", 9)
             self.set_text_color(22, 54, 120)
             self.set_xy(20, 4)
-            self.cell(100, 8, f"IWS — Relatorio ({style_label})", border=0)
+            self.cell(100, 8, f"IWS — Report ({style_label})", border=0)
             self.set_font("Helvetica", "", 8)
             self.set_text_color(100, 100, 100)
             self.set_xy(130, 4)
-            ts = datetime.datetime.now().strftime("%d/%m/%Y")
-            self.cell(60, 8, f"Gerado em: {ts}", border=0, align="R")
+            ts = datetime.datetime.now().strftime("%Y-%m-%d")
+            self.cell(60, 8, f"Generated: {ts}", border=0, align="R")
             self.ln(6)
 
         def footer(self):
             self.set_y(-12)
             self.set_font("Helvetica", "I", 7)
             self.set_text_color(150, 150, 150)
-            self.cell(0, 8, f"Pagina {self.page_no()} de {{nb}}", align="C")
+            self.cell(0, 8, f"Page {self.page_no()} of {{nb}}", align="C")
 
     return _BasePDF

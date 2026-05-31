@@ -1,4 +1,4 @@
-"""Integrador LSODA para MCC.
+"""LSODA integrator for DC machine.
 
 run_simulation_dc(params, tmax, h, voltage_fn, torque_fn) → dict
 """
@@ -22,13 +22,13 @@ def run_simulation_dc(
 ) -> dict:
     """Integra ODEs da MCC e retorna dict de resultados.
 
-    Chaves obrigatórias (compatibilidade com render_ref_panel):
+    Required keys (compatibility with render_ref_panel):
       t, ia, ifd, wm, Te, Tl, Ea, Vt, n
     """
     exc = params.excitation
     rhs = _make_rhs_dc(params, voltage_fn, torque_fn)
 
-    # Condições iniciais
+    # Initial conditions
     if exc == "shunt_gen":
         Llf = params.Ll + params.Lf
         Lla = params.Ll + params.La
@@ -41,7 +41,7 @@ def run_simulation_dc(
     else:
         y0 = [0.0, 0.0, 0.0]
 
-    t_eval = np.arange(0.0, tmax + h, h)
+    t_eval = np.linspace(0.0, tmax, max(2, int(round(tmax / h)) + 1))
     sol = solve_ivp(
         rhs,
         [0.0, tmax],
@@ -66,7 +66,7 @@ def run_simulation_dc(
         ifd_arr = sol.y[0] if exc == "series_motor" else sol.y[1]
         wm_arr  = sol.y[2]
 
-    # Pós-processamento vetorizado
+    # Vectorized post-processing
     Te_arr = params.kb * ia_arr * ifd_arr
     Ea_arr = params.kb * ifd_arr * wm_arr
     Tl_arr = np.array([torque_fn(ti) for ti in t])
@@ -79,7 +79,7 @@ def run_simulation_dc(
     else:
         Vt_arr = Va_arr - params.Ra * ia_arr   # Vt = Va − Ra·ia
 
-    # Regime permanente: média dos últimos 10%
+    # Steady state: average of last 10%
     n_ss = int(max(1, len(t) * 0.1))
     def ss(arr: np.ndarray) -> float:
         return float(np.mean(arr[-n_ss:]))
@@ -102,7 +102,7 @@ def run_simulation_dc(
         "Te_ss":  ss(Te_arr),
         "Ea_ss":  ss(Ea_arr),
         "Vt_ss":  ss(Vt_arr),
-        # metadados
+        # metadata
         "excitation": exc,
         "tmax": tmax,
         "success": bool(sol.success),

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Aba Teoria — conteúdo educacional do simulador de máquinas de indução."""
+"""Theory Tab — educational content for the induction machine simulator."""
 
 from __future__ import annotations
 import base64
@@ -27,7 +27,7 @@ import streamlit as st
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# UTILITÁRIOS
+# UTILITIES
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _b64(fname: str) -> str:
@@ -42,7 +42,7 @@ def _b64(fname: str) -> str:
 def _show_img(fname: str, width: str = "100%") -> None:
     b64 = _b64(fname)
     if not b64:
-        st.caption(f"[{fname} não encontrada]")
+        st.caption(f"[{fname} not found]")
         return
     st.markdown(
         f'<img src="data:image/png;base64,{b64}" '
@@ -62,7 +62,7 @@ def _fig_to_bytes(fig) -> bytes:
     return buf.read()
 
 
-# ── parâmetros de referência para curvas T×s ──────────────────────────────────
+# ── reference parameters for T×s curves ──────────────────────────────────────
 
 _V1_REF, _f_REF, _p_REF = 220, 60, 4
 _R1_REF, _X1_REF        = 0.50, 1.00
@@ -72,7 +72,7 @@ _ns_REF                 = 120 * _f_REF / _p_REF   # 1800 RPM
 
 
 def _torque_ref(s: float) -> float:
-    """Torque (N·m) para o motor de referência da aba teoria."""
+    """Torque (N·m) for the reference motor used in the Theory tab."""
     if abs(s) < 1e-4:
         s = 1e-4
     Z2  = _R2_REF / s + 1j * _X2_REF
@@ -83,15 +83,15 @@ def _torque_ref(s: float) -> float:
     return 3 * abs(I2) ** 2 * (_R2_REF / s) / (2 * np.pi * _ns_REF / 60)
 
 
-# ── helpers de renderização ───────────────────────────────────────────────────
+# ── rendering helpers ────────────────────────────────────────────────────────
 
 def _h4(title: str) -> None:
-    """Subtítulo de seção — usa markdown nativo para suportar LaTeX e negrito."""
+    """Section subtitle — uses native markdown to support LaTeX and bold."""
     st.markdown(f"#### {title}")
 
 
 def _eq(latex: str) -> None:
-    """Equação centralizada via KaTeX nativo do Streamlit."""
+    """Centered equation via Streamlit's native KaTeX renderer."""
     st.markdown(f"$$\n{latex}\n$$")
 
 
@@ -104,55 +104,55 @@ def _div_warn(text: str) -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# ABA 1 — MODELAGEM E CIRCUITOS EQUIVALENTES
+# TAB 1 — MODELING AND EQUIVALENT CIRCUITS
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _render_tab_circuitos() -> None:
     st.markdown(
-        "O **circuito equivalente monofásico** transforma o problema eletromagnético "
-        "trifásico em um circuito elétrico de regime permanente. A partir dele derivam-se "
-        "as equações de torque, potência e, por extensão, o modelo $0dq$ de Krause "
-        "utilizado na integração dinâmica do simulador."
+        "The **single-phase equivalent circuit** transforms the three-phase electromagnetic "
+        "problem into a steady-state electrical circuit. From it, the torque and power "
+        "equations are derived and, by extension, the Krause $0dq$ model "
+        "used for dynamic integration in the simulator."
     )
 
     st.divider()
 
-    # 1a. Circuito Completo
-    _h4("Circuito Completo — com $R_{fe}$")
+    # 1a. Complete Circuit
+    _h4("Complete Circuit — with $R_{fe}$")
     col_img, col_txt = st.columns([1, 1])
     with col_img:
         _show_img("imgs/ind_completo.png")
     with col_txt:
         st.markdown(
-            "O ramo *shunt* contém $R_{fe} \\parallel jX_m$, onde $R_{fe}$ modela "
-            "as perdas no ferro por **histerese** e **correntes de Foucault**. "
-            "A corrente de excitação se decompõe em:"
+            "The *shunt* branch contains $R_{fe} \\parallel jX_m$, where $R_{fe}$ models "
+            "core losses due to **hysteresis** and **eddy currents**. "
+            "The excitation current decomposes as:"
         )
         _eq(r"I_\phi = I_c + jI_m = \frac{V_1}{R_{fe}} + \frac{V_1}{jX_m}")
-        st.markdown("O elemento $R'_2/s$ concentra dois efeitos físicos em série:")
+        st.markdown("The element $R'_2/s$ concentrates two physical effects in series:")
         _eq(r"\frac{R'_2}{s} = R'_2 \;+\; R'_2\frac{1-s}{s}")
         st.markdown(
-            "onde $R'_2$ é a **resistência real do rotor** (perdas Joule) e "
-            "$R'_2(1-s)/s$ é o equivalente resistivo da **potência mecânica convertida**."
+            "where $R'_2$ is the **actual rotor resistance** (Joule losses) and "
+            "$R'_2(1-s)/s$ is the resistive equivalent of the **converted mechanical power**."
         )
 
     st.divider()
 
-    # 1b. Circuito IEEE
-    _h4("Circuito IEEE — Modelo Simplificado (sem $R_{fe}$)")
+    # 1b. IEEE Circuit
+    _h4("IEEE Circuit — Simplified Model (without $R_{fe}$)")
     col_txt, col_img = st.columns([1, 1])
     with col_txt:
         st.markdown(
-            "$R_{fe}$ é omitido — apenas $jX_m$ permanece no ramo *shunt*. "
-            "Simplificação válida porque as perdas no ferro representam tipicamente "
-            "$P_{fe} \\lesssim 2\\%\\,P_{nom}$; $R_{fe}$ é contabilizado "
-            "separadamente no cálculo de rendimento $\\eta$."
+            "$R_{fe}$ is omitted — only $jX_m$ remains in the *shunt* branch. "
+            "This simplification is valid because core losses typically represent "
+            "$P_{fe} \\lesssim 2\\%\\,P_{nom}$; $R_{fe}$ is accounted for "
+            "separately in the efficiency $\\eta$ calculation."
         )
-        st.markdown("Equação de malha do estator:")
+        st.markdown("Stator mesh equation:")
         _eq(r"\bar{V}_1 = \bar{I}_1(R_s + jX_{ls}) + j X_m(\bar{I}_1 - \bar{I}'_2)")
         st.markdown(
-            "Este é o circuito de referência para derivação das equações de estado "
-            "do modelo $0dq$ de Krause implementado no simulador."
+            "This is the reference circuit for deriving the state equations "
+            "of the Krause $0dq$ model implemented in the simulator."
         )
     with col_img:
         _show_img("imgs/ind_ieee.png")
@@ -160,41 +160,41 @@ def _render_tab_circuitos() -> None:
     st.divider()
 
     # 1c. Thévenin
-    _h4("Equivalente de Thévenin — Redução da Malha do Rotor")
+    _h4("Thévenin Equivalent — Rotor Loop Reduction")
     col_img, col_txt = st.columns([1, 1])
     with col_img:
         _show_img("imgs/ind_thevenin.png")
     with col_txt:
         st.markdown(
-            "O estator e o ramo de magnetização são substituídos por uma fonte $V_{th}$ "
-            "com impedância $Z_{th}$, produzindo uma **malha única para o rotor**:"
+            "The stator and magnetizing branch are replaced by a source $V_{th}$ "
+            "with impedance $Z_{th}$, yielding a **single loop for the rotor**:"
         )
         _eq(r"V_{th} \approx V_1 \frac{X_m}{X_1+X_m}, \quad R_{th} \approx R_1\!\left(\frac{X_m}{X_1+X_m}\right)^{\!2}, \quad X_{th} \approx X_1")
-        st.markdown("Torque eletromagnético em função de $s$:")
+        st.markdown("Electromagnetic torque as a function of $s$:")
         _eq(r"T_e(s) = \frac{3\,V_{th}^2\,R'_2/s}{\omega_s\!\left[(R_{th}+R'_2/s)^2+(X_{th}+X'_2)^2\right]}")
         st.markdown(
-            "Esta expressão explícita de $T_e(s)$ é a base do **Teorema de Boucherot** "
-            "(Aba 2) e, ao ser linearizada no referencial $dq$, origina as equações de estado "
-            "do **modelo de Krause** integradas pelo simulador."
+            "This explicit expression for $T_e(s)$ is the basis of the **Boucherot Theorem** "
+            "(Tab 2) and, when linearized in the $dq$ reference frame, yields the state equations "
+            "of the **Krause model** integrated by the simulator."
         )
 
     st.divider()
 
-    # 1d. Modelo dq de Krause
-    _h4("Do Circuito Equivalente ao Modelo $0dq$ de Krause")
+    # 1d. Krause dq Model
+    _h4("From the Equivalent Circuit to the Krause $0dq$ Model")
     st.markdown(
-        "O simulador resolve as equações diferenciais em um **referencial $dq$ genérico**, "
-        "selecionável pelo usuário: **síncrono** ($\\omega_{ref}=\\omega_e$), **rotórico** "
-        "($\\omega_{ref}=\\omega_r$) ou **estacionário** ($\\omega_{ref}=0$). As variáveis "
-        "de estado são os **fluxos concatenados** "
-        "$\\psi_{qs},\\,\\psi_{ds},\\,\\psi_{qr}',\\,\\psi_{dr}'$ e a velocidade rotórica "
-        "elétrica $\\omega_r$. Define-se o escorregamento no referencial como "
-        "$s_{ref} = (\\omega_{ref} - \\omega_r)/\\omega_b$, com $\\omega_b = 2\\pi f$."
+        "The simulator solves the differential equations in a **generic $dq$ reference frame**, "
+        "selectable by the user: **synchronous** ($\\omega_{ref}=\\omega_e$), **rotor-fixed** "
+        "($\\omega_{ref}=\\omega_r$), or **stationary** ($\\omega_{ref}=0$). The state variables "
+        "are the **flux linkages** "
+        "$\\psi_{qs},\\,\\psi_{ds},\\,\\psi_{qr}',\\,\\psi_{dr}'$ and the electrical rotor "
+        "speed $\\omega_r$. The reference-frame slip is defined as "
+        "$s_{ref} = (\\omega_{ref} - \\omega_r)/\\omega_b$, with $\\omega_b = 2\\pi f$."
     )
 
     st.markdown(
-        "**Equações diferenciais dos fluxos** "
-        "(forma normalizada por $\\omega_b$ — cf. `core/machine_model.py:247–250`):"
+        "**Flux differential equations** "
+        "(normalized form by $\\omega_b$ — cf. `core/machine_model.py:247–250`):"
     )
     _eq(r"\dot{\psi}_{qs} = \omega_b\!\left(v_{qs} - \tfrac{\omega_{ref}}{\omega_b}\,\psi_{ds} + \tfrac{R_s}{X_{ls,a}}(\psi_{mq}-\psi_{qs})\right)")
     _eq(r"\dot{\psi}_{ds} = \omega_b\!\left(v_{ds} + \tfrac{\omega_{ref}}{\omega_b}\,\psi_{qs} + \tfrac{R_s}{X_{ls,a}}(\psi_{md}-\psi_{ds})\right)")
@@ -202,323 +202,322 @@ def _render_tab_circuitos() -> None:
     _eq(r"\dot{\psi}_{dr}' = \omega_b\!\left(\;\;s_{ref}\,\psi_{qr}' + \tfrac{R_r'}{X_{lr,a}}(\psi_{md}-\psi_{dr}')\right)")
 
     st.markdown(
-        "**Relações algébricas** entre fluxos mútuos e fluxos de estado — "
-        "eliminam as correntes do sistema dinâmico "
+        "**Algebraic relations** between mutual fluxes and state fluxes — "
+        "eliminating currents from the dynamic system "
         "(cf. `core/machine_model.py:227–232`):"
     )
     _eq(r"\psi_{mq} = X_{ml}\!\left(\frac{\psi_{qs}}{X_{ls,a}} + \frac{\psi_{qr}'}{X_{lr,a}}\right), \qquad \psi_{md} = X_{ml}\!\left(\frac{\psi_{ds}}{X_{ls,a}} + \frac{\psi_{dr}'}{X_{lr,a}}\right)")
     _eq(r"X_{ml} = \left(\frac{1}{X_m} + \frac{1}{X_{ls,a}} + \frac{1}{X_{lr,a}}\right)^{\!-1}")
 
-    st.markdown("**Correntes** recuperadas após a integração dos fluxos:")
+    st.markdown("**Currents** recovered after flux integration:")
     _eq(r"i_{qs} = \frac{\psi_{qs} - \psi_{mq}}{X_{ls,a}}, \quad i_{ds} = \frac{\psi_{ds} - \psi_{md}}{X_{ls,a}}, \quad i_{qr}' = \frac{\psi_{qr}' - \psi_{mq}}{X_{lr,a}}, \quad i_{dr}' = \frac{\psi_{dr}' - \psi_{md}}{X_{lr,a}}")
 
     st.markdown(
-        "**Torque eletromagnético** "
-        "(convenção amplitude-invariante de Clarke–Park, com fator $k=\\sqrt{2/3}$):"
+        "**Electromagnetic torque** "
+        "(amplitude-invariant Clarke–Park convention, with factor $k=\\sqrt{2/3}$):"
     )
     _eq(r"T_e = \tfrac{3}{2}\cdot\tfrac{p}{2}\cdot\tfrac{1}{\omega_b}\,(\psi_{ds}\,i_{qs} - \psi_{qs}\,i_{ds})")
 
-    st.markdown("**Equação mecânica** (2.ª Lei de Newton rotacional):")
+    st.markdown("**Mechanical equation** (Newton's second law for rotation):")
     _eq(r"J\,\dot{\omega}_m = T_e - T_L - B\,\omega_m, \qquad \omega_m = \tfrac{2}{p}\,\omega_r")
 
     st.markdown(
-        "Os eixos $q$ e $d$ correspondem, respectivamente, às projeções em quadratura "
-        "e em fase da tensão de alimentação no referencial escolhido. Em **regime permanente** "
-        "no referencial síncrono, todas as componentes $dq$ tornam-se **constantes (CC)** — "
-        "propriedade que serve como teste de convergência numérica e fundamenta o controle "
-        "vetorial de máquinas."
+        "The $q$ and $d$ axes correspond, respectively, to the quadrature and in-phase "
+        "projections of the supply voltage in the chosen reference frame. In **steady state** "
+        "under the synchronous reference frame, all $dq$ components become **DC constants** — "
+        "a property used as a numerical convergence test and which underpins vector control of machines."
     )
 
     st.markdown(
-        "**Transformação $abc \\leftrightarrow dq$** — Clarke–Park amplitude-invariante "
+        "**$abc \\leftrightarrow dq$ transformation** — amplitude-invariant Clarke–Park "
         "(cf. `core/transforms.py:46–65`):"
     )
     _eq(r"\begin{pmatrix} v_{ds} \\ v_{qs} \end{pmatrix} = \sqrt{\tfrac{3}{2}}\,\begin{pmatrix} \cos\theta_e & \sin\theta_e \\ -\sin\theta_e & \cos\theta_e \end{pmatrix}\!\begin{pmatrix} v_a - \tfrac{1}{2}(v_b + v_c) \\ \tfrac{\sqrt{3}}{2}\,(v_b - v_c) \end{pmatrix}")
 
     st.markdown(
-        "**Solver numérico:** integração via `scipy.integrate.solve_ivp` com método LSODA "
-        "(cf. `core/solver.py:42–67`), tolerâncias $\\text{RTOL}=10^{-6}$, "
-        "$\\text{ATOL}=10^{-9}$ e passo máximo adaptativo "
-        "$\\Delta t_{max} = 1/(20\\,f)$, garantindo no mínimo 20 amostras por ciclo elétrico."
+        "**Numerical solver:** integration via `scipy.integrate.solve_ivp` with LSODA method "
+        "(cf. `core/solver.py:42–67`), tolerances $\\text{RTOL}=10^{-6}$, "
+        "$\\text{ATOL}=10^{-9}$ and adaptive maximum step "
+        "$\\Delta t_{max} = 1/(20\\,f)$, ensuring at least 20 samples per electrical cycle."
     )
 
-    st.markdown("**Diagrama de Blocos interativo:**")
+    st.markdown("**Interactive Block Diagram:**")
     render_blocos_krause()
 
     st.divider()
 
-    # 1e. Gaiola Dupla
-    _h4("Circuito com Gaiola de Esquilo Dupla")
+    # 1e. Double Squirrel Cage
+    _h4("Double Squirrel-Cage Circuit")
     col_txt, col_img = st.columns([1, 1])
     with col_txt:
         st.markdown(
-            "Dois ramos de rotor em paralelo: gaiola **externa** "
-            "($R_{2e}$ alto, $X_{2e}$ baixo) e **interna** "
-            "($R_{2i}$ baixo, $X_{2i}$ alto). Impedância equivalente:"
+            "Two parallel rotor branches: **outer** cage "
+            "($R_{2e}$ high, $X_{2e}$ low) and **inner** cage "
+            "($R_{2i}$ low, $X_{2i}$ high). Equivalent impedance:"
         )
         _eq(r"Z'_{2,eq} = \frac{Z'_{2e}\,Z'_{2i}}{Z'_{2e}+Z'_{2i}}")
         st.markdown(
-            "O **efeito pelicular** redistribui a corrente automaticamente "
-            "com a frequência rotórica $f_r = s\\cdot f$:"
+            "The **skin effect** redistributes current automatically "
+            "with rotor frequency $f_r = s\\cdot f$:"
         )
         st.markdown(
-            "- **Partida** ($s\\approx 1$, $f_r = f$): corrente concentra-se "
-            "na gaiola externa $\\Rightarrow$ alto $T_{part}$.\n"
-            "- **Regime** ($s\\approx 0{,}04$, $f_r \\approx 2$–$4\\;$Hz): "
-            "corrente migra para a gaiola interna $\\Rightarrow$ baixo $s_{nom}$, alto $\\eta$."
+            "- **Starting** ($s\\approx 1$, $f_r = f$): current concentrates "
+            "in the outer cage $\\Rightarrow$ high $T_{start}$.\n"
+            "- **Steady state** ($s\\approx 0{,}04$, $f_r \\approx 2$–$4\\;$Hz): "
+            "current migrates to the inner cage $\\Rightarrow$ low $s_{nom}$, high $\\eta$."
         )
     with col_img:
         _show_img("imgs/ind_ieee_duplo.png")
 
     st.divider()
 
-    _h4("Gaiola de Esquilo Dupla — Composição do Torque")
+    _h4("Double Squirrel-Cage — Torque Composition")
     col_txt, col_img = st.columns([1, 1])
     with col_txt:
-        st.markdown("O torque resultante é a **superposição** dos torques de cada gaiola:")
+        st.markdown("The resultant torque is the **superposition** of the torques from each cage:")
         _eq(r"T_e = T_{ext} + T_{int} = \frac{3}{\omega_s}\!\left(\frac{|V_{ag}|^2 R'_{2e}/s}{|Z'_{2e}|^2} + \frac{|V_{ag}|^2 R'_{2i}/s}{|Z'_{2i}|^2}\right)")
         st.markdown(
-            "**Na partida** ($s=1$, $f_r = f$): o **efeito pelicular** "
-            "força a corrente para a gaiola externa ($R'_{2e}$ alto) "
-            "$\\Rightarrow$ alto $T_{part}$.\n\n"
-            "**Em regime** ($s \\ll 1$, $f_r \\approx s\\,f$): "
-            "$X'_{2i} \\to 0$ — gaiola interna ($R'_{2i}$ baixo) domina "
-            "$\\Rightarrow$ baixo $s_{nom}$, alto $\\eta$.\n\n"
-            "O resultado é uma variação *automática e contínua* de $R'_2$ efetivo "
-            "durante a aceleração — sem componentes externos, graças ao "
-            "**perfil geométrico das barras do rotor**."
+            "**At starting** ($s=1$, $f_r = f$): the **skin effect** "
+            "forces current into the outer cage ($R'_{2e}$ high) "
+            "$\\Rightarrow$ high $T_{start}$.\n\n"
+            "**In steady state** ($s \\ll 1$, $f_r \\approx s\\,f$): "
+            "$X'_{2i} \\to 0$ — inner cage ($R'_{2i}$ low) dominates "
+            "$\\Rightarrow$ low $s_{nom}$, high $\\eta$.\n\n"
+            "The result is an *automatic and continuous* variation of effective $R'_2$ "
+            "during acceleration — without external components, owing to the "
+            "**geometric profile of the rotor bars**."
         )
     with col_img:
         _show_img("imgs/SCdupla.png")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# ABA 2 — COMPORTAMENTO DINÂMICO E TORQUE
+# TAB 2 — DYNAMIC BEHAVIOR AND TORQUE
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _render_tab_dinamica() -> None:
     st.markdown(
-        "O **escorregamento** $s = (n_s - n_r)/n_s$ governa o modo de operação da máquina. "
-        "Três regiões fisicamente distintas dividem a curva $T_e \\times n$, "
-        "com dinâmicas e riscos operacionais diferentes."
+        "The **slip** $s = (n_s - n_r)/n_s$ governs the machine's operating mode. "
+        "Three physically distinct regions divide the $T_e \\times n$ curve, "
+        "each with different dynamics and operational risks."
     )
 
-    _h4("Curva T×n — Zonas de Operação Interativas")
+    _h4("T×n Curve — Interactive Operating Zones")
     render_zonas_operacao()
 
     st.divider()
 
     # Boucherot
-    _h4("Formulação Algébrica de $T_e(s)$ via Thévenin")
+    _h4("Algebraic Formulation of $T_e(s)$ via Thévenin")
     st.markdown(
-        "A curva conjugado × escorregamento é obtida de forma fechada após a redução do "
-        "estator e do ramo de magnetização por Thévenin, vistos pelos terminais do rotor "
-        "(cf. Aba 1):"
+        "The torque–slip curve is obtained in closed form after reducing the "
+        "stator and magnetizing branch by Thévenin, as seen from the rotor terminals "
+        "(cf. Tab 1):"
     )
     _eq(r"\bar{V}_{th} = \bar{V}_1\,\frac{jX_m}{R_s + j(X_{ls} + X_m)}, \qquad \bar{Z}_{th} = R_{th} + jX_{th} = \frac{(R_s + jX_{ls})\,(jX_m)}{R_s + j(X_{ls} + X_m)}")
     st.markdown(
-        "A potência transferida pelo entreferro vale "
-        "$P_{ag} = 3\\,|I'_2|^2\\,(R'_2/s)$, e o torque eletromagnético resulta da divisão "
-        "pela velocidade síncrona mecânica $\\omega_s = (2/p)\\,\\omega_e$:"
+        "The power transferred across the air gap is "
+        "$P_{ag} = 3\\,|I'_2|^2\\,(R'_2/s)$, and the electromagnetic torque is obtained by dividing "
+        "by the mechanical synchronous speed $\\omega_s = (2/p)\\,\\omega_e$:"
     )
     _eq(r"T_e(s) = \frac{3}{\omega_s}\cdot\frac{V_{th}^2\,(R'_2/s)}{(R_{th} + R'_2/s)^2 + (X_{th} + X'_2)^2}")
 
-    _h4("Torque Máximo e Escorregamento Crítico — Teorema de Boucherot")
+    _h4("Maximum Torque and Critical Slip — Boucherot Theorem")
     st.markdown(
-        "Derivando $T_e(s)$ em relação a $s$ e igualando a zero, obtém-se o par "
+        "Differentiating $T_e(s)$ with respect to $s$ and setting it to zero yields the pair "
         "$(T_{max},\\, s_{cr})$:"
     )
     _eq(r"T_{max} = \frac{3\,V_{th}^2}{2\,\omega_s\!\left(R_{th} + \sqrt{R_{th}^2 + (X_{th}+X'_2)^2}\right)}")
     _eq(r"s_{cr} = \frac{R'_2}{\sqrt{R_{th}^2 + (X_{th}+X'_2)^2}}")
     st.markdown(
-        "**Teorema de Boucherot:** $T_{max}$ *não depende de $R'_2$*. "
-        "Variar $R'_2$ apenas **desloca** $s_{cr}$ sem alterar a amplitude do pico. "
-        "Para obter torque de partida máximo ($T_{part} = T_{max}$), basta impor $s_{cr} = 1$:"
+        "**Boucherot Theorem:** $T_{max}$ *does not depend on $R'_2$*. "
+        "Varying $R'_2$ only **shifts** $s_{cr}$ without changing the peak magnitude. "
+        "To obtain maximum starting torque ($T_{start} = T_{max}$), it suffices to impose $s_{cr} = 1$:"
     )
-    _eq(r"R'_2\big|_{T_{part}=T_{max}} = \sqrt{R_{th}^2 + (X_{th}+X'_2)^2}")
+    _eq(r"R'_2\big|_{T_{start}=T_{max}} = \sqrt{R_{th}^2 + (X_{th}+X'_2)^2}")
     st.markdown(
-        "Em **motores de rotor bobinado**, resistências externas são inseridas "
-        "nos anéis coletores apenas na partida e depois curto-circuitadas, explorando este princípio."
+        "In **wound-rotor motors**, external resistances are inserted "
+        "in the slip rings only during starting and then short-circuited, exploiting this principle."
     )
 
     st.divider()
-    _h4("Boucherot Interativo — Efeito de R'₂ na Curva T×s")
+    _h4("Interactive Boucherot — Effect of R'₂ on the T×s Curve")
     render_boucherot()
 
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# ABA 3 — BALANÇO ENERGÉTICO E FLUXO DE POTÊNCIA
+# TAB 3 — ENERGY BALANCE AND POWER FLOW
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _render_tab_potencia() -> None:
     st.markdown(
-        "As potências fluem de forma **encadeada**, com cada estágio dissipando ou convertendo "
-        "uma fração determinada por $s$, $R$, $X$ e $\\omega$. "
-        "O modo de operação (motor, gerador, frenagem) inverte o sentido do fluxo."
+        "Power flows in a **cascaded** manner, with each stage dissipating or converting "
+        "a fraction determined by $s$, $R$, $X$ and $\\omega$. "
+        "The operating mode (motor, generator, braking) reverses the flow direction."
     )
 
     st.divider()
-    _h4("Relações Fundamentais de Potência")
-    st.markdown("As identidades abaixo valem em **regime permanente** para qualquer $s$:")
+    _h4("Fundamental Power Relations")
+    st.markdown("The identities below hold in **steady state** for any $s$:")
     st.markdown(
         """
-| Grandeza | Expressão | Nota |
+| Quantity | Expression | Note |
 |---|---|---|
-| **Potência de entrada** $P_{in}$ | $3\\,V_1\\,I_1\\cos\\varphi$ | Trifásico — terminais do estator |
-| **Perdas no estator** $P_{cu,1}$ | $3\\,I_1^2\\,R_s$ | Joule nos enrolamentos estatóricos |
-| **Perdas no ferro** $P_{fe}$ | $3\\,V_\\phi^2/R_{fe}$ | Histerese + Foucault no núcleo |
-| **Potência no entreferro** $P_{ag}$ | $T_e\\,\\omega_s = P_{in} - P_{cu,1} - P_{fe}$ | $\\omega_s = 4\\pi f/p$ |
-| **Perdas no rotor** $P_{cu,2}$ | $s\\,P_{ag} = 3\\,I_2'^2\\,R_r$ | Fração de $P_{ag}$ dissipada no rotor |
-| **Potência mecânica** $P_{mec}$ | $(1-s)\\,P_{ag} = T_e\\,\\omega_r$ | $\\omega_r = (1-s)\\,\\omega_s$ |
-| **Potência útil** $P_{out}$ | $P_{mec} - P_{rot}$ | $P_{rot}$: atrito + ventilação |
-| **Rendimento** $\\eta$ | $P_{out}/P_{in}$ | Máximo quando $P_{cu,1} \\approx P_{fe}+P_{rot}$ |
+| **Input power** $P_{in}$ | $3\\,V_1\\,I_1\\cos\\varphi$ | Three-phase — stator terminals |
+| **Stator copper losses** $P_{cu,1}$ | $3\\,I_1^2\\,R_s$ | Joule losses in stator windings |
+| **Core losses** $P_{fe}$ | $3\\,V_\\phi^2/R_{fe}$ | Hysteresis + eddy currents in the core |
+| **Air-gap power** $P_{ag}$ | $T_e\\,\\omega_s = P_{in} - P_{cu,1} - P_{fe}$ | $\\omega_s = 4\\pi f/p$ |
+| **Rotor copper losses** $P_{cu,2}$ | $s\\,P_{ag} = 3\\,I_2'^2\\,R_r$ | Fraction of $P_{ag}$ dissipated in the rotor |
+| **Mechanical power** $P_{mec}$ | $(1-s)\\,P_{ag} = T_e\\,\\omega_r$ | $\\omega_r = (1-s)\\,\\omega_s$ |
+| **Output power** $P_{out}$ | $P_{mec} - P_{rot}$ | $P_{rot}$: friction + windage |
+| **Efficiency** $\\eta$ | $P_{out}/P_{in}$ | Maximum when $P_{cu,1} \\approx P_{fe}+P_{rot}$ |
 """
     )
 
     st.divider()
 
-    # Três modos lado a lado
+    # Three modes side by side
     c1, c2, c3 = st.columns(3)
     with c1:
-        _h4("Modo Motor")
+        _h4("Motor Mode")
         _show_img("imgs/fluxo_P_motor.png")
         _eq(r"P_{in} \xrightarrow{-P_{cu,1}} P_{ag} \xrightarrow{-P_{cu,2}} P_{mec} \xrightarrow{-P_{rot}} P_{out}")
         st.markdown(
-            "Relação-chave: $P_{cu,2} = s\\,P_{ag}$ e $P_{mec} = (1-s)P_{ag}$. "
-            "A eficiência é maximizada com baixo escorregamento nominal."
+            "Key relation: $P_{cu,2} = s\\,P_{ag}$ and $P_{mec} = (1-s)P_{ag}$. "
+            "Efficiency is maximized at low rated slip."
         )
     with c2:
-        _h4("Modo Gerador")
+        _h4("Generator Mode")
         _show_img("imgs/fluxo_P_gerador.png")
         _eq(r"P_{in,mec} \xrightarrow{-P_{rot}} P_{mec} \xrightarrow{-P_{cu,2}} P_{ag} \xrightarrow{-P_{cu,1}} P_{out}")
         st.markdown(
-            "Sentido invertido: potência mecânica entra pelo eixo, "
-            "potência elétrica sai pelos terminais do estator para a rede."
+            "Reversed direction: mechanical power enters via the shaft; "
+            "electrical power exits through the stator terminals to the grid."
         )
     with c3:
-        _h4("Modo Frenagem ($s > 1$)")
+        _h4("Braking Mode ($s > 1$)")
         _show_img("imgs/fluxo_P_frenagem.png")
         _eq(r"P_{ele} + P_{cin} \longrightarrow P_{cu,2}")
         st.markdown(
-            "Energia elétrica da rede *e* energia cinética do eixo "
-            "convertem-se **integralmente em calor no rotor**."
+            "Electrical energy from the grid *and* kinetic energy from the shaft "
+            "are **entirely converted to heat in the rotor**."
         )
-        _div_warn("Operação breve — o rotor pode queimar em segundos. "
-                  "$P_{cu,2} = s\\,P_{ag} > P_{ag}$ porque $s > 1$.")
+        _div_warn("Brief operation only — rotor may burn within seconds. "
+                  "$P_{cu,2} = s\\,P_{ag} > P_{ag}$ because $s > 1$.")
 
     st.divider()
 
-    # Insight qualitativo sobre s
-    _h4("Interpretação Física do Escorregamento")
+    # Physical interpretation of slip
+    _h4("Physical Interpretation of Slip")
     st.markdown(
-        "O escorregamento $s$ é a variável que **particiona** a potência do entreferro "
-        "entre perdas e produção mecânica:"
+        "Slip $s$ is the variable that **partitions** the air-gap power "
+        "between losses and mechanical output:"
     )
-    _eq(r"P_{ag} = \underbrace{s\,P_{ag}}_{P_{cu,2}\;\text{(calor)}} + \underbrace{(1-s)\,P_{ag}}_{P_{mec}\;\text{(trabalho)}}")
+    _eq(r"P_{ag} = \underbrace{s\,P_{ag}}_{P_{cu,2}\;\text{(heat)}} + \underbrace{(1-s)\,P_{ag}}_{P_{mec}\;\text{(work)}}")
     st.markdown(
-        "Um motor com $s = 0{,}05$ (5%) dissipa apenas 5% da potência do entreferro no rotor — "
-        "o restante 95% é convertido em trabalho mecânico. Por isso **motores eficientes "
-        "operam com baixo escorregamento**.\n\n"
-        "Na frenagem ($s > 1$), a equação acima exige $P_{cu,2} > P_{ag}$, o que só é possível "
-        "porque a **energia cinética do eixo** alimenta adicionalmente o rotor."
+        "A motor with $s = 0{,}05$ (5%) dissipates only 5% of the air-gap power in the rotor — "
+        "the remaining 95% is converted to mechanical work. This is why **efficient motors "
+        "operate at low slip**.\n\n"
+        "In braking ($s > 1$), the equation above requires $P_{cu,2} > P_{ag}$, which is only possible "
+        "because the **shaft kinetic energy** additionally feeds the rotor."
     )
 
     st.divider()
-    _h4("Fluxo de Potência Interativo")
+    _h4("Interactive Power Flow")
     render_sankey_potencia()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# ABA DINÂMICA DE OPERAÇÃO
+# TAB — OPERATING DYNAMICS
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _render_tab_dinamica_operacao() -> None:
     st.markdown(
-        "A compreensão da dinâmica de operação do motor de indução trifásico exige "
-        "a análise de cada fase do ciclo eletromecânico — da energização inicial até "
-        "a parada completa. Esta aba percorre esses estados em ordem cronológica, "
-        "relacionando os fenômenos físicos às equações que os governam."
+        "Understanding the operating dynamics of the three-phase induction motor requires "
+        "analyzing each phase of the electromechanical cycle — from initial energization to "
+        "complete standstill. This tab covers these states in chronological order, "
+        "linking physical phenomena to the governing equations."
     )
 
-    # ── Referencial da Transformada de Park ──────────────────────────────────
+    # ── Park Transform Reference Frame ──────────────────────────────────
     st.divider()
-    _h4("Referencial da Transformada de Park — Escolha do Eixo de Rotação")
+    _h4("Park Transform Reference Frame — Choice of Rotation Axis")
     st.markdown(
-        "A transformada de Park projeta as grandezas trifásicas $abc$ em dois eixos "
-        "ortogonais $dq$ que giram a uma velocidade angular de referência $\\omega_{ref}$. "
-        "A escolha de $\\omega_{ref}$ define o **referencial** e altera a aparência das "
-        "formas de onda — sem alterar a física da máquina."
+        "The Park transform projects three-phase $abc$ quantities onto two "
+        "orthogonal $dq$ axes rotating at a reference angular speed $\\omega_{ref}$. "
+        "The choice of $\\omega_{ref}$ defines the **reference frame** and changes the appearance of "
+        "the waveforms — without altering the machine physics."
     )
-    st.markdown("Os três referenciais disponíveis no simulador são:")
+    st.markdown("The three reference frames available in the simulator are:")
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        _h4("Síncrono ($\\omega_{ref} = \\omega_e$)")
+        _h4("Synchronous ($\\omega_{ref} = \\omega_e$)")
         st.markdown(
-            "Os eixos $d$ e $q$ giram junto com o campo magnético girante do estator "
-            "à velocidade $\\omega_e$. Como o vetor de tensão também gira a $\\omega_e$, "
-            "ele parece **parado** nesse referencial. "
-            "Em regime permanente, todas as grandezas — tensões, correntes e fluxos — "
-            "tornam-se **valores contínuos (DC)**."
+            "The $d$ and $q$ axes rotate together with the stator rotating magnetic field "
+            "at speed $\\omega_e$. Since the voltage vector also rotates at $\\omega_e$, "
+            "it appears **stationary** in this frame. "
+            "In steady state, all quantities — voltages, currents, and fluxes — "
+            "become **DC values**."
         )
         st.markdown(
-            "**Na animação:** o vetor de tensão (laranja) gira no plano αβ, "
-            "mas os eixos $d$ e $q$ giram junto — o vetor parece **parado** no plano $dq$.\n\n"
-            "**O que fica constante em regime:** $V_{qs}$ e $V_{ds}$ — "
-            "as componentes do vetor de tensão no referencial $dq$ são valores DC. "
-            "O mesmo vale para correntes e fluxos: $I_{qs}$, $I_{ds}$, $\\psi_{qs}$, $\\psi_{ds}$."
+            "**In the animation:** the voltage vector (orange) rotates in the αβ plane, "
+            "but the $d$ and $q$ axes rotate along with it — the vector appears **stationary** in the $dq$ plane.\n\n"
+            "**What remains constant in steady state:** $V_{qs}$ and $V_{ds}$ — "
+            "the voltage vector components in the $dq$ frame are DC values. "
+            "The same applies to currents and fluxes: $I_{qs}$, $I_{ds}$, $\\psi_{qs}$, $\\psi_{ds}$."
         )
-        _eq(r"V_{qs} = \text{const.},\quad V_{ds} = 0 \;\text{(regime permanente)}")
-        _div_warn("Referencial padrão do simulador. Recomendado para análise de regime permanente e controle vetorial.")
+        _eq(r"V_{qs} = \text{const.},\quad V_{ds} = 0 \;\text{(steady state)}")
+        _div_warn("Default simulator reference frame. Recommended for steady-state analysis and vector control.")
     with col2:
-        _h4("Rotórico ($\\omega_{ref} = \\omega_r$)")
+        _h4("Rotor-Fixed ($\\omega_{ref} = \\omega_r$)")
         st.markdown(
-            "Os eixos giram solidários ao rotor à velocidade $\\omega_r = (1-s)\\,\\omega_e$. "
-            "As grandezas **rotóricas** ficam DC; as grandezas **estatóricas** "
-            "oscilam à frequência de escorregamento $f_s = s \\cdot f_e$, "
-            "pois o campo do estator avança em relação ao rotor."
+            "The axes rotate rigidly with the rotor at speed $\\omega_r = (1-s)\\,\\omega_e$. "
+            "**Rotor** quantities become DC; **stator** quantities "
+            "oscillate at the slip frequency $f_s = s \\cdot f_e$, "
+            "since the stator field advances relative to the rotor."
         )
         st.markdown(
-            "**Na animação:** o vetor de tensão do estator (laranja) gira lentamente "
-            "no plano $d_r q_r$ à frequência $s \\cdot f_e$ — as componentes $V_{dr}$ e $V_{qr}$ "
-            "são senoidais de baixa frequência.\n\n"
-            "**O que fica constante em regime:** grandezas do próprio rotor — "
-            "$V_{dr}$, $V_{qr}$, $I_{dr}$, $I_{qr}$, $\\psi_{dr}$, $\\psi_{qr}$ — são DC nesse referencial.\n\n"
-            "**O que oscila:** as grandezas do estator vistas pelo rotor oscilam a $s \\cdot f_e$, "
-            "conforme mostrado na animação."
+            "**In the animation:** the stator voltage vector (orange) rotates slowly "
+            "in the $d_r q_r$ plane at frequency $s \\cdot f_e$ — the components $V_{dr}$ and $V_{qr}$ "
+            "are low-frequency sinusoids.\n\n"
+            "**What remains constant in steady state:** rotor quantities — "
+            "$V_{dr}$, $V_{qr}$, $I_{dr}$, $I_{qr}$, $\\psi_{dr}$, $\\psi_{qr}$ — are DC in this frame.\n\n"
+            "**What oscillates:** stator quantities as seen by the rotor oscillate at $s \\cdot f_e$, "
+            "as shown in the animation."
         )
-        _eq(r"\omega_{ref} = \omega_r = (1-s)\,\omega_e \;\Rightarrow\; f_{\text{estator}} = s\,f_e")
-        _div_warn("Indicado para estudos de falhas rotóricas e análise espectral de corrente do estator.")
+        _eq(r"\omega_{ref} = \omega_r = (1-s)\,\omega_e \;\Rightarrow\; f_{\text{stator}} = s\,f_e")
+        _div_warn("Indicated for rotor fault studies and stator current spectral analysis.")
     with col3:
-        _h4("Estacionário ($\\omega_{ref} = 0$)")
+        _h4("Stationary ($\\omega_{ref} = 0$)")
         st.markdown(
-            "Os eixos $\\alpha\\beta$ são fixos no espaço — não giram. "
-            "O vetor de tensão gira a $\\omega_e$ nesse referencial. "
-            "Nenhuma grandeza é DC: estator e rotor oscilam às suas frequências naturais."
+            "The $\\alpha\\beta$ axes are fixed in space — they do not rotate. "
+            "The voltage vector rotates at $\\omega_e$ in this frame. "
+            "No quantity is DC: stator and rotor oscillate at their natural frequencies."
         )
         st.markdown(
-            "**Na animação:** o vetor de tensão (laranja) gira a $\\omega_e$ no plano $\\alpha\\beta$ fixo. "
-            "As componentes $V_\\alpha$ e $V_\\beta$ — visíveis nas séries temporais — "
-            "são senoidais com 90° de defasagem entre si.\n\n"
-            "**O que oscila:** todas as grandezas — $V_\\alpha$, $V_\\beta$, $I_\\alpha$, $I_\\beta$ "
-            "oscilam a $f_e$; grandezas rotóricas oscilam a $s \\cdot f_e$.\n\n"
-            "**O que fica constante:** nada — nenhuma grandeza é DC neste referencial."
+            "**In the animation:** the voltage vector (orange) rotates at $\\omega_e$ in the fixed $\\alpha\\beta$ plane. "
+            "The components $V_\\alpha$ and $V_\\beta$ — visible in the time series — "
+            "are sinusoids with 90° phase shift between them.\n\n"
+            "**What oscillates:** all quantities — $V_\\alpha$, $V_\\beta$, $I_\\alpha$, $I_\\beta$ "
+            "oscillate at $f_e$; rotor quantities oscillate at $s \\cdot f_e$.\n\n"
+            "**What remains constant:** nothing — no quantity is DC in this frame."
         )
         _eq(r"\omega_{ref} = 0 \;\Rightarrow\; V_\alpha = V\cos(\omega_e t),\; V_\beta = V\sin(\omega_e t)")
-        _div_warn("Base do controle sensorless (sem encoder). Útil para visualização das correntes em coordenadas fixas.")
+        _div_warn("Basis for sensorless control (encoder-free). Useful for visualizing currents in fixed coordinates.")
 
     st.markdown(
-        "As equações de estado do modelo mudam apenas nos termos de acoplamento entre "
-        "eixos (termos $\\omega_{ref}\\,\\psi$). A solução é matematicamente equivalente "
-        "nos três referenciais — a escolha afeta apenas a interpretação das formas de onda."
+        "The model state equations change only in the cross-coupling terms "
+        "(terms $\\omega_{ref}\\,\\psi$). The solution is mathematically equivalent "
+        "in all three frames — the choice only affects the interpretation of the waveforms."
     )
 
     st.divider()
-    _h4("Transformada de Park — Visualização Interativa")
+    _h4("Park Transform — Interactive Visualization")
     render_park_dinamico()
 
-    # ── pré-calcula curva T×n ─────────────────────────────────────────────────
+    # ── pre-compute T×n curve ────────────────────────────────────────────────
     s_mot  = np.linspace(0.002, 1.0, 600)
     T_mot  = np.array([_torque_ref(s) for s in s_mot])
     n_mot  = _ns_REF * (1 - s_mot)
@@ -534,53 +533,53 @@ def _render_tab_dinamica_operacao() -> None:
         a.tick_params(colors="#333333")
         a.grid(True, alpha=0.35, linestyle=":", color="#bbbbbb")
 
-    # ── CARD 1 — Partida, Aceleração e Regime ────────────────────────────────
+    # ── CARD 1 — Starting, Acceleration and Steady State ────────────────────────────────
     st.divider()
-    _h4("Partida, Aceleração e Regime Permanente")
+    _h4("Starting, Acceleration and Steady State")
     st.markdown(
-        "No instante em que o estator é conectado à rede trifásica, as três correntes "
-        "defasadas de 120° entre si estabelecem um **campo magnético girante** "
-        "que rotaciona à velocidade síncrona $n_s$:"
+        "At the instant the stator is connected to the three-phase grid, the three currents "
+        "mutually phase-shifted by 120° establish a **rotating magnetic field** "
+        "that rotates at synchronous speed $n_s$:"
     )
     _eq(r"n_s = \frac{120\,f_e}{p} \quad \text{(RPM)}")
     st.markdown(
-        "Com o rotor em repouso ($s = 1$), a impedância rotórica é predominantemente "
-        "reativa, resultando em uma corrente de partida $I_p$ entre 6 e 8 vezes a nominal "
-        "e em um torque inicial relativamente modesto — explicado pelo baixo fator de "
-        "potência imposto pela reatância de dispersão:"
+        "With the rotor at rest ($s = 1$), the rotor impedance is predominantly "
+        "reactive, resulting in a starting current $I_p$ between 6 and 8 times the rated value "
+        "and a relatively modest initial torque — explained by the low power "
+        "factor imposed by the leakage reactance:"
     )
-    _eq(r"I_p \approx (6 \text{ a } 8)\, I_n \quad (s = 1)")
+    _eq(r"I_p \approx (6 \text{ to } 8)\, I_n \quad (s = 1)")
     st.markdown(
-        "À medida que o rotor acelera, o escorregamento $s$ diminui e a frequência das "
-        "correntes rotóricas $f_r = s \\cdot f_e$ cai. A redução da reatância rotórica "
-        "melhora o fator de potência e eleva o torque até o **Torque Máximo** "
-        "(Pull-out) no escorregamento crítico $s_{cr}$. Para $s < s_{cr}$, o torque "
-        "decresce até o ponto de equilíbrio com a carga — o **regime permanente** "
-        "— onde obrigatoriamente $n < n_s$, pois sem escorregamento não há indução:"
+        "As the rotor accelerates, slip $s$ decreases and the rotor current frequency "
+        "$f_r = s \\cdot f_e$ falls. The reduction of rotor reactance "
+        "improves the power factor and raises torque up to the **Maximum Torque** "
+        "(pull-out) at critical slip $s_{cr}$. For $s < s_{cr}$, torque "
+        "decreases until equilibrium with the load — the **steady state** "
+        "— where necessarily $n < n_s$, since without slip there is no induction:"
     )
     _eq(r"s = \frac{n_s - n}{n_s} > 0 \quad \Longleftrightarrow \quad n < n_s")
 
     fig1, ax = plt.subplots(figsize=(8, 4.2))
     fig1.patch.set_facecolor("white")
     _style_ax(ax)
-    ax.plot(n_mot, T_mot, color="#222222", linewidth=2.5, label=r"Curva $T \times n$")
-    ax.axhline(T_load, color="#555555", linestyle="--", linewidth=1.4, label="Carga $T_L$")
+    ax.plot(n_mot, T_mot, color="#222222", linewidth=2.5, label=r"$T \times n$ Curve")
+    ax.axhline(T_load, color="#555555", linestyle="--", linewidth=1.4, label="Load $T_L$")
     ax.axvline(_ns_REF, color="#aaaaaa", linestyle=":", linewidth=1)
     ax.text(_ns_REF + 10, T_mot.max() * 0.04, "$n_s$", color="#888", fontsize=9)
     ax.scatter([n_mot[-1]], [T_mot[-1]], color="#333333", s=90, zorder=5)
-    ax.annotate("Partida  $s=1$\n$I_p \\approx 6\\!-\\!8\\,I_n$",
+    ax.annotate("Starting  $s=1$\n$I_p \\approx 6\\!-\\!8\\,I_n$",
                 xy=(n_mot[-1], T_mot[-1]),
                 xytext=(n_mot[-1] - 370, T_mot[-1] + T_mot.max() * 0.09),
                 color="#333333", fontsize=8.5,
                 arrowprops=dict(arrowstyle="->", color="#333333", lw=1.2))
     ax.scatter([n_mot[idx_pk]], [T_mot[idx_pk]], color="#555555", s=90, zorder=5)
-    ax.annotate("Torque Máximo\n(Pull-out)",
+    ax.annotate("Maximum Torque\n(Pull-out)",
                 xy=(n_mot[idx_pk], T_mot[idx_pk]),
                 xytext=(n_mot[idx_pk] - 400, T_mot[idx_pk] - T_mot.max() * 0.14),
                 color="#555555", fontsize=8.5,
                 arrowprops=dict(arrowstyle="->", color="#555555", lw=1.2))
     ax.scatter([n_mot[idx_ss]], [T_load], color="#111111", s=90, zorder=5)
-    ax.annotate("Regime\nPermanente",
+    ax.annotate("Steady\nState",
                 xy=(n_mot[idx_ss], T_load),
                 xytext=(n_mot[idx_ss] + 35, T_load + T_mot.max() * 0.13),
                 color="#111111", fontsize=8.5,
@@ -589,9 +588,9 @@ def _render_tab_dinamica_operacao() -> None:
                 xytext=(n_mot[-1] - 10, T_mot[-1] + 1),
                 arrowprops=dict(arrowstyle="->", color="#999999", lw=1.5,
                                 connectionstyle="arc3,rad=-0.25"))
-    ax.set_xlabel("Velocidade (rpm)", fontsize=10, fontweight="bold", color="#222")
+    ax.set_xlabel("Speed (rpm)", fontsize=10, fontweight="bold", color="#222")
     ax.set_ylabel("Torque (N·m)",     fontsize=10, fontweight="bold", color="#222")
-    ax.set_title("Trajetória de Operação — Partida até Regime Permanente",
+    ax.set_title("Operating Trajectory — Starting to Steady State",
                  fontsize=11, fontweight="bold", color="#111")
     ax.legend(fontsize=9, facecolor="white", edgecolor="#cccccc")
     ax.set_xlim(0, _ns_REF * 1.04)
@@ -599,23 +598,23 @@ def _render_tab_dinamica_operacao() -> None:
     fig1.tight_layout()
     st.image(_fig_to_bytes(fig1))
 
-    # ── CARD 2 — Dinâmica de Carga ───────────────────────────────────────────
+    # ── CARD 2 — Load Dynamics ───────────────────────────────────────────
     st.divider()
-    _h4("Dinâmica de Carga — Aplicação e Alívio Bruscos")
+    _h4("Load Dynamics — Sudden Load Application and Removal")
     st.markdown(
-        "Quando uma carga é aplicada bruscamente ao eixo, o torque resistente supera "
-        "momentaneamente $T_{em}$ e o rotor desacelera. O aumento do escorregamento "
-        "eleva $f_r = s \\cdot f_e$, a corrente rotórica $I_2$ e, por acoplamento "
-        "magnético, a corrente estatórica $I_1$. O torque cresce até um novo equilíbrio "
-        "em velocidade ligeiramente menor, governado pela equação de movimento:"
+        "When a load is suddenly applied to the shaft, the resistive torque momentarily exceeds "
+        "$T_{em}$ and the rotor decelerates. The increase in slip "
+        "raises $f_r = s \\cdot f_e$, the rotor current $I_2$, and, through "
+        "magnetic coupling, the stator current $I_1$. Torque grows to a new equilibrium "
+        "at a slightly lower speed, governed by the equation of motion:"
     )
     _eq(r"\frac{d\omega_r}{dt} = \frac{p}{2J}(T_{em} - T_{load}) - \frac{B}{J}\,\omega_r")
     st.markdown(
-        "No alívio de carga, o processo se inverte: $T_{em}$ supera o resistente, "
-        "o rotor acelera e o escorregamento reduz-se a valores muito pequenos "
-        "($s \\approx 0{,}005$ a $0{,}02$), suficientes apenas para suprir as "
-        "perdas mecânicas e no ferro. O gráfico abaixo ilustra o afundamento de "
-        "velocidade $\\Delta n$ e o pico transitório de torque ao aplicar carga:"
+        "On load removal, the process reverses: $T_{em}$ exceeds the resistive torque, "
+        "the rotor accelerates, and slip reduces to very small values "
+        "($s \\approx 0{,}005$ to $0{,}02$), sufficient only to supply "
+        "mechanical and core losses. The chart below illustrates the speed dip "
+        "$\\Delta n$ and the transient torque peak upon load application:"
     )
 
     _t   = np.linspace(0.0, 5.0, 1000)
@@ -637,71 +636,71 @@ def _render_tab_dinamica_operacao() -> None:
         _style_ax(a)
         a.axvline(t_on, color="#555555", linestyle="--", linewidth=1.2, alpha=0.8)
     ax1.plot(_t, _n, color="#222222", linewidth=2)
-    ax1.set_ylabel("Velocidade (rpm)", fontsize=9, fontweight="bold", color="#222")
-    ax1.annotate("Carga\naplicada", xy=(t_on, n0), xytext=(t_on + 0.35, n0 + 3),
+    ax1.set_ylabel("Speed (rpm)", fontsize=9, fontweight="bold", color="#222")
+    ax1.annotate("Load\napplied", xy=(t_on, n0), xytext=(t_on + 0.35, n0 + 3),
                  color="#555555", fontsize=8,
                  arrowprops=dict(arrowstyle="->", color="#555555", lw=1.1))
     ax1.annotate(f"$\\Delta n$ = {n0 - n1:.0f} rpm",
                  xy=((t_on + 5) / 2, (n0 + n1) / 2), color="#555", fontsize=8, ha="center")
     ax2.plot(_t, _Te, color="#444444", linewidth=2)
     ax2.set_ylabel("Torque $T_e$ (N·m)", fontsize=9, fontweight="bold", color="#222")
-    ax2.set_xlabel("Tempo (s)",           fontsize=9, fontweight="bold", color="#222")
-    fig2.suptitle("Resposta Transitória — Aplicação Brusca de Carga",
+    ax2.set_xlabel("Time (s)",           fontsize=9, fontweight="bold", color="#222")
+    fig2.suptitle("Transient Response — Sudden Load Application",
                   fontsize=11, fontweight="bold", color="#111")
     fig2.tight_layout()
     st.image(_fig_to_bytes(fig2))
 
     st.divider()
-    _h4("Transitórios Sincronizados — Visualização Interativa")
+    _h4("Synchronized Transients — Interactive Visualization")
     st.markdown(
-        "O painel abaixo exibe as três grandezas fundamentais — **velocidade** $n(t)$, "
-        "**torque eletromagnético** $T_e(t)$ e **corrente de fase** $i_{as}(t)$ — "
-        "alinhadas no mesmo eixo de tempo para três cenários transitórios típicos. "
-        "Observe como cada evento elétrico ou mecânico se propaga simultaneamente nas "
-        "três grandezas: a corrente reage primeiro (constante de tempo elétrica $\\tau_e$), "
-        "o torque logo em seguida, e a velocidade por último (inércia mecânica $J$)."
+        "The panel below displays three fundamental quantities — **speed** $n(t)$, "
+        "**electromagnetic torque** $T_e(t)$, and **phase current** $i_{as}(t)$ — "
+        "aligned on the same time axis for three typical transient scenarios. "
+        "Observe how each electrical or mechanical event propagates simultaneously through "
+        "all three quantities: current reacts first (electrical time constant $\\tau_e$), "
+        "torque follows immediately, and speed responds last (mechanical inertia $J$)."
     )
     render_transitorios_sincronizados()
 
-    # ── CARD 3 — Frenagem e Parada ───────────────────────────────────────────
+    # ── CARD 3 — Braking and Controlled Stop ───────────────────────────────────────────
     st.divider()
-    _h4("Frenagem e Parada Controlada")
+    _h4("Braking and Controlled Stop")
     st.markdown(
-        "Em diversas aplicações — guindastes, prensas, correias transportadoras — "
-        "a parada por inércia é inaceitável por razões de segurança ou produtividade. "
-        "Existem três métodos de frenagem ativa para motores de indução, cada um com "
-        "princípio físico, velocidade de parada e custo térmico distintos."
+        "In many applications — cranes, presses, conveyor belts — "
+        "coast-down stopping is unacceptable for safety or productivity reasons. "
+        "Three active braking methods exist for induction motors, each with a distinct "
+        "physical principle, stopping speed, and thermal cost."
     )
     st.markdown(
-        "**1. Frenagem Regenerativa** — "
-        "ocorre quando a carga impulsiona o rotor acima de $n_s$, tornando $s$ negativo. "
-        "O fluxo de potência se inverte: a máquina converte energia cinética do eixo em "
-        "energia elétrica devolvida à rede. É o método mais eficiente, mas exige que o "
-        "sistema receptor (inversor com ponte regenerativa ou resistor de frenagem) consiga "
-        "absorver o retorno de energia."
+        "**1. Regenerative Braking** — "
+        "occurs when the load drives the rotor above $n_s$, making $s$ negative. "
+        "Power flow reverses: the machine converts shaft kinetic energy into "
+        "electrical energy returned to the grid. This is the most efficient method, but requires "
+        "the receiving system (inverter with regenerative bridge or braking resistor) to "
+        "absorb the returned energy."
     )
-    _eq(r"s < 0 \;\Rightarrow\; P_{ag} < 0 \;\Rightarrow\; \text{potência devolvida à rede}")
+    _eq(r"s < 0 \;\Rightarrow\; P_{ag} < 0 \;\Rightarrow\; \text{power returned to grid}")
     st.markdown(
-        "**2. Contracorrente (Plugging)** — "
-        "duas das três fases da alimentação são invertidas com o motor em movimento. "
-        "O campo girante reverte instantaneamente, produzindo escorregamento $s \\approx 2$ "
-        "e torque contrário ao movimento. A parada é a mais rápida, porém as correntes "
-        "ultrapassam as de partida e o calor dissipado no rotor é severo. O motor "
-        "*deve* ser desconectado exatamente em $n = 0$; caso contrário acelera "
-        "no sentido oposto."
+        "**2. Plugging (Counter-current Braking)** — "
+        "two of the three supply phases are reversed while the motor is running. "
+        "The rotating field instantly reverses, producing slip $s \\approx 2$ "
+        "and torque opposing the motion. Stopping is fastest, but currents "
+        "exceed starting values and heat dissipated in the rotor is severe. The motor "
+        "*must* be disconnected exactly at $n = 0$; otherwise it accelerates "
+        "in the opposite direction."
     )
-    _eq(r"s = \frac{n_s - n}{n_s} \approx 2 \quad (n_s \text{ invertida, } n \text{ positiva})")
+    _eq(r"s = \frac{n_s - n}{n_s} \approx 2 \quad (n_s \text{ reversed, } n \text{ positive})")
     st.markdown(
-        "**3. Injeção de Corrente Contínua (CC)** — "
-        "a alimentação trifásica é desconectada e aplica-se tensão CC a dois terminais "
-        "do estator. O campo fixo resultante interage com os condutores do rotor em "
-        "movimento, induzindo correntes que produzem torque de frenagem proporcional "
-        "à velocidade — que se anula naturalmente em $n = 0$, eliminando o risco "
-        "de inversão. A parada é mais lenta, porém suave e precisa."
+        "**3. DC Injection Braking** — "
+        "the three-phase supply is disconnected and DC voltage is applied to two stator terminals. "
+        "The resulting stationary field interacts with the moving rotor conductors, "
+        "inducing currents that produce braking torque proportional "
+        "to speed — which naturally vanishes at $n = 0$, eliminating the risk "
+        "of reversal. Stopping is slower, but smooth and precise."
     )
     _eq(r"T_{brake} \propto \omega_r \;\xrightarrow{\;\omega_r \to 0\;}\; 0")
-    st.markdown("O gráfico compara $n(t)$ para os três métodos a partir do mesmo ponto nominal. "
-                "A linha tracejada indica o que ocorre se o plugging *não* for interrompido no zero:")
+    st.markdown("The chart compares $n(t)$ for all three methods from the same rated operating point. "
+                "The dashed line shows what happens if plugging is *not* interrupted at zero:")
 
     _tb   = np.linspace(0.0, 2.6, 900)
     n_nom = 1760.0
@@ -717,25 +716,25 @@ def _render_tab_dinamica_operacao() -> None:
     fig3.patch.set_facecolor("white")
     _style_ax(ax3)
     ax3.plot(_tb[mask_plug], _n_plug_motor[mask_plug],
-             color="#111111", linewidth=2.3, label="Contracorrente (Plugging)")
+             color="#111111", linewidth=2.3, label="Plugging (Counter-current)")
     ax3.plot(_tb[~mask_plug][: int(0.35 / (_tb[1] - _tb[0]))],
              _n_plug_motor[~mask_plug][: int(0.35 / (_tb[1] - _tb[0]))],
              color="#111111", linewidth=1.6, linestyle="--", alpha=0.55)
     ax3.plot(_tb, _n_reg, color="#555555", linewidth=2.3, linestyle="--",
-             label="Regenerativa")
+             label="Regenerative")
     ax3.plot(_tb, _n_dc,  color="#888888", linewidth=2.3, linestyle=":",
-             label="Injeção de CC")
+             label="DC Injection")
     ax3.axhline(0, color="#aaaaaa", linewidth=0.9, linestyle="-")
     ax3.axhline(n_nom, color="#cccccc", linewidth=0.8, linestyle=":")
-    ax3.annotate("Desconectar em\n$n = 0$ (plugging)",
+    ax3.annotate("Disconnect at\n$n = 0$ (plugging)",
                  xy=(t_plug_stop, 0),
                  xytext=(t_plug_stop + 0.25, n_nom * 0.18),
                  color="#333333", fontsize=8.5,
                  arrowprops=dict(arrowstyle="->", color="#333333", lw=1.2))
-    ax3.set_xlabel("Tempo desde o início da frenagem (s)",
+    ax3.set_xlabel("Time since braking onset (s)",
                    fontsize=10, fontweight="bold", color="#222")
-    ax3.set_ylabel("Velocidade (rpm)", fontsize=10, fontweight="bold", color="#222")
-    ax3.set_title("Comparação dos Métodos de Frenagem — $n(t)$",
+    ax3.set_ylabel("Speed (rpm)", fontsize=10, fontweight="bold", color="#222")
+    ax3.set_title("Comparison of Braking Methods — $n(t)$",
                   fontsize=11, fontweight="bold", color="#111")
     ax3.legend(fontsize=9.5, facecolor="white", edgecolor="#cccccc")
     ax3.set_xlim(0, 2.6)
@@ -743,211 +742,211 @@ def _render_tab_dinamica_operacao() -> None:
     fig3.tight_layout()
     st.image(_fig_to_bytes(fig3))
 
-    st.markdown("**Comparador interativo:** ajuste a velocidade inicial e a intensidade de cada método.")
+    st.markdown("**Interactive comparator:** adjust the initial speed and intensity of each method.")
     render_comparador_frenagem()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# ABA 4 — GUIA DE SENSIBILIDADE DE PARÂMETROS
+# TAB 4 — PARAMETER SENSITIVITY GUIDE
 # ─────────────────────────────────────────────────────────────────────────────
 
 _PARAMS_ELETRICOS = [
     {
-        "nome": "$V_l$ — Tensão de Linha (RMS)",
+        "nome": "$V_l$ — Line Voltage (RMS)",
         "desc": (
-            "Define a amplitude do campo magnético girante no estator. "
-            "Determina o fluxo no entreferro: $\\Phi \\propto V_l/f$. "
-            "É a grandeza com maior impacto no torque disponível."
+            "Defines the amplitude of the stator rotating magnetic field. "
+            "Determines the air-gap flux: $\\Phi \\propto V_l/f$. "
+            "This is the quantity with the greatest impact on available torque."
         ),
         "up": (
-            "O torque máximo cresce com $V_l^2$: $T_{max} \\propto V_{th}^2 \\propto V_l^2$. "
-            "A corrente de partida também aumenta significativamente."
+            "Maximum torque grows with $V_l^2$: $T_{max} \\propto V_{th}^2 \\propto V_l^2$. "
+            "Starting current also increases significantly."
         ),
         "down": (
-            "O torque de partida cai — pode tornar-se insuficiente para vencer a inércia da carga, "
-            "impedindo a partida (stall na aceleração)."
+            "Starting torque decreases — may become insufficient to overcome load inertia, "
+            "preventing starting (stall during acceleration)."
         ),
         "warn": (
-            "Sobretensão ($> 110\\%\\,V_n$) provoca **saturação do núcleo** e "
-            "degradação térmica do isolamento. "
-            "Subtensão severa ($< 85\\%\\,V_n$) pode causar **travamento (stall)** sob carga nominal."
+            "Overvoltage ($> 110\\%\\,V_n$) causes **core saturation** and "
+            "thermal degradation of insulation. "
+            "Severe undervoltage ($< 85\\%\\,V_n$) may cause **stalling** under rated load."
         ),
     },
     {
-        "nome": "$f$ — Frequência da Rede",
+        "nome": "$f$ — Grid Frequency",
         "desc": (
-            "Determina a velocidade síncrona: $n_s = 120\\,f/p\\;$(rpm). "
-            "As reatâncias escalam proporcionalmente: $X = 2\\pi f L$."
+            "Determines synchronous speed: $n_s = 120\\,f/p\\;$(rpm). "
+            "Reactances scale proportionally: $X = 2\\pi f L$."
         ),
         "up": (
-            "Aumenta $n_s$, $X_m$, $X_{ls}$, $X_{lr}$. "
-            "Com $V_l$ constante a relação $V/f$ cai, reduzindo o fluxo e o torque máximo."
+            "Increases $n_s$, $X_m$, $X_{ls}$, $X_{lr}$. "
+            "With constant $V_l$, the $V/f$ ratio falls, reducing flux and maximum torque."
         ),
         "down": (
-            "Reduz a velocidade de operação. Com $V_l$ constante a relação $V/f$ cresce, "
-            "levando o núcleo à **saturação magnética**."
+            "Reduces operating speed. With constant $V_l$, the $V/f$ ratio rises, "
+            "driving the core into **magnetic saturation**."
         ),
         "warn": (
-            "Operar fora da frequência nominal sem controle $V/f = $ const. compromete "
-            "o fluxo, a eficiência e a integridade térmica da máquina."
+            "Operating outside rated frequency without $V/f = $ const. control compromises "
+            "flux, efficiency, and thermal integrity of the machine."
         ),
     },
     {
-        "nome": "$R_s$ — Resistência do Estator",
+        "nome": "$R_s$ — Stator Resistance",
         "desc": (
-            "Representa as perdas Joule nos enrolamentos estatóricos: $P_{cu,1} = 3I_1^2 R_s$. "
-            "Provoca queda de tensão interna, reduzindo a tensão efetiva no entreferro."
+            "Represents Joule losses in the stator windings: $P_{cu,1} = 3I_1^2 R_s$. "
+            "Causes an internal voltage drop, reducing the effective voltage at the air gap."
         ),
         "up": (
-            "Aumenta a dissipação térmica e reduz $T_{max}$, "
-            "pois $R_{th} \\uparrow$ eleva o denominador da expressão de Boucherot."
+            "Increases thermal dissipation and reduces $T_{max}$, "
+            "since $R_{th} \\uparrow$ raises the denominator of the Boucherot expression."
         ),
         "down": (
-            "Minimiza perdas internas e melhora o rendimento. "
-            "Em valores extremos, aproxima o modelo de um transformador ideal no primário."
+            "Minimizes internal losses and improves efficiency. "
+            "At extreme values, approximates an ideal transformer primary."
         ),
         "warn": (
-            "$R_s$ excessivo (enrolamentos danificados ou sobreaquecidos) causa "
-            "**sobreaquecimento progressivo**. "
-            "Valores muito próximos de zero podem gerar **instabilidade numérica** no integrador."
+            "Excessive $R_s$ (damaged or overheated windings) causes "
+            "**progressive overheating**. "
+            "Values near zero may cause **numerical instability** in the integrator."
         ),
     },
     {
-        "nome": "$R_r$ — Resistência do Rotor",
+        "nome": "$R_r$ — Rotor Resistance",
         "desc": (
-            "Parâmetro determinante da curva de torque. "
-            "Define o escorregamento crítico: $s_{cr} = R_r / \\sqrt{R_{th}^2 + X_{eq}^2}$."
+            "Determining parameter of the torque curve. "
+            "Defines critical slip: $s_{cr} = R_r / \\sqrt{R_{th}^2 + X_{eq}^2}$."
         ),
         "up": (
-            "$s_{cr}$ aumenta — pico de torque desloca-se para rotações menores. "
-            "O torque de partida cresce até o limite $T_{max}$ (quando $s_{cr} = 1$)."
+            "$s_{cr}$ increases — torque peak shifts to lower speeds. "
+            "Starting torque grows up to the limit $T_{max}$ (when $s_{cr} = 1$)."
         ),
         "down": (
-            "Melhora a eficiência ($s_{nom}$ cai) e reduz o escorregamento em regime. "
-            "O torque de partida diminui proporcionalmente."
+            "Improves efficiency ($s_{nom}$ decreases) and reduces steady-state slip. "
+            "Starting torque decreases proportionally."
         ),
         "warn": (
-            "$R_r$ muito alto indica **barras fraturadas** — provoca escorregamento excessivo e vibração. "
-            "Valores nulos causam **singularidade matemática** nas equações do rotor."
+            "Very high $R_r$ indicates **broken bars** — causes excessive slip and vibration. "
+            "Zero values cause **mathematical singularity** in the rotor equations."
         ),
     },
     {
-        "nome": "$X_m$ — Reatância de Magnetização",
+        "nome": "$X_m$ — Magnetizing Reactance",
         "desc": (
-            "Representa o ramo de magnetização (*shunt*) do circuito: "
-            "caminho do fluxo principal pelo núcleo. "
-            "Relaciona-se com a indutância mútua: $X_m = 2\\pi f L_m$."
+            "Represents the magnetizing (*shunt*) branch of the circuit: "
+            "main flux path through the core. "
+            "Related to mutual inductance: $X_m = 2\\pi f L_m$."
         ),
         "up": (
-            "Reduz a corrente de magnetização em vazio $I_m = V_1/X_m$, "
-            "melhorando o fator de potência em regime."
+            "Reduces no-load magnetizing current $I_m = V_1/X_m$, "
+            "improving power factor in steady state."
         ),
         "down": (
-            "Aumenta $I_m$ — maior corrente reativa necessária para excitar o núcleo, "
-            "piorando o fator de potência."
+            "Increases $I_m$ — higher reactive current required to excite the core, "
+            "degrading power factor."
         ),
         "warn": (
-            "$X_m$ baixo indica núcleo de má qualidade ou em **saturação magnética**. "
-            "Valores excessivamente baixos podem causar **divergência numérica** no integrador."
+            "Low $X_m$ indicates poor-quality core or **magnetic saturation**. "
+            "Excessively low values may cause **numerical divergence** in the integrator."
         ),
     },
     {
-        "nome": "$R_{fe}$ — Resistência de Perdas no Ferro",
+        "nome": "$R_{fe}$ — Core Loss Resistance",
         "desc": (
-            "Modela histerese e correntes de Foucault em paralelo com $X_m$. "
-            "Perdas no ferro: $P_{fe} = 3\\,V_\\phi^2 / R_{fe}$. "
-            "Valores típicos: $100$–$2000\\;\\Omega$ para máquinas de médio porte."
+            "Models hysteresis and eddy currents in parallel with $X_m$. "
+            "Core losses: $P_{fe} = 3\\,V_\\phi^2 / R_{fe}$. "
+            "Typical values: $100$–$2000\\;\\Omega$ for medium-sized machines."
         ),
         "up": (
-            "$P_{fe}$ menor. O motor opera com maior eficiência, "
-            "especialmente em regimes de baixa carga onde as perdas no núcleo dominam."
+            "Lower $P_{fe}$. Motor operates with higher efficiency, "
+            "especially at light load where core losses dominate."
         ),
         "down": (
-            "$P_{fe}$ maior. O rendimento cai, especialmente em operação a vazio. "
-            "Pode indicar lâminas de baixa qualidade ou operação a frequência elevada."
+            "Higher $P_{fe}$. Efficiency decreases, especially at no load. "
+            "May indicate low-quality laminations or operation at elevated frequency."
         ),
         "warn": (
-            "$R_{fe}$ é usado **apenas no cálculo estático** de potências e rendimento — "
-            "não influencia o ODE nem a dinâmica simulada. "
-            "Valores $< 50\\;\\Omega$ indicam núcleo de baixíssima qualidade."
+            "$R_{fe}$ is used **only in static power and efficiency calculations** — "
+            "it does not influence the ODE or the simulated dynamics. "
+            "Values $< 50\\;\\Omega$ indicate extremely poor-quality core."
         ),
     },
     {
-        "nome": "$X_{ls}$ e $X_{lr}$ — Reatâncias de Dispersão",
+        "nome": "$X_{ls}$ and $X_{lr}$ — Leakage Reactances",
         "desc": (
-            "Modelam fluxos que não enlaçam ambos os enrolamentos (dispersão). "
-            "Definem a reatância de curtocircuito: $X_{cc} = X_{ls} + X_{lr}$, "
-            "que limita o torque máximo e a corrente de partida."
+            "Model fluxes that do not link both windings (leakage). "
+            "Define short-circuit reactance: $X_{cc} = X_{ls} + X_{lr}$, "
+            "which limits maximum torque and starting current."
         ),
         "up": (
-            "Aumenta $X_{cc}$, reduzindo $T_{max} \\propto 1/(X_{th}+X_{lr})$. "
-            "Corrente de partida cai, facilitando a proteção."
+            "Increases $X_{cc}$, reducing $T_{max} \\propto 1/(X_{th}+X_{lr})$. "
+            "Starting current decreases, facilitating protection."
         ),
         "down": (
-            "$T_{max}$ sobe e correntes de partida aumentam. "
-            "Torna o motor mais sensível a transitórios de carga e variações de tensão."
+            "$T_{max}$ increases and starting currents rise. "
+            "Makes the motor more sensitive to load transients and voltage variations."
         ),
         "warn": (
-            "Dispersão muito baixa resulta em **picos de corrente perigosos ao isolamento**. "
-            "Dispersão excessiva pode **impedir a partida** sob carga nominal."
+            "Very low leakage results in **current peaks dangerous to the insulation**. "
+            "Excessive leakage may **prevent starting** under rated load."
         ),
     },
 ]
 
 _PARAMS_MECANICOS = [
     {
-        "nome": "$p$ — Número de Polos",
+        "nome": "$p$ — Number of Poles",
         "desc": (
-            "Define a velocidade síncrona: $n_s = 120\\,f/p\\;$(rpm), "
-            "ou equivalentemente $\\omega_s = 4\\pi f/p\\;$(rad/s)."
+            "Defines synchronous speed: $n_s = 120\\,f/p\\;$(rpm), "
+            "or equivalently $\\omega_s = 4\\pi f/p\\;$(rad/s)."
         ),
         "up": (
-            "Reduz $n_s$. Para a mesma potência $P = T\\,\\omega$, "
-            "o torque nominal deve ser proporcionalmente maior."
+            "Reduces $n_s$. For the same power $P = T\\,\\omega$, "
+            "rated torque must be proportionally larger."
         ),
         "down": (
-            "Aumenta $n_s$ e $\\omega_s$. "
-            "O torque nominal diminui para a mesma potência de saída."
+            "Increases $n_s$ and $\\omega_s$. "
+            "Rated torque decreases for the same output power."
         ),
-        "warn": "$p$ deve ser sempre inteiro par. Valores ímpares invalidam o modelo físico.",
+        "warn": "$p$ must always be a positive even integer. Odd values invalidate the physical model.",
     },
     {
-        "nome": "$J$ — Momento de Inércia",
+        "nome": "$J$ — Moment of Inertia",
         "desc": (
-            "Governa a dinâmica de aceleração via equação mecânica: "
+            "Governs acceleration dynamics via the mechanical equation: "
             "$J\\,\\dot{\\omega}_r = T_e - T_L - B\\,\\omega_r$. "
-            "Inclui o rotor e a carga acoplada ao eixo."
+            "Includes the rotor and the load coupled to the shaft."
         ),
         "up": (
-            "Aceleração mais lenta — transitórios amortecidos e tempo de partida maior. "
-            "Reduz a sensibilidade a variações abruptas de carga."
+            "Slower acceleration — damped transients and longer starting time. "
+            "Reduces sensitivity to sudden load changes."
         ),
         "down": (
-            "Resposta dinâmica acelerada — o rotor reage quase instantaneamente a variações de $T_e$. "
-            "Útil para servoacionamentos, mas exige proteção contra sobrecargas rápidas."
+            "Accelerated dynamic response — rotor reacts almost instantaneously to $T_e$ changes. "
+            "Useful for servo drives, but requires protection against fast overloads."
         ),
         "warn": (
-            "$J$ muito baixo pode gerar **oscilações numéricas ruidosas** no ODE. "
-            "$J$ muito alto pode exigir $t_{max}$ muito grande para atingir o regime permanente."
+            "Very low $J$ may produce **noisy numerical oscillations** in the ODE. "
+            "Very high $J$ may require very large $t_{max}$ to reach steady state."
         ),
     },
     {
-        "nome": "$B$ — Coeficiente de Atrito Viscoso",
+        "nome": "$B$ — Viscous Friction Coefficient",
         "desc": (
-            "Modela perdas mecânicas proporcionais à velocidade: "
-            "$T_{atrito} = B\\,\\omega_r$ (mancais e ventilação)."
+            "Models mechanical losses proportional to speed: "
+            "$T_{friction} = B\\,\\omega_r$ (bearings and ventilation)."
         ),
         "up": (
-            "Aumenta o amortecimento do sistema e a dissipação mecânica. "
-            "O ponto de equilíbrio em regime é deslocado para menor rotação."
+            "Increases system damping and mechanical dissipation. "
+            "Steady-state equilibrium shifts to lower speed."
         ),
         "down": (
-            "Reduz perdas mecânicas. "
-            "Se $B = 0$, o amortecimento depende exclusivamente da carga externa $T_L$."
+            "Reduces mechanical losses. "
+            "If $B = 0$, damping depends exclusively on the external load $T_L$."
         ),
         "warn": (
-            "Valores elevados simulam **falha catastrófica em rolamentos** e "
-            "podem impedir que o motor atinja a rotação nominal."
+            "High values simulate **catastrophic bearing failure** and "
+            "may prevent the motor from reaching rated speed."
         ),
     },
 ]
@@ -955,443 +954,441 @@ _PARAMS_MECANICOS = [
 
 def _render_tab_sensibilidade() -> None:
     st.markdown(
-        "**Manual de calibração** do simulador: como cada parâmetro afeta qualitativamente "
-        "o comportamento da máquina. Útil para diagnóstico, ajuste de modelo e estudo de falhas."
+        "**Simulator calibration guide**: how each parameter qualitatively affects "
+        "machine behavior. Useful for diagnostics, model tuning, and fault studies."
     )
 
     st.divider()
-    st.markdown("### Parâmetros Elétricos")
+    st.markdown("### Electrical Parameters")
     for item in _PARAMS_ELETRICOS:
         st.markdown(f"**{item['nome']}**")
         st.markdown(item["desc"])
-        st.markdown(f"- **Se aumentar:** {item['up']}")
-        st.markdown(f"- **Se diminuir:** {item['down']}")
-        _div_warn(f"**Atenção — calibrações extremas:** {item['warn']}")
+        st.markdown(f"- **If increased:** {item['up']}")
+        st.markdown(f"- **If decreased:** {item['down']}")
+        _div_warn(f"**Caution — extreme calibrations:** {item['warn']}")
         st.write("")
 
     st.divider()
-    st.markdown("### Parâmetros Mecânicos")
+    st.markdown("### Mechanical Parameters")
     for item in _PARAMS_MECANICOS:
         st.markdown(f"**{item['nome']}**")
         st.markdown(item["desc"])
-        st.markdown(f"- **Se aumentar:** {item['up']}")
-        st.markdown(f"- **Se diminuir:** {item['down']}")
-        _div_warn(f"**Atenção — calibrações extremas:** {item['warn']}")
+        st.markdown(f"- **If increased:** {item['up']}")
+        st.markdown(f"- **If decreased:** {item['down']}")
+        _div_warn(f"**Caution — extreme calibrations:** {item['warn']}")
         st.write("")
 
     st.divider()
-    st.markdown("### Modo de Entrada dos Parâmetros Magnéticos — Reatâncias vs. Indutâncias")
-    _h4("Reatâncias $X$ (Ω) vs. Indutâncias $L$ (H)")
+    st.markdown("### Magnetic Parameter Input Mode — Reactances vs. Inductances")
+    _h4("Reactances $X$ (Ω) vs. Inductances $L$ (H)")
     st.markdown(
-        "Os parâmetros magnéticos $X_m$, $X_{ls}$ e $X_{lr}$ podem ser inseridos de duas formas "
-        "equivalentes. A escolha depende da fonte dos dados disponíveis."
+        "The magnetic parameters $X_m$, $X_{ls}$, and $X_{lr}$ can be entered in two "
+        "equivalent forms. The choice depends on the available data source."
     )
 
     col_x, col_l = st.columns(2)
     with col_x:
-        _h4("Modo Reatâncias (Ω)")
+        _h4("Reactance Mode (Ω)")
         st.markdown(
-            "Os valores são fornecidos como reatâncias medidas em uma frequência de referência "
-            "$f_{ref}$. É o formato padrão de relatórios de ensaio e catálogos de fabricantes."
+            "Values are provided as reactances measured at a reference frequency "
+            "$f_{ref}$. This is the standard format of test reports and manufacturer catalogs."
         )
         _eq(r"X = 2\pi\,f_{ref}\,L")
         st.markdown(
-            "**$f_{ref}$** deve ser a frequência na qual os parâmetros foram medidos — "
-            "normalmente a frequência nominal da máquina (50 Hz ou 60 Hz). "
-            "O simulador converte internamente para indutâncias:"
+            "**$f_{ref}$** must be the frequency at which the parameters were measured — "
+            "typically the machine's rated frequency (50 Hz or 60 Hz). "
+            "The simulator converts internally to inductances:"
         )
         _eq(r"L = \frac{X}{2\pi\,f_{ref}}")
         _div_warn(
-            "Se $f_{ref}$ for diferente de $f$ da rede, as reatâncias efetivas na simulação "
-            "serão recalculadas corretamente — $L$ é invariante, $X$ escala com $f$."
+            "If $f_{ref}$ differs from the grid frequency $f$, the effective reactances in the simulation "
+            "will be correctly recalculated — $L$ is invariant, $X$ scales with $f$."
         )
     with col_l:
-        _h4("Modo Indutâncias (H)")
+        _h4("Inductance Mode (H)")
         st.markdown(
-            "Os valores são fornecidos diretamente como indutâncias, independentes de frequência. "
-            "Indicado quando os parâmetros provêm de identificação paramétrica, "
-            "simulação de elementos finitos (FEM) ou medição por pontes de impedância."
+            "Values are provided directly as frequency-independent inductances. "
+            "Indicated when parameters come from parametric identification, "
+            "finite element simulation (FEM), or impedance bridge measurements."
         )
         _eq(r"X_m(f) = 2\pi\,f\,L_m")
         st.markdown(
-            "As indutâncias são inseridas uma única vez e permanecem válidas para qualquer "
-            "frequência de operação — o simulador recalcula as reatâncias automaticamente "
-            "a cada mudança de $f$."
+            "Inductances are entered once and remain valid for any "
+            "operating frequency — the simulator recalculates reactances automatically "
+            "at each change of $f$."
         )
         _div_warn(
-            "Prefira este modo ao operar fora da frequência nominal ou ao comparar "
-            "máquinas de diferentes frequências com o mesmo conjunto de parâmetros."
+            "Prefer this mode when operating outside rated frequency or when comparing "
+            "machines of different frequencies using the same parameter set."
         )
 
     st.divider()
-    st.markdown("### Parâmetros Térmicos")
-    _h4("$R_{th}$ — Resistência Térmica (K/W)")
+    st.markdown("### Thermal Parameters")
+    _h4("$R_{th}$ — Thermal Resistance (K/W)")
     st.markdown(
-        "Representa a resistência ao fluxo de calor entre o enrolamento e o ambiente externo. "
-        "Define a temperatura de regime em função das perdas totais:"
+        "Represents the resistance to heat flow between the winding and the external environment. "
+        "Defines steady-state temperature as a function of total losses:"
     )
-    _eq(r"\Delta T_{regime} = R_{th}\,(P_{cu} + P_{fe})")
+    _eq(r"\Delta T_{steady} = R_{th}\,(P_{cu} + P_{fe})")
     st.markdown(
-        "No modo automático, $R_{th}$ é estimado a partir dos parâmetros elétricos impondo "
-        "uma elevação de temperatura nominal $\\Delta T = 50\\;$K — valor típico de motores "
-        "TEFC (Totally Enclosed Fan Cooled) em operação nominal, correspondendo a "
-        "$T_{regime} \\approx 75\\;$°C com $T_{amb} = 25\\;$°C."
+        "In automatic mode, $R_{th}$ is estimated from the electrical parameters by imposing "
+        "a rated temperature rise $\\Delta T = 50\\;$K — a typical value for TEFC "
+        "(Totally Enclosed Fan Cooled) motors at rated operation, corresponding to "
+        "$T_{steady} \\approx 75\\;$°C with $T_{amb} = 25\\;$°C."
     )
     _div_warn(
-        "Valores baixos de $R_{th}$ indicam motor com boa refrigeração (carcaça grande, "
-        "ventilação forçada). Valores altos indicam motor fechado de pequeno porte ou "
-        "com ventilação comprometida — temperatura de regime mais elevada."
+        "Low $R_{th}$ values indicate a well-cooled motor (large frame, "
+        "forced ventilation). High values indicate a small enclosed motor or "
+        "one with compromised ventilation — higher steady-state temperature."
     )
 
     st.write("")
-    _h4("$C_{th}$ — Capacidade Térmica (J/K)")
+    _h4("$C_{th}$ — Thermal Capacitance (J/K)")
     st.markdown(
-        "Representa a energia necessária para elevar a temperatura do motor em 1 K. "
-        "Governa a **velocidade de aquecimento** — a constante de tempo térmica é:"
+        "Represents the energy required to raise the motor temperature by 1 K. "
+        "Governs the **heating rate** — the thermal time constant is:"
     )
     _eq(r"\tau_{th} = R_{th}\,C_{th}")
     st.markdown(
-        "No modo automático, a capacidade térmica é estimada pela massa equivalente do motor, "
-        "assumindo aço com calor específico $c_p = 460\\;$J/(kg·K) e uma regra industrial "
-        "de $15\\;$kg/kW de potência nominal:"
+        "In automatic mode, thermal capacitance is estimated from the motor equivalent mass, "
+        "assuming steel with specific heat $c_p = 460\\;$J/(kg·K) and an industrial rule of "
+        "$15\\;$kg/kW of rated power:"
     )
-    _eq(r"C_{th} \approx \underbrace{15\,P_{nom}}_{\text{massa estimada (kg)}} \times 460\;\frac{\text{J}}{\text{kg·K}}")
+    _eq(r"C_{th} \approx \underbrace{15\,P_{nom}}_{\text{estimated mass (kg)}} \times 460\;\frac{\text{J}}{\text{kg·K}}")
     _div_warn(
-        "A equação diferencial térmica integrada pelo simulador é: "
+        "The thermal ODE integrated by the simulator is: "
         "$\\dot{T} = (P_{cu} + P_{fe})/C_{th} - (T - T_{amb})/(R_{th}\\,C_{th})$. "
-        "Em regime permanente, $\\dot{T} = 0$ e $T_{regime} = T_{amb} + R_{th}\\,(P_{cu}+P_{fe})$."
+        "In steady state, $\\dot{T} = 0$ and $T_{steady} = T_{amb} + R_{th}\\,(P_{cu}+P_{fe})$."
     )
 
     st.write("")
-    _h4("$T_{amb}$ — Temperatura Ambiente (°C)")
+    _h4("$T_{amb}$ — Ambient Temperature (°C)")
     st.markdown(
-        "Temperatura do ambiente externo, usada como condição de contorno da EDO térmica "
-        "e como valor inicial de $T$ na simulação. "
-        "A temperatura do motor em qualquer instante é:"
+        "External ambient temperature, used as the boundary condition of the thermal ODE "
+        "and as the initial value of $T$ in the simulation. "
+        "Motor temperature at any instant is:"
     )
-    _eq(r"T(t) = T_{amb} + \Delta T(t), \quad \Delta T(t) = \Delta T_{regime}\!\left(1 - e^{-t/\tau_{th}}\right)")
+    _eq(r"T(t) = T_{amb} + \Delta T(t), \quad \Delta T(t) = \Delta T_{steady}\!\left(1 - e^{-t/\tau_{th}}\right)")
     st.markdown(
-        "Alterar $T_{amb}$ desloca toda a curva de temperatura sem modificar a dinâmica — "
-        "$\\tau_{th}$ e $\\Delta T_{regime}$ permanecem os mesmos."
+        "Changing $T_{amb}$ shifts the entire temperature curve without modifying the dynamics — "
+        "$\\tau_{th}$ and $\\Delta T_{steady}$ remain unchanged."
     )
 
     st.divider()
-    st.markdown("### Impedância de Rede")
-    _h4("$R_{grid}$ e $L_{grid}$ — Impedância da Rede de Alimentação")
+    st.markdown("### Grid Impedance")
+    _h4("$R_{grid}$ and $L_{grid}$ — Supply Grid Impedance")
     st.markdown(
-        "Em uma instalação real, o motor não é alimentado diretamente por uma fonte ideal "
-        "de tensão: existe uma impedância de rede entre o ponto de entrega e os terminais "
-        "do motor, composta pela resistência e indutância dos cabos, transformadores e "
-        "barramentos. O simulador modela essa impedância como uma série $R_{grid} + jX_{grid}$ "
-        "inserida em cada fase antes dos terminais do estator:"
+        "In a real installation, the motor is not fed directly by an ideal voltage source: "
+        "there is a grid impedance between the point of delivery and the motor terminals, "
+        "composed of the resistance and inductance of cables, transformers, and busbars. "
+        "The simulator models this impedance as a series $R_{grid} + jX_{grid}$ "
+        "inserted in each phase before the stator terminals:"
     )
-    _eq(r"\bar{V}_{motor} = \bar{V}_{rede} - \bar{I}_s\,(R_{grid} + j\omega_e L_{grid})")
+    _eq(r"\bar{V}_{motor} = \bar{V}_{grid} - \bar{I}_s\,(R_{grid} + j\omega_e L_{grid})")
     st.markdown(
-        "A tensão efetiva nos terminais do motor cai com a corrente — especialmente "
-        "durante a partida, quando $I_s$ é máxima. O efeito é equivalente a um "
-        "**afundamento de tensão proporcional à corrente** ao longo de todo o transitório."
+        "The effective voltage at the motor terminals drops with current — especially "
+        "during starting, when $I_s$ is maximum. The effect is equivalent to a "
+        "**current-proportional voltage sag** throughout the entire transient."
     )
     st.markdown(
-        "- **$R_{grid}$:** provoca queda resistiva de tensão e dissipação de potência ativa no cabo.\n"
-        "- **$L_{grid}$:** provoca queda reativa e atraso de fase — mais relevante em redes de "
-        "média tensão ou com cabos longos."
+        "- **$R_{grid}$:** causes resistive voltage drop and active power dissipation in the cable.\n"
+        "- **$L_{grid}$:** causes reactive voltage drop and phase lag — more relevant in "
+        "medium-voltage grids or with long cables."
     )
     _div_warn(
-        "Com $R_{grid} = L_{grid} = 0$ (padrão), o motor é alimentado por fonte ideal — "
-        "tensão nos terminais sempre igual a $V_l$. "
-        "Valores típicos para cabos de baixa tensão: $R_{grid} \\approx 0{,}01$–$0{,}1\\;\\Omega$, "
+        "With $R_{grid} = L_{grid} = 0$ (default), the motor is fed by an ideal source — "
+        "terminal voltage always equal to $V_l$. "
+        "Typical values for low-voltage cables: $R_{grid} \\approx 0{,}01$–$0{,}1\\;\\Omega$, "
         "$L_{grid} \\approx 10$–$100\\;\\mu$H."
     )
 
 # ─────────────────────────────────────────────────────────────────────────────
-# ABA 8a — CONFIGURAÇÕES DE SIMULAÇÃO E ALERTAS (renderizada dentro da Aba 8)
+# TAB 8a — SIMULATION SETTINGS AND ALERTS (rendered inside Tab 8)
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _render_tab_config() -> None:
     st.markdown(
-        "Diretrizes para escolha do **tempo de simulação** $t_{max}$ e do "
-        "**passo de integração** $h$, com critérios de estabilidade numérica "
-        "e alertas para cenários que podem comprometer a simulação."
+        "Guidelines for choosing the **simulation time** $t_{max}$ and the "
+        "**integration step** $h$, with numerical stability criteria "
+        "and alerts for scenarios that may compromise the simulation."
     )
 
     st.divider()
-    _h4("Tempo de Simulação — $t_{max}$")
+    _h4("Simulation Time — $t_{max}$")
     st.markdown(
-        "Define o horizonte temporal da integração numérica. "
-        "Deve ser suficiente para conter o **transitório completo de partida** "
-        "e, se necessário, a estabilização em regime permanente."
+        "Defines the temporal horizon of the numerical integration. "
+        "Must be sufficient to contain the **complete starting transient** "
+        "and, if necessary, steady-state stabilization."
     )
-    st.markdown("**Referência prática:**")
+    st.markdown("**Practical reference:**")
     st.markdown(
-        "- Transitório de partida típico: $t_{part} \\approx 3$–$5 \\times \\tau_m$, "
-        "onde $\\tau_m = J\\,\\omega_s / T_{e,nom}$.\n"
-        "- Regime permanente: observar pelo menos $5$–$10$ ciclos elétricos após "
-        "$t_{part}$ para calcular valores RMS confiáveis.\n"
-        "- Experimentos com pulso de carga: incluir margem após $t_{off}$ "
-        "para visualizar o retorno ao regime."
+        "- Typical starting transient: $t_{start} \\approx 3$–$5 \\times \\tau_m$, "
+        "where $\\tau_m = J\\,\\omega_s / T_{e,nom}$.\n"
+        "- Steady state: observe at least $5$–$10$ electrical cycles after "
+        "$t_{start}$ to compute reliable RMS values.\n"
+        "- Load pulse experiments: include margin after $t_{off}$ "
+        "to visualize the return to steady state."
     )
     st.markdown(
-        "- **$t_{max}$ maior:** Permite observar fenômenos de longo prazo e verificar estabilidade. "
-        "Aumenta o custo computacional linearmente.\n"
-        "- **$t_{max}$ menor:** Processamento rápido, mas arrisca truncar a análise antes da estabilização "
-        "— os valores RMS e o torque médio ficam incorretos."
+        "- **Larger $t_{max}$:** Allows observation of long-term phenomena and stability verification. "
+        "Increases computational cost linearly.\n"
+        "- **Smaller $t_{max}$:** Fast processing, but risks truncating the analysis before stabilization "
+        "— RMS values and mean torque become incorrect."
     )
     _div_warn(
-        "**Atenção:** $t_{max}$ muito grande combinado com $h$ muito pequeno "
-        "pode causar **estouro de memória** no navegador. "
-        "Verifique: $N = t_{max}/h$ pontos armazenados."
+        "**Warning:** very large $t_{max}$ combined with very small $h$ "
+        "may cause **browser memory overflow**. "
+        "Verify: $N = t_{max}/h$ stored points."
     )
 
     st.divider()
-    _h4("Passo de Integração — $h$")
+    _h4("Integration Step — $h$")
     st.markdown(
-        "Discretização temporal para o solver (**LSODA / scipy.odeint**). "
-        "O passo controla precisão numérica e estabilidade da integração."
+        "Temporal discretization for the solver (**LSODA / scipy.odeint**). "
+        "The step controls numerical precision and integration stability."
     )
-    st.markdown("**Critério de estabilidade numérica:**")
+    st.markdown("**Numerical stability criterion:**")
     _eq(r"h \;\leq\; \frac{1}{20\,f}")
     st.markdown(
-        "Este critério garante pelo menos **20 pontos por ciclo elétrico**, "
-        "suficientes para integrar a frequência fundamental sem aliasing numérico."
+        "This criterion ensures at least **20 points per electrical cycle**, "
+        "sufficient to integrate the fundamental frequency without numerical aliasing."
     )
     st.markdown(
         """
-| Frequência $f$ | $h_{max}$ recomendado | Pontos/ciclo |
+| Frequency $f$ | Recommended $h_{max}$ | Points/cycle |
 |---|---|---|
 | 50 Hz | $1{,}00\\;$ms | 20 |
 | 60 Hz | $0{,}83\\;$ms | 20 |
-| 60 Hz (alta fidelidade) | $0{,}20\\;$ms | 83 |
+| 60 Hz (high fidelity) | $0{,}20\\;$ms | 83 |
 """
     )
     st.markdown(
-        "- **$h$ maior (passo grosso):** Simulação rápida, mas com risco de imprecisão nas correntes de partida "
-        "e possível divergência numérica.\n"
-        "- **$h$ menor (passo fino):** Alta fidelidade e estabilidade — indicado para análise de harmônicos "
-        "e comparação com dados experimentais."
+        "- **Larger $h$ (coarse step):** Fast simulation, but risks imprecision in starting currents "
+        "and possible numerical divergence.\n"
+        "- **Smaller $h$ (fine step):** High fidelity and stability — indicated for harmonic analysis "
+        "and comparison with experimental data."
     )
     _div_warn(
-        "**Atenção:** para $f = 60\\;$Hz, passos $h > 1\\;$ms costumam "
-        "causar **divergência do integrador** — as correntes crescem "
-        "indefinidamente nos primeiros ciclos de partida."
+        "**Warning:** for $f = 60\\;$Hz, steps $h > 1\\;$ms typically "
+        "cause **integrator divergence** — currents grow "
+        "unboundedly during the first starting cycles."
     )
 
     st.divider()
-    _h4("Alertas de Calibração — Cenários Críticos")
+    _h4("Calibration Alerts — Critical Scenarios")
     st.markdown(
-        "As combinações de parâmetros abaixo podem comprometer a validade física "
-        "da simulação ou causar falha numérica:"
+        "The following parameter combinations may compromise the physical validity "
+        "of the simulation or cause numerical failure:"
     )
     st.markdown(
         """
-| Cenário | Condição | Risco |
+| Scenario | Condition | Risk |
 |---|---|---|
-| **Saturação magnética** | $V_l/f \\gg (V_l/f)_{nom}$ ou $X_m$ muito baixo | Fluxo sai da região linear — $L_m$ cai, modelo dq deixa de ser válido. Sintoma: corrente de magnetização excessiva. |
-| **Travamento (Stall)** | $T_L > T_{max}$ ou $V_l < 85\\%\\,V_n$ | Motor não acelera — fica preso na região instável da curva $T_e \\times n$. Corrente permanece elevada e o rotor superaquece. |
-| **Divergência numérica** | $h > 1/(20f)$, $R_s \\approx 0$ ou $X_m \\approx 0$ | Correntes crescem sem limite nos primeiros ciclos. O simulador exibe valores absurdos (NaN, $\\infty$). |
-| **Estouro de memória** | $N = t_{max}/h > 5 \\times 10^6$ pontos | Alocação excessiva de arrays NumPy — lentidão extrema ou travamento do navegador. |
-| **Regime não atingido** | $t_{max} < 3\\,\\tau_m$ | Os valores RMS e de torque médio são calculados sobre dados transitórios — resultados de regime incorretos sem aviso explícito. |
+| **Magnetic saturation** | $V_l/f \\gg (V_l/f)_{nom}$ or very low $X_m$ | Flux exits the linear region — $L_m$ decreases, $dq$ model becomes invalid. Symptom: excessive magnetizing current. |
+| **Stalling** | $T_L > T_{max}$ or $V_l < 85\\%\\,V_n$ | Motor does not accelerate — trapped in the unstable region of the $T_e \\times n$ curve. Current remains high and the rotor overheats. |
+| **Numerical divergence** | $h > 1/(20f)$, $R_s \\approx 0$, or $X_m \\approx 0$ | Currents grow without bound during the first cycles. Simulator displays absurd values (NaN, $\\infty$). |
+| **Memory overflow** | $N = t_{max}/h > 5 \\times 10^6$ points | Excessive NumPy array allocation — extreme slowness or browser freeze. |
+| **Steady state not reached** | $t_{max} < 3\\,\\tau_m$ | RMS values and mean torque are computed over transient data — incorrect steady-state results without explicit warning. |
 """
     )
 
     st.divider()
-    _h4("Guia Rápido de Configuração")
-    st.markdown("**Passo a passo para uma simulação confiável:**")
+    _h4("Quick Configuration Guide")
+    st.markdown("**Step-by-step for a reliable simulation:**")
     st.markdown(
-        "1. Calcule $\\tau_m \\approx J\\,\\omega_s / T_{e,nom}$ e defina $t_{max} \\geq 5\\,\\tau_m$.\n"
-        "2. Escolha $h \\leq 1/(20f)$ — para 60 Hz use $h = 0{,}5\\;$ms como padrão seguro.\n"
-        "3. Verifique que $T_L < T_{max}$ antes de simular (evita stall).\n"
-        "4. Confirme $V_l/f$ próximo ao valor nominal (evita saturação).\n"
-        "5. Se a simulação divergir, reduza $h$ pela metade e repita.\n"
-        "6. Se o regime não aparecer nos gráficos, duplique $t_{max}$."
+        "1. Compute $\\tau_m \\approx J\\,\\omega_s / T_{e,nom}$ and set $t_{max} \\geq 5\\,\\tau_m$.\n"
+        "2. Choose $h \\leq 1/(20f)$ — for 60 Hz use $h = 0{,}5\\;$ms as a safe default.\n"
+        "3. Verify $T_L < T_{max}$ before simulating (prevents stall).\n"
+        "4. Confirm $V_l/f$ close to the rated value (prevents saturation).\n"
+        "5. If simulation diverges, halve $h$ and repeat.\n"
+        "6. If steady state does not appear in the plots, double $t_{max}$."
     )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# ABA 7 — EXPERIMENTOS E PERTURBAÇÕES DE REDE
+# TAB 7 — EXPERIMENTS AND GRID DISTURBANCES
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _render_tab_experimentos() -> None:
     st.markdown(
-        "Cada experimento do simulador corresponde a um cenário físico distinto — "
-        "partida, carga, geração ou falha de rede. "
-        "Esta aba descreve o princípio de cada ensaio, as equações que o governam "
-        "e os fenômenos observáveis nos gráficos."
+        "Each simulator experiment corresponds to a distinct physical scenario — "
+        "starting, loading, generation, or grid fault. "
+        "This tab describes the principle of each test, the governing equations, "
+        "and the observable phenomena in the plots."
     )
 
     st.divider()
-    st.markdown("### Métodos de Partida")
+    st.markdown("### Starting Methods")
 
-    _h4("Partida Direta — DOL *(Direct On-Line)*")
+    _h4("Direct-On-Line Starting — DOL")
     st.markdown(
-        "O estator é conectado diretamente à rede em plena tensão $V_l$ no instante $t=0$. "
-        "É o método mais simples, porém o mais agressivo: a corrente de partida atinge "
-        "tipicamente 6 a 8 vezes a corrente nominal, gerando pico de torque e afundamento "
-        "de tensão na rede."
+        "The stator is connected directly to the grid at full voltage $V_l$ at $t=0$. "
+        "Simplest method, but most aggressive: starting current typically reaches "
+        "6 to 8 times the rated value, generating a torque peak and voltage sag in the grid."
     )
-    _eq(r"I_{part} \approx (6\text{ a }8)\,I_n \quad (s=1,\; V = V_{nom})")
+    _eq(r"I_{start} \approx (6\text{ to }8)\,I_n \quad (s=1,\; V = V_{nom})")
     st.markdown(
-        "O simulador oferece dois modos de operação:"
-    )
-    st.markdown(
-        "- **Partir em vazio:** $t = 0$ — tensão nominal aplicada, motor acelera sem carga ($T_l = 0$). "
-        "Em $t_{carga}$, o torque resistente é aplicado em degrau — permite observar o afundamento "
-        "de velocidade e o transitório de corrente ao conectar a carga.\n"
-        "- **Partir com carga:** $t = 0$ — tensão nominal e carga $T_l$ aplicadas simultaneamente; "
-        "motor acelera contra carga plena desde o instante inicial."
+        "The simulator offers two operating modes:"
     )
     st.markdown(
-        "- **Observar:** pico de corrente na partida, torque máximo (pull-out), tempo de aceleração, "
-        "afundamento de velocidade ao aplicar carga.\n"
-        "- **Risco:** sobrecarga térmica se $T_l > T_{max}$ — o motor trava (stall)."
-    )
-
-    st.write("")
-    _h4("Partida Estrela-Triângulo — Y-D")
-    st.markdown(
-        "Na fase estrela ($0 < t < t_2$), cada enrolamento recebe $V_l/\\sqrt{3}$, "
-        "reduzindo a corrente de partida e o torque a $1/3$ dos valores em triângulo:"
-    )
-    _eq(r"I_{part,Y} = \frac{1}{3}\,I_{part,\Delta}, \quad T_{part,Y} = \frac{1}{3}\,T_{part,\Delta}")
-    st.markdown(
-        "Em $t_2$, a chave comuta para triângulo: a tensão salta para $V_l$ e ocorre "
-        "um **segundo pico de corrente** — muitas vezes ignorado na prática, "
-        "mas visível no simulador. A carga $T_l$ é aplicada em $t_{carga} > t_2$."
+        "- **No-load start:** $t = 0$ — rated voltage applied, motor accelerates without load ($T_l = 0$). "
+        "At $t_{load}$, resistive torque applied as a step — allows observing the speed dip "
+        "and current transient when connecting the load.\n"
+        "- **Loaded start:** $t = 0$ — rated voltage and load $T_l$ applied simultaneously; "
+        "motor accelerates against full load from the initial instant."
     )
     st.markdown(
-        "- **Observar:** dois picos de corrente (partida Y e comutação Y→D), redução de torque de partida.\n"
-        "- **Limitação:** só aplicável a motores projetados para ligação em triângulo na tensão de linha."
+        "- **Observe:** starting current peak, maximum torque (pull-out), acceleration time, "
+        "speed dip upon load application.\n"
+        "- **Risk:** thermal overload if $T_l > T_{max}$ — motor stalls."
     )
 
     st.write("")
-    _h4("Partida com Autotransformador")
+    _h4("Star-Delta Starting — Y-Δ")
     st.markdown(
-        "Um autotransformador com tap $k$ ($0 < k < 1$) aplica $k\\,V_l$ ao motor durante "
-        "a partida. A corrente absorvida da rede é reduzida pelo fator $k^2$:"
+        "During the star phase ($0 < t < t_2$), each winding receives $V_l/\\sqrt{3}$, "
+        "reducing starting current and torque to $1/3$ of the delta values:"
     )
-    _eq(r"I_{rede} = k^2\,I_{part,\,V_{nom}}, \quad T_{part} = k^2\,T_{part,\,V_{nom}}")
+    _eq(r"I_{start,Y} = \frac{1}{3}\,I_{start,\Delta}, \quad T_{start,Y} = \frac{1}{3}\,T_{start,\Delta}")
     st.markdown(
-        "Em $t_2$ ocorre a comutação para tensão plena. O simulador permite escolher o tap "
-        "$k$ via slider e observar o compromisso entre redução de corrente e torque de partida disponível."
+        "At $t_2$, the contactor switches to delta: voltage jumps to $V_l$ and a "
+        "**second current peak** occurs — often overlooked in practice, "
+        "but clearly visible in the simulator. Load $T_l$ is applied at $t_{load} > t_2$."
     )
     st.markdown(
-        "- **Observar:** corrente de rede reduzida na partida, pico na comutação, torque de partida limitado.\n"
-        "- **Vantagem sobre Y-D:** tap ajustável permite otimizar o compromisso corrente × torque."
+        "- **Observe:** two current peaks (Y start and Y→Δ switchover), reduced starting torque.\n"
+        "- **Limitation:** applicable only to motors designed for delta connection at line voltage."
     )
 
     st.write("")
-    _h4("Soft-Starter — Rampa de Tensão")
+    _h4("Autotransformer Starting")
     st.markdown(
-        "Um conversor eletrônico aplica uma tensão crescente de $V_0 = k\\,V_l$ até $V_l$ "
-        "ao longo da rampa $[t_2,\\, t_{pico}]$:"
+        "An autotransformer with tap $k$ ($0 < k < 1$) applies $k\\,V_l$ to the motor during starting. "
+        "Grid current is reduced by factor $k^2$:"
     )
-    _eq(r"V(t) = V_0 + (V_l - V_0)\,\frac{t - t_2}{t_{pico} - t_2}, \quad t_2 \leq t \leq t_{pico}")
+    _eq(r"I_{grid} = k^2\,I_{start,\,V_{nom}}, \quad T_{start} = k^2\,T_{start,\,V_{nom}}")
     st.markdown(
-        "A sequência de eventos no simulador é:"
-    )
-    st.markdown(
-        "- $t = 0$ — motor parte com tensão inicial $V_0 = k\\,V_l$; corrente e torque de partida limitados.\n"
-        "- $t = t_2$ — rampa de tensão iniciada: tensão cresce linearmente de $V_0$ até $V_l$.\n"
-        "- $t = t_{pico}$ — tensão nominal atingida; Soft-Starter desconectado, motor em operação direta "
-        "(duração da rampa: $t_{pico} - t_2$).\n"
-        "- $t = t_{carga}$ — carga $T_l$ aplicada ao eixo."
+        "At $t_2$, switchover to full voltage occurs. The simulator allows choosing tap "
+        "$k$ via slider and observing the trade-off between current reduction and available starting torque."
     )
     st.markdown(
-        "A corrente e o torque crescem suavemente ao longo da rampa, eliminando o pico abrupto "
-        "das partidas comutadas."
+        "- **Observe:** reduced grid current at starting, peak at switchover, limited starting torque.\n"
+        "- **Advantage over Y-Δ:** adjustable tap allows optimizing the current × torque trade-off."
+    )
+
+    st.write("")
+    _h4("Soft-Starter — Voltage Ramp")
+    st.markdown(
+        "An electronic converter applies a rising voltage from $V_0 = k\\,V_l$ to $V_l$ "
+        "over the ramp $[t_2,\\, t_{peak}]$:"
+    )
+    _eq(r"V(t) = V_0 + (V_l - V_0)\,\frac{t - t_2}{t_{peak} - t_2}, \quad t_2 \leq t \leq t_{peak}")
+    st.markdown(
+        "The event sequence in the simulator is:"
     )
     st.markdown(
-        "- **Observar:** ausência de pico de corrente, aceleração mais lenta, corrente quase constante durante a rampa.\n"
-        "- **Risco:** rampa muito longa eleva perdas Joule no rotor durante a aceleração ($P_{cu,2} = s\\,P_{ag}$)."
+        "- $t = 0$ — motor starts at initial voltage $V_0 = k\\,V_l$; limited starting current and torque.\n"
+        "- $t = t_2$ — voltage ramp initiated: voltage rises linearly from $V_0$ to $V_l$.\n"
+        "- $t = t_{peak}$ — rated voltage reached; Soft-Starter disconnected, motor in direct operation "
+        "(ramp duration: $t_{peak} - t_2$).\n"
+        "- $t = t_{load}$ — load $T_l$ applied to the shaft."
+    )
+    st.markdown(
+        "Current and torque grow smoothly over the ramp, eliminating the abrupt peak of switched starting methods."
+    )
+    st.markdown(
+        "- **Observe:** no current peak, slower acceleration, nearly constant current during the ramp.\n"
+        "- **Risk:** excessively long ramp increases rotor Joule losses during acceleration ($P_{cu,2} = s\\,P_{ag}$)."
     )
 
     st.divider()
-    _h4("Comparativo de Corrente de Partida — Visualização Interativa")
+    _h4("Starting Current Comparison — Interactive Visualization")
     render_comparativo_partidas()
 
     st.divider()
-    st.markdown("### Ensaios de Carga")
+    st.markdown("### Load Tests")
 
-    _h4("Aplicação de Carga — Partida em Vazio")
+    _h4("Load Application — No-Load Start")
     st.markdown(
-        "O motor parte em vazio ($T_l = 0$) e, em $t_{carga}$, recebe o torque resistente "
-        "$T_l$ em degrau. É o ensaio de referência para medir o **afundamento de "
-        "velocidade** $\\Delta n$ e o aumento de corrente ao conectar a carga:"
+        "Motor starts at no load ($T_l = 0$) and, at $t_{load}$, receives resistive torque "
+        "$T_l$ as a step. Reference test to measure the **speed dip** "
+        "$\\Delta n$ and the current increase upon load connection:"
     )
-    _eq(r"\Delta n = n_{vazio} - n_{carga} = n_s\,(s_{carga} - s_{vazio})")
+    _eq(r"\Delta n = n_{no-load} - n_{loaded} = n_s\,(s_{loaded} - s_{no-load})")
     st.markdown(
-        "O percentual de carga pode ser ajustado: 100% = carga nominal, acima = sobrecarga, "
-        "abaixo = carga parcial."
+        "Load percentage can be adjusted: 100% = rated load, above = overload, "
+        "below = partial load."
     )
     st.markdown(
-        "- **Observar:** afundamento de velocidade, aumento de corrente RMS, novo ponto de regime.\n"
-        "- **Risco:** $T_l > T_{max}$ provoca stall — o motor não retorna ao regime estável."
+        "- **Observe:** speed dip, increase in RMS current, new steady-state operating point.\n"
+        "- **Risk:** $T_l > T_{max}$ causes stall — motor does not return to stable steady state."
     )
 
     st.write("")
-    _h4("Pulso de Carga — Aplica e Retira")
+    _h4("Load Pulse — Apply and Remove")
     st.markdown(
-        "A carga é aplicada em $t_{on}$ e retirada em $t_{off}$, simulando uma perturbação "
-        "temporária (ex: impacto de carga em prensas, compressores alternativos). "
-        "Após $t_{off}$, o motor retorna ao regime de vazio com transitório de velocidade "
-        "e corrente observável."
+        "Load is applied at $t_{on}$ and removed at $t_{off}$, simulating a "
+        "temporary disturbance (e.g., load impact in presses, reciprocating compressors). "
+        "After $t_{off}$, the motor returns to no-load steady state with observable "
+        "speed and current transients."
     )
     st.markdown(
-        "- **Observar:** queda e recuperação de velocidade, picos de corrente nos dois instantes de comutação.\n"
-        "- **Parâmetro chave:** $J$ — inércia elevada amorece a queda de velocidade; baixa inércia amplifica o transitório."
+        "- **Observe:** speed drop and recovery, current peaks at both switching instants.\n"
+        "- **Key parameter:** $J$ — high inertia dampens speed drop; low inertia amplifies the transient."
     )
 
     st.divider()
-    st.markdown("### Desligamento")
+    st.markdown("### Shutdown")
 
-    _h4("Desligamento — Corte de Alimentação")
+    _h4("Shutdown — Supply Cut-off")
     st.markdown(
-        "Em $t_{des}$, a tensão de alimentação é zerada, simulando abertura de contator "
-        "ou falta total de rede. O campo girante desaparece em microssegundos (transitório "
-        "elétrico); a velocidade decai dominada pela constante mecânica:"
+        "At $t_{shutdown}$, the supply voltage is set to zero, simulating contactor opening "
+        "or total grid loss. The rotating field disappears within microseconds (electrical transient); "
+        "speed decays dominated by the mechanical time constant:"
     )
     st.markdown(
-        "A sequência de eventos no simulador é:"
+        "The event sequence in the simulator is:"
     )
     st.markdown(
-        "- $t = 0$ — motor parte em vazio e acelera até regime permanente.\n"
-        "- $t = t_{carga}$ — carga $T_l$ aplicada; motor acomoda-se ao novo ponto de operação.\n"
-        "- $t = t_{des}$ — tensão cortada (abertura do contator); torque eletromagnético decai em milissegundos.\n"
-        "- **Pós-corte** — a carga mecânica $T_l$ permanece ativa e freia o rotor até a parada completa."
+        "- $t = 0$ — motor starts at no load and accelerates to steady state.\n"
+        "- $t = t_{load}$ — load $T_l$ applied; motor settles to new operating point.\n"
+        "- $t = t_{shutdown}$ — voltage cut off (contactor opens); electromagnetic torque decays within milliseconds.\n"
+        "- **Post-cutoff** — mechanical load $T_l$ remains active and brakes the rotor to complete standstill."
     )
     st.markdown(
-        "Com $B > 0$ e $T_l > 0$, o tempo de parada analítico é calculado pelo simulador como:"
+        "With $B > 0$ and $T_l > 0$, the analytical stopping time is computed by the simulator as:"
     )
     _eq(r"t_{stop} = \frac{J}{B}\,\ln\!\left(1 + \frac{B\,\omega_0}{T_l}\right)")
     st.markdown(
-        "onde $\\omega_0 = \\omega_r(t_{des})$ é a velocidade no instante do corte. "
-        "O valor $t_{max}$ é definido automaticamente como $t_{des} + 1{,}2\\,t_{stop}$ "
-        "(20% de margem sobre o tempo de parada analítico)."
+        "where $\\omega_0 = \\omega_r(t_{shutdown})$ is the speed at the instant of cutoff. "
+        "$t_{max}$ is set automatically as $t_{shutdown} + 1{,}2\\,t_{stop}$ "
+        "(20% margin over the analytical stopping time)."
     )
     st.markdown(
-        "Casos especiais:\n"
-        "- $B = 0$, $T_l > 0$: desaceleração linear — $t_{stop} = J\\,\\omega_0 / T_l$.\n"
-        "- $B > 0$, $T_l = 0$: decaimento exponencial — $\\omega_r(t) \\approx \\omega_0\\,e^{-(t-t_{des})/\\tau_m}$, $\\tau_m = J/B$.\n"
-        "- $B \\approx 0$ e $T_l = 0$: rotor para apenas por atrito residual — tempo muito longo."
+        "Special cases:\n"
+        "- $B = 0$, $T_l > 0$: linear deceleration — $t_{stop} = J\\,\\omega_0 / T_l$.\n"
+        "- $B > 0$, $T_l = 0$: exponential decay — $\\omega_r(t) \\approx \\omega_0\\,e^{-(t-t_{shutdown})/\\tau_m}$, $\\tau_m = J/B$.\n"
+        "- $B \\approx 0$ and $T_l = 0$: rotor stops only by residual friction — very long time."
     )
     st.markdown(
-        "- **Observar:** extinção abrupta da corrente, decaimento de velocidade pós-corte, tempo de parada.\n"
-        "- **t_max:** calculado automaticamente pelo simulador com base nos parâmetros $J$, $B$, $T_l$ e $t_{des}$."
+        "- **Observe:** abrupt current extinction, post-cutoff speed decay, stopping time.\n"
+        "- **t_max:** automatically computed by the simulator based on parameters $J$, $B$, $T_l$, and $t_{shutdown}$."
     )
 
     st.divider()
-    st.markdown("### Afundamento de Tensão")
+    st.markdown("### Voltage Sag")
 
-    _h4("Afundamento de Tensão — *Voltage Sag*")
+    _h4("Voltage Sag")
     st.markdown(
-        "O afundamento de tensão é uma **redução temporária** da amplitude da tensão de "
-        "alimentação, com duração tipicamente entre alguns ciclos e alguns segundos. "
-        "É classificado pela norma IEC 61000-4-11 / IEEE 1159 como uma perturbação de "
-        "qualidade de energia de alta ocorrência — causada por faltas em alimentadores "
-        "vizinhos, partida de cargas pesadas ou falhas de comutação na rede."
+        "A voltage sag is a **temporary reduction** in the supply voltage amplitude, "
+        "with duration typically ranging from a few cycles to a few seconds. "
+        "It is classified by IEC 61000-4-11 / IEEE 1159 as a high-occurrence power-quality "
+        "disturbance — caused by faults on adjacent feeders, heavy-load starting, or "
+        "switching failures in the grid."
     )
     st.markdown(
-        "No simulador, o afundamento é modelado como uma janela retangular de tensão "
-        "reduzida no intervalo $[t_{sag},\\, t_{sag} + \\Delta t_{sag}]$:"
+        "In the simulator, the sag is modelled as a rectangular reduced-voltage window "
+        "over the interval $[t_{sag},\\, t_{sag} + \\Delta t_{sag}]$:"
     )
     _eq(
         r"V(t) = \begin{cases}"
@@ -1401,674 +1398,670 @@ def _render_tab_experimentos() -> None:
         r"\end{cases}"
     )
     st.markdown(
-        "onde $k_{sag} \\in (0,\\,1]$ é a **magnitude residual** — por exemplo, "
-        "$k_{sag} = 0{,}7$ representa um afundamento de 30% ($V = 0{,}7\\,V_l$ durante o evento)."
+        "where $k_{sag} \\in (0,\\,1]$ is the **residual magnitude** — for example, "
+        "$k_{sag} = 0{,}7$ represents a 30% sag ($V = 0{,}7\\,V_l$ during the event)."
     )
-    st.markdown("**Resposta dinâmica da máquina durante o sag:**")
+    st.markdown("**Dynamic machine response during the sag:**")
     st.markdown(
-        "Com a queda de tensão, o torque eletromagnético cai aproximadamente com $V^2$ "
-        "(pois $T_e \\propto V_{th}^2$). Se o torque de carga $T_l$ permanecer constante, "
-        "a equação de movimento passa a ter aceleração negativa:"
+        "With the voltage drop, the electromagnetic torque falls approximately as $V^2$ "
+        "(since $T_e \\propto V_{th}^2$). If the load torque $T_l$ remains constant, "
+        "the equation of motion has a negative acceleration:"
     )
     _eq(r"J\,\dot{\omega}_r = T_e(V_{sag}) - T_l - B\,\omega_r < 0")
     st.markdown(
-        "O rotor desacelera. A queda de velocidade $\\Delta n$ depende da profundidade e "
-        "duração do sag e da inércia $J$ do sistema. Com o retorno da tensão nominal, "
-        "o motor reacelera — desde que não tenha saído da região estável da curva "
-        "$T_e \\times n$ (stall)."
+        "The rotor decelerates. The speed drop $\\Delta n$ depends on the depth and "
+        "duration of the sag and on the system inertia $J$. Upon restoration of rated voltage, "
+        "the motor re-accelerates — provided it has not left the stable region of the "
+        "$T_e \\times n$ curve (stall)."
     )
     _div_warn(
-        "**Critério de recuperação:** se durante o sag a velocidade cair abaixo do "
-        "escorregamento crítico $s_{cr}$, o motor entra na região instável e não retorna "
-        "ao regime mesmo após a restauração da tensão — ocorre o **travamento pós-sag**. "
-        "Este fenômeno é denominado *motor stalling* e é uma das principais causas de "
-        "desligamento em cadeia em redes industriais."
+        "**Recovery criterion:** if, during the sag, the speed falls below the "
+        "critical slip $s_{cr}$, the motor enters the unstable region and does not return "
+        "to steady state even after voltage restoration — **post-sag stalling** occurs. "
+        "This phenomenon is one of the main causes of cascading trips in industrial networks."
     )
     st.markdown(
-        "- **Observar:** queda de velocidade durante o evento, pico de corrente na restauração "
-        "da tensão, tempo de recuperação ao regime permanente.\n"
-        "- **Parâmetros críticos:** $k_{sag}$ (profundidade), $\\Delta t_{sag}$ (duração), "
-        "$J$ (inércia) e $T_l$ (carga aplicada).\n"
-        "- **Saídas relevantes nos gráficos:** $\\omega_r(t)$, $i_{as}(t)$, $T_e(t)$ — "
-        "monitorar o transitório de restauração e verificar se o regime é atingido novamente."
+        "- **Observe:** speed drop during the event, current peak at voltage restoration, "
+        "recovery time to steady state.\n"
+        "- **Critical parameters:** $k_{sag}$ (depth), $\\Delta t_{sag}$ (duration), "
+        "$J$ (inertia), and $T_l$ (applied load).\n"
+        "- **Relevant plot outputs:** $\\omega_r(t)$, $i_{as}(t)$, $T_e(t)$ — "
+        "monitor the restoration transient and verify whether steady state is re-established."
     )
 
     st.divider()
-    st.markdown("### Desequilíbrio de Tensão e Falta de Fase")
+    st.markdown("### Voltage Unbalance and Phase Loss")
 
-    _h4("Desequilíbrio de Tensão — Componentes Simétricas")
+    _h4("Voltage Unbalance — Symmetrical Components")
     st.markdown(
-        "Em condições ideais, as três tensões de fase têm a mesma amplitude e estão "
-        "defasadas de 120°. Qualquer assimetria é decomposta pelo **Teorema de "
-        "Fortescue** em três sequências:"
+        "Under ideal conditions, the three phase voltages have equal amplitudes and are "
+        "displaced by 120°. Any asymmetry is decomposed by **Fortescue's Theorem** "
+        "into three sequences:"
     )
     _eq(r"\bar{V}_a = \bar{V}_{a1} + \bar{V}_{a2} + \bar{V}_{a0}")
     st.markdown(
-        "Apenas a **sequência positiva** $\\bar{V}_1$ produz campo girante "
-        "no sentido do motor. A **sequência negativa** $\\bar{V}_2$ cria um "
-        "campo girante reverso, gerando torque de *frenagem*:"
+        "Only the **positive sequence** $\\bar{V}_1$ produces a rotating field "
+        "in the direction of motor rotation. The **negative sequence** $\\bar{V}_2$ creates "
+        "a reverse rotating field, generating a *braking* torque component:"
     )
     _eq(r"T_e = T_{e,1}(s) \;+\; T_{e,2}(2-s)")
     st.markdown(
-        "O resultado prático é redução de torque, aumento de corrente e aquecimento "
-        "assimétrico das fases — a fase com menor tensão tende a ter maior corrente."
+        "The practical result is reduced torque, increased current, and asymmetric phase "
+        "heating — the phase with the lowest voltage tends to carry the highest current."
     )
-    st.markdown("O **Fator de Desequilíbrio de Tensão (VUF)** padronizado pela NEMA é:")
+    st.markdown("The **Voltage Unbalance Factor (VUF)** standardized by NEMA is:")
     _eq(r"\text{VUF} = \frac{|\bar{V}_2|}{|\bar{V}_1|} \times 100\%")
     st.markdown(
-        "- VUF $= 1\\%$ pode causar até $6$–$10\\%$ de elevação de corrente e $10\\%$ de redução de torque máximo.\n"
-        "- NEMA MG-1: motores devem operar com VUF $\\leq 1\\%$; acima de $5\\%$ a operação deve ser interrompida."
+        "- VUF $= 1\\%$ can cause up to $6$–$10\\%$ current rise and $10\\%$ reduction in maximum torque.\n"
+        "- NEMA MG-1: motors should operate with VUF $\\leq 1\\%$; above $5\\%$ operation must be discontinued."
     )
-    st.markdown("No simulador, os desvios fracionais por fase são aplicados como:")
+    st.markdown("In the simulator, per-phase fractional deviations are applied as:")
     _eq(r"V_a = \sqrt{\tfrac{2}{3}}\,V_l\,(1 + \delta_a)\sin(\omega_e t)")
     _eq(r"V_b = \sqrt{\tfrac{2}{3}}\,V_l\,(1 + \delta_b)\sin\!\left(\omega_e t - \tfrac{2\pi}{3}\right)")
     _eq(r"V_c = \sqrt{\tfrac{2}{3}}\,V_l\,(1 + \delta_c)\sin\!\left(\omega_e t + \tfrac{2\pi}{3}\right)")
-    st.markdown("onde $\\delta_a,\\,\\delta_b,\\,\\delta_c \\in [-0{,}30,\\;+0{,}30]$ são os desvios configurados nos sliders.")
+    st.markdown("where $\\delta_a,\\,\\delta_b,\\,\\delta_c \\in [-0{,}30,\\;+0{,}30]$ are the deviations set via sliders.")
 
     render_fasorial_desequilibrio()
 
     st.write("")
-    _h4("Falta de Fase — Operação Bifásica")
+    _h4("Phase Loss — Two-Phase Operation")
     st.markdown(
-        "A falta de fase ocorre quando um dos condutores é interrompido — por ruptura de fusível, "
-        "falha de contator ou cabo rompido. A tensão da fase afetada é forçada a zero, "
-        "impondo o máximo desequilíbrio possível na alimentação:"
+        "Phase loss occurs when one conductor is interrupted — by blown fuse, contactor failure, "
+        "or broken cable. The voltage of the affected phase is forced to zero, imposing the "
+        "maximum possible supply unbalance:"
     )
     _eq(r"V_x = 0 \;\Rightarrow\; |\bar{V}_2| \approx |\bar{V}_1|")
     st.markdown(
-        "Com uma fase suprimida, a máquina passa a operar em regime bifásico. "
-        "O campo girante decompõe-se em duas componentes de mesma amplitude — "
-        "sequência positiva (enfraquecida) e sequência negativa (oposta ao movimento) — "
-        "produzendo torque pulsante e aquecimento assimétrico. "
-        "As consequências operacionais são:"
+        "With one phase suppressed, the machine operates in two-phase mode. "
+        "The rotating field decomposes into two equal-amplitude components — "
+        "positive sequence (weakened) and negative sequence (opposing motion) — "
+        "producing pulsating torque and asymmetric heating. "
+        "The operational consequences are:"
     )
     st.markdown(
-        "- A corrente nas duas fases ativas eleva-se para aproximadamente $\\sqrt{3}$ vezes o valor nominal.\n"
-        "- O torque máximo disponível reduz-se a cerca de $50\\%$ do valor nominal; a partida com carga pode ser inviabilizada.\n"
-        "- Surge uma componente de torque pulsante à frequência $2f$, gerando vibração e ruído audível.\n"
-        "- O aquecimento do rotor e dos enrolamentos é severo — a proteção térmica deve atuar em poucos segundos."
+        "- Current in the two active phases rises to approximately $\\sqrt{3}$ times the rated value.\n"
+        "- Maximum available torque drops to approximately $50\\%$ of rated; loaded starting may become impossible.\n"
+        "- A pulsating torque component at frequency $2f$ appears, generating vibration and audible noise.\n"
+        "- Rotor and winding heating is severe — thermal protection must operate within seconds."
     )
     st.markdown(
-        "A relação entre as perdas no rotor em operação bifásica e nominal, "
-        "a torque equivalente, é dada por:"
+        "The ratio of rotor losses under two-phase operation versus rated three-phase operation, "
+        "at equivalent torque, is given by:"
     )
     _eq(r"P_{cu,2}^{\,\text{bif}} \approx 2\, P_{cu,2}^{\,\text{nom}}")
     st.markdown(
-        "No simulador, o *toggle* de falta de fase força $V_x = 0$ a partir de "
-        "$t_{deseq}$. Recomenda-se limitar $t_{max}$ a poucos ciclos após o evento, "
-        "pois o modelo não inclui proteção térmica."
+        "In the simulator, the phase-loss toggle forces $V_x = 0$ from "
+        "$t_{deseq}$ onward. It is recommended to limit $t_{max}$ to a few cycles after the event, "
+        "as the model does not include thermal protection."
     )
     _div_warn(
-        "A simulação simultânea de duas ou mais fases em falta por longos períodos "
-        "deve ser evitada: sem proteção térmica no modelo, as correntes tendem a crescer "
-        "sem limite."
+        "Simultaneous simulation of two or more phase losses over extended periods "
+        "should be avoided: without thermal protection in the model, currents tend to grow "
+        "without bound."
     )
 
     st.write("")
-    _h4("Instante de Início do Desequilíbrio — $t_{deseq}$")
+    _h4("Unbalance Onset Instant — $t_{deseq}$")
     st.markdown(
-        "O parâmetro $t_{deseq}$ separa dois regimes na simulação:"
+        "The parameter $t_{deseq}$ separates two regimes in the simulation:"
     )
     st.markdown(
-        "- $0 \\leq t < t_{deseq}$: rede balanceada — motor parte e acelera normalmente.\n"
-        "- $t \\geq t_{deseq}$: desequilíbrio e/ou falta de fase entra em ação."
+        "- $0 \\leq t < t_{deseq}$: balanced grid — motor starts and accelerates normally.\n"
+        "- $t \\geq t_{deseq}$: unbalance and/or phase loss takes effect."
     )
     st.markdown(
-        "Isso permite estudar a **resposta transitória ao surgimento da falta**: "
-        "observe a perturbação de velocidade, o pico de corrente e o novo ponto de regime "
-        "(ou divergência) imediatamente após $t_{deseq}$."
+        "This allows studying the **transient response to fault onset**: "
+        "observe the speed disturbance, current peak, and new steady-state operating point "
+        "(or divergence) immediately after $t_{deseq}$."
     )
     _eq(r"V_x(t) = \begin{cases} V_{x,\,nom}(t) & t < t_{deseq} \\ V_{x,\,deseq}(t) & t \geq t_{deseq} \end{cases}")
     st.markdown(
-        "Usando $t_{deseq} = 0$, a assimetria está presente desde a partida — "
-        "útil para estudar a **partida com rede já desequilibrada**."
+        "Setting $t_{deseq} = 0$ places the asymmetry from the very start — "
+        "useful for studying **starting under a pre-existing unbalanced grid**."
     )
 
     st.divider()
-    st.markdown("### Gêmeo Digital — Falha de Barra Quebrada")
+    st.markdown("### Digital Twin — Broken Bar Fault")
 
-    _h4("Modelo de Barra Quebrada — Severidade $\\alpha$")
+    _h4("Broken Bar Model — Severity $\\alpha$")
     st.markdown(
-        "A falha de barra quebrada é uma das ocorrências mais frequentes em motores de "
-        "indução de gaiola de esquilo. Ocorre por fadiga mecânica, ciclos térmicos "
-        "repetidos ou defeito de fabricação — e se manifesta como uma **assimetria "
-        "rotórica** que produz oscilações características de torque e corrente."
+        "The broken bar fault is one of the most frequent occurrences in squirrel-cage "
+        "induction motors. It arises from mechanical fatigue, repeated thermal cycles, "
+        "or manufacturing defects — and manifests as a **rotor asymmetry** that produces "
+        "characteristic oscillations in torque and current."
     )
     st.markdown(
-        "O modelo implementado introduz uma **modulação periódica da resistência rotórica** "
-        "à frequência de escorregamento $f_r = s \\cdot f_e$, simulando o efeito "
-        "de barras com resistência elevada:"
+        "The implemented model introduces a **periodic modulation of the rotor resistance** "
+        "at the slip frequency $f_r = s \\cdot f_e$, simulating the effect "
+        "of bars with elevated resistance:"
     )
     _eq(r"R_r(t) = R_{r,0}\,\bigl[1 + \alpha\,\sin(2\pi\,f_r\,t)\bigr], \quad f_r = s\,f_e")
     st.markdown(
-        "onde $\\alpha \\in [0,\\,0{,}5]$ é o **parâmetro de severidade** configurável no simulador:"
+        "where $\\alpha \\in [0,\\,0{,}5]$ is the **severity parameter** configurable in the simulator:"
     )
     st.markdown(
-        "- $\\alpha = 0$: motor sem falha — $R_r$ constante.\n"
-        "- $\\alpha = 0{,}1$–$0{,}2$: falha incipiente — oscilações sutis, dificilmente detectáveis sem análise espectral.\n"
-        "- $\\alpha = 0{,}3$–$0{,}5$: falha severa — oscilações de torque e corrente claramente visíveis nos gráficos."
+        "- $\\alpha = 0$: healthy motor — $R_r$ constant.\n"
+        "- $\\alpha = 0{,}1$–$0{,}2$: incipient fault — subtle oscillations, difficult to detect without spectral analysis.\n"
+        "- $\\alpha = 0{,}3$–$0{,}5$: severe fault — torque and current oscillations clearly visible in the plots."
     )
     st.markdown(
-        "**Assinatura espectral diagnóstica:** a falha de barra quebrada produz componentes "
-        "laterais (*sidebands*) na corrente estatórica centrados em torno da frequência fundamental:"
+        "**Diagnostic spectral signature:** the broken bar fault produces sideband components "
+        "in the stator current centered around the fundamental frequency:"
     )
     _eq(r"f_{sb} = f_e\,(1 \pm 2k\,s), \quad k = 1, 2, 3, \ldots")
     st.markdown(
-        "A amplitude dessas componentes cresce com $\\alpha$ e com a carga mecânica. "
-        "O método de diagnóstico baseado nessas frequências é denominado "
-        "**MCSA** — *Motor Current Signature Analysis* — e é a técnica de manutenção "
-        "preditiva mais difundida para motores de indução."
+        "The amplitude of these components grows with $\\alpha$ and with mechanical load. "
+        "The diagnostic method based on these frequencies is called "
+        "**MCSA** — *Motor Current Signature Analysis* — and is the most widely used "
+        "predictive maintenance technique for induction motors."
     )
     _div_warn(
-        "O modelo de modulação de $R_r$ é uma aproximação de primeira ordem. "
-        "Ele captura corretamente a frequência das oscilações e a tendência de amplitude "
-        "com a severidade, mas não reproduz todos os harmônicos da assinatura real de uma "
-        "barra fisicamente fraturada."
+        "The $R_r$ modulation model is a first-order approximation. "
+        "It correctly captures the oscillation frequency and the amplitude trend with severity, "
+        "but does not reproduce all harmonics of the real signature of a physically fractured bar."
     )
 
-    st.markdown("**Simulador MCSA interativo:** ajuste a severidade $\\alpha$ e observe os sidebands.")
+    st.markdown("**Interactive MCSA simulator:** adjust the severity $\\alpha$ and observe the sidebands.")
     render_mcsa()
 
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# ABA 6 — MANUAL DE USO DO SIMULADOR
+# TAB 6 — SIMULATOR USER MANUAL
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _render_tab_manual_de_uso() -> None:
     st.markdown(
-        "Este manual descreve, em sequência, as etapas necessárias para configurar, "
-        "executar e analisar um ensaio no Electrical Machines Simulator (EMS). Cada etapa "
-        "indica os arquivos e funções correspondentes na implementação, permitindo a "
-        "rastreabilidade entre interface, código e fundamentação teórica."
+        "This manual describes, in sequence, the steps required to configure, "
+        "run, and analyze a test in the Electrical Machines Simulator (EMS). Each step "
+        "indicates the corresponding files and functions in the implementation, enabling "
+        "traceability between the interface, code, and theoretical foundations."
     )
 
-    _h4("Visão Geral do Fluxo de Trabalho")
+    _h4("Workflow Overview")
     st.markdown(
-        "O uso do simulador segue cinco etapas em ordem cronológica:"
+        "Using the simulator follows five steps in chronological order:"
     )
     st.markdown(
-        "1. **Seleção do equipamento** — escolher um motor do catálogo ou inserir "
-        "parâmetros personalizados.\n"
-        "2. **Inserção dos parâmetros físicos** — elétricos, magnéticos, mecânicos, "
-        "de rede e térmicos.\n"
-        "3. **Definição da fonte e do referencial de Park** — fonte senoidal balanceada, "
-        "impedância de rede, escolha do referencial $dq$.\n"
-        "4. **Configuração do experimento** — selecionar o tipo de ensaio "
-        "(DOL, Y-Δ, Soft-Starter, etc.) e perturbações.\n"
-        "5. **Execução, análise das plotagens e exportação** — leitura dos gráficos "
-        "transitórios e de regime, exportação em PDF."
-    )
-
-    st.divider()
-
-    _h4("Etapa 1 — Seleção do Equipamento")
-    st.markdown(
-        "Na barra lateral (*sidebar*), o seletor `render_machine_selector` "
-        "(`ui_components/sim_config.py`) oferece dois caminhos:"
-    )
-    st.markdown(
-        "- **Catálogo de motores NEMA** — pré-preenche o dataclass `MachineParams` com "
-        "valores tabelados de motores típicos (3 HP, 25 HP, 500 HP, entre outros). "
-        "Indicado para validação rápida e estudos comparativos.\n"
-        "- **Personalizado** — todos os campos ficam editáveis e devem ser inseridos "
-        "manualmente. Indicado para reproduzir ensaios reais ou bibliografias específicas."
+        "1. **Equipment selection** — choose a motor from the catalog or enter "
+        "custom parameters.\n"
+        "2. **Physical parameter entry** — electrical, magnetic, mechanical, "
+        "grid, and thermal parameters.\n"
+        "3. **Source and Park reference frame definition** — balanced sinusoidal source, "
+        "grid impedance, choice of $dq$ reference frame.\n"
+        "4. **Experiment configuration** — select the test type "
+        "(DOL, Y-Δ, Soft-Starter, etc.) and disturbances.\n"
+        "5. **Execution, plot analysis, and export** — reading transient and steady-state "
+        "plots, PDF export."
     )
 
     st.divider()
 
-    _h4("Etapa 2 — Inserção dos Parâmetros Físicos")
+    _h4("Step 1 — Equipment Selection")
     st.markdown(
-        "Todos os campos do dataclass `MachineParams` "
-        "(`core/machine_model.py:40–76`) devem ser preenchidos. Os grupos são:"
+        "In the sidebar, the `render_machine_selector` selector "
+        "(`ui_components/sim_config.py`) offers two paths:"
+    )
+    st.markdown(
+        "- **NEMA motor catalog** — pre-fills the `MachineParams` dataclass with "
+        "tabulated values for typical motors (3 HP, 25 HP, 500 HP, among others). "
+        "Indicated for quick validation and comparative studies.\n"
+        "- **Custom** — all fields are editable and must be entered manually. "
+        "Indicated for reproducing real tests or specific bibliographic references."
     )
 
-    st.markdown("**Parâmetros elétricos** (circuito equivalente em T):")
+    st.divider()
+
+    _h4("Step 2 — Physical Parameter Entry")
     st.markdown(
-        "- $V_l$ — tensão de linha RMS aplicada aos terminais (V).\n"
-        "- $f$ — frequência da fonte (Hz). Define $\\omega_e = 2\\pi f$.\n"
-        "- $R_s$ — resistência por fase do estator (Ω).\n"
-        "- $R_r'$ — resistência rotórica refletida ao estator (Ω).\n"
-        "- $X_m$ — reatância de magnetização (Ω).\n"
-        "- $X_{ls}$ — reatância de dispersão do estator (Ω).\n"
-        "- $X_{lr}'$ — reatância de dispersão rotórica refletida (Ω).\n"
-        "- $R_{fe}$ — resistência paralela representando as perdas no ferro (Ω)."
+        "All fields of the `MachineParams` dataclass "
+        "(`core/machine_model.py:40–76`) must be filled in. The groups are:"
     )
 
-    st.markdown("**Parâmetros magnéticos** — modo de entrada:")
+    st.markdown("**Electrical parameters** (T-equivalent circuit):")
     st.markdown(
-        "O usuário escolhe entre fornecer **reatâncias** (modo $X$) ou **indutâncias** "
-        "(modo $L$), via a chave `input_mode`. Em ambos os casos é necessário informar "
-        "a frequência de referência $f_{ref}$ em que os valores foram medidos. A conversão "
-        "interna usa $\\omega_{b,ref} = 2\\pi f_{ref}$ "
+        "- $V_l$ — RMS line voltage applied at the terminals (V).\n"
+        "- $f$ — source frequency (Hz). Defines $\\omega_e = 2\\pi f$.\n"
+        "- $R_s$ — stator resistance per phase (Ω).\n"
+        "- $R_r'$ — rotor resistance referred to the stator (Ω).\n"
+        "- $X_m$ — magnetizing reactance (Ω).\n"
+        "- $X_{ls}$ — stator leakage reactance (Ω).\n"
+        "- $X_{lr}'$ — referred rotor leakage reactance (Ω).\n"
+        "- $R_{fe}$ — parallel resistance representing core losses (Ω)."
+    )
+
+    st.markdown("**Magnetic parameters** — input mode:")
+    st.markdown(
+        "The user chooses between providing **reactances** (mode $X$) or **inductances** "
+        "(mode $L$), via the `input_mode` switch. In both cases the reference frequency "
+        "$f_{ref}$ at which the values were measured must be supplied. The internal conversion "
+        "uses $\\omega_{b,ref} = 2\\pi f_{ref}$ "
         "(cf. `core/machine_model.py:88–101`):"
     )
     _eq(r"L_m = \frac{X_m}{\omega_{b,ref}}, \qquad L_{ls} = \frac{X_{ls}}{\omega_{b,ref}}, \qquad L_{lr}' = \frac{X_{lr}'}{\omega_{b,ref}}")
     st.markdown(
-        "Quando se altera $f$ (frequência de operação), as reatâncias operacionais "
-        "$X_{ls,a}$, $X_{lr,a}$ e $X_{m,a}$ são recalculadas via "
+        "When $f$ (operating frequency) is changed, the operational reactances "
+        "$X_{ls,a}$, $X_{lr,a}$, and $X_{m,a}$ are recalculated via "
         "$X = \\omega_b\\,L$."
     )
 
-    st.markdown("**Parâmetros mecânicos**:")
+    st.markdown("**Mechanical parameters**:")
     st.markdown(
-        "- $p$ — número de polos (inteiro). Define a velocidade síncrona "
+        "- $p$ — number of poles (integer). Defines synchronous speed "
         "$n_s = 120\\,f / p$ (rpm).\n"
-        "- $J$ — momento de inércia rotacional total (kg·m²).\n"
-        "- $B$ — coeficiente de atrito viscoso (N·m·s/rad). Se zero, é estimado por "
-        "regra empírica a partir do torque nominal.\n"
-        "- $T_{nom}$ — torque nominal de carga, ex.: $T_{nom} = 80\\;\\text{N·m}$ "
-        "(usado como referência em ensaios com carga constante)."
+        "- $J$ — total rotational moment of inertia (kg·m²).\n"
+        "- $B$ — viscous friction coefficient (N·m·s/rad). If zero, estimated by "
+        "empirical rule from rated torque.\n"
+        "- $T_{nom}$ — rated load torque, e.g. $T_{nom} = 80\\;\\text{N·m}$ "
+        "(used as reference in constant-load tests)."
     )
 
-    st.markdown("**Impedância de rede** (*Voltage Sag* e queda de tensão na linha):")
+    st.markdown("**Grid impedance** (Voltage Sag and line voltage drop):")
     st.markdown(
-        "- $R_{grid}$ — resistência por fase da linha (Ω).\n"
-        "- $L_{grid}$ — indutância por fase da linha (H). É absorvida em "
+        "- $R_{grid}$ — per-phase line resistance (Ω).\n"
+        "- $L_{grid}$ — per-phase line inductance (H). Absorbed into "
         "$X_{ls,eff} = X_{ls,a} + \\omega_b\\,L_{grid}$ "
         "(cf. `core/machine_model.py:132`)."
     )
 
-    st.markdown("**Parâmetros térmicos** (modelo de aquecimento desacoplado):")
+    st.markdown("**Thermal parameters** (decoupled heating model):")
     st.markdown(
-        "- $R_{th}$ — resistência térmica (°C/W).\n"
-        "- $C_{th}$ — capacitância térmica (J/°C).\n"
-        "- $T_{amb}$ — temperatura ambiente (°C).\n"
-        "Quando deixados em zero, são estimados automaticamente."
+        "- $R_{th}$ — thermal resistance (°C/W).\n"
+        "- $C_{th}$ — thermal capacitance (J/°C).\n"
+        "- $T_{amb}$ — ambient temperature (°C).\n"
+        "When left at zero, they are estimated automatically."
     )
 
     st.divider()
 
-    _h4("Etapa 3 — Modos de Obtenção dos Parâmetros Elétricos")
+    _h4("Step 3 — Electrical Parameter Acquisition Modes")
     st.markdown(
-        "Os parâmetros $R_s, R_r', X_m, X_{ls}, X_{lr}', R_{fe}$ podem ser obtidos por "
-        "três caminhos distintos:"
+        "The parameters $R_s, R_r', X_m, X_{ls}, X_{lr}', R_{fe}$ can be obtained by "
+        "three distinct paths:"
     )
     st.markdown(
-        "1. **Manual** — valores inseridos diretamente. Requer conhecimento prévio "
-        "(ensaios anteriores ou bibliografia).\n"
-        "2. **Estimador *Nameplate*** — estimativa a partir de dados de placa, sem "
-        "ensaios físicos. Indicado para análises preliminares e estudos de sensibilidade "
-        "(ver Aba 7, seção 7.1).\n"
-        "3. **Estimador IEEE Std 112-2017** — estimativa a partir de três ensaios físicos "
-        "(corrente contínua, em vazio, rotor bloqueado). Indicado para validação de "
-        "modelos e comissionamento (ver Aba 7, seção 7.2)."
+        "1. **Manual** — values entered directly. Requires prior knowledge "
+        "(previous tests or bibliography).\n"
+        "2. **Nameplate Estimator** — estimate from nameplate data, without "
+        "physical tests. Indicated for preliminary analyses and sensitivity studies "
+        "(see Tab 7, section 7.1).\n"
+        "3. **IEEE Std 112-2017 Estimator** — estimate from three physical tests "
+        "(DC, no-load, locked rotor). Indicated for model validation "
+        "and commissioning (see Tab 7, section 7.2)."
     )
     _div_warn(
-        "Os métodos *Nameplate* e IEEE Std 112-2017 são **complementares**, não "
-        "alternativos: usa-se *Nameplate* quando há apenas dados de placa; usa-se IEEE "
-        "112 quando há ensaios físicos disponíveis."
+        "The Nameplate and IEEE Std 112-2017 methods are **complementary**, not "
+        "alternatives: use Nameplate when only nameplate data are available; use IEEE "
+        "112 when physical test data are available."
     )
 
     st.divider()
 
-    _h4("Etapa 4 — Referencial da Transformada de Park")
+    _h4("Step 4 — Park Transform Reference Frame")
     st.markdown(
-        "O usuário escolhe o referencial em que as variáveis $dq$ são expressas. "
-        "Três opções estão disponíveis no simulador:"
+        "The user selects the reference frame in which the $dq$ variables are expressed. "
+        "Three options are available in the simulator:"
     )
     st.markdown(
-        "- **Síncrono** ($\\omega_{ref} = \\omega_e$) — em regime permanente, todas as "
-        "componentes $dq$ tornam-se constantes (CC). Recomendado para análise de regime "
-        "e para controle vetorial.\n"
-        "- **Rotórico** ($\\omega_{ref} = \\omega_r$) — solidário ao rotor. Útil para "
-        "diagnóstico de falhas rotóricas (barras quebradas) e análise de máquinas síncronas.\n"
-        "- **Estacionário** ($\\omega_{ref} = 0$) — variáveis $dq$ oscilam na frequência "
-        "da rede. Útil para visualização das formas de onda $\\alpha\\beta$."
+        "- **Synchronous** ($\\omega_{ref} = \\omega_e$) — in steady state, all "
+        "$dq$ components become constant (DC). Recommended for steady-state analysis "
+        "and vector control.\n"
+        "- **Rotor-fixed** ($\\omega_{ref} = \\omega_r$) — locked to the rotor. Useful for "
+        "rotor fault diagnosis (broken bars) and synchronous machine analysis.\n"
+        "- **Stationary** ($\\omega_{ref} = 0$) — $dq$ variables oscillate at the "
+        "grid frequency. Useful for visualizing $\\alpha\\beta$ waveforms."
     )
     st.markdown(
-        "A escolha **não altera os resultados físicos** ($T_e$, $\\omega_r$, correntes "
-        "$abc$, potências) — apenas a base de representação interna das variáveis $dq$. "
-        "A fundamentação matemática completa está na Aba 5 (Dinâmica de Operação)."
+        "The choice **does not alter the physical results** ($T_e$, $\\omega_r$, $abc$ currents, "
+        "powers) — only the internal representation basis of the $dq$ variables. "
+        "The complete mathematical background is in Tab 5 (Operating Dynamics)."
     )
 
     st.divider()
 
-    _h4("Etapa 5 — Configuração do Experimento")
+    _h4("Step 5 — Experiment Configuration")
     st.markdown(
-        "O simulador oferece um catálogo de ensaios pré-configurados. O tempo de "
-        "simulação $t_{max}$ é estimado automaticamente em "
-        "`ui_components/sim_runner.py:calc_tmax_auto` para cada tipo:"
+        "The simulator offers a catalog of pre-configured tests. The simulation time "
+        "$t_{max}$ is estimated automatically in "
+        "`ui_components/sim_runner.py:calc_tmax_auto` for each type:"
     )
     st.markdown(
-        "| Experimento | Descrição | $t_{max}$ típico |\n"
+        "| Experiment | Description | Typical $t_{max}$ |\n"
         "|---|---|---|\n"
-        "| **DOL** | Partida direta com tensão plena | $0{,}5\\;\\text{s}$ |\n"
-        "| **Y-Δ** | Partida estrela-triângulo, chaveamento em $t_{sw}$ | $0{,}8$–$1{,}2\\;\\text{s}$ |\n"
-        "| **Soft-Starter** | Rampa de tensão por controle de ângulo | $1{,}0$–$2{,}0\\;\\text{s}$ |\n"
-        "| **Pulso de Carga** | Degrau de carga após regime | $1{,}5$–$2{,}0\\;\\text{s}$ |\n"
-        "| **Gerador** | Operação como gerador (acionamento mecânico) | $1{,}0$–$3{,}0\\;\\text{s}$ |\n"
-        "| **Voltage Sag** | Afundamento momentâneo de tensão | $1{,}0$–$2{,}0\\;\\text{s}$ |\n"
-        "| **Shutdown** | Desligamento e *coast-down* | $2{,}0$–$5{,}0\\;\\text{s}$ |\n"
-        "| **Comparativo** | Sobreposição de múltiplas partidas | $0{,}8\\;\\text{s}$ |"
+        "| **DOL** | Direct-on-line starting at full voltage | $0{,}5\\;\\text{s}$ |\n"
+        "| **Y-Δ** | Star-delta starting, switchover at $t_{sw}$ | $0{,}8$–$1{,}2\\;\\text{s}$ |\n"
+        "| **Soft-Starter** | Voltage ramp via angle control | $1{,}0$–$2{,}0\\;\\text{s}$ |\n"
+        "| **Load Pulse** | Load step after steady state | $1{,}5$–$2{,}0\\;\\text{s}$ |\n"
+        "| **Generator** | Operation as generator (mechanical drive) | $1{,}0$–$3{,}0\\;\\text{s}$ |\n"
+        "| **Voltage Sag** | Momentary voltage sag | $1{,}0$–$2{,}0\\;\\text{s}$ |\n"
+        "| **Shutdown** | Power cut-off and coast-down | $2{,}0$–$5{,}0\\;\\text{s}$ |\n"
+        "| **Comparative** | Overlay of multiple starting methods | $0{,}8\\;\\text{s}$ |"
     )
     st.markdown(
-        "Para cada experimento, os parâmetros específicos (tensão de partida, instante "
-        "de chaveamento, magnitude do *sag*, entre outros) ficam visíveis na *sidebar* "
-        "após a seleção. A catalogação completa está na Aba 8."
+        "For each experiment, the specific parameters (starting voltage, switchover instant, "
+        "sag magnitude, etc.) are visible in the sidebar after selection. "
+        "The complete catalog is in Tab 8."
     )
 
     st.divider()
 
-    _h4("Etapa 6 — Leitura das Plotagens")
+    _h4("Step 6 — Reading the Plots")
     st.markdown(
-        "Após a execução, a aba **Resultados** apresenta cinco grupos de gráficos. "
-        "Recomenda-se a seguinte ordem de análise:"
+        "After execution, the **Results** tab presents five groups of plots. "
+        "The following analysis order is recommended:"
     )
 
-    st.markdown("**1. Transitório de partida** — picos de corrente e torque:")
+    st.markdown("**1. Starting transient** — current and torque peaks:")
     st.markdown(
-        "- Corrente de inrush típica: $I_{part} \\approx 6\\text{–}8\\,I_n$ "
-        "nos primeiros $50$–$100\\;\\text{ms}$.\n"
-        "- Pico de torque eletromagnético: pode atingir $2$–$3\\,T_{nom}$.\n"
-        "- Tempo de aceleração até $95\\%\\,\\omega_{sinc}$: depende de $J$, $T_L$ e do "
-        "método de partida adotado."
+        "- Typical inrush current: $I_{start} \\approx 6\\text{–}8\\,I_n$ "
+        "in the first $50$–$100\\;\\text{ms}$.\n"
+        "- Electromagnetic torque peak: may reach $2$–$3\\,T_{nom}$.\n"
+        "- Acceleration time to $95\\%\\,\\omega_{sync}$: depends on $J$, $T_L$, and the "
+        "starting method used."
     )
 
-    st.markdown("**2. Regime permanente** — janela RMS confiável:")
+    st.markdown("**2. Steady state** — reliable RMS window:")
     st.markdown(
-        "- Aguardar a estabilização completa antes de coletar valores RMS — "
-        "tipicamente $5$–$10$ ciclos elétricos após o último transitório.\n"
-        "- Em referencial síncrono, $i_{ds}$ e $i_{qs}$ devem ser constantes em regime."
+        "- Wait for complete stabilization before collecting RMS values — "
+        "typically $5$–$10$ electrical cycles after the last transient.\n"
+        "- In the synchronous reference frame, $i_{ds}$ and $i_{qs}$ should be constant in steady state."
     )
 
-    st.markdown("**3. Correntes $abc$** — verificação de simetria:")
+    st.markdown("**3. $abc$ currents** — symmetry check:")
     st.markdown(
-        "- Simetria $|i_a| \\approx |i_b| \\approx |i_c|$ confirma equilíbrio de fases.\n"
-        "- Assimetria indica desequilíbrio de tensão, falta de fase ou falha rotórica."
+        "- Symmetry $|i_a| \\approx |i_b| \\approx |i_c|$ confirms phase balance.\n"
+        "- Asymmetry indicates voltage unbalance, phase loss, or rotor fault."
     )
 
-    st.markdown("**4. Componentes $dq$** — teste de convergência:")
+    st.markdown("**4. $dq$ components** — convergence test:")
     st.markdown(
-        "- Em referencial síncrono, $i_{ds}$ e $i_{qs}$ tornam-se constantes em regime.\n"
-        "- Ondulação persistente sugere ressonância numérica ou parâmetros incoerentes."
+        "- In the synchronous reference frame, $i_{ds}$ and $i_{qs}$ become constant in steady state.\n"
+        "- Persistent ripple suggests numerical resonance or inconsistent parameters."
     )
 
-    st.markdown("**5. Curva $T_e \\times n$ dinâmica** — comparação com curva estática:")
+    st.markdown("**5. Dynamic $T_e \\times n$ curve** — comparison with static curve:")
     st.markdown(
-        "- A trajetória dinâmica espirala em torno da curva estática "
+        "- The dynamic trajectory spirals around the static curve "
         "(`viz/plotly_charts.build_fig_torque_speed`).\n"
-        "- Em regime, o ponto operacional coincide com a interseção da curva estática "
-        "e da reta da carga $T_L(\\omega_r)$."
+        "- In steady state, the operating point coincides with the intersection of the static curve "
+        "and the load line $T_L(\\omega_r)$."
     )
 
     st.divider()
 
-    _h4("Etapa 7 — Exportação dos Resultados")
+    _h4("Step 7 — Result Export")
     st.markdown(
-        "Três formatos de relatório em PDF estão disponíveis "
+        "Three PDF report formats are available "
         "(cf. `ui_components/sim_results.py:904–963`):"
     )
     st.markdown(
-        "- **PDF v1** — relatório resumido com gráficos principais e tabela de parâmetros.\n"
-        "- **PDF v2 (AC)** — relatório técnico ampliado com análise de regime AC, "
-        "harmônicas e componentes $dq$.\n"
-        "- **PDF v2 (DB)** — relatório dinâmico-balístico com sobreposição de transitórios "
-        "e diagrama de fluxo de potência."
+        "- **PDF v1** — summary report with main plots and parameter table.\n"
+        "- **PDF v2 (AC)** — extended technical report with AC steady-state analysis, "
+        "harmonics, and $dq$ components.\n"
+        "- **PDF v2 (DB)** — dynamic-ballistic report with transient overlay "
+        "and power flow diagram."
     )
     st.markdown(
-        "Os botões de exportação são gerados via `st.download_button`. O conteúdo "
-        "inclui todas as plotagens Plotly renderizadas e a tabela final do "
-        "`MachineParams` utilizado na simulação."
+        "Export buttons are generated via `st.download_button`. The content "
+        "includes all rendered Plotly plots and the final `MachineParams` table "
+        "used in the simulation."
     )
 
     st.divider()
 
-    _h4("Referências Internas")
+    _h4("Internal References")
     st.markdown(
-        "Para fundamentação teórica e detalhamento, consulte:"
+        "For theoretical background and details, refer to:"
     )
     st.markdown(
-        "- **Aba 1** — Modelagem e Circuitos Equivalentes (estático e modelo $0dq$ de Krause).\n"
-        "- **Aba 2** — Dinâmica e Torque, com a curva $T_e(s)$ e o teorema de Boucherot.\n"
-        "- **Aba 3** — Balanço energético e fluxo de potência.\n"
-        "- **Aba 4** — Sensibilidade dos parâmetros do circuito equivalente.\n"
-        "- **Aba 5** — Dinâmica de operação e transformada de Park.\n"
-        "- **Aba 7** — Estimadores *Nameplate* e IEEE Std 112-2017.\n"
-        "- **Aba 8** — Configurações numéricas e catálogo completo de experimentos."
+        "- **Tab 1** — Modeling and Equivalent Circuits (static and Krause $0dq$ model).\n"
+        "- **Tab 2** — Dynamic Behavior and Torque, with the $T_e(s)$ curve and Boucherot theorem.\n"
+        "- **Tab 3** — Energy balance and power flow.\n"
+        "- **Tab 4** — Parameter sensitivity of the equivalent circuit.\n"
+        "- **Tab 5** — Operating dynamics and Park transform.\n"
+        "- **Tab 7** — Nameplate and IEEE Std 112-2017 estimators.\n"
+        "- **Tab 8** — Numerical settings and complete experiment catalog."
     )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# ABA 7 — ESTIMADORES DE PARÂMETROS
+# TAB 7 — PARAMETER ESTIMATORS
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _render_tab_estimadores() -> None:
     st.markdown(
-        "Esta aba documenta os **dois estimadores de parâmetros** disponíveis no "
-        "simulador. Ambos são métodos legítimos do circuito equivalente em T em regime "
-        "permanente, mas se aplicam a casos de uso diferentes — devem ser escolhidos em "
-        "função dos dados disponíveis."
+        "This tab documents the **two parameter estimators** available in the "
+        "simulator. Both are legitimate T-equivalent circuit methods in steady state, "
+        "but apply to different use cases — the choice depends on the available data."
     )
 
-    # ── Seção 7.1: Nameplate ──────────────────────────────────────────────
-    st.markdown("### Seção 7.1 — Estimador *Nameplate* (dados de placa)")
+    # ── Section 7.1: Nameplate ──────────────────────────────────────────────
+    st.markdown("### Section 7.1 — Nameplate Estimator (nameplate data)")
 
     st.info(
-        "**Quando usar:** apenas dados de placa do motor disponíveis "
-        "(catálogo do fabricante, sem ensaios físicos). Indicado para estudos iniciais, "
-        "análise de sensibilidade e simulação rápida de motores classe NEMA B."
+        "**When to use:** only motor nameplate data available "
+        "(manufacturer catalog, no physical tests). Indicated for initial studies, "
+        "sensitivity analysis, and rapid simulation of NEMA class B motors."
     )
 
-    _h4("Fundamentação — IEEE T-Equivalente com Premissas NEMA")
+    _h4("Background — IEEE T-Equivalent with NEMA Assumptions")
     st.markdown(
-        "Quando os parâmetros do circuito equivalente "
-        "($R_s, R_r', X_m, X_{ls}, X_{lr}'$) não estão diretamente disponíveis, este "
-        "método estima-os a partir das informações da **placa de identificação** "
-        "(*nameplate*) do motor. A formulação combina a metodologia IEEE Std 112 com as "
-        "premissas estatísticas de distribuição de reatâncias da norma NEMA MG-1. A "
-        "implementação está em `core/param_estimator.py:22–179` (função "
-        "`estimate_params`)."
+        "When the equivalent circuit parameters "
+        "($R_s, R_r', X_m, X_{ls}, X_{lr}'$) are not directly available, this "
+        "method estimates them from the motor **nameplate** data. The formulation combines "
+        "the IEEE Std 112 methodology with the statistical reactance distribution "
+        "assumptions of NEMA MG-1. The implementation is in "
+        "`core/param_estimator.py:22–179` (function `estimate_params`)."
     )
 
-    st.markdown("**Dados de entrada exigidos:**")
+    st.markdown("**Required input data:**")
     st.markdown(
-        "- Tensão de linha $V_l$ e frequência $f$.\n"
-        "- Potência nominal no eixo $P_n$ (kW).\n"
-        "- Velocidade nominal $n_{nom}$ (rpm) — utilizada para deduzir o número de polos "
-        "e $s_{nom}$.\n"
-        "- Rendimento nominal $\\eta$ e fator de potência $\\cos\\varphi$.\n"
-        "- Relação corrente de partida/nominal $I_p/I_n$.\n"
-        "- Relação torque de partida/nominal $T_p/T_n$."
+        "- Line voltage $V_l$ and frequency $f$.\n"
+        "- Rated shaft power $P_n$ (kW).\n"
+        "- Rated speed $n_{nom}$ (rpm) — used to derive the number of poles "
+        "and $s_{nom}$.\n"
+        "- Rated efficiency $\\eta$ and power factor $\\cos\\varphi$.\n"
+        "- Starting-to-rated current ratio $I_p/I_n$.\n"
+        "- Starting-to-rated torque ratio $T_p/T_n$."
     )
 
-    st.markdown("**Sequência de cálculo:**")
+    st.markdown("**Calculation sequence:**")
 
-    st.markdown("**1.** Dedução do escorregamento e grandezas nominais:")
+    st.markdown("**1.** Derivation of slip and rated quantities:")
     _eq(r"s_{nom} = 1 - \frac{n_{nom}}{n_s}, \qquad n_s = \frac{120\,f}{p}")
     _eq(r"I_n = \frac{P_n}{\sqrt{3}\,V_l\,\eta\,\cos\varphi}, \qquad T_n = \frac{P_n}{\omega_{r,nom}}")
 
-    st.markdown("**2.** Estimativa da corrente de partida e da impedância de curto-circuito:")
+    st.markdown("**2.** Estimation of starting current and short-circuit impedance:")
     _eq(r"I_p = \left(\frac{I_p}{I_n}\right) I_n, \qquad Z_k = \frac{V_f}{I_p}, \qquad X_k = Z_k\,\sqrt{1 - \cos^2\!\varphi_p}")
     st.markdown(
-        "em que $\\cos\\varphi_p \\approx 0{,}20$ é o fator de potência típico na "
-        "partida (premissa NEMA B para motores de gaiola simples)."
+        "where $\\cos\\varphi_p \\approx 0{,}20$ is the typical starting power factor "
+        "(NEMA B assumption for single squirrel-cage motors)."
     )
 
-    st.markdown("**3.** Distribuição das reatâncias de dispersão (premissa NEMA B):")
+    st.markdown("**3.** Leakage reactance distribution (NEMA B assumption):")
     _eq(r"X_{ls} = 0{,}4\,X_k, \qquad X_{lr}' = 0{,}6\,X_k")
 
     st.markdown(
-        "**4.** Estimativa de $R_s$ e $R_r'$ por balanço de potência em regime nominal:"
+        "**4.** Estimation of $R_s$ and $R_r'$ by rated power balance:"
     )
     _eq(r"P_{cu,s} = 3\,I_n^2\,R_s = P_{in} - P_{ag} - P_{fe}, \qquad P_{cu,r} = 3\,I_n^2\,R_r' = s_{nom}\,P_{ag}")
 
-    st.markdown("**5.** Reatância de magnetização por subtração:")
+    st.markdown("**5.** Magnetizing reactance by subtraction:")
     _eq(r"X_m = X_{cc} - X_{ls}, \qquad X_{cc} = \frac{V_f}{I_{cc}}")
 
     _div_warn(
-        "**Limitações do estimador *Nameplate*:** os parâmetros obtidos são aproximações "
-        "baseadas em premissas estatísticas da norma NEMA — adequados para simulação e "
-        "análise de sensibilidade, mas **não substituem ensaios físicos de identificação** "
-        "(ensaio em vazio e rotor bloqueado conforme IEEE Std 112). Para motores fora do "
-        "padrão NEMA B (gaiola dupla, rotor bobinado, motores de alta eficiência IE4), os "
-        "resultados podem divergir significativamente dos valores reais."
+        "**Nameplate Estimator limitations:** the parameters obtained are approximations "
+        "based on NEMA statistical assumptions — suitable for simulation and "
+        "sensitivity analysis, but **do not replace physical identification tests** "
+        "(no-load and locked-rotor tests per IEEE Std 112). For motors outside the "
+        "NEMA B standard (double cage, wound rotor, high-efficiency IE4 motors), "
+        "results may deviate significantly from real values."
     )
 
     st.divider()
 
-    # ── Seção 7.2: IEEE Std 112-2017 ──────────────────────────────────────
-    st.markdown("### Seção 7.2 — Estimador IEEE Std 112-2017 (três ensaios físicos)")
+    # ── Section 7.2: IEEE Std 112-2017 ──────────────────────────────────────
+    st.markdown("### Section 7.2 — IEEE Std 112-2017 Estimator (three physical tests)")
 
     st.info(
-        "**Quando usar:** ensaios físicos disponíveis (corrente contínua, em vazio, "
-        "rotor bloqueado). Indicado para parâmetros de alta precisão, validação de "
-        "modelos dinâmicos, comissionamento e comparação com dados de placa."
+        "**When to use:** physical test data available (DC, no-load, "
+        "locked rotor). Indicated for high-precision parameters, dynamic model validation, "
+        "commissioning, and comparison with nameplate data."
     )
 
-    _h4("7.2.1 — Fundamentação")
+    _h4("7.2.1 — Background")
     st.markdown(
-        "O método identifica $R_s, R_r', X_m, X_{ls}, X_{lr}', R_{fe}$ a partir de "
-        "**três ensaios físicos** descritos na norma IEEE Std 112-2017. A implementação "
-        "está em `core/param_estimator.py:193–406` (função "
-        "`estimate_params_ieee_tests`). Cada ensaio explora uma condição operacional "
-        "específica do circuito equivalente em T, isolando um subconjunto dos parâmetros."
+        "The method identifies $R_s, R_r', X_m, X_{ls}, X_{lr}', R_{fe}$ from "
+        "**three physical tests** described in IEEE Std 112-2017. The implementation "
+        "is in `core/param_estimator.py:193–406` (function "
+        "`estimate_params_ieee_tests`). Each test exploits a specific operating condition "
+        "of the T-equivalent circuit, isolating a subset of the parameters."
     )
 
-    _h4("7.2.2 — Ensaio de Corrente Contínua (IEEE 112 Cl. 6.4)")
+    _h4("7.2.2 — DC Test (IEEE 112 Cl. 6.4)")
     st.markdown(
-        "Aplica-se tensão contínua entre dois terminais com o rotor parado. Como "
-        "$X = 0$ em regime CC, apenas as resistências são vistas. O cálculo de "
-        "$R_s$ depende da topologia de ligação dos enrolamentos "
+        "DC voltage is applied between two terminals with the rotor at rest. Since "
+        "$X = 0$ in DC steady state, only resistances are seen. The calculation of "
+        "$R_s$ depends on the winding connection topology "
         "(cf. `core/param_estimator.py:263–266`):"
     )
-    _eq(r"R_s\Big|_Y = \tfrac{1}{2}\,\frac{V_{dc}}{I_{dc}} \qquad\text{(estrela — dois enrolamentos em série)}")
-    _eq(r"R_s\Big|_\Delta = \tfrac{3}{2}\,\frac{V_{dc}}{I_{dc}} \qquad\text{(triângulo — dois em paralelo, um em série)}")
+    _eq(r"R_s\Big|_Y = \tfrac{1}{2}\,\frac{V_{dc}}{I_{dc}} \qquad\text{(star — two windings in series)}")
+    _eq(r"R_s\Big|_\Delta = \tfrac{3}{2}\,\frac{V_{dc}}{I_{dc}} \qquad\text{(delta — two in parallel, one in series)}")
     st.markdown(
-        "**Cuidados experimentais:** corrigir o valor medido para a temperatura de "
-        "operação (IEEE 112 Cl. 5.4); aguardar a estabilização térmica antes da leitura. "
-        "Pequenos erros em $R_s$ propagam-se para os demais parâmetros via "
+        "**Experimental precautions:** correct the measured value to operating temperature "
+        "(IEEE 112 Cl. 5.4); wait for thermal stabilization before reading. "
+        "Small errors in $R_s$ propagate to other parameters via "
         "$R_r' = R_k - R_s$."
     )
 
-    _h4("7.2.3 — Ensaio em Vazio (IEEE 112 Cl. 6.5)")
+    _h4("7.2.3 — No-Load Test (IEEE 112 Cl. 6.5)")
     st.markdown(
-        "O motor é acionado sem carga acoplada e mantido na tensão e frequência nominais. "
-        "Mede-se $V_{l,NL}$, $I_{NL}$, $P_{NL}$ e $f_{NL}$. O ensaio identifica $X_m$, "
-        "$R_{fe}$ e a tensão no entreferro $E_{1,NL}$. A separação de perdas segue:"
+        "The motor is run without a coupled load at rated voltage and frequency. "
+        "$V_{l,NL}$, $I_{NL}$, $P_{NL}$, and $f_{NL}$ are measured. The test identifies $X_m$, "
+        "$R_{fe}$, and the air-gap voltage $E_{1,NL}$. Loss separation follows:"
     )
     _eq(r"P_{NL} = 3\,R_s\,I_{NL}^{\,2} + P_{fe} + P_{fw}")
     st.markdown(
-        "Quando $P_{fw}$ (atrito mais ventilação) não é medido por *coast-down*, adota-se "
-        "a heurística (cf. `core/param_estimator.py:278`):"
+        "When $P_{fw}$ (friction and windage) is not measured by coast-down, the "
+        "heuristic is used (cf. `core/param_estimator.py:278`):"
     )
     _eq(r"P_{fw} = 0{,}008\,P_{NL}")
     st.markdown(
-        "**Iteração fasorial dupla** para refinar $E_{1,NL}$ "
+        "**Double phasor iteration** to refine $E_{1,NL}$ "
         "(cf. `core/param_estimator.py:329–376`):"
     )
     st.markdown(
-        "*Iteração 1* — aproximação inicial assumindo $I_{NL}$ em fase com $V_{f,NL}$:"
+        "*Iteration 1* — initial approximation assuming $I_{NL}$ in phase with $V_{f,NL}$:"
     )
     _eq(r"E_{1,NL}^{(1)} = \sqrt{(V_{f,NL} - R_s\,I_{NL})^{\,2} + (X_{ls}\,I_{NL})^{\,2}}")
     st.markdown(
-        "*Iteração 2* — decomposição correta de $I_{NL}$ em componentes $I_{fe}$ "
-        "(em fase com $E_1$) e $I_\\mu$ (em quadratura):"
+        "*Iteration 2* — correct decomposition of $I_{NL}$ into components $I_{fe}$ "
+        "(in phase with $E_1$) and $I_\\mu$ (in quadrature):"
     )
     _eq(r"E_{1,NL}^{(2)} = \sqrt{(V_{f,NL} - R_s\,I_{fe} - X_{ls}\,I_\mu)^{\,2} + (X_{ls}\,I_{fe} - R_s\,I_\mu)^{\,2}}")
-    st.markdown("**Resultados finais do ensaio em vazio:**")
+    st.markdown("**Final results of the no-load test:**")
     _eq(r"R_{fe} = \frac{3\,E_{1,NL}^{\,2}}{P_{fe}}, \qquad I_\mu = \sqrt{I_{NL}^{\,2} - I_{fe}^{\,2}}, \qquad X_m = \frac{E_{1,NL}}{I_\mu} - X_{ls}")
 
-    _h4("7.2.4 — Ensaio com Rotor Bloqueado (IEEE 112 Cl. 6.6)")
+    _h4("7.2.4 — Locked-Rotor Test (IEEE 112 Cl. 6.6)")
     st.markdown(
-        "O rotor é mecanicamente travado e aplica-se tensão reduzida até atingir a "
-        "corrente nominal. Recomenda-se ensaio em frequência reduzida "
-        "$f_{LR} \\approx 0{,}25\\,f_{nom}$ para minimizar o efeito pelicular. As "
-        "grandezas medidas são $V_{l,LR}$, $I_{LR}$, $P_{LR}$ e $f_{LR}$ "
+        "The rotor is mechanically locked and reduced voltage is applied until rated current "
+        "is reached. Testing at reduced frequency "
+        "$f_{LR} \\approx 0{,}25\\,f_{nom}$ is recommended to minimize the skin effect. "
+        "The measured quantities are $V_{l,LR}$, $I_{LR}$, $P_{LR}$, and $f_{LR}$ "
         "(cf. `core/param_estimator.py:296–327`):"
     )
     _eq(r"Z_k = \frac{V_{f,LR}}{I_{LR}}, \qquad R_k = \frac{P_{LR}}{3\,I_{LR}^{\,2}}, \qquad X_k\big|_{f_{LR}} = \sqrt{Z_k^{\,2} - R_k^{\,2}}")
     st.markdown(
-        "**Correção linear de frequência** para projetar $X_k$ na frequência nominal "
+        "**Linear frequency correction** to project $X_k$ to rated frequency "
         "(cf. `core/param_estimator.py:312`):"
     )
     _eq(r"X_k\big|_{f_{nom}} = X_k\big|_{f_{LR}}\cdot\frac{f_{NL}}{f_{LR}}")
-    st.markdown("A resistência rotórica refletida é obtida pela subtração:")
-    _eq(r"R_r' = R_k - R_s, \qquad \text{com validação } R_r' > 0")
+    st.markdown("The referred rotor resistance is obtained by subtraction:")
+    _eq(r"R_r' = R_k - R_s, \qquad \text{with validation } R_r' > 0")
 
-    _h4("7.2.5 — Distribuição $X_{ls}/X_k$ por Classe NEMA")
+    _h4("7.2.5 — $X_{ls}/X_k$ Distribution by NEMA Class")
     st.markdown(
-        "A reatância de curto-circuito $X_k$ representa a soma $X_{ls} + X_{lr}'$ — não "
-        "há ensaio físico que separe os dois termos. A norma IEEE 112 adota uma "
-        "**fração tabelada**, dependente da classe construtiva do motor "
-        "(cf. tabela `_IEEE_SPLIT_TABLE` em `core/param_estimator.py:183–190`):"
+        "The short-circuit reactance $X_k$ represents the sum $X_{ls} + X_{lr}'$ — no "
+        "physical test can separate the two terms. IEEE 112 adopts a "
+        "**tabulated fraction**, depending on the motor construction class "
+        "(cf. table `_IEEE_SPLIT_TABLE` in `core/param_estimator.py:183–190`):"
     )
     st.markdown(
-        "| Classe NEMA | $X_{ls}/X_k$ | $X_{lr}'/X_k$ | Aplicação |\n"
+        "| NEMA Class | $X_{ls}/X_k$ | $X_{lr}'/X_k$ | Application |\n"
         "|---|---|---|---|\n"
-        "| A | $0{,}50$ | $0{,}50$ | Motores acima de $45\\;\\text{kW}$, rotor bobinado |\n"
-        "| **B (padrão)** | **$0{,}40$** | **$0{,}60$** | Industriais NEMA $1$–$100\\;\\text{kW}$ |\n"
-        "| C | $0{,}30$ | $0{,}70$ | Alta impedância, alto deslizamento |\n"
-        "| D | $0{,}50$ | $0{,}50$ | Alto torque de partida |\n"
-        "| WR (rotor bobinado) | $0{,}50$ | $0{,}50$ | Anéis coletores |\n"
-        "| Personalizado | $\\alpha$ | $1-\\alpha$ | Definido pelo usuário |"
+        "| A | $0{,}50$ | $0{,}50$ | Motors above $45\\;\\text{kW}$, wound rotor |\n"
+        "| **B (standard)** | **$0{,}40$** | **$0{,}60$** | Industrial NEMA $1$–$100\\;\\text{kW}$ |\n"
+        "| C | $0{,}30$ | $0{,}70$ | High impedance, high slip |\n"
+        "| D | $0{,}50$ | $0{,}50$ | High starting torque |\n"
+        "| WR (wound rotor) | $0{,}50$ | $0{,}50$ | Slip rings |\n"
+        "| Custom | $\\alpha$ | $1-\\alpha$ | User-defined |"
     )
 
-    _h4("7.2.6 — Instruções de Uso (passo a passo)")
+    _h4("7.2.6 — Usage Instructions (step by step)")
     st.markdown(
-        "Os campos correspondentes a este estimador encontram-se na *sidebar* do "
-        "simulador, no modo **IEEE Std 112-2017** "
+        "The fields corresponding to this estimator are located in the simulator "
+        "sidebar, under the **IEEE Std 112-2017** mode "
         "(cf. `ui_components/sim_config.py:763–862`)."
     )
-    st.markdown("**Ensaio CC** — três valores:")
+    st.markdown("**DC Test** — three values:")
     st.markdown(
-        "- $V_{dc}$ (V) — tensão contínua aplicada entre dois terminais.\n"
-        "- $I_{dc}$ (A) — corrente contínua medida em regime térmico estável.\n"
-        "- **Ligação** — escolher entre estrela ($Y$) ou triângulo ($\\Delta$)."
+        "- $V_{dc}$ (V) — DC voltage applied between two terminals.\n"
+        "- $I_{dc}$ (A) — DC current measured at thermal steady state.\n"
+        "- **Connection** — choose between star ($Y$) or delta ($\\Delta$)."
     )
-    st.markdown("**Ensaio em vazio** — cinco valores:")
+    st.markdown("**No-Load Test** — five values:")
     st.markdown(
-        "- $V_{l,NL}$ (V) — tensão de linha aplicada nos terminais.\n"
-        "- $I_{NL}$ (A) — corrente de linha em vazio.\n"
-        "- $P_{NL}$ (W) — potência ativa trifásica absorvida em vazio.\n"
-        "- $f_{NL}$ (Hz) — frequência da fonte durante o ensaio.\n"
-        "- $P_{fw}$ (W) — perdas mecânicas medidas por *coast-down* "
-        "(opcional; deixar em zero para aplicar a heurística $0{,}8\\%\\,P_{NL}$)."
+        "- $V_{l,NL}$ (V) — line voltage applied at the terminals.\n"
+        "- $I_{NL}$ (A) — no-load line current.\n"
+        "- $P_{NL}$ (W) — three-phase active power absorbed at no load.\n"
+        "- $f_{NL}$ (Hz) — source frequency during the test.\n"
+        "- $P_{fw}$ (W) — mechanical losses measured by coast-down "
+        "(optional; leave at zero to apply the $0{,}8\\%\\,P_{NL}$ heuristic)."
     )
-    st.markdown("**Ensaio com rotor bloqueado** — quatro valores:")
+    st.markdown("**Locked-Rotor Test** — four values:")
     st.markdown(
-        "- $V_{l,LR}$ (V) — tensão de linha reduzida.\n"
-        "- $I_{LR}$ (A) — corrente de linha próxima da nominal.\n"
-        "- $P_{LR}$ (W) — potência ativa trifásica.\n"
-        "- $f_{LR}$ (Hz) — frequência da fonte, idealmente "
+        "- $V_{l,LR}$ (V) — reduced line voltage.\n"
+        "- $I_{LR}$ (A) — line current near rated value.\n"
+        "- $P_{LR}$ (W) — three-phase active power.\n"
+        "- $f_{LR}$ (Hz) — source frequency, ideally "
         "$f_{LR} \\approx 0{,}25\\,f_{nom}$."
     )
     st.markdown(
-        "**Distribuição $X_{ls}/X_k$** — selecionar a classe NEMA do motor. Para "
-        "*Personalizado*, ajustar o *slider* da fração $\\alpha$."
+        "**$X_{ls}/X_k$ distribution** — select the motor NEMA class. For "
+        "Custom, adjust the fraction $\\alpha$ slider."
     )
 
-    _h4("7.2.7 — Interpretação dos Resultados e Critérios de Sanidade Física")
+    _h4("7.2.7 — Result Interpretation and Physical Sanity Criteria")
     st.markdown(
-        "Após a execução, o estimador valida automaticamente cada saída contra "
-        "critérios físicos. Os avisos exibidos no painel **Detalhes do Cálculo** "
-        "(cf. `ui_components/sim_config.py:886`) indicam violações:"
+        "After execution, the estimator automatically validates each output against "
+        "physical criteria. Warnings displayed in the **Calculation Details** panel "
+        "(cf. `ui_components/sim_config.py:886`) indicate violations:"
     )
     st.markdown(
-        "| Critério | Significado físico | Implementação |\n"
+        "| Criterion | Physical meaning | Implementation |\n"
         "|---|---|---|\n"
-        "| $R_s, R_r' > 0$ | Resistências fisicamente positivas | `param_estimator.py:269, 316` |\n"
-        "| $P_{fe} > 0$ | $P_{NL}$ supera perdas Joule mais $P_{fw}$ | L:283–291 |\n"
-        "| $I_\\mu^{\\,2} > 0$ | $\\cos\\varphi$ do ensaio em vazio coerente | L:366–372 |\n"
-        "| $R_k < Z_k$ | Fator de potência $\\le 1$ no ensaio bloqueado | L:301–307 |\n"
-        "| $X_m / X_{ls} \\ge 5$ | Relação típica de motor industrial | aviso em `sim_config.py:947–950` |\n"
-        "| $R_{fe} \\ge 50\\;\\Omega$ | $P_{fe}$ em ordem realista | aviso em `sim_config.py:952–955` |"
+        "| $R_s, R_r' > 0$ | Physically positive resistances | `param_estimator.py:269, 316` |\n"
+        "| $P_{fe} > 0$ | $P_{NL}$ exceeds Joule losses plus $P_{fw}$ | L:283–291 |\n"
+        "| $I_\\mu^{\\,2} > 0$ | No-load test $\\cos\\varphi$ is consistent | L:366–372 |\n"
+        "| $R_k < Z_k$ | Power factor $\\le 1$ in locked-rotor test | L:301–307 |\n"
+        "| $X_m / X_{ls} \\ge 5$ | Typical ratio for industrial motor | warning in `sim_config.py:947–950` |\n"
+        "| $R_{fe} \\ge 50\\;\\Omega$ | $P_{fe}$ in realistic range | warning in `sim_config.py:952–955` |"
     )
     st.markdown(
-        "**Conexão com `MachineParams`:** o dicionário retornado pelo estimador é "
-        "gravado nos campos $R_s$, $R_r'$, $X_m$, $X_{ls}$, $X_{lr}'$, $R_{fe}$ do "
-        "dataclass (cf. `core/machine_model.py:40–51`). A frequência de referência "
-        "$f_{ref}$ é ajustada para $f_{NL}$ (cf. `core/machine_model.py:88–101`) e a "
-        "reatância mútua resultante $X_{ml}$ é recalculada em `_xml_from_lm` "
+        "**Connection to `MachineParams`:** the dictionary returned by the estimator is "
+        "written to the fields $R_s$, $R_r'$, $X_m$, $X_{ls}$, $X_{lr}'$, $R_{fe}$ of the "
+        "dataclass (cf. `core/machine_model.py:40–51`). The reference frequency "
+        "$f_{ref}$ is set to $f_{NL}$ (cf. `core/machine_model.py:88–101`) and the "
+        "resulting mutual reactance $X_{ml}$ is recalculated in `_xml_from_lm` "
         "(cf. `core/machine_model.py:158–163`)."
     )
 
     _div_warn(
-        "**Recomendação de cruzamento:** mesmo quando se utiliza o estimador IEEE 112, "
-        "recomenda-se executar o estimador *Nameplate* como verificação cruzada. "
-        "Discrepâncias maiores que $\\pm 20\\%$ entre os dois métodos indicam problemas "
-        "nos ensaios (medidas instáveis, temperatura fora da nominal, harmônicas na "
-        "fonte) ou que o motor sob teste foge ao padrão NEMA B assumido pelo *Nameplate*."
+        "**Cross-check recommendation:** even when using the IEEE 112 estimator, "
+        "it is recommended to run the Nameplate estimator as a cross-check. "
+        "Discrepancies greater than $\\pm 20\\%$ between the two methods indicate problems "
+        "in the tests (unstable measurements, off-nominal temperature, harmonic distortion in "
+        "the source) or that the motor under test deviates from the NEMA B standard assumed by the Nameplate method."
     )
 
 
@@ -2078,53 +2071,53 @@ def _render_tab_estimadores() -> None:
 
 def render_theory_tab() -> None:
     st.markdown(
-        "Fundamentos físicos da máquina de indução trifásica e manual de operação "
-        "do simulador — selecione uma aba para explorar o tema desejado."
+        "Physical foundations of the three-phase induction machine and simulator "
+        "user manual — select a tab to explore the desired topic."
     )
 
     tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
-        "1 - Modelagem e Circuitos",
-        "2 - Dinâmica e Torque",
-        "3 - Balanço Energético",
-        "4 - Sensibilidade de Parâmetros",
-        "5 - Dinâmica de Operação",
-        "6 - Manual de Uso",
-        "7 - Estimadores de Parâmetros",
-        "8 - Configurações e Experimentos",
+        "1 - Modeling and Circuits",
+        "2 - Dynamic Behavior and Torque",
+        "3 - Energy Balance",
+        "4 - Parameter Sensitivity",
+        "5 - Operating Dynamics",
+        "6 - User Manual",
+        "7 - Parameter Estimators",
+        "8 - Settings and Experiments",
     ])
 
     with tab1:
-        st.markdown("## Modelagem e Circuitos Equivalentes")
+        st.markdown("## Modeling and Equivalent Circuits")
         _render_tab_circuitos()
 
     with tab2:
-        st.markdown("## Comportamento Dinâmico e Torque")
+        st.markdown("## Dynamic Behavior and Torque")
         _render_tab_dinamica()
 
     with tab3:
-        st.markdown("## Balanço Energético e Fluxo de Potência")
+        st.markdown("## Energy Balance and Power Flow")
         _render_tab_potencia()
 
     with tab4:
-        st.markdown("## Guia de Sensibilidade de Parâmetros")
+        st.markdown("## Parameter Sensitivity Guide")
         _render_tab_sensibilidade()
 
     with tab5:
-        st.markdown("## Dinâmica de Operação")
+        st.markdown("## Operating Dynamics")
         _render_tab_dinamica_operacao()
 
     with tab6:
-        st.markdown("## Manual de Uso do Simulador")
+        st.markdown("## Simulator User Manual")
         _render_tab_manual_de_uso()
 
     with tab7:
-        st.markdown("## Estimadores de Parâmetros")
+        st.markdown("## Parameter Estimators")
         _render_tab_estimadores()
 
     with tab8:
-        st.markdown("## Configurações, Alertas e Experimentos")
-        st.markdown("### Configurações Numéricas e Alertas")
+        st.markdown("## Settings, Alerts, and Experiments")
+        st.markdown("### Numerical Settings and Alerts")
         _render_tab_config()
         st.divider()
-        st.markdown("### Catálogo de Experimentos")
+        st.markdown("### Experiment Catalog")
         _render_tab_experimentos()

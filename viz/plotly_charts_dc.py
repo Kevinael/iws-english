@@ -1,6 +1,6 @@
-"""Gráficos Plotly para MCC — espelha plotly_charts.py MIT.
+"""Plotly charts for DC machines — mirrors plotly_charts.py MIT.
 
-Importa tema/cores diretamente do MIT para consistência visual.
+Imports theme/colours directly from MIT for visual consistency.
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ from viz.plotly_charts import _plot_theme, _colors, _TL_COLOR
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# GRÁFICO EMPILHADO
+# STACKED CHART
 # ─────────────────────────────────────────────────────────────────────────────
 
 def build_fig_stacked_dc(
@@ -42,13 +42,13 @@ def build_fig_stacked_dc(
         fig.add_trace(go.Scatter(
             x=t, y=res[key], mode="lines", name=lbl,
             line=dict(color=cl[(i - 1) % len(cl)], width=1.9),
-            hovertemplate=f"<b>{lbl}</b><br>t = %{{x:.4f}} s<br>valor = %{{y:.{decimals}f}}<extra></extra>",
+            hovertemplate=f"<b>{lbl}</b><br>t = %{{x:.4f}} s<br>value = %{{y:.{decimals}f}}<extra></extra>",
         ), row=i, col=1)
         if key == "Te" and has_tl:
             fig.add_trace(go.Scatter(
                 x=t, y=tl_arr, mode="lines", name="$T_l$ (N·m)",
                 line=dict(color=_TL_COLOR, width=1.6, dash="dash"),
-                hovertemplate=f"<b>Tl</b><br>t = %{{x:.4f}} s<br>valor = %{{y:.{decimals}f}} N·m<extra></extra>",
+                hovertemplate=f"<b>Tl</b><br>t = %{{x:.4f}} s<br>value = %{{y:.{decimals}f}} N·m<extra></extra>",
             ), row=i, col=1)
         for te in (t_events or []):
             fig.add_vline(x=te, line_dash="dot", line_color=pt["event_line"],
@@ -63,7 +63,7 @@ def build_fig_stacked_dc(
             exponentformat="none", autorange=True, rangemode="normal", fixedrange=False,
         )
 
-    fig.update_xaxes(row=n, col=1, title_text="Tempo (s)",
+    fig.update_xaxes(row=n, col=1, title_text="Time (s)",
                      showgrid=True, gridcolor=pt["grid"], gridwidth=0.4,
                      tickfont=dict(size=10, color=pt["fg"]))
     fig.update_layout(
@@ -78,7 +78,7 @@ def build_fig_stacked_dc(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# GRÁFICO LADO A LADO
+# SIDE-BY-SIDE CHART
 # ─────────────────────────────────────────────────────────────────────────────
 
 def build_fig_sidebyside_dc(
@@ -110,7 +110,7 @@ def build_fig_sidebyside_dc(
             if res_ref is not None and key in res_ref:
                 fig.add_trace(go.Scatter(
                     x=res_ref["t"], y=res_ref[key], mode="lines",
-                    name=ref_item.get("label", "Referência"),
+                    name=ref_item.get("label", "Reference"),
                     line=dict(color=ref_item.get("color", "#888"), width=1.4,
                               dash=ref_item.get("dash", "dash")),
                     hovertemplate=f"<b>{ref_item.get('label','Ref')}</b><br>t=%{{x:.4f}} s<br>%{{y:.{decimals}f}}<extra></extra>",
@@ -119,7 +119,7 @@ def build_fig_sidebyside_dc(
         fig.add_trace(go.Scatter(
             x=t, y=res[key], mode="lines", name=lbl,
             line=dict(color=pcol, width=1.8),
-            hovertemplate=f"<b>{lbl}</b><br>t = %{{x:.4f}} s<br>valor = %{{y:.{decimals}f}}<extra></extra>",
+            hovertemplate=f"<b>{lbl}</b><br>t = %{{x:.4f}} s<br>value = %{{y:.{decimals}f}}<extra></extra>",
         ))
         if key == "Te" and has_tl:
             fig.add_trace(go.Scatter(
@@ -138,7 +138,7 @@ def build_fig_sidebyside_dc(
             paper_bgcolor=th["paper_bg"], plot_bgcolor=th["plot_bg"],
             font=dict(family="Inter, system-ui", size=9 if compact else 10, color=th["fg"]),
             margin=_m,
-            xaxis=dict(title="Tempo (s)", showgrid=True, gridcolor=th["grid"],
+            xaxis=dict(title="Time (s)", showgrid=True, gridcolor=th["grid"],
                        tickfont=dict(size=9, color=th["fg"])),
             yaxis=dict(showgrid=True, gridcolor=th["grid"], zeroline=True,
                        zerolinecolor=th["grid"], tickfont=dict(size=9, color=th["fg"]),
@@ -152,7 +152,7 @@ def build_fig_sidebyside_dc(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# GRÁFICO SOBREPOSTO
+# OVERLAY CHART
 # ─────────────────────────────────────────────────────────────────────────────
 
 def build_fig_overlay_dc(
@@ -194,7 +194,7 @@ def build_fig_overlay_dc(
         fig.add_trace(go.Scatter(
             x=t, y=res[key], mode="lines", name=lbl,
             line=dict(color=pcol, width=1.8),
-            hovertemplate=f"<b>{lbl}</b><br>t = %{{x:.4f}} s<br>valor = %{{y:.{decimals}f}}<extra></extra>",
+            hovertemplate=f"<b>{lbl}</b><br>t = %{{x:.4f}} s<br>value = %{{y:.{decimals}f}}<extra></extra>",
         ))
 
     if has_tl:
@@ -211,7 +211,7 @@ def build_fig_overlay_dc(
         paper_bgcolor=pt["paper_bg"], plot_bgcolor=pt["plot_bg"],
         font=dict(family="Inter, system-ui", size=10, color=pt["fg"]),
         margin=dict(l=45, r=12, t=36, b=36),
-        xaxis=dict(title="Tempo (s)", showgrid=True, gridcolor=pt["grid"],
+        xaxis=dict(title="Time (s)", showgrid=True, gridcolor=pt["grid"],
                    tickfont=dict(size=9, color=pt["fg"])),
         yaxis=dict(showgrid=True, gridcolor=pt["grid"], zeroline=True,
                    zerolinecolor=pt["grid"], tickfont=dict(size=9, color=pt["fg"]),
@@ -225,7 +225,7 @@ def build_fig_overlay_dc(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# CURVA CONJUGADO × VELOCIDADE
+# TORQUE × SPEED CURVE
 # ─────────────────────────────────────────────────────────────────────────────
 
 def build_fig_torque_speed_dc(
@@ -234,7 +234,7 @@ def build_fig_torque_speed_dc(
     dark: bool,
     ref_list: list | None = None,
 ) -> go.Figure:
-    """Curva analítica T×ωm por excitação + trajetória simulada + ponto SS."""
+    """Analytical T×ωm curve by excitation type + simulated trajectory + SS point."""
     pt = _plot_theme(dark)
 
     fig = go.Figure()
@@ -244,7 +244,7 @@ def build_fig_torque_speed_dc(
     wm_ss  = float(res.get("wm_ss", 0.0))
     Te_ss  = float(res.get("Te_ss", 0.0))
 
-    # Overlay referências
+    # Overlay references
     for ref_item in (ref_list or []):
         rr = ref_item.get("res")
         if rr and "wm" in rr and "Te" in rr:
@@ -255,31 +255,31 @@ def build_fig_torque_speed_dc(
                           width=1.3),
             ))
 
-    # Trajetória dinâmica
+    # Dynamic trajectory
     if len(wm_sim) > 0:
         fig.add_trace(go.Scatter(
             x=wm_sim, y=Te_sim, mode="lines",
-            name="Trajetória dinâmica",
+            name="Dynamic Trajectory",
             line=dict(color=pt["fg"], width=1.2, dash="dot"),
             opacity=0.6,
         ))
 
-    # Curva analítica em regime
+    # Analytical steady-state curve
     if len(wm_sim) > 0:
         wm_max = max(float(np.max(np.abs(wm_sim))) * 1.15, abs(wm_ss) * 1.3, 1.0)
         wm_range = np.linspace(0, wm_max, 300)
 
         if excitation == "series_motor":
-            # T = kb² * Va / (Raf * (wm + kb²/Raf)²) — hiperbólica
-            pass   # curva analítica série requer parâmetros adicionais; omitida aqui
+            # T = kb² * Va / (Raf * (wm + kb²/Raf)²) — hyperbolic
+            pass   # analytical series curve requires additional parameters; omitted here
 
         fig.add_trace(go.Scatter(
             x=wm_range, y=np.full_like(wm_range, abs(Te_ss)),
-            mode="lines", name="Regime (carga)",
+            mode="lines", name="Steady State (load)",
             line=dict(color="#6ee7b7", width=1.4, dash="dashdot"),
         ))
 
-    # Ponto de regime permanente
+    # Steady-state operating point
     fig.add_trace(go.Scatter(
         x=[wm_ss], y=[Te_ss],
         mode="markers", name=f"SS: ω={wm_ss:.2f} rad/s, T={Te_ss:.3f} N·m",
@@ -288,7 +288,7 @@ def build_fig_torque_speed_dc(
     ))
 
     fig.update_layout(
-        title=dict(text="Conjugado × Velocidade Angular", x=0.5, xanchor="center",
+        title=dict(text="Torque × Angular Speed", x=0.5, xanchor="center",
                    font=dict(size=13, color=pt["fg"])),
         xaxis=dict(title="ωm (rad/s)", showgrid=True, gridcolor=pt["grid"],
                    tickfont=dict(size=10, color=pt["fg"])),

@@ -4,8 +4,8 @@ from core.desequilibrio_falta import render_desequilibrio_ui, abc_voltages_deseq
 import numpy as np
 import plotly.graph_objects as go
 
-st.set_page_config(page_title="Teste — Desequilíbrio de Tensão", layout="wide")
-st.title("Teste: Desequilíbrio de Tensão / Falta de Fase")
+st.set_page_config(page_title="Test — Voltage Unbalance", layout="wide")
+st.title("Test: Voltage Unbalance / Phase Loss")
 
 config = {}
 render_desequilibrio_ui(config, tmax=2.0)
@@ -35,5 +35,5 @@ if st.button("Simular"):
     if t_deseq > 0.0:
         fig.add_vline(x=t_deseq, line_dash="dash", line_color="orange",
                       annotation_text=f"t={t_deseq:.2f}s")
-    fig.update_layout(title="Tensões de fase", xaxis_title="Tempo (s)", yaxis_title="Tensão (V)")
+    fig.update_layout(title="Phase voltages", xaxis_title="Time (s)", yaxis_title="Voltage (V)")
     st.plotly_chart(fig, width="stretch")

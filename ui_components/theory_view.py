@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-"""Aba Teoria — ponto de entrada para ui_components.
+"""Theory Tab — entry point for ui_components.
 
-A lógica educacional completa vive em ui/theory.py.
-Este módulo re-exporta render_theory_tab para manter a interface
-uniforme dentro do pacote ui_components.
+The complete educational logic lives in ui/theory.py.
+This module re-exports render_theory_tab to maintain a uniform
+interface within the ui_components package.
 """
 
 from __future__ import annotations

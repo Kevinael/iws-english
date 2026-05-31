@@ -1,7 +1,7 @@
-"""Renderizador de circuito equivalente MCC — schemdraw on-the-fly, igual ao MIT.
+"""DC machine equivalent circuit renderer — on-the-fly schemdraw, same as IM.
 
-Gera PNG em memória (io.BytesIO, dpi=150) via matplotlib + schemdraw.
-Cache nos bytes por (excitation, dark). st.image(bytes, width='stretch').
+Generates PNG in memory (io.BytesIO, dpi=150) via matplotlib + schemdraw.
+Caches bytes by (excitation, dark). st.image(bytes, width='stretch').
 """
 
 from __future__ import annotations
@@ -12,16 +12,16 @@ import streamlit as st
 
 
 _CIRCUIT_LABELS: dict[str, str] = {
-    "sep_motor":    "Excitação Separada — Motor",
-    "sep_gen":      "Excitação Separada — Gerador",
-    "shunt_motor":  "Shunt (Paralelo) — Motor",
-    "shunt_gen":    "Shunt (Paralelo) — Gerador",
-    "series_motor": "Série — Motor",
+    "sep_motor":    "Separately Excited — Motor",
+    "sep_gen":      "Separately Excited — Generator",
+    "shunt_motor":  "Shunt (Parallel) — Motor",
+    "shunt_gen":    "Shunt (Parallel) — Generator",
+    "series_motor": "Series — Motor",
 }
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# BUILDERS — um por excitação
+# BUILDERS — one per excitation type
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _build_sep_motor(d, wire):
@@ -152,7 +152,7 @@ _BUILDERS = {
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# GERADOR DE BYTES (cacheável, sem Streamlit)
+# BYTE GENERATOR (cacheable, no Streamlit)
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _build_circuit_png_dc(excitation: str, dark: bool) -> bytes:
@@ -190,7 +190,7 @@ def _build_circuit_png_dc(excitation: str, dark: bool) -> bytes:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def render_circuit_dc(excitation: str, dark: bool) -> None:
-    """Gera e exibe circuito MCC via st.image(bytes) — igual ao padrão MIT."""
+    """Generates and displays DC machine circuit via st.image(bytes) — same pattern as IM."""
     @st.cache_data(show_spinner=False)
     def _cached(exc: str, dk: bool) -> bytes:
         return _build_circuit_png_dc(exc, dk)

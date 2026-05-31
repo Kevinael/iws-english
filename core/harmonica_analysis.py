@@ -7,9 +7,9 @@ from utils.text_utils import _strip_latex
 
 
 def _fft_unit_for_key(key: str) -> str:
-    """Retorna a unidade física esperada para a variável do FFT.
+    """Returns the expected physical unit for the FFT variable.
 
-    Mapeamento simples baseado no prefixo da chave do dicionário de resultados.
+    Simple mapping based on the prefix of the results dictionary key.
     """
     k = key.lower()
     if k.startswith("i"):       # ias, ibs, ics, iar, ids, iqs, ...
@@ -24,7 +24,7 @@ def _fft_unit_for_key(key: str) -> str:
 
 
 def build_fig_fft(res: dict, dark: bool, key: str = "ias", label: str = "ias") -> go.Figure:
-    """Espectro de amplitudes (FFT) de uma variável em regime permanente."""
+    """Amplitude spectrum (FFT) of a variable in steady state."""
     pt   = _plot_theme(dark)
     col  = "#4f8ef7" if dark else "#1d4ed8"
     unit = _fft_unit_for_key(key)
@@ -34,8 +34,8 @@ def build_fig_fft(res: dict, dark: bool, key: str = "ias", label: str = "ias") -
     ss_start     = int(res.get("_ss_start", 0))
     t_broken_bar = float(res.get("_t_broken_bar", 0.0))
     t_full       = np.asarray(res["t"], dtype=float)
-    # quando há barra quebrada, a janela FFT deve começar após t_broken_bar
-    # para capturar o espectro com a falha ativa — _ss_start pode ser anterior
+    # when broken bar is active, the FFT window must start after t_broken_bar
+    # to capture the spectrum with the fault active — _ss_start may be earlier
     if t_broken_bar > 0.0 and len(t_full) > 0:
         bb_idx   = int(np.searchsorted(t_full, t_broken_bar))
         ss_start = max(ss_start, bb_idx)
@@ -43,7 +43,7 @@ def build_fig_fft(res: dict, dark: bool, key: str = "ias", label: str = "ias") -
     t = np.asarray(res["t"][ss_start:], dtype=float)
     if len(y) < 4:
         fig = go.Figure()
-        fig.update_layout(title="Dados insuficientes para FFT", height=300,
+        fig.update_layout(title="Insufficient data for FFT", height=300,
                           paper_bgcolor=pt["paper_bg"], plot_bgcolor=pt["plot_bg"])
         return fig
 
@@ -52,7 +52,7 @@ def build_fig_fft(res: dict, dark: bool, key: str = "ias", label: str = "ias") -
     yf   = np.abs(np.fft.rfft(y)) * 2.0 / N
     freq = np.fft.rfftfreq(N, d=dt)
 
-    # detecta fundamental (maior pico acima de 1 Hz)
+    # detects fundamental (largest peak above 1 Hz)
     f1_mask  = freq > 1.0
     mask_idx = np.where(f1_mask)[0]
     if len(mask_idx) == 0:
@@ -62,18 +62,18 @@ def build_fig_fft(res: dict, dark: bool, key: str = "ias", label: str = "ias") -
         f1     = float(freq[f1_idx])
         A1     = float(yf[f1_idx])
 
-    # janela: até a 11ª harmônica ou 1200 Hz
+    # window: up to the 11th harmonic or 1200 Hz
     x_max = min(f1 * 11, 1200.0)
     mask  = freq <= x_max
     freq, yf = freq[mask], yf[mask]
     y_max = float(yf.max()) if len(yf) else 1.0
 
-    # limiar: só anota harmônicas com amplitude ≥ 1% da fundamental
+    # threshold: only annotate harmonics with amplitude ≥ 1% of the fundamental
     threshold = A1 * 0.01
 
-    # identifica picos das harmônicas ímpares acima do limiar
+    # identifies odd harmonic peaks above threshold
     harm_orders = [1, 3, 5, 7, 9, 11]
-    labeled: list[tuple[float, float, int]] = []  # (freq_real, amplitude, ordem)
+    labeled: list[tuple[float, float, int]] = []  # (real_freq, amplitude, order)
     for k in harm_orders:
         hf = f1 * k
         if hf > x_max:
@@ -85,7 +85,7 @@ def build_fig_fft(res: dict, dark: bool, key: str = "ias", label: str = "ias") -
         if amp >= threshold:
             labeled.append((float(freq[local_idx]), amp, k))
 
-    # traço de espectro contínuo com área preenchida
+    # continuous spectrum trace with filled area
     fig = go.Figure()
     fig.add_trace(go.Scatter(
         x=freq, y=yf,
@@ -97,33 +97,33 @@ def build_fig_fft(res: dict, dark: bool, key: str = "ias", label: str = "ias") -
         hovertemplate="f = %{x:.1f} Hz<br>A = %{y:.4f}" + unit_hover + "<extra></extra>",
     ))
 
-    # marcadores apenas nos picos com energia relevante
+    # markers only on peaks with relevant energy
     if labeled:
         fig.add_trace(go.Scatter(
             x=[p[0] for p in labeled],
             y=[p[1] for p in labeled],
             mode="markers+text",
             marker=dict(color="#ef4444", size=8, symbol="diamond"),
-            text=[f"{p[2]}ª ({p[0]:.0f} Hz)" for p in labeled],
+            text=[f"{p[2]}th ({p[0]:.0f} Hz)" for p in labeled],
             textposition="top center",
             textfont=dict(size=9, color="#ef4444"),
-            name="Harmônicas",
+            name="Harmonics",
             hovertemplate="f = %{x:.1f} Hz<br>A = %{y:.4f}" + unit_hover + "<extra></extra>",
         ))
 
-    # ticks no eixo X: múltiplos da fundamental, no máximo 8 ticks
+    # X-axis ticks: multiples of the fundamental, at most 8 ticks
     n_ticks = min(8, int(x_max / f1)) if f1 > 0 else 8
     tick_step = max(1, round((x_max / f1) / n_ticks)) * f1
 
     fig.update_layout(
         height=340,
-        title=dict(text=f"Espectro de Amplitudes — {label} (regime permanente)",
+        title=dict(text=f"Amplitude Spectrum — {label} (steady state)",
                    x=0.5, xanchor="center", font=dict(size=12, color=pt["fg"])),
         paper_bgcolor=pt["paper_bg"], plot_bgcolor=pt["plot_bg"],
         font=dict(family="Inter, system-ui", size=10, color=pt["fg"]),
         margin=dict(l=55, r=20, t=50, b=45),
         xaxis=dict(
-            title="Frequência (Hz)", showgrid=True, gridcolor=pt["grid"],
+            title="Frequency (Hz)", showgrid=True, gridcolor=pt["grid"],
             tickfont=dict(size=9, color=pt["fg"]), exponentformat="none",
             range=[0, x_max * 1.03],
             dtick=tick_step,
@@ -140,16 +140,16 @@ def build_fig_fft(res: dict, dark: bool, key: str = "ias", label: str = "ias") -
 
 def render_harmonicas(res: dict, var_keys: list, var_labels: list,
                       dark: bool, render_plotly_fn) -> None:
-    """Renderiza a seção de análise espectral (FFT) na UI."""
+    """Renders the spectral analysis (FFT) section in the UI."""
     ac_keys = [k for k in var_keys if k in ("ias", "ibs", "ics", "iar", "ibr", "icr", "Va", "Vb", "Vc")]
     if not ac_keys:
         return
 
     st.divider()
-    st.markdown('<p class="slabel">Análise Espectral</p>', unsafe_allow_html=True)
-    with st.expander("Ver Espectro de Harmônicas (FFT)", expanded=False):
+    st.markdown('<p class="slabel">Spectral Analysis</p>', unsafe_allow_html=True)
+    with st.expander("View Harmonic Spectrum (FFT)", expanded=False):
         fft_var = st.selectbox(
-            "Variável para análise",
+            "Variable for analysis",
             options=ac_keys,
             format_func=lambda k: next((lbl for kk, lbl in zip(var_keys, var_labels) if kk == k), k),
             key="fft_var_select",
@@ -158,4 +158,4 @@ def render_harmonicas(res: dict, var_keys: list, var_labels: list,
         fft_lbl_plot = _strip_latex(fft_lbl)
         fig_fft = build_fig_fft(res, dark, key=fft_var, label=fft_lbl_plot)
         render_plotly_fn(fig_fft, div_id="ems-fft")
-        st.caption("Losangos vermelhos indicam harmônicas ímpares (1ª, 3ª, 5ª, 7ª, 9ª, 11ª). Eixo X limitado à 11ª harmônica ou 1200 Hz.")
+        st.caption("Red diamonds indicate odd harmonics (1st, 3rd, 5th, 7th, 9th, 11th). X-axis limited to the 11th harmonic or 1200 Hz.")

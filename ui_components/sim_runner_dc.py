@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""Execução da simulação MCC — orquestra fontes + solver e persiste resultado.
+"""DC machine simulation execution — orchestrates sources + solver and persists the result.
 
-Exporta:
-    execute_simulation_flow_dc — chamada única quando "Executar Simulação" é clicado.
+Exports:
+    execute_simulation_flow_dc — single entry point called when "Run Simulation" is clicked.
 """
 
 from __future__ import annotations
@@ -27,30 +27,30 @@ def execute_simulation_flow_dc(
     dark: bool,
     energy_tariff: float = 0.75,
 ) -> None:
-    """Valida, integra e salva o resultado em st.session_state["sim_result"].
+    """Validates, integrates, and saves the result to st.session_state["sim_result"].
 
-    Segue o mesmo contrato de execute_simulation_flow (MIT): em erro exibe
-    mensagem e não altera session_state.
+    Follows the same contract as execute_simulation_flow (IM): on error displays
+    a message and does not alter session_state.
     """
     if not var_keys:
-        st.warning("Selecione ao menos uma grandeza para plotar antes de executar.")
+        st.warning("Select at least one variable to plot before running the simulation.")
         return
 
     mode = exp_config.get("exp_type", "dol_dc")
 
-    # sentinel tmax==0 → usar valor automático calculado em sim_config_dc
+    # sentinel tmax==0 → use automatic value computed in sim_config_dc
     if tmax == 0.0:
         tmax = float(exp_config.get("_tmax_auto_val", 12.0))
 
     voltage_fn = make_voltage_fn_dc(mode, mp, exp_config)
     torque_fn  = make_torque_fn_dc(mode, mp, exp_config)
 
-    with st.spinner("Executando integração numérica (MCC)..."):
+    with st.spinner("Running numerical integration (DC machine)..."):
         try:
             res = run_simulation_dc(mp, tmax, h, voltage_fn, torque_fn)
 
             st.session_state["pdf_bytes"] = None
-            st.session_state["zoom_mode_dc"] = "Completo"
+            st.session_state["zoom_mode_dc"] = "Full"
             st.session_state["sim_result"] = dict(
                 res=res,
                 var_keys=var_keys,
@@ -58,7 +58,7 @@ def execute_simulation_flow_dc(
                 t_events=[],
                 dark=dark,
                 mp=mp,
-                exp_label=exp_config.get("exp_label", "Simulacao DC"),
+                exp_label=exp_config.get("exp_label", "DC Simulation"),
                 exp_type=mode,
                 exp_config=exp_config,
                 tmax=tmax,
@@ -67,18 +67,18 @@ def execute_simulation_flow_dc(
                 torque_fn=torque_fn,
             )
             st.session_state["_sim_toast"] = (
-                f"Simulação MCC concluída — "
+                f"DC machine simulation complete — "
                 f"n = {res['n_ss']:.1f} RPM | "
                 f"Te = {res['Te_ss']:.3f} N·m"
             )
             st.rerun()
         except Exception as e:
-            st.error("Falha durante a integração numérica da simulação MCC.")
+            st.error("Failure during numerical integration of the DC machine simulation.")
             st.markdown(
-                "**Sugestões:**\n"
-                "- Reduza o tempo de simulação ($t_{max}$).\n"
-                "- Diminua o passo de integração $h$ (típico: 1×10⁻⁴ s).\n"
-                "- Verifique consistência dos parâmetros ($R_a$, $L_a$, $k_b$, $J$)."
+                "**Suggestions:**\n"
+                "- Reduce the simulation time ($t_{max}$).\n"
+                "- Decrease the integration step $h$ (typical: 1×10⁻⁴ s).\n"
+                "- Verify parameter consistency ($R_a$, $L_a$, $k_b$, $J$)."
             )
-            with st.expander("Detalhes do erro", expanded=False):
+            with st.expander("Error details", expanded=False):
                 st.code(f"{type(e).__name__}: {e}", language="text")

@@ -30,7 +30,7 @@ def _plot_theme(dark: bool) -> dict:
     )
 
 
-_TL_COLOR = "#f59e0b"  # âmbar — distingue TL de Te nos gráficos
+_TL_COLOR = "#f59e0b"  # amber — distinguishes TL from Te in charts
 
 
 def build_fig_stacked(res, var_keys, var_labels, dark, t_events, decimals=2,
@@ -50,13 +50,13 @@ def build_fig_stacked(res, var_keys, var_labels, dark, t_events, decimals=2,
         fig.add_trace(go.Scatter(
             x=t, y=res[key], mode="lines", name=lbl,
             line=dict(color=cols[(i-1) % len(cols)], width=1.9),
-            hovertemplate=f"<b>{lbl}</b><br>t = %{{x:.4f}} s<br>valor = %{{y:.{decimals}f}}<extra></extra>",
+            hovertemplate=f"<b>{lbl}</b><br>t = %{{x:.4f}} s<br>value = %{{y:.{decimals}f}}<extra></extra>",
         ), row=i, col=1)
         if key == "Te" and has_tl:
             fig.add_trace(go.Scatter(
                 x=t, y=tl_arr, mode="lines", name="TL (N·m)",
                 line=dict(color=_TL_COLOR, width=1.6, dash="dash"),
-                hovertemplate=f"<b>TL</b><br>t = %{{x:.4f}} s<br>valor = %{{y:.{decimals}f}} N·m<extra></extra>",
+                hovertemplate=f"<b>TL</b><br>t = %{{x:.4f}} s<br>value = %{{y:.{decimals}f}} N·m<extra></extra>",
             ), row=i, col=1)
         for te in (t_events or []):
             fig.add_vline(x=te, line_dash="dot", line_color=pt["event_line"],
@@ -72,7 +72,7 @@ def build_fig_stacked(res, var_keys, var_labels, dark, t_events, decimals=2,
                          rangemode="normal",
                          fixedrange=False)
 
-    fig.update_xaxes(row=n, col=1, title_text="Tempo (s)",
+    fig.update_xaxes(row=n, col=1, title_text="Time (s)",
                      showgrid=True, gridcolor=pt["grid"], gridwidth=0.4,
                      tickfont=dict(size=10, color=pt["fg"]))
     fig.update_layout(
@@ -106,23 +106,23 @@ def build_fig_sidebyside(res, var_keys, var_labels, dark, t_events, decimals=2,
             res_ref   = ref_item.get("res")
             ref_color = ref_item.get("color", "#888888")
             ref_dash  = ref_item.get("dash", "dash")
-            ref_label = ref_item.get("label", "Referência")
+            ref_label = ref_item.get("label", "Reference")
             if res_ref is not None and key in res_ref:
                 fig.add_trace(go.Scatter(
                     x=res_ref["t"], y=res_ref[key], mode="lines", name=ref_label,
                     line=dict(color=ref_color, width=1.4, dash=ref_dash),
-                    hovertemplate=f"<b>{ref_label}</b><br>t = %{{x:.4f}} s<br>valor = %{{y:.{decimals}f}}<extra></extra>",
+                    hovertemplate=f"<b>{ref_label}</b><br>t = %{{x:.4f}} s<br>value = %{{y:.{decimals}f}}<extra></extra>",
                 ))
         fig.add_trace(go.Scatter(
             x=t, y=res[key], mode="lines", name=lbl,
             line=dict(color=pcol, width=1.8),
-            hovertemplate=f"<b>{lbl}</b><br>t = %{{x:.4f}} s<br>valor = %{{y:.{decimals}f}}<extra></extra>",
+            hovertemplate=f"<b>{lbl}</b><br>t = %{{x:.4f}} s<br>value = %{{y:.{decimals}f}}<extra></extra>",
         ))
         if key == "Te" and has_tl:
             fig.add_trace(go.Scatter(
                 x=t, y=tl_arr, mode="lines", name="TL (N·m)",
                 line=dict(color=_TL_COLOR, width=1.6, dash="dash"),
-                hovertemplate=f"<b>TL</b><br>t = %{{x:.4f}} s<br>valor = %{{y:.{decimals}f}} N·m<extra></extra>",
+                hovertemplate=f"<b>TL</b><br>t = %{{x:.4f}} s<br>value = %{{y:.{decimals}f}} N·m<extra></extra>",
             ))
         for te in (t_events or []):
             fig.add_vline(x=te, line_dash="dot", line_color=th["event_line"], line_width=1.1)
@@ -136,7 +136,7 @@ def build_fig_sidebyside(res, var_keys, var_labels, dark, t_events, decimals=2,
             paper_bgcolor=th["paper_bg"], plot_bgcolor=th["plot_bg"],
             font=dict(family="Inter, system-ui", size=_fsz, color=th["fg"]),
             margin=_m,
-            xaxis=dict(title="Tempo (s)", showgrid=True,
+            xaxis=dict(title="Time (s)", showgrid=True,
                        gridcolor=th["grid"], tickfont=dict(size=9, color=th["fg"])),
             yaxis=dict(showgrid=True, gridcolor=th["grid"],
                        zeroline=True, zerolinecolor=th["grid"],
@@ -170,7 +170,7 @@ def build_fig_overlay(res, var_keys, var_labels, dark, t_events, decimals=2,
         res_ref   = ref_item.get("res")
         ref_color = ref_item.get("color", "#888888")
         ref_dash  = ref_item.get("dash", "dash")
-        ref_label = ref_item.get("label", "Referência")
+        ref_label = ref_item.get("label", "Reference")
         if res_ref is not None:
             for key, lbl in zip(var_keys, var_labels):
                 if key not in res_ref:
@@ -180,7 +180,7 @@ def build_fig_overlay(res, var_keys, var_labels, dark, t_events, decimals=2,
                     x=res_ref["t"], y=res_ref[key], mode="lines",
                     name=f"{ref_label} — {lbl}", yaxis=yaxis,
                     line=dict(color=ref_color, width=1.4, dash=ref_dash),
-                    hovertemplate=f"<b>{ref_label}</b><br>t = %{{x:.4f}} s<br>valor = %{{y:.{decimals}f}}<extra></extra>",
+                    hovertemplate=f"<b>{ref_label}</b><br>t = %{{x:.4f}} s<br>value = %{{y:.{decimals}f}}<extra></extra>",
                 ))
     for i, (key, lbl) in enumerate(zip(var_keys, var_labels)):
         pcol  = primary_color if primary_color else cols[i % len(cols)]
@@ -188,13 +188,13 @@ def build_fig_overlay(res, var_keys, var_labels, dark, t_events, decimals=2,
         fig.add_trace(go.Scatter(
             x=t, y=res[key], mode="lines", name=lbl,
             line=dict(color=pcol, width=1.9), yaxis=yaxis,
-            hovertemplate=f"<b>{lbl}</b><br>t = %{{x:.4f}} s<br>valor = %{{y:.{decimals}f}}<extra></extra>",
+            hovertemplate=f"<b>{lbl}</b><br>t = %{{x:.4f}} s<br>value = %{{y:.{decimals}f}}<extra></extra>",
         ))
         if key == "Te" and has_tl:
             fig.add_trace(go.Scatter(
                 x=t, y=tl_arr, mode="lines", name="TL (N·m)",
                 line=dict(color=_TL_COLOR, width=1.6, dash="dash"),
-                hovertemplate=f"<b>TL</b><br>t = %{{x:.4f}} s<br>valor = %{{y:.{decimals}f}} N·m<extra></extra>",
+                hovertemplate=f"<b>TL</b><br>t = %{{x:.4f}} s<br>value = %{{y:.{decimals}f}} N·m<extra></extra>",
             ))
     for te in (t_events or []):
         fig.add_vline(x=te, line_dash="dot", line_color=pt["event_line"], line_width=1.1)
@@ -211,7 +211,7 @@ def build_fig_overlay(res, var_keys, var_labels, dark, t_events, decimals=2,
     _ov_m  = dict(l=35, r=_r_val, t=32, b=28) if compact else dict(l=55, r=65 if has_right else 20, t=48, b=40)
     fig.update_layout(
         height=320 if compact else 380,
-        title=dict(text="Curvas Sobrepostas", x=0.5, xanchor="center",
+        title=dict(text="Overlaid Curves", x=0.5, xanchor="center",
                    font=dict(size=11 if compact else 12, color=pt["fg"])),
         paper_bgcolor=pt["paper_bg"], plot_bgcolor=pt["plot_bg"],
         font=dict(family="Inter, system-ui", size=10 if compact else 11, color=pt["fg"]),
@@ -220,7 +220,7 @@ def build_fig_overlay(res, var_keys, var_labels, dark, t_events, decimals=2,
         legend=dict(orientation="h", yanchor="bottom", y=1.01,
                     xanchor="right", x=1, font=dict(size=10),
                     bgcolor="rgba(0,0,0,0)"),
-        xaxis=dict(title="Tempo (s)", showgrid=True,
+        xaxis=dict(title="Time (s)", showgrid=True,
                    gridcolor=pt["grid"], gridwidth=0.4,
                    tickfont=dict(size=10, color=pt["fg"])),
         yaxis=dict(showgrid=True, gridcolor=pt["grid"],
@@ -240,26 +240,25 @@ def build_fig_torque_speed(
     p: int,
     dark: bool = False,
 ) -> go.Figure:
-    """Conjugado eletromagnético vs. velocidade do rotor.
+    """Electromagnetic torque vs. rotor speed.
 
-    Traça a trajetória dinâmica completa da partida até o regime permanente e
-    sobrepõe referências nominais de projeto (velocidade síncrona e torque nominal).
+    Traces the full dynamic trajectory from start-up to steady state and
+    overlays nominal design references (synchronous speed and rated torque).
 
     Args:
-        res: dicionário de resultados do solver (campos "n" em RPM, "Te" em N·m).
-        P_nom_kw: potência mecânica nominal do motor em kW.
-        f: frequência nominal em Hz.
-        p: número de polos.
-        dark: True para tema escuro.
+        res: solver results dictionary (fields "n" in RPM, "Te" in N·m).
+        P_nom_kw: rated mechanical power in kW.
+        f: rated frequency in Hz.
+        p: number of poles.
+        dark: True for dark theme.
     """
     pt = _plot_theme(dark)
 
     rpm_array = np.asarray(res["n"],  dtype=float)
     te_array  = np.asarray(res["Te"], dtype=float)
 
-    # Descarta os primeiros 5 ciclos elétricos: nesse intervalo Te oscila
-    # violentamente em torno de wr≈0 (inrush eletromagnético), poluindo a
-    # trajetória T×n. Mesma janela usada por _compute_thermal.
+    # Discard the first 5 electrical cycles: over this interval Te oscillates
+    # violently around wr≈0 (electromagnetic inrush), polluting the T×n trajectory.
     t_array = np.asarray(res.get("t", []), dtype=float)
     if len(t_array) > 1 and f > 0:
         h     = float(t_array[1] - t_array[0])
@@ -269,60 +268,60 @@ def build_fig_torque_speed(
     rpm_plot = rpm_array[n_skip:]
     te_plot  = te_array[n_skip:]
 
-    # Ponto de operação: última amostra válida (sobre o array já recortado)
+    # Operating point: last valid sample (on the already-trimmed array)
     valid_mask   = np.isfinite(rpm_plot) & np.isfinite(te_plot)
     rpm_op       = float(rpm_plot[valid_mask][-1]) if valid_mask.any() else float(rpm_plot[-1])
     torque_op    = float(te_plot[valid_mask][-1])  if valid_mask.any() else float(te_plot[-1])
 
-    # Referências nominais
-    n_sync       = 120.0 * f / p                           # RPM síncrona
-    n_nom        = n_sync * (1.0 - 0.03)                   # RPM nominal (s = 3%)
+    # Nominal references
+    n_sync       = 120.0 * f / p                           # synchronous RPM
+    n_nom        = n_sync * (1.0 - 0.03)                   # rated RPM (s = 3%)
     omega_nom    = n_nom * 2.0 * np.pi / 60.0              # rad/s
     torque_nom   = (P_nom_kw * 1000.0) / omega_nom         # N·m
 
-    col_traj  = "#60a5fa" if dark else "#1d4ed8"   # azul
-    col_op    = "#f59e0b"                           # âmbar — destaque
-    col_ref   = "#6b7280"                           # cinza — linhas de referência
+    col_traj  = "#60a5fa" if dark else "#1d4ed8"   # blue
+    col_op    = "#f59e0b"                           # amber — highlight
+    col_ref   = "#6b7280"                           # grey — reference lines
 
     fig = go.Figure()
 
-    # Trajetória dinâmica (sem o transitorio eletromagnetico inicial)
+    # Dynamic trajectory (without initial electromagnetic transient)
     fig.add_trace(go.Scatter(
         x=rpm_plot, y=te_plot,
         mode="lines",
-        name="Trajetoria Dinamica",
+        name="Dynamic Trajectory",
         line=dict(color=col_traj, width=1.8),
-        hovertemplate="<b>Trajetoria</b><br>n = %{x:.1f} RPM<br>Te = %{y:.2f} N·m<extra></extra>",
+        hovertemplate="<b>Trajectory</b><br>n = %{x:.1f} RPM<br>Te = %{y:.2f} N·m<extra></extra>",
     ))
 
-    # Ponto de operação em regime permanente
+    # Steady-state operating point
     fig.add_trace(go.Scatter(
         x=[rpm_op], y=[torque_op],
         mode="markers",
-        name="Ponto de Operacao (Regime)",
+        name="Steady-State Operating Point",
         marker=dict(symbol="star", size=14, color=col_op,
                     line=dict(color=col_op, width=1)),
         hovertemplate=(
-            "<b>Regime Permanente</b><br>"
+            "<b>Steady State</b><br>"
             "n = %{x:.1f} RPM<br>"
             "Te = %{y:.2f} N·m<extra></extra>"
         ),
     ))
 
-    # Linha de referência: torque nominal estimado
+    # Reference line: estimated rated torque
     fig.add_hline(
         y=torque_nom,
         line=dict(color=col_ref, width=1.2, dash="dash"),
-        annotation_text=f"Torque Nominal Est. ({torque_nom:.1f} N·m)",
+        annotation_text=f"Est. Rated Torque ({torque_nom:.1f} N·m)",
         annotation_position="top left",
         annotation_font=dict(size=10, color=col_ref),
     )
 
-    # Linha de referência: velocidade síncrona
+    # Reference line: synchronous speed
     fig.add_vline(
         x=n_sync,
         line=dict(color=col_ref, width=1.2, dash="dot"),
-        annotation_text=f"Vel. Sincrona ({n_sync:.0f} RPM)",
+        annotation_text=f"Sync. Speed ({n_sync:.0f} RPM)",
         annotation_position="top right",
         annotation_font=dict(size=10, color=col_ref),
     )
@@ -340,13 +339,13 @@ def build_fig_torque_speed(
             font=dict(size=10), bgcolor="rgba(0,0,0,0)",
         ),
         xaxis=dict(
-            title="Velocidade do Rotor (RPM)",
+            title="Rotor Speed (RPM)",
             showgrid=True, gridcolor=pt["grid"], gridwidth=0.4,
             tickfont=dict(size=10, color=pt["fg"]),
             zeroline=False,
         ),
         yaxis=dict(
-            title="Conjugado Eletromagnetico Te (N·m)",
+            title="Electromagnetic Torque Te (N·m)",
             showgrid=True, gridcolor=pt["grid"], gridwidth=0.4,
             zeroline=True, zerolinecolor=pt["grid"],
             tickfont=dict(size=10, color=pt["fg"]),

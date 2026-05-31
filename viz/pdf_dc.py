@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-pdf_dc.py — Relatório Técnico MCC do IWS Simulator.
+pdf_dc.py — DC Machine Technical Report for the IWS Simulator.
 
-Perfil: mesmo estilo visual de pdf_academico.py, adaptado para MCC.
-Exporta: generate_dc(exp_label, mp, res, ...) -> bytes
+Profile: same visual style as pdf_academico.py, adapted for DC machines.
+Exports: generate_dc(exp_label, mp, res, ...) -> bytes
 """
 
 from __future__ import annotations
@@ -19,16 +19,16 @@ from viz.pdf_commons import (
 
 
 _EXC_LABELS: dict[str, str] = {
-    "sep_motor":    "Excitação Separada — Motor",
-    "shunt_motor":  "Shunt (Paralelo) — Motor",
-    "series_motor": "Série — Motor",
-    "sep_gen":      "Excitação Separada — Gerador",
-    "shunt_gen":    "Shunt (Paralelo) — Gerador",
+    "sep_motor":    "Separately Excited — Motor",
+    "shunt_motor":  "Shunt (Parallel) — Motor",
+    "series_motor": "Series — Motor",
+    "sep_gen":      "Separately Excited — Generator",
+    "shunt_gen":    "Shunt (Parallel) — Generator",
 }
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Primitivos de layout (espelham pdf_academico.py)
+# Layout primitives (mirror pdf_academico.py)
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _sec(pdf, title: str, num: str = "") -> None:
@@ -101,7 +101,7 @@ def _ensure_space(pdf, mm: float) -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Gráfico de barras de perdas DC
+# DC loss bar chart
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _build_losses_bar_dc(losses: dict) -> object:
@@ -113,20 +113,20 @@ def _build_losses_bar_dc(losses: dict) -> object:
     values = []
     pcts   = []
 
-    labels.append("P. Joule R_a")
+    labels.append("Joule loss R_a")
     values.append(losses.get("P_Ra", 0.0))
     pcts.append(losses.get("pct_Ra", 0.0))
 
     if losses.get("P_Rf", 0.0) > 0:
-        labels.append("P. Joule R_f")
+        labels.append("Joule loss R_f")
         values.append(losses["P_Rf"])
         pcts.append(losses.get("pct_Rf", 0.0))
 
-    labels.append("P. Atrito")
+    labels.append("Friction loss")
     values.append(losses.get("P_mec", 0.0))
     pcts.append(losses.get("pct_mec", 0.0))
 
-    labels.append("P. Mecânica útil")
+    labels.append("Useful mechanical power")
     values.append(losses.get("P_mec_out", 0.0))
     pcts.append(losses.get("pct_mec_out", 0.0))
 
@@ -138,7 +138,7 @@ def _build_losses_bar_dc(losses: dict) -> object:
         w = bar.get_width()
         ax.text(w * 1.01, bar.get_y() + bar.get_height() / 2,
                 f"{pct:.1f}%", va="center", fontsize=8, color="#374151")
-    ax.set_xlabel("Potência (W)", fontsize=8)
+    ax.set_xlabel("Power (W)", fontsize=8)
     ax.set_facecolor("#f9fafc")
     ax.grid(True, axis="x", color="#dde4f5", linewidth=0.4)
     ax.spines[["top", "right"]].set_visible(False)
@@ -148,7 +148,7 @@ def _build_losses_bar_dc(losses: dict) -> object:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Cálculo de perdas DC
+# DC loss computation
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _compute_losses_dc(res: dict, mp: DCMachineParams) -> dict:
@@ -183,7 +183,7 @@ def _compute_losses_dc(res: dict, mp: DCMachineParams) -> dict:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Bloco de diagnóstico DC
+# DC diagnostics block
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _compute_anomalias_dc(res: dict, mp: DCMachineParams) -> list[tuple[str, str, str]]:
@@ -199,41 +199,41 @@ def _compute_anomalias_dc(res: dict, mp: DCMachineParams) -> list[tuple[str, str
     ia_max = float(np.max(np.abs(ia_arr)))
     if ia_max > 15.0 * max(abs(ia_ss), 1e-6):
         anomalias.append((
-            "CRÍTICO",
-            "Sobrecorrente extrema na partida",
-            f"Pico {ia_max:.1f} A = {ia_max/max(abs(ia_ss),1e-6):.0f}x regime. "
-            "Use resistência série ou reduza Va.",
+            "CRITICAL",
+            "Extreme overcurrent at start-up",
+            f"Peak {ia_max:.1f} A = {ia_max/max(abs(ia_ss),1e-6):.0f}x steady state. "
+            "Use series resistance or reduce Va.",
         ))
 
     if not res.get("success", True):
         anomalias.append((
-            "CRÍTICO",
-            "Falha numérica do integrador",
-            "Reduza h para 1e-5 s ou verifique parâmetros.",
+            "CRITICAL",
+            "Integrator numerical failure",
+            "Reduce h to 1e-5 s or check parameters.",
         ))
 
     if exc not in ("series_motor",) and len(ifd_arr) > 10:
         ifd_std = float(np.std(ifd_arr[len(ifd_arr) // 2:]))
         if ifd_std > 0.05 * max(abs(ifd_ss), 1e-6):
             anomalias.append((
-                "ALERTA",
-                "Instabilidade de campo",
-                f"σ(ifd) = {ifd_std:.4f} A em regime. "
-                "Verifique Rf e Lf.",
+                "WARNING",
+                "Field instability",
+                f"sigma(ifd) = {ifd_std:.4f} A in steady state. "
+                "Check Rf and Lf.",
             ))
 
     if len(wm_arr) > 10 and float(np.mean(wm_arr[-10:])) < 0.01 * abs(wm_ss) and abs(wm_ss) > 1:
         anomalias.append((
-            "ALERTA",
-            "Regime não atingido",
-            "ωm ainda em transitório ao fim da simulação. Aumente tmax.",
+            "WARNING",
+            "Steady state not reached",
+            "omega_m still in transient at end of simulation. Increase tmax.",
         ))
 
     return anomalias
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Bloco principal de simulação
+# Main simulation block
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _write_sim_block_dc(
@@ -255,107 +255,107 @@ def _write_sim_block_dc(
     losses = _compute_losses_dc(res, mp)
     sec_n  = 1
 
-    # ── Capa ─────────────────────────────────────────────────────────────
+    # ── Cover ─────────────────────────────────────────────────────────────
     pdf.add_page()
     pdf.set_fill_color(15, 40, 100)
     pdf.rect(0, 0, 210, 65, style="F")
     pdf.set_xy(20, 14)
     pdf.set_font("Helvetica", "B", 18)
     pdf.set_text_color(255, 255, 255)
-    pdf.cell(0, 12, "IWS - Relatorio Tecnico de Simulacao",
+    pdf.cell(0, 12, "IWS - Technical Simulation Report",
              border=0, new_x="LMARGIN", new_y="NEXT")
     pdf.set_xy(20, 30)
     pdf.set_font("Helvetica", "", 12)
-    pdf.cell(0, 8, "Motor de Corrente Continua (MCC)",
+    pdf.cell(0, 8, "Direct Current Machine (DC)",
              border=0, new_x="LMARGIN", new_y="NEXT")
     pdf.set_xy(20, 42)
     pdf.set_font("Helvetica", "", 10)
-    pdf.cell(0, 6, f"Experimento: {safe_text(exp_label)}",
+    pdf.cell(0, 6, f"Experiment: {safe_text(exp_label)}",
              border=0, new_x="LMARGIN", new_y="NEXT")
     pdf.set_xy(20, 50)
-    pdf.cell(0, 6, f"Configuracao: {safe_text(_EXC_LABELS.get(exc, exc))}",
+    pdf.cell(0, 6, f"Configuration: {safe_text(_EXC_LABELS.get(exc, exc))}",
              border=0, new_x="LMARGIN", new_y="NEXT")
     pdf.set_xy(20, 57)
     pdf.set_font("Helvetica", "I", 9)
-    ts = datetime.datetime.now().strftime("%d/%m/%Y  %H:%M")
-    pdf.cell(0, 6, f"Gerado em: {ts}", border=0, new_x="LMARGIN", new_y="NEXT")
+    ts = datetime.datetime.now().strftime("%Y-%m-%d  %H:%M")
+    pdf.cell(0, 6, f"Generated: {ts}", border=0, new_x="LMARGIN", new_y="NEXT")
     pdf.ln(10)
 
-    # ── 1. Identificação ──────────────────────────────────────────────────
-    _sec(pdf, "Identificação do Experimento", f"{sec_n}.")
-    _th(pdf, [("Atributo", 90), ("Valor", 80)])
+    # ── 1. Identification ──────────────────────────────────────────────────
+    _sec(pdf, "Experiment Identification", f"{sec_n}.")
+    _th(pdf, [("Attribute", 90), ("Value", 80)])
     _tr(pdf, [
-        ("Experimento",                       safe_text(exp_label)),
-        ("Tipo de operação",                  exp_type.upper()),
-        ("Configuração de excitação",         safe_text(_EXC_LABELS.get(exc, exc))),
-        ("Tensão de armadura (Va)",           f"{mp.Va:.1f} V"),
-        ("Tempo total simulado",              f"{tmax:.3f} s"),
+        ("Experiment",                        safe_text(exp_label)),
+        ("Operation type",                    exp_type.upper()),
+        ("Excitation configuration",          safe_text(_EXC_LABELS.get(exc, exc))),
+        ("Armature voltage (Va)",             f"{mp.Va:.1f} V"),
+        ("Total simulated time",              f"{tmax:.3f} s"),
     ], [90, 80], ["L", "L"])
     pdf.ln(4)
     sec_n += 1
 
-    # ── 2. Parâmetros da Máquina ──────────────────────────────────────────
-    _sec(pdf, "Parâmetros da Máquina", f"{sec_n}.")
+    # ── 2. Machine Parameters ──────────────────────────────────────────────
+    _sec(pdf, "Machine Parameters", f"{sec_n}.")
     rows_params = [
-        ("Resistência de armadura (R[sub]a[/sub])",    f"{mp.Ra:.4f}", "Ω"),
-        ("Indutância de armadura (L[sub]a[/sub])",     f"{mp.La:.6f}", "H"),
-        ("Constante eletromecânica (k[sub]b[/sub])",   f"{mp.kb:.6f}", "V·s/rad"),
-        ("Momento de inércia (J)",                      f"{mp.J:.4f}",  "kg·m²"),
-        ("Coeficiente de atrito (B)",                   f"{mp.B:.6f}",  "N·m·s/rad"),
-        ("Torque de carga nominal (T[sub]load[/sub])",  f"{mp.Tload:.4f}", "N·m"),
+        ("Armature resistance (R[sub]a[/sub])",         f"{mp.Ra:.4f}", "Ohm"),
+        ("Armature inductance (L[sub]a[/sub])",         f"{mp.La:.6f}", "H"),
+        ("Electromechanical constant (k[sub]b[/sub])",  f"{mp.kb:.6f}", "V.s/rad"),
+        ("Moment of inertia (J)",                        f"{mp.J:.4f}",  "kg.m2"),
+        ("Friction coefficient (B)",                     f"{mp.B:.6f}",  "N.m.s/rad"),
+        ("Rated load torque (T[sub]load[/sub])",         f"{mp.Tload:.4f}", "N.m"),
     ]
     if exc == "sep_motor":
         rows_params += [
-            ("Tensão de campo (V[sub]f[/sub])",         f"{mp.Vf:.1f}",  "V"),
-            ("Resistência de campo (R[sub]f[/sub])",    f"{mp.Rf:.4f}",  "Ω"),
-            ("Indutância de campo (L[sub]f[/sub])",     f"{mp.Lf:.6f}",  "H"),
+            ("Field voltage (V[sub]f[/sub])",           f"{mp.Vf:.1f}",  "V"),
+            ("Field resistance (R[sub]f[/sub])",        f"{mp.Rf:.4f}",  "Ohm"),
+            ("Field inductance (L[sub]f[/sub])",        f"{mp.Lf:.6f}",  "H"),
         ]
     elif exc in ("shunt_motor", "shunt_gen"):
         rows_params += [
-            ("Resistência de campo shunt (R[sub]f[/sub])", f"{mp.Rf:.4f}", "Ω"),
-            ("Indutância de campo shunt (L[sub]f[/sub])",  f"{mp.Lf:.6f}", "H"),
-            ("(V[sub]f[/sub] = V[sub]a[/sub] — excitação paralela)",
+            ("Shunt field resistance (R[sub]f[/sub])",  f"{mp.Rf:.4f}", "Ohm"),
+            ("Shunt field inductance (L[sub]f[/sub])",  f"{mp.Lf:.6f}", "H"),
+            ("(V[sub]f[/sub] = V[sub]a[/sub] — parallel excitation)",
              f"{mp.Va:.1f}", "V"),
         ]
     elif exc == "series_motor":
         rows_params += [
-            ("Resistência de campo série (R[sub]f[/sub])", f"{mp.Rf:.4f}", "Ω"),
-            ("Indutância de campo série (L[sub]f[/sub])",  f"{mp.Lf:.6f}", "H"),
-            ("(Campo em série com a armadura)", "—", ""),
+            ("Series field resistance (R[sub]f[/sub])", f"{mp.Rf:.4f}", "Ohm"),
+            ("Series field inductance (L[sub]f[/sub])", f"{mp.Lf:.6f}", "H"),
+            ("(Field in series with armature)", "—", ""),
         ]
     elif exc == "sep_gen":
         rows_params += [
-            ("Tensão de campo (V[sub]f[/sub])",         f"{mp.Vf:.1f}",  "V"),
-            ("Resistência de campo (R[sub]f[/sub])",    f"{mp.Rf:.4f}",  "Ω"),
-            ("Indutância de campo (L[sub]f[/sub])",     f"{mp.Lf:.6f}",  "H"),
-            ("Resistência de carga (R[sub]l[/sub])",    f"{mp.Rl:.4f}",  "Ω"),
-            ("Indutância de carga (L[sub]l[/sub])",     f"{mp.Ll:.6f}",  "H"),
+            ("Field voltage (V[sub]f[/sub])",           f"{mp.Vf:.1f}",  "V"),
+            ("Field resistance (R[sub]f[/sub])",        f"{mp.Rf:.4f}",  "Ohm"),
+            ("Field inductance (L[sub]f[/sub])",        f"{mp.Lf:.6f}",  "H"),
+            ("Load resistance (R[sub]l[/sub])",         f"{mp.Rl:.4f}",  "Ohm"),
+            ("Load inductance (L[sub]l[/sub])",         f"{mp.Ll:.6f}",  "H"),
         ]
-    _th(pdf, [("Parâmetro", 100), ("Valor", 45), ("Unidade", 25)])
+    _th(pdf, [("Parameter", 100), ("Value", 45), ("Unit", 25)])
     _tr(pdf, rows_params, [100, 45, 25], ["L", "R", "L"])
     pdf.ln(4)
 
-    # ── 2.1 Circuito Equivalente ──────────────────────────────────────────
+    # ── 2.1 Equivalent Circuit ─────────────────────────────────────────────
     try:
         from viz.eqcircuit_plotter_dc_v2 import build_circuit_png_dc
         _ensure_space(pdf, 90)
-        _subsec(pdf, f"{sec_n}.1  Circuito Equivalente — {_EXC_LABELS.get(exc, exc)}")
+        _subsec(pdf, f"{sec_n}.1  Equivalent Circuit — {_EXC_LABELS.get(exc, exc)}")
         pdf.ln(1)
         circuit_bytes = build_circuit_png_dc(mp, dark=False)
         embed_fig(pdf, circuit_bytes, width_mm=170)
         _caption(pdf,
-            f"Figura — Circuito equivalente do MCC com excitação {_EXC_LABELS.get(exc, exc).lower()}. "
-            "Ra: resistência de armadura; La: indutância de armadura; "
-            "Ea: força contra-eletromotriz; kb: constante eletromecânica.")
+            f"Figure — Equivalent circuit of the DC machine with {_EXC_LABELS.get(exc, exc).lower()} excitation. "
+            "Ra: armature resistance; La: armature inductance; "
+            "Ea: back-EMF; kb: electromechanical constant.")
         pdf.ln(3)
     except Exception:
         pass
 
     sec_n += 1
 
-    # ── 3. Indicadores de Regime Permanente ──────────────────────────────
+    # ── 3. Steady-State Indicators ────────────────────────────────────────
     pdf.add_page()
-    _sec(pdf, "Indicadores de Regime Permanente", f"{sec_n}.")
+    _sec(pdf, "Steady-State Indicators", f"{sec_n}.")
     n_ss   = float(res.get("n_ss",   0.0))
     wm_ss  = float(res.get("wm_ss",  0.0))
     Te_ss  = float(res.get("Te_ss",  0.0))
@@ -370,59 +370,59 @@ def _write_sim_block_dc(
         else (P_elec / max(P_mec_out, 1e-9) * 100)
 
     rows_ss = [
-        ("Velocidade de regime (n)",                              f"{n_ss:.3f}",  "RPM"),
-        ("Velocidade angular do rotor (ω[sub]m[/sub])",          f"{wm_ss:.4f}", "rad/s"),
-        ("Torque eletromagnético de regime (T[sub]e[/sub])",     f"{Te_ss:.4f}", "N·m"),
-        ("Torque eletromagnético máximo",                        f"{float(np.max(res.get('Te', [Te_ss]))):.4f}", "N·m"),
-        ("Corrente de armadura de regime (i[sub]a[/sub])",       f"{ia_ss:.4f}", "A"),
-        ("Corrente de armadura de pico",                         f"{float(np.max(np.abs(res.get('ia', [ia_ss])))):.4f}", "A"),
-        ("Força contra-eletromotriz (E[sub]a[/sub])",            f"{Ea_ss:.4f}", "V"),
-        ("Tensão de terminal (V[sub]t[/sub])",                   f"{Vt_ss:.4f}", "V"),
-        ("Potência elétrica (P[sub]elec[/sub])",                 f"{P_elec:.3f}", "W"),
-        ("Potência mecânica útil (P[sub]mec[/sub])",             f"{P_mec_out:.3f}", "W"),
-        ("Rendimento (η)",                                       f"{eta:.2f}",   "%"),
+        ("Steady-state speed (n)",                                f"{n_ss:.3f}",  "RPM"),
+        ("Rotor angular velocity (omega[sub]m[/sub])",            f"{wm_ss:.4f}", "rad/s"),
+        ("Steady-state electromagnetic torque (T[sub]e[/sub])",  f"{Te_ss:.4f}", "N.m"),
+        ("Maximum electromagnetic torque",                       f"{float(np.max(res.get('Te', [Te_ss]))):.4f}", "N.m"),
+        ("Steady-state armature current (i[sub]a[/sub])",        f"{ia_ss:.4f}", "A"),
+        ("Peak armature current",                                f"{float(np.max(np.abs(res.get('ia', [ia_ss])))):.4f}", "A"),
+        ("Back-EMF (E[sub]a[/sub])",                             f"{Ea_ss:.4f}", "V"),
+        ("Terminal voltage (V[sub]t[/sub])",                     f"{Vt_ss:.4f}", "V"),
+        ("Electrical power (P[sub]elec[/sub])",                  f"{P_elec:.3f}", "W"),
+        ("Useful mechanical power (P[sub]mec[/sub])",            f"{P_mec_out:.3f}", "W"),
+        ("Efficiency (eta)",                                     f"{eta:.2f}",   "%"),
     ]
     if exc not in ("series_motor",):
         rows_ss.insert(5, (
-            "Corrente de campo de regime (i[sub]fd[/sub])",
+            "Steady-state field current (i[sub]fd[/sub])",
             f"{ifd_ss:.4f}", "A",
         ))
-    _th(pdf, [("Grandeza", 105), ("Valor", 45), ("Unidade", 20)])
+    _th(pdf, [("Quantity", 105), ("Value", 45), ("Unit", 20)])
     _tr(pdf, rows_ss, [105, 45, 20], ["L", "R", "L"])
     pdf.ln(4)
     sec_n += 1
 
-    # ── 4. Balanço de Perdas ──────────────────────────────────────────────
+    # ── 4. Loss Balance ────────────────────────────────────────────────────
     _ensure_space(pdf, 100)
-    _sec(pdf, "Balanço de Perdas (Regime Permanente)", f"{sec_n}.")
+    _sec(pdf, "Loss Balance (Steady State)", f"{sec_n}.")
     rows_loss = [
-        ("Perdas no cobre da armadura (P[sub]Ra[/sub])",
+        ("Armature copper losses (P[sub]Ra[/sub])",
          f"{losses['P_Ra']:.4f}", "W", f"{losses['pct_Ra']:.1f}%"),
     ]
     if losses["P_Rf"] > 1e-9:
         rows_loss.append((
-            "Perdas no cobre de campo (P[sub]Rf[/sub])",
+            "Field copper losses (P[sub]Rf[/sub])",
             f"{losses['P_Rf']:.4f}", "W", f"{losses['pct_Rf']:.1f}%",
         ))
     rows_loss += [
-        ("Perdas por atrito (P[sub]atrito[/sub])",
+        ("Friction losses (P[sub]friction[/sub])",
          f"{losses['P_mec']:.4f}",     "W", f"{losses['pct_mec']:.1f}%"),
-        ("Potência mecânica útil (P[sub]mec[/sub])",
+        ("Useful mechanical power (P[sub]mec[/sub])",
          f"{losses['P_mec_out']:.4f}", "W", f"{losses['pct_mec_out']:.1f}%"),
     ]
-    _th(pdf, [("Componente", 95), ("Valor", 35), ("Unidade", 18), ("% de P[sub]elec[/sub]", 22)])
+    _th(pdf, [("Component", 95), ("Value", 35), ("Unit", 18), ("% of P[sub]elec[/sub]", 22)])
     _tr(pdf, rows_loss, [95, 35, 18, 22], ["L", "R", "L", "R"])
     pdf.ln(2)
     embed_fig(pdf, fig_to_png_bytes(_build_losses_bar_dc(losses)), width_mm=170)
     _caption(pdf,
-        "Distribuição percentual das perdas em regime permanente "
-        "em relação à potência elétrica de entrada.")
+        "Percentage distribution of steady-state losses "
+        "relative to input electrical power.")
     pdf.ln(2)
     sec_n += 1
 
-    # ── 5. Curvas Transientes ─────────────────────────────────────────────
+    # ── 5. Transient Curves ───────────────────────────────────────────────
     dc_curve_keys   = ["ia", "wm", "Te"]
-    dc_curve_labels = ["i_a (A)", "ω_m (rad/s)", "T_e (N·m)"]
+    dc_curve_labels = ["i_a (A)", "omega_m (rad/s)", "T_e (N.m)"]
     if exc not in ("series_motor",) and "ifd" in res:
         dc_curve_keys.append("ifd")
         dc_curve_labels.append("i_fd (A)")
@@ -438,29 +438,29 @@ def _write_sim_block_dc(
 
     if merged_keys:
         pdf.add_page()
-        _sec(pdf, "Curvas Transientes", f"{sec_n}.")
+        _sec(pdf, "Transient Curves", f"{sec_n}.")
         curves_fig = build_curves_fig(res, merged_keys, merged_labels, t_events or [])
         embed_fig(pdf, fig_to_png_bytes(curves_fig), width_mm=170)
         _caption(pdf,
-            "Evolução temporal das grandezas eletromecânicas durante a simulação.")
+            "Time evolution of electromechanical quantities during the simulation.")
         import matplotlib.pyplot as plt
         plt.close(curves_fig)
     sec_n += 1
 
-    # ── 6. Diagnóstico e Observações ─────────────────────────────────────
+    # ── 6. Diagnostics and Observations ───────────────────────────────────
     _ensure_space(pdf, 40)
-    _sec(pdf, "Diagnóstico e Observações", f"{sec_n}.")
+    _sec(pdf, "Diagnostics and Observations", f"{sec_n}.")
     anomalias = _compute_anomalias_dc(res, mp)
-    _COLORS_D = {"CRÍTICO": (220, 38, 38), "ALERTA": (217, 119, 6), "INFO": (22, 163, 74)}
+    _COLORS_D = {"CRITICAL": (220, 38, 38), "WARNING": (217, 119, 6), "INFO": (22, 163, 74)}
     if not anomalias:
         pdf.set_fill_color(22, 163, 74)
         pdf.set_text_color(255, 255, 255)
         pdf.set_font("Helvetica", "B", 9)
-        pdf.cell(0, 7, "  Nenhuma anomalia detectada.", border=0, fill=True,
+        pdf.cell(0, 7, "  No anomalies detected.", border=0, fill=True,
                  new_x="LMARGIN", new_y="NEXT")
         pdf.ln(2)
     else:
-        _th(pdf, [("Severidade", 30), ("Título", 85), ("Descrição", 55)])
+        _th(pdf, [("Severity", 30), ("Title", 85), ("Description", 55)])
         for sev, titulo, desc in anomalias:
             r_, g_, b_ = _COLORS_D.get(sev, (80, 80, 80))
             fill = (242, 245, 255) if anomalias.index((sev, titulo, desc)) % 2 == 0 else (255, 255, 255)
@@ -475,20 +475,20 @@ def _write_sim_block_dc(
             pdf.set_xy(x0, pdf.get_y() + 6)
     sec_n += 1
 
-    # ── 7. Análise do Modo de Operação ────────────────────────────────────
+    # ── 7. Operating Mode Analysis ────────────────────────────────────────
     if exp_config:
         _ensure_space(pdf, 40)
-        _sec(pdf, "Análise do Modo de Operação", f"{sec_n}.")
+        _sec(pdf, "Operating Mode Analysis", f"{sec_n}.")
         mode = exp_config.get("exp_type", exp_type)
 
         if mode == "frenagem_dc":
             brake = exp_config.get("brake_method", "plugging")
             _BRAKE_NAMES = {
-                "plugging":    "Reversão de Polaridade (Plugging)",
-                "injecao_cc":  "Injeção de Corrente Contínua",
-                "regenerativo":"Frenagem Regenerativa",
+                "plugging":    "Polarity Reversal (Plugging)",
+                "injecao_cc":  "DC Injection Braking",
+                "regenerativo":"Regenerative Braking",
             }
-            _subsec(pdf, f"Frenagem Elétrica — {_BRAKE_NAMES.get(brake, brake)}")
+            _subsec(pdf, f"Electric Braking — {_BRAKE_NAMES.get(brake, brake)}")
             t_freia = exp_config.get("t_freia", 0.0)
             wm_arr  = np.asarray(res.get("wm", [0.0]))
             t_arr_m = np.asarray(res.get("t",  [0.0]))
@@ -499,21 +499,21 @@ def _write_sim_block_dc(
             idx_stop = next((i for i in range(idx_f, len(wm_arr)) if abs(wm_arr[i]) < 1.0), len(wm_arr) - 1)
             t_stop = float(t_arr_m[idx_stop]) - t_freia if idx_stop < len(t_arr_m) else None
             rows_b = [
-                ("Instante de frenagem (t_freia)", f"{t_freia:.3f} s"),
-                ("Velocidade antes da frenagem",   f"{wm_before * 60 / (2*3.14159):.1f} RPM"),
-                ("Corrente de pico pós-frenagem",  f"{ia_pk_brake:.3f} A"),
+                ("Braking instant (t_brake)",       f"{t_freia:.3f} s"),
+                ("Speed before braking",            f"{wm_before * 60 / (2*3.14159):.1f} RPM"),
+                ("Post-braking peak current",       f"{ia_pk_brake:.3f} A"),
             ]
             if t_stop is not None:
-                rows_b.append(("Tempo até parada estimado", f"{t_stop:.3f} s"))
+                rows_b.append(("Estimated time to stop", f"{t_stop:.3f} s"))
             if brake == "injecao_cc":
-                rows_b.append(("Tensão CC injetada (V_inj)", f"{exp_config.get('Vdc_inj', 0.0):.2f} V"))
+                rows_b.append(("Injected DC voltage (V_inj)", f"{exp_config.get('Vdc_inj', 0.0):.2f} V"))
             elif brake == "regenerativo":
-                rows_b.append(("Tensão reduzida (V_a,regen)", f"{exp_config.get('Va_regen', 0.0):.2f} V"))
-            _th(pdf, [("Indicador", 115), ("Valor", 55)])
+                rows_b.append(("Reduced voltage (V_a,regen)", f"{exp_config.get('Va_regen', 0.0):.2f} V"))
+            _th(pdf, [("Indicator", 115), ("Value", 55)])
             _tr(pdf, rows_b, [115, 55], ["L", "L"])
 
         elif mode == "campo_fraco_dc":
-            _subsec(pdf, "Enfraquecimento de Campo")
+            _subsec(pdf, "Field Weakening")
             t_campo = exp_config.get("t_campo", 0.0)
             Vf_fraco = exp_config.get("Vf_fraco", 0.0)
             wm_arr = np.asarray(res.get("wm", [0.0]))
@@ -521,17 +521,17 @@ def _write_sim_block_dc(
             idx_c = int(np.searchsorted(t_arr_m, t_campo))
             wm_before = float(wm_arr[max(idx_c - 1, 0)]) * 60 / (2*3.14159) if len(wm_arr) > 0 else 0.0
             wm_after  = float(wm_arr[-1]) * 60 / (2*3.14159) if len(wm_arr) > 0 else 0.0
-            _th(pdf, [("Indicador", 115), ("Valor", 55)])
+            _th(pdf, [("Indicator", 115), ("Value", 55)])
             _tr(pdf, [
-                ("Instante de enfraquecimento (t_campo)", f"{t_campo:.3f} s"),
-                ("Tensão de campo reduzida (V_f,fraco)",  f"{Vf_fraco:.2f} V"),
-                ("Velocidade antes do enfraquecimento",   f"{wm_before:.1f} RPM"),
-                ("Velocidade após enfraquecimento (regime)", f"{wm_after:.1f} RPM"),
-                ("Ganho de velocidade",                   f"{wm_after - wm_before:+.1f} RPM"),
+                ("Field weakening instant (t_campo)",      f"{t_campo:.3f} s"),
+                ("Reduced field voltage (V_f,weak)",       f"{Vf_fraco:.2f} V"),
+                ("Speed before field weakening",           f"{wm_before:.1f} RPM"),
+                ("Speed after field weakening (steady)",   f"{wm_after:.1f} RPM"),
+                ("Speed gain",                             f"{wm_after - wm_before:+.1f} RPM"),
             ], [115, 55], ["L", "L"])
 
         elif mode == "gerador_dc":
-            _subsec(pdf, "Modo Gerador — Análise de Potência")
+            _subsec(pdf, "Generator Mode — Power Analysis")
             ia_ss  = float(res.get("ia_ss",  0.0))
             wm_ss  = float(res.get("wm_ss",  0.0))
             Te_ss  = float(res.get("Te_ss",  0.0))
@@ -541,65 +541,65 @@ def _write_sim_block_dc(
             P_mec_in  = abs(Te_ss) * abs(wm_ss)
             P_elec_out = Vt_ss ** 2 / Rl if Rl > 1e-6 else abs(ia_ss) * abs(Vt_ss)
             eta_gen = P_elec_out / P_mec_in * 100 if P_mec_in > 1e-3 else 0.0
-            _th(pdf, [("Indicador", 115), ("Valor", 55)])
+            _th(pdf, [("Indicator", 115), ("Value", 55)])
             _tr(pdf, [
-                ("Velocidade de regime (n_ss)",        f"{wm_ss * 60 / (2*3.14159):.1f} RPM"),
-                ("Tensão de terminal (V_t,ss)",        f"{Vt_ss:.3f} V"),
-                ("Corrente de armadura (I_a,ss)",      f"{ia_ss:.4f} A"),
-                ("Força contra-eletromotriz (E_a,ss)", f"{Ea_ss:.3f} V"),
-                ("Potência mecânica de entrada",       f"{P_mec_in:.2f} W"),
-                ("Potência elétrica gerada",           f"{P_elec_out:.2f} W"),
-                ("Rendimento estimado",                f"{eta_gen:.1f} %"),
+                ("Steady-state speed (n_ss)",            f"{wm_ss * 60 / (2*3.14159):.1f} RPM"),
+                ("Terminal voltage (V_t,ss)",            f"{Vt_ss:.3f} V"),
+                ("Armature current (I_a,ss)",            f"{ia_ss:.4f} A"),
+                ("Back-EMF (E_a,ss)",                    f"{Ea_ss:.3f} V"),
+                ("Input mechanical power",               f"{P_mec_in:.2f} W"),
+                ("Generated electrical power",           f"{P_elec_out:.2f} W"),
+                ("Estimated efficiency",                 f"{eta_gen:.1f} %"),
             ], [115, 55], ["L", "L"])
         sec_n += 1
 
-    # ── 8. Estimação de Parâmetros ────────────────────────────────────────
-    if input_mode and input_mode != "Inserir parâmetros manualmente":
+    # ── 8. Parameter Estimation ────────────────────────────────────────────
+    if input_mode and input_mode != "Enter parameters manually":
         _ensure_space(pdf, 50)
-        _sec(pdf, "Estimação de Parâmetros", f"{sec_n}.")
+        _sec(pdf, "Parameter Estimation", f"{sec_n}.")
         if "Nameplate" in input_mode:
-            _subsec(pdf, "Método Nameplate (NEMA — Heurístico)")
-            _body(pdf, "  Parâmetros estimados a partir da placa de identificação da máquina "
-                  "utilizando heurísticas NEMA. Os valores abaixo foram utilizados na simulação.")
+            _subsec(pdf, "Nameplate Method (NEMA — Heuristic)")
+            _body(pdf, "  Parameters estimated from the machine nameplate data "
+                  "using NEMA heuristics. The values below were used in the simulation.")
         else:
-            _subsec(pdf, "Método por Ensaios (IEEE Std 113-1985)")
-            _body(pdf, "  Parâmetros determinados por ensaios laboratoriais conforme "
-                  "IEEE Std 113-1985: ensaio CC de armadura, ensaio CC de campo, "
-                  "ensaio CA de indutância (Sec. 7.5.1) e ensaio a vazio (Sec. 5.6).")
-        _th(pdf, [("Parâmetro", 85), ("Símbolo", 30), ("Valor", 55)])
+            _subsec(pdf, "Test Method (IEEE Std 113-1985)")
+            _body(pdf, "  Parameters determined from laboratory tests per "
+                  "IEEE Std 113-1985: armature DC test, field DC test, "
+                  "AC inductance test (Sec. 7.5.1) and no-load test (Sec. 5.6).")
+        _th(pdf, [("Parameter", 85), ("Symbol", 30), ("Value", 55)])
         _tr(pdf, [
-            ("Resistência de armadura",   "R_a",  f"{mp.Ra:.5f} Ω"),
-            ("Indutância de armadura",    "L_a",  f"{mp.La:.5f} H"),
-            ("Constante de fcem",         "k_b",  f"{mp.kb:.6f} V·s/rad"),
-            ("Resistência de campo",      "R_f",  f"{mp.Rf:.4f} Ω"),
-            ("Indutância de campo",       "L_f",  f"{mp.Lf:.5f} H"),
-            ("Momento de inércia",        "J",    f"{mp.J:.4f} kg·m²"),
-            ("Coef. de atrito viscoso",   "B",    f"{mp.B:.2e} N·m·s/rad"),
+            ("Armature resistance",     "R_a",  f"{mp.Ra:.5f} Ohm"),
+            ("Armature inductance",     "L_a",  f"{mp.La:.5f} H"),
+            ("Back-EMF constant",       "k_b",  f"{mp.kb:.6f} V.s/rad"),
+            ("Field resistance",        "R_f",  f"{mp.Rf:.4f} Ohm"),
+            ("Field inductance",        "L_f",  f"{mp.Lf:.5f} H"),
+            ("Moment of inertia",       "J",    f"{mp.J:.4f} kg.m2"),
+            ("Viscous friction coeff.", "B",    f"{mp.B:.2e} N.m.s/rad"),
         ], [85, 30, 55], ["L", "C", "L"])
         sec_n += 1
 
-    # ── 9. Parâmetros do Integrador ───────────────────────────────────────
+    # ── 9. Integrator Parameters ───────────────────────────────────────────
     _ensure_space(pdf, 55)
-    _sec(pdf, "Parâmetros do Integrador Numérico (LSODA)", f"{sec_n}.")
+    _sec(pdf, "Numerical Integrator Parameters (LSODA)", f"{sec_n}.")
     t_arr  = np.asarray(res.get("t", [0.0, 1.0]))
     n_pts  = len(t_arr)
     dt_eff = float(t_arr[-1] - t_arr[0]) / max(n_pts - 1, 1)
-    _th(pdf, [("Parâmetro", 115), ("Valor", 55)])
+    _th(pdf, [("Parameter", 115), ("Value", 55)])
     _tr(pdf, [
-        ("Passo de amostragem solicitado (h)",       f"{h:.6f} s"),
-        ("Passo efetivo médio",                      f"{dt_eff:.6f} s"),
-        ("Total de pontos de saída",                 str(n_pts)),
-        ("Duração total simulada (t[sub]max[/sub])", f"{tmax:.3f} s"),
-        ("Número de estados",                        "4 (ωm, ia, ifd/ψf)"),
+        ("Requested sampling step (h)",              f"{h:.6f} s"),
+        ("Effective mean step",                       f"{dt_eff:.6f} s"),
+        ("Total output points",                       str(n_pts)),
+        ("Total simulated duration (t[sub]max[/sub])", f"{tmax:.3f} s"),
+        ("Number of states",                          "4 (wm, ia, ifd/psi_f)"),
     ], [115, 55], ["L", "L"])
     _body(pdf,
-          "  Integrador: LSODA (scipy.integrate.solve_ivp), controle adaptativo "
-          "de passo, RTOL = 1e-5, ATOL = 1e-7.")
+          "  Integrator: LSODA (scipy.integrate.solve_ivp), adaptive step control, "
+          "RTOL = 1e-5, ATOL = 1e-7.")
     pdf.ln(3)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Interface pública
+# Public interface
 # ─────────────────────────────────────────────────────────────────────────────
 
 def generate_dc(
@@ -616,33 +616,33 @@ def generate_dc(
     input_mode: str | None = None,
     ref_list: list | None = None,
 ) -> bytes:
-    """Gera relatório técnico MCC em PDF e retorna como bytes."""
+    """Generates DC machine technical PDF report and returns as bytes."""
     var_keys   = var_keys   or []
     var_labels = var_labels or []
     t_events   = t_events   or []
     ref_list   = ref_list   or []
 
-    PDF = make_pdf_class("MCC")
+    PDF = make_pdf_class("DC")
     pdf = PDF(orientation="P", unit="mm", format="A4")
     pdf.set_left_margin(15)
     pdf.set_right_margin(15)
     pdf.set_auto_page_break(auto=True, margin=20)
     pdf.set_top_margin(20)
 
-    # Bloco principal
+    # Main block
     _write_sim_block_dc(
         pdf, res, mp, exp_label, exp_type,
         t_events, var_keys, var_labels, tmax, h,
         exp_config=exp_config, input_mode=input_mode,
     )
 
-    # Blocos de referência (sem seções extras de modo/estimação)
+    # Reference blocks (without extra mode/estimation sections)
     for ref_i, ref in enumerate(ref_list):
         ref_res = ref.get("res")
         if ref_res is None:
             continue
         ref_mp     = ref.get("mp", mp)
-        ref_label  = ref.get("exp_label", f"Referência {ref_i+1}")
+        ref_label  = ref.get("exp_label", f"Reference {ref_i+1}")
         ref_type   = ref.get("exp_type", exp_type)
         ref_tevs   = ref.get("t_events", [])
         ref_vkeys  = ref.get("var_keys") or var_keys

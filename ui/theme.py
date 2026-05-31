@@ -42,7 +42,7 @@ def apply_css(dark: bool) -> None:
     [data-testid="stSidebar"],
     [data-testid="collapsedControl"] {{ display: none !important; }}
 
-    /* ── cabeçalho da aplicação ── */
+    /* ── application header ── */
     .app-header {{
         padding: 1.4rem 0 1rem 0;
         border-bottom: 1px solid {c["border"]};
@@ -53,7 +53,7 @@ def apply_css(dark: bool) -> None:
         color: {c["text"]}; letter-spacing: -0.02em;
     }}
 
-    /* ── grade de máquinas disponíveis (card único, centralizado) ── */
+    /* ── available machines grid (single card, centered) ── */
     .machine-grid-solo {{
         display: flex;
         justify-content: center;
@@ -74,7 +74,7 @@ def apply_css(dark: bool) -> None:
         margin-bottom: 0.3rem !important;
     }}
 
-    /* ── cartões de seleção de máquina (grade multi-coluna, uso futuro) ── */
+    /* ── machine selection cards (multi-column grid, future use) ── */
     .machine-grid {{
         display: grid;
         grid-template-columns: repeat(4, 1fr);
@@ -123,14 +123,14 @@ def apply_css(dark: bool) -> None:
     }}
     .mcard-tag.soon {{ background:{c["surface2"]}; color:{c["muted"]}; }}
 
-    /* ── rotulo de secao ── */
+    /* ── section label ── */
     .slabel {{
         font-size: .72rem; font-weight: 700;
         letter-spacing: .1em; text-transform: uppercase;
         color: {c["accent"]}; margin-bottom: .4rem;
     }}
 
-    /* ── grupo de parâmetros (flat design: sombra suave, sem borda rígida) ── */
+    /* ── parameter group (flat design: soft shadow, no rigid border) ── */
     .pgroup {{
         background: {c["surface"]};
         border: none;
@@ -149,7 +149,7 @@ def apply_css(dark: bool) -> None:
         margin-bottom: .8rem;
     }}
 
-    /* ── caixa informativa ── */
+    /* ── info box ── */
     .ibox {{
         background: {c["input_bg"]};
         border-left: 3px solid {c["accent"]};
@@ -161,7 +161,7 @@ def apply_css(dark: bool) -> None:
         margin: .6rem 0 .4rem 0;
     }}
 
-    /* ── metricas (flat: sem borda, sombra suave) ── */
+    /* ── metrics (flat: no border, soft shadow) ── */
     [data-testid="stMetric"] {{
         background: {c["surface"]};
         border: none;
@@ -179,7 +179,7 @@ def apply_css(dark: bool) -> None:
         color: {c["text"]} !important;
     }}
 
-    /* ── botao principal — todos os tipos, monocromático ── */
+    /* ── main button — all types, monochromatic ── */
     .stButton > button,
     .stButton > button[kind="primary"],
     .stButton > button[kind="secondary"],
@@ -218,7 +218,7 @@ def apply_css(dark: bool) -> None:
         font-weight: 500 !important;
         color: {c["muted"]} !important;
     }}
-    /* neutraliza margin-top negativo que o Streamlit injeta em widgets dentro de colunas/blocos */
+    /* neutralizes negative margin-top that Streamlit injects in widgets inside columns/blocks */
     [data-testid="stVerticalBlock"],
     [data-testid="stVerticalBlockBorderWrapper"],
     [data-testid="stElementContainer"],
@@ -239,7 +239,7 @@ def apply_css(dark: bool) -> None:
         overflow: visible !important;
     }}
 
-    /* ── abas ── */
+    /* ── tabs ── */
     [data-baseweb="tab-list"] {{
         background: {c["surface"]} !important;
         border-radius: 10px !important;
@@ -257,7 +257,7 @@ def apply_css(dark: bool) -> None:
         color: {c["on_accent"]} !important;
     }}
 
-    /* ── cartoes de teoria ── */
+    /* ── theory cards ── */
     .tcard {{
         background: {c["surface"]};
         border: 1px solid {c["border"]};
@@ -285,10 +285,10 @@ def apply_css(dark: bool) -> None:
     }}
 
     /* ══════════════════════════════════════════════════════
-       RESPONSIVIDADE MOBILE
+       MOBILE RESPONSIVENESS
     ══════════════════════════════════════════════════════ */
 
-    /* ── Retrato estreito (< 480px) ── */
+    /* ── Narrow portrait (< 480px) ── */
     @media (max-width: 479px) {{
         .app-title {{
             font-size: 2rem !important;
@@ -299,7 +299,7 @@ def apply_css(dark: bool) -> None:
             margin-bottom: 0.9rem !important;
         }}
 
-        /* Grade de máquinas: 4 → 2 colunas */
+        /* Machines grid: 4 → 2 columns */
         .machine-grid {{
             grid-template-columns: repeat(2, 1fr) !important;
             gap: 0.75rem !important;
@@ -308,7 +308,7 @@ def apply_css(dark: bool) -> None:
         .mcard-icon {{ font-size: 2rem !important; margin-bottom: 0.4rem !important; }}
         .mcard-name {{ font-size: 1.1rem !important; }}
 
-        /* Todas as colunas Streamlit empilham verticalmente */
+        /* All Streamlit columns stack vertically */
         [data-testid="column"] {{
             flex: 0 0 100% !important;
             min-width: 100% !important;
@@ -316,14 +316,14 @@ def apply_css(dark: bool) -> None:
             width: 100% !important;
         }}
 
-        /* Botões com área de toque maior */
+        /* Buttons with larger touch area */
         .stButton > button {{
             padding: 0.75rem 1.4rem !important;
             font-size: 0.95rem !important;
             min-height: 44px !important;
         }}
 
-        /* Inputs mais altos para toque */
+        /* Taller inputs for touch */
         input[type="number"] {{
             padding: 0.55rem 0.6rem !important;
             font-size: 1rem !important;
@@ -336,7 +336,7 @@ def apply_css(dark: bool) -> None:
             padding: 0.4rem 0.6rem !important;
         }}
 
-        /* Métricas: fonte ligeiramente menor */
+        /* Metrics: slightly smaller font */
         [data-testid="stMetricValue"] {{
             font-size: 1.15rem !important;
         }}
@@ -344,14 +344,14 @@ def apply_css(dark: bool) -> None:
             font-size: 0.70rem !important;
         }}
 
-        /* ── TEORIA — mobile < 480px ── */
+        /* ── THEORY — mobile < 480px ── */
 
-        /* Cartões: padding menor */
+        /* Cards: smaller padding */
         .tcard {{
             padding: 0.85rem 0.9rem !important;
         }}
 
-        /* Layout side-by-side → empilha verticalmente */
+        /* Side-by-side layout → stacks vertically */
         .tcard-side-pair {{
             flex-direction: column !important;
             gap: 0.8rem !important;
@@ -362,14 +362,14 @@ def apply_css(dark: bool) -> None:
             width: 100% !important;
         }}
 
-        /* Imagens dentro de tcard: 100% da largura */
+        /* Images inside tcard: 100% width */
         .tcard img {{
             width: 100% !important;
             max-width: 100% !important;
             height: auto !important;
         }}
 
-        /* Fórmulas MathJax: scroll horizontal para não sair da tela */
+        /* MathJax formulas: horizontal scroll to avoid overflow */
         .tcard .MathJax_Display,
         .tcard mjx-container[display="true"],
         .tcard .mjx-chtml,
@@ -380,7 +380,7 @@ def apply_css(dark: bool) -> None:
             font-size: 0.82em !important;
         }}
 
-        /* Tabela de potências: scroll horizontal */
+        /* Power table: horizontal scroll */
         .tcard table {{
             font-size: 0.78rem !important;
             display: block !important;
@@ -389,7 +389,7 @@ def apply_css(dark: bool) -> None:
             white-space: nowrap !important;
         }}
 
-        /* Texto dos parágrafos da teoria */
+        /* Theory paragraph text */
         .tcard p {{
             font-size: 0.85rem !important;
             line-height: 1.65 !important;
@@ -410,7 +410,7 @@ def apply_css(dark: bool) -> None:
         }}
     }}
 
-    /* ── Tablet / celular landscape (480–768px) ── */
+    /* ── Tablet / phone landscape (480–768px) ── */
     @media (min-width: 480px) and (max-width: 768px) {{
         .app-title {{
             font-size: 2.8rem !important;
@@ -419,7 +419,7 @@ def apply_css(dark: bool) -> None:
             grid-template-columns: repeat(2, 1fr) !important;
         }}
 
-        /* Colunas Streamlit: 2 por linha */
+        /* Streamlit columns: 2 per row */
         [data-testid="column"] {{
             flex: 0 0 50% !important;
             min-width: 50% !important;
@@ -427,14 +427,14 @@ def apply_css(dark: bool) -> None:
             width: 50% !important;
         }}
 
-        /* Botões com área de toque confortável */
+        /* Buttons with comfortable touch area */
         .stButton > button {{
             min-height: 42px !important;
         }}
 
-        /* ── TEORIA — tablet / landscape ── */
+        /* ── THEORY — tablet / landscape ── */
 
-        /* Layout side-by-side: empilha também */
+        /* Side-by-side layout: also stacks */
         .tcard-side-pair {{
             flex-direction: column !important;
             gap: 1rem !important;
@@ -445,14 +445,14 @@ def apply_css(dark: bool) -> None:
             width: 100% !important;
         }}
 
-        /* Imagens 100% */
+        /* Images 100% */
         .tcard img {{
             width: 100% !important;
             max-width: 100% !important;
             height: auto !important;
         }}
 
-        /* Fórmulas: scroll horizontal */
+        /* Formulas: horizontal scroll */
         .tcard .MathJax_Display,
         .tcard mjx-container[display="true"],
         .tcard .mjx-chtml,
@@ -469,7 +469,7 @@ def apply_css(dark: bool) -> None:
             -webkit-overflow-scrolling: touch !important;
         }}
 
-        /* ── cards de seleção de máquina ── */
+        /* ── machine selection cards ── */
         .card-button-wrapper {{
             margin-bottom: 0.8rem !important;
         }}

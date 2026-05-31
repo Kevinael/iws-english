@@ -1,23 +1,23 @@
 # -*- coding: utf-8 -*-
 """
-machine_model.py — Parametros e RHS do modelo 0dq de Krause
+machine_model.py — Parameters and RHS of the Krause 0dq model
 
-Exporta:
-  MachineParams  — dataclass com todos os parametros da maquina (eletricos,
-                   mecanicos, termicos, de rede) e campos derivados
-  _lm_saturado   — modelo de Froelich para Lm nao-linear (legado, sem efeito no RHS)
-  _xml_from_lm   — reatancia mutua resultante dado Lm
-  _make_rhs      — monta e retorna a funcao rhs(t, y) para solve_ivp
+Exports:
+  MachineParams  — dataclass with all machine parameters (electrical,
+                   mechanical, thermal, network) and derived fields
+  _lm_saturado   — Froelich model for non-linear Lm (legacy, no effect on RHS)
+  _xml_from_lm   — resulting mutual reactance given Lm
+  _make_rhs      — builds and returns rhs(t, y) for solve_ivp
 
-Estados do ODE (8):
+ODE states (8):
   [PSIqs, PSIds, PSIqr, PSIdr, wr, tetar, Temp, theta_slip]
 
-Dependencias internas:
+Internal dependencies:
   core.thermal    — estimate_rth_cth, dTemp_dt
   core.transforms — abc_voltages, clarke_park_transform
   core.desequilibrio_falta — abc_voltages_deseq
 
-Documentacao detalhada de cada decisao de implementacao:
+Detailed documentation of each implementation decision:
   SME/2. Modulos/core/machine_model.md
   SME/2. Modulos/Guia de Leitura do Codigo.md  (secoes 1-2)
   SME/1. Fundamentos/4 - Modelo Matematico (RHS Krause).md
@@ -34,12 +34,12 @@ from core.desequilibrio_falta import abc_voltages_deseq
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# PARAMETROS DA MAQUINA
+# MACHINE PARAMETERS
 # ═══════════════════════════════════════════════════════════════════════════
 
 @dataclass
 class MachineParams:
-    # ── Eletricos ──────────────────────────────────────────────────────────
+    # ── Electrical ─────────────────────────────────────────────────────────
     Vl:    float = 220.0
     f:     float = 60.0
     Rs:    float = 0.435
@@ -47,35 +47,35 @@ class MachineParams:
     Xm:    float = 26.13
     Xls:   float = 0.754
     Xlr:   float = 0.754
-    # Rfe em paralelo com Lm — use Rfe=1e9 para desativar sem alterar a UI
+    # Rfe in parallel with Lm — use Rfe=1e9 to disable without changing UI
     Rfe:   float = 500.0
 
-    # ── Mecanicos ──────────────────────────────────────────────────────────
+    # ── Mechanical ─────────────────────────────────────────────────────────
     p:     int   = 4
     J:     float = 0.089
     B:     float = 0.005
 
-    # ── Saturacao magnetica (legado — sem efeito no RHS apos rev-3) ────────
-    # Campos mantidos para compatibilidade com sessoes gravadas e testes.
+    # ── Magnetic saturation (legacy — no effect on RHS after rev-3) ────────
+    # Fields kept for compatibility with saved sessions and tests.
     sat_enable: bool  = False
     Im_sat:     float = 0.0    # 0 -> auto (2 x Im0)
 
-    # ── Impedancia de rede ─────────────────────────────────────────────────
-    Rgrid: float = 0.0    # Ohm por fase
-    Lgrid: float = 0.0    # H por fase
+    # ── Network impedance ──────────────────────────────────────────────────
+    Rgrid: float = 0.0    # Ohm per phase
+    Lgrid: float = 0.0    # H per phase
 
-    # ── Modelo Termico ─────────────────────────────────────────────────────
-    # Rth=0 -> auto: calibrado para T_regime = T_amb + 50 K (operacao nominal TEFC)
-    # Cth=0 -> auto: estimado por massa do motor (P_mec_kW x 15 kg/kW x 460 J/kg.K)
+    # ── Thermal Model ──────────────────────────────────────────────────────
+    # Rth=0 -> auto: calibrated for T_ss = T_amb + 50 K (nominal TEFC operation)
+    # Cth=0 -> auto: estimated by motor mass (P_mec_kW x 15 kg/kW x 460 J/kg.K)
     Rth:   float = 0.0    # K/W
     Cth:   float = 0.0    # J/K
-    T_amb: float = 25.0   # graus C
+    T_amb: float = 25.0   # degrees C
 
-    # ── Modo de entrada dos parametros magneticos ──────────────────────────
-    input_mode: str   = "X"    # "X" = reatancias (Ohm) | "L" = indutancias (H)
-    f_ref:      float = 60.0   # frequencia em que Xm/Xls/Xlr foram ensaiados (Hz)
+    # ── Magnetic parameter input mode ─────────────────────────────────────
+    input_mode: str   = "X"    # "X" = reactances (Ohm) | "L" = inductances (H)
+    f_ref:      float = 60.0   # frequency at which Xm/Xls/Xlr were tested (Hz)
 
-    # ── Derivados (calculados em __post_init__) ────────────────────────────
+    # ── Derived (computed in __post_init__) ──────────────────────────────────
     Xml:       float = field(init=False)
     wb:        float = field(init=False)
     Lm:        float = field(init=False)
@@ -83,13 +83,13 @@ class MachineParams:
     Llr:       float = field(init=False)
     Xls_a:     float = field(init=False)
     Xlr_a:     float = field(init=False)
-    Xls_a_eff: float = field(init=False)  # Xls_a + Lgrid*wb (absorve rede no estator)
+    Xls_a_eff: float = field(init=False)  # Xls_a + Lgrid*wb (absorbs network into stator)
 
     def __post_init__(self) -> None:
         self.wb = 2.0 * np.pi * self.f
 
-        # conversao usa f_ref (frequencia do ensaio), nao f (frequencia de operacao)
-        # permite inserir dados de catalogo a 50 Hz em simulacao a 60 Hz
+        # conversion uses f_ref (test frequency), not f (operating frequency)
+        # allows inserting catalog data at 50 Hz in a 60 Hz simulation
         if self.input_mode == "L":
             self.Lm  = self.Xm
             self.Lls = self.Xls
@@ -102,20 +102,20 @@ class MachineParams:
         self.Xls_a = self.wb * self.Lls
         self.Xlr_a = self.wb * self.Llr
         _Xm_a      = self.wb * self.Lm
-        # Xml provisorio — necessario para Im_sat; sera recalculado apos Lgrid
+        # Provisional Xml — needed for Im_sat; will be recalculated after Lgrid
         if _Xm_a <= 0.0 or self.Xls_a <= 0.0 or self.Xlr_a <= 0.0:
-            raise ValueError(f"Parâmetros magnéticos inválidos: Xm_a={_Xm_a:.4f}, Xls_a={self.Xls_a:.4f}, Xlr_a={self.Xlr_a:.4f}")
+            raise ValueError(f"Invalid magnetic parameters: Xm_a={_Xm_a:.4f}, Xls_a={self.Xls_a:.4f}, Xlr_a={self.Xlr_a:.4f}")
         self.Xml   = 1.0 / (1.0 / _Xm_a + 1.0 / self.Xls_a + 1.0 / self.Xlr_a)
 
-        # Im_sat automatico: 2 x corrente de magnetizacao em vazio
+        # Automatic Im_sat: 2 x no-load magnetizing current
         if self.Im_sat == 0.0:
             _Vfase     = self.Vl / np.sqrt(3.0)
             _Im0       = _Vfase / (self.wb * self.Lm) if self.Lm > 0 else 5.0
             self.Im_sat = 2.0 * _Im0
 
-        # Rth/Cth automaticos via circuito T no escorregamento nominal.
-        # Usa wb*Lm como ramo de magnetizacao (nao Xml — circuito T, nao pi).
-        # Deve ocorrer ANTES de Xls_a_eff ser modificado por Lgrid.
+        # Automatic Rth/Cth via T-circuit at nominal slip.
+        # Uses wb*Lm as magnetizing branch (not Xml — T-circuit, not pi).
+        # Must occur BEFORE Xls_a_eff is modified by Lgrid.
         if self.Rth == 0.0 or self.Cth == 0.0:
             _Xm_a_th = self.wb * self.Lm
             _Rth_est, _Cth_est = estimate_rth_cth(
@@ -127,12 +127,12 @@ class MachineParams:
             if self.Cth == 0.0:
                 self.Cth = _Cth_est
 
-        # Lgrid absorvido em Xls_a_eff (impedancia serie vista pelo estator)
-        # Xml recalculado para consistencia com o novo Xls_a_eff
+        # Lgrid absorbed into Xls_a_eff (series impedance seen by stator)
+        # Xml recalculated for consistency with new Xls_a_eff
         self.Xls_a_eff = self.Xls_a + self.Lgrid * self.wb
         _Xm_a_eff      = self.wb * self.Lm
         if _Xm_a_eff <= 0.0 or self.Xls_a_eff <= 0.0 or self.Xlr_a <= 0.0:
-            raise ValueError(f"Parâmetros magnéticos inválidos (pós-Lgrid): Xm_a={_Xm_a_eff:.4f}, Xls_a_eff={self.Xls_a_eff:.4f}, Xlr_a={self.Xlr_a:.4f}")
+            raise ValueError(f"Invalid magnetic parameters (post-Lgrid): Xm_a={_Xm_a_eff:.4f}, Xls_a_eff={self.Xls_a_eff:.4f}, Xlr_a={self.Xlr_a:.4f}")
         self.Xml       = 1.0 / (1.0 / _Xm_a_eff + 1.0 / self.Xls_a_eff + 1.0 / self.Xlr_a)
 
     @property
@@ -141,14 +141,14 @@ class MachineParams:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# AUXILIARES DO MODELO
+# MODEL AUXILIARIES
 # ═══════════════════════════════════════════════════════════════════════════
 
 def _lm_saturado(im_mag: float, Lm0: float, Im_sat: float) -> float:
-    """Modelo de Froelich: Lm = Lm0 / (1 + |im| / Im_sat).
+    """Froelich model: Lm = Lm0 / (1 + |im| / Im_sat).
 
-    Legado — saturacao removida do RHS em rev-3; funcao mantida para
-    compatibilidade com codigo externo que a referencie.
+    Legacy — saturation removed from RHS in rev-3; function kept for
+    compatibility with external code that references it.
     """
     if Im_sat <= 0.0:
         return Lm0
@@ -156,7 +156,7 @@ def _lm_saturado(im_mag: float, Lm0: float, Im_sat: float) -> float:
 
 
 def _xml_from_lm(Lm: float, wb: float, Xls_a: float, Xlr_a: float) -> float:
-    """Reatancia mutua resultante dado Lm."""
+    """Resulting mutual reactance given Lm."""
     Xm_a = wb * Lm
     if Xm_a <= 0.0:
         return 0.0
@@ -164,66 +164,66 @@ def _xml_from_lm(Lm: float, wb: float, Xls_a: float, Xlr_a: float) -> float:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# RHS DO ODE
+# ODE RHS
 # ═══════════════════════════════════════════════════════════════════════════
 #
-# Estados: [PSIqs, PSIds, PSIqr, PSIdr, wr, tetar, Temp, theta_slip]
+# States: [PSIqs, PSIds, PSIqr, PSIdr, wr, tetar, Temp, theta_slip]
 #
-# Modelo termico (7o estado):
+# Thermal model (7th state):
 #   dT/dt = (P_joule + P_fe) / Cth  -  (T - T_amb) / (Rth * Cth)
 #   P_joule = (3/2) * (Rs*(iqs^2+ids^2) + Rr*(iqr^2+idr^2))
 #   P_fe    = wb * (PSImq^2 + PSImd^2) / Rfe
 #
-# Impedancia de rede:
-#   Lgrid absorvido em Xls_a_eff; apenas queda resistiva Rgrid permanece no RHS.
+# Network impedance:
+#   Lgrid absorbed into Xls_a_eff; only resistive drop Rgrid remains in RHS.
 #
-# Referencial generico (ref_code):
-#   0 = estacionario (w_ref=0), 1 = sincrono (w_ref=wb), 2 = rotórico (w_ref=wr)
+# Generic reference frame (ref_code):
+#   0 = stationary (w_ref=0), 1 = synchronous (w_ref=wb), 2 = rotor (w_ref=wr)
 
 def _make_rhs(mp: MachineParams, voltage_fn, torque_fn, ref_code: int,
               deseq: tuple, t_deseq: float, deseq_active: bool,
               rr_fn=None):
-    """Fecha o RHS sobre os parametros — retorna rhs(t, y) pronta para solve_ivp.
+    """Closes the RHS over parameters — returns rhs(t, y) ready for solve_ivp.
 
-    Padrao closure: parametros capturados como escalares locais para minimizar
-    lookup de atributo no hot path (chamado ~50-200k vezes por segundo de simulacao).
-    use_grid avaliado uma unica vez aqui, nao dentro de rhs.
+    Closure pattern: parameters captured as local scalars to minimize
+    attribute lookup in the hot path (called ~50-200k times per second of simulation).
+    use_grid evaluated once here, not inside rhs.
     Ver SME/2. Modulos/core/machine_model.md — secao _make_rhs.
 
     Args:
-        rr_fn: callable(theta_slip) -> Rr efetivo (modelo barra quebrada).
-               None = Rr constante — evita overhead de chamada no caso comum.
+        rr_fn: callable(theta_slip) -> effective Rr (broken bar model).
+               None = constant Rr — avoids call overhead in the common case.
     """
-    # extrai escalares — lookup de celula de closure e mais rapido que atributo de objeto
+    # extract scalars — closure cell lookup is faster than object attribute
     Xls_a = mp.Xls_a_eff;  Xlr_a = mp.Xlr_a
     Xml   = mp.Xml
     Rs    = mp.Rs;          Rr    = mp.Rr;    wb = mp.wb
     p     = mp.p;           J     = mp.J;     B  = mp.B
     Rfe   = mp.Rfe
     Rgrid    = mp.Rgrid
-    use_grid = (Rgrid != 0.0)   # avaliado uma vez; branch em rhs e previsivel
+    use_grid = (Rgrid != 0.0)   # evaluated once; branch in rhs is predictable
     Rth   = mp.Rth;  Cth = mp.Cth;  T_amb = mp.T_amb
 
     def rhs(t: float, y: list) -> list:
-        # _tetar (posicao do rotor) e estado mas nao entra nas equacoes de Krause
-        # no referencial sincrono — apenas integrado para pos-processamento
+        # _tetar (rotor position) is a state but does not enter Krause equations
+        # in synchronous reference — only integrated for post-processing
         PSIqs, PSIds, PSIqr, PSIdr, wr, _tetar, Temp, theta_slip = y
 
-        # fonte de tensao: deseq ativado condicionalmente por t_deseq
+        # voltage source: unbalance activated conditionally by t_deseq
         Vl_a = voltage_fn(t)
         if deseq_active and t >= t_deseq:
             Va, Vb, Vc = abc_voltages_deseq(t, Vl_a, mp.f, *deseq)
         else:
             Va, Vb, Vc = abc_voltages(t, Vl_a, mp.f)
-        tetae            = wb * t   # angulo do referencial sincrono (exato, sem integracao)
+        tetae            = wb * t   # synchronous reference angle (exact, no integration)
         Vds_src, Vqs_src = clarke_park_transform(Va, Vb, Vc, tetae)
 
-        # velocidade angular do referencial (ref_code: 0=estacionario, 1=sincrono, 2=rotórico)
+        # reference frame angular speed (ref_code: 0=stationary, 1=synchronous, 2=rotor)
         if   ref_code == 1: w_ref = wb
         elif ref_code == 2: w_ref = wr
         else:               w_ref = 0.0
 
-        # fluxo mutuo e correntes de dispersao (relacoes algebricas — nao EDOs)
+        # mutual flux and leakage currents (algebraic relations — not ODEs)
         PSImq = Xml * (PSIqs / Xls_a + PSIqr / Xlr_a)
         PSImd = Xml * (PSIds / Xls_a + PSIdr / Xlr_a)
         iqs = (PSIqs - PSImq) / Xls_a
@@ -231,7 +231,7 @@ def _make_rhs(mp: MachineParams, voltage_fn, torque_fn, ref_code: int,
         iqr = (PSIqr - PSImq) / Xlr_a
         idr = (PSIdr - PSImd) / Xlr_a
 
-        # queda resistiva da rede (Lgrid ja absorvido em Xls_a_eff — apenas Rgrid aqui)
+        # network resistive drop (Lgrid already absorbed into Xls_a_eff — only Rgrid here)
         if use_grid:
             Vqs_eff = Vqs_src - Rgrid * iqs
             Vds_eff = Vds_src - Rgrid * ids
@@ -240,23 +240,23 @@ def _make_rhs(mp: MachineParams, voltage_fn, torque_fn, ref_code: int,
             Vds_eff = Vds_src
 
         slip_ref = (w_ref - wr) / wb
-        # rr_fn=None no caso comum: evita chamada de funcao em cada passo
+        # rr_fn=None in common case: avoids function call at each step
         Rr_cur   = rr_fn(t, theta_slip) if rr_fn is not None else Rr
 
-        # equacoes de fluxo de Krause (2013), Eq. 6.5-17, forma normalizada por wb
+        # Krause flux equations (2013), Eq. 6.5-17, normalized form by wb
         dPSIqs = wb * (Vqs_eff - (w_ref / wb) * PSIds + (Rs / Xls_a) * (PSImq - PSIqs))
         dPSIds = wb * (Vds_eff + (w_ref / wb) * PSIqs + (Rs / Xls_a) * (PSImd - PSIds))
         dPSIqr = wb * (-slip_ref * PSIdr + (Rr_cur / Xlr_a) * (PSImq - PSIqr))
         dPSIdr = wb * ( slip_ref * PSIqr + (Rr_cur / Xlr_a) * (PSImd - PSIdr))
 
-        # fator 3/2 decorre da convencao amplitude-invariante (nao potencia-invariante)
+        # factor 3/2 follows amplitude-invariant convention (not power-invariant)
         Te     = (3.0 / 2.0) * (p / 2.0) * (1.0 / wb) * (PSIds * iqs - PSIqs * ids)
         Tl_a   = torque_fn(t)
 
-        # barra quebrada: perturbação de torque aditiva à frequência de escorregamento
-        # ΔTe = α * Te_base * cos(2*θ_slip) — oscila a 2*s*f, produz sidebands em (1±2s)f
+        # broken bar: additive torque perturbation at slip frequency
+        # ΔTe = α * Te_base * cos(2*θ_slip) — oscillates at 2*s*f, produces sidebands at (1±2s)f
         if rr_fn is not None:
-            _alpha = (Rr_cur - Rr) / Rr  # alpha instantâneo recuperado de Rr_cur
+            _alpha = (Rr_cur - Rr) / Rr  # instantaneous alpha recovered from Rr_cur
             Te_bb  = _alpha * Te * 0.5
         else:
             Te_bb = 0.0
@@ -264,11 +264,11 @@ def _make_rhs(mp: MachineParams, voltage_fn, torque_fn, ref_code: int,
         dwr    = (p / (2.0 * J)) * (Te + Te_bb - Tl_a) - (B / J) * wr
         dtetar = wr
 
-        # theta_slip integrado como estado para o modelo de barra quebrada (rr_fn)
+        # theta_slip integrated as state for broken bar model (rr_fn)
         d_theta_slip = wb - wr
-        # estado 7 (Temp) integrado em pos-processamento sobre P_joule vetorizado;
-        # dTemp=0 aqui evita que o pico de inrush (P_joule>>nominal em t<50ms)
-        # contamine a temperatura via erro de discretizacao com h=1e-3.
+        # state 7 (Temp) integrated in post-processing over vectorized P_joule;
+        # dTemp=0 here prevents inrush peak (P_joule>>nominal at t<50ms)
+        # from contaminating temperature via discretization error with h=1e-3.
         return [dPSIqs, dPSIds, dPSIqr, dPSIdr, dwr, dtetar, 0.0, d_theta_slip]
 
     return rhs

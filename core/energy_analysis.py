@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-"""Análise energética e econômica em regime permanente.
+"""Energy and economic analysis at steady state.
 
-Exporta:
-    compute_energy_metrics — energia, custo, THD e fator de potência
+Exports:
+    compute_energy_metrics — energy, cost, THD and power factor
 
-Documentacao detalhada de cada decisao de implementacao:
+Detailed documentation for each implementation decision:
   SME/2. Modulos/core/energy_analysis.md
-  SME/2. Modulos/Guia de Leitura do Codigo.md  (secao 8)
+  SME/2. Modulos/Guia de Leitura do Codigo.md  (section 8)
 """
 
 from __future__ import annotations
@@ -14,22 +14,22 @@ import numpy as np
 
 
 def compute_energy_metrics(res: dict, tarifa_brl_kwh: float) -> dict:
-    """Calcula energia consumida, rendimento médio, custo operacional, THD e FP.
+    """Computes consumed energy, average efficiency, operating cost, THD and PF.
 
-    Integra P_in = (3/2)·(Vqs·iqs + Vds·ids) sobre todo o intervalo de simulação.
-    O rendimento é calculado na janela de regime permanente.
-    THD = sqrt(Σ Ak² k≥2) / A1 × 100% via FFT de ias na janela de regime permanente.
-    FP = P_in_ss / S_aparente onde S = 3 × Va_rms × ias_rms.
+    Integrates P_in = (3/2)·(Vqs·iqs + Vds·ids) over the entire simulation interval.
+    Efficiency is computed over the steady-state window.
+    THD = sqrt(Σ Ak² k≥2) / A1 × 100% via FFT of ias in the steady-state window.
+    PF = P_in_ss / S_apparent where S = 3 × Va_rms × ias_rms.
 
-    Returns dict com:
-        E_total_kwh   — energia total consumida no experimento (kWh)
-        custo_exp_brl — custo do experimento (R$)
-        horas_op_ano  — horas de operação projetadas por ano
-        custo_ano_brl — custo operacional anual projetado (R$)
-        eta_ss        — rendimento em regime permanente (%)
-        P_in_ss_kw    — potência de entrada em regime (kW)
-        thd_pct       — THD de ias em regime permanente (%)
-        fp            — Fator de Potência em regime permanente (adimensional)
+    Returns dict with:
+        E_total_kwh   — total energy consumed in the experiment (kWh)
+        custo_exp_brl — experiment cost (R$)
+        horas_op_ano  — projected annual operating hours
+        custo_ano_brl — projected annual operating cost (R$)
+        eta_ss        — steady-state efficiency (%)
+        P_in_ss_kw    — steady-state input power (kW)
+        thd_pct       — THD of ias at steady state (%)
+        fp            — Power Factor at steady state (dimensionless)
     """
     t   = np.asarray(res["t"],   dtype=float)
     Vqs = np.asarray(res["Vqs"], dtype=float)
@@ -37,10 +37,10 @@ def compute_energy_metrics(res: dict, tarifa_brl_kwh: float) -> dict:
     iqs = np.asarray(res["iqs"], dtype=float)
     ids = np.asarray(res["ids"], dtype=float)
 
-    # fator 3/2: convencao amplitude-invariante (P = (3/2)*(Vqs*iqs + Vds*ids))
+    # factor 3/2: amplitude-invariant convention (P = (3/2)*(Vqs*iqs + Vds*ids))
     P_in_inst   = (3.0 / 2.0) * (Vqs * iqs + Vds * ids)
-    # np.trapezoid integra numericamente; NaN substituido por 0 (passo com falha numerica)
-    # 3_600_000 = 3.6e6 J/kWh — separador de milhar para legibilidade
+    # np.trapezoid integrates numerically; NaN replaced by 0 (step with numerical failure)
+    # 3_600_000 = 3.6e6 J/kWh — thousands separator for readability
     E_total_j   = float(np.trapezoid(np.where(np.isfinite(P_in_inst), P_in_inst, 0.0), t))
     E_total_kwh = E_total_j / 3_600_000.0
     custo_exp_brl = E_total_kwh * tarifa_brl_kwh
@@ -50,8 +50,8 @@ def compute_energy_metrics(res: dict, tarifa_brl_kwh: float) -> dict:
     P_in_ss    = float(res.get("P_in", 0.0))
     P_in_ss_kw = P_in_ss / 1000.0
 
-    # custo anual extrapolado de P_in_ss (regime permanente), nao de E_total (transitorio)
-    # representa operacao continua — cenario relevante para dimensionamento
+    # annual cost extrapolated from P_in_ss (steady state), not from E_total (transient)
+    # represents continuous operation — relevant scenario for sizing
     horas_op_ano  = 8_760.0
     E_ano_kwh     = P_in_ss_kw * horas_op_ano
     custo_ano_brl = E_ano_kwh * tarifa_brl_kwh
@@ -61,18 +61,18 @@ def compute_energy_metrics(res: dict, tarifa_brl_kwh: float) -> dict:
     try:
         ias_ss = np.asarray(res["ias"][ss_start:], dtype=float)
         t_ss   = t[ss_start:]
-        # janela curta (< 16 amostras): thd e fp permanecem neutros (0.0)
+        # short window (< 16 samples): thd and fp remain neutral (0.0)
         if len(ias_ss) >= 16:
             dt_ss = float(t_ss[1] - t_ss[0]) if len(t_ss) > 1 else 1e-4
             N     = len(ias_ss)
             spec  = np.abs(np.fft.rfft(ias_ss)) / N
             freqs = np.fft.rfftfreq(N, d=dt_ss)
             f_fund = float(res.get("_f_fund", 60.0)) if "_f_fund" in res else 60.0
-            # janela [0.5 fe, 1.5 fe]: robusta a pequenos erros no periodo da janela de regime
+            # window [0.5 fe, 1.5 fe]: robust to small period errors in the steady-state window
             mask_fund = (freqs > 0.5 * f_fund) & (freqs < 1.5 * f_fund)
             if mask_fund.any():
                 A1        = float(spec[mask_fund].max())
-                # harmônicas: tudo acima de 1.5 fe (evita incluir a propria fundamental)
+                # harmonics: everything above 1.5 fe (avoids including the fundamental itself)
                 mask_harm = freqs > 1.5 * f_fund
                 A_harm    = spec[mask_harm]
                 if A1 > 0 and len(A_harm) > 0:
@@ -80,17 +80,17 @@ def compute_energy_metrics(res: dict, tarifa_brl_kwh: float) -> dict:
 
             Vqs_ss  = Vqs[ss_start:]
             Vds_ss  = Vds[ss_start:]
-            # |Vdq| = sqrt(Vqs²+Vds²) e a amplitude de pico da tensao de fase no ref sincrono
+            # |Vdq| = sqrt(Vqs²+Vds²) is the peak amplitude of the phase voltage in the synchronous frame
             Va_pk   = float(np.sqrt(np.mean(Vqs_ss ** 2 + Vds_ss ** 2)))
             Va_rms  = Va_pk / np.sqrt(2.0)
             ias_rms = float(res.get("ias_rms", 0.0))
             S_ap    = 3.0 * Va_rms * ias_rms
-            # np.clip garante FP fisicamente valido mesmo com pequenos erros numericos
+            # np.clip ensures physically valid PF even with small numerical errors
             if S_ap > 0 and np.isfinite(P_in_ss):
                 fp = float(np.clip(abs(P_in_ss) / S_ap, 0.0, 1.0))
     except Exception:
-        # analise espectral pode falhar por janela curta, NaN ou A1=0
-        # retorna thd=0 e fp=0 — valores neutros sem alarmar a UI
+        # spectral analysis may fail due to short window, NaN or A1=0
+        # returns thd=0 and fp=0 — neutral values without alarming the UI
         pass
 
     return {

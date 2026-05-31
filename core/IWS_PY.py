@@ -1,20 +1,20 @@
 ﻿# -*- coding: utf-8 -*-
 """
-IWS_PY.py — Fachada publica do simulador de maquinas de inducao (modelo Krause 0dq)
+IWS_PY.py — Public facade of the induction machine simulator (Krause 0dq model)
 
-Exporta (interface retrocompativel):
+Exports (backwards-compatible interface):
   MachineParams  — core.machine_model
-  run_simulation — integra o ODE e retorna dict com series temporais
+  run_simulation — integrates the ODE and returns dict with time series
   build_fns      — core.sources
 
-Modulos internos:
+Internal modules:
   core.machine_model  — MachineParams, _make_rhs
-  core.solver         — _solve, pos-processamento, deteccao de regime
-  core.sources        — fontes de tensao/torque, build_fns
+  core.solver         — _solve, post-processing, steady-state detection
+  core.sources        — voltage/torque sources, build_fns
   core.transforms     — abc_voltages, clarke_park_transform
   core.thermal        — estimate_rth_cth, dTemp_dt
 
-Documentacao detalhada da arquitetura e decisoes de implementacao:
+Detailed architecture and implementation decision documentation:
   SME/2. Modulos/core/IWS_PY.md
   SME/Fluxo de Dados e Execucao.md
   SME/1. Fundamentos/6 - API Publica (run_simulation e build_fns).md
@@ -58,20 +58,20 @@ def run_simulation(
     broken_bar_severity: float = 0.0,
     t_broken_bar: float = 0.0,
 ) -> dict:
-    """Integra o modelo Krause via solve_ivp e devolve as series temporais.
+    """Integrates the Krause model via solve_ivp and returns the time series.
 
-    Saidas (retrocompativeis):
-      arr["wr"]     — velocidade angular mecanica (rad/s)
-      arr["n"]      — rotacao mecanica (RPM)
-      arr["Te"]     — torque eletromagnetico (N.m)
-      arr["Temp"]   — temperatura do motor (graus C)
-      arr["Te_ss"], arr["wr_ss"], arr["s"], arr["eta"], ... — regime permanente
+    Outputs (backwards-compatible):
+      arr["wr"]     — mechanical angular velocity (rad/s)
+      arr["n"]      — mechanical speed (RPM)
+      arr["Te"]     — electromagnetic torque (N.m)
+      arr["Temp"]   — motor temperature (degrees C)
+      arr["Te_ss"], arr["wr_ss"], arr["s"], arr["eta"], ... — steady state
     """
     if mp.f * h > NYQUIST_LIMIT:
         warnings.warn(
             f"h*f = {mp.f * h:.3f} > {NYQUIST_LIMIT} "
-            f"(< {int(1 / NYQUIST_LIMIT)} amostras/ciclo) "
-            "— RMS e deteccao de regime podem ser imprecisos.",
+            f"(< {int(1 / NYQUIST_LIMIT)} samples/cycle) "
+            "— RMS and steady-state detection may be inaccurate.",
             stacklevel=2,
         )
 
@@ -104,7 +104,7 @@ def run_simulation(
     wr_mec = np.maximum(wr_e / (mp.p / 2.0), 0.0)
     n_rpm  = np.maximum(wr_e * 60.0 / (np.pi * mp.p), 0.0)
 
-    # TEMP DESATIVADO: modelo térmico em revisão — retorna T_amb constante
+    # TEMP DISABLED: thermal model under revision — returns constant T_amb
     Temp_arr = np.full(len(t_values), mp.T_amb)
 
     arr = {

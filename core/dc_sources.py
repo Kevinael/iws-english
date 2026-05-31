@@ -1,4 +1,4 @@
-"""Fontes de tensão e torque para simulação MCC.
+"""Voltage and torque sources for DC machine simulation.
 
 make_voltage_fn_dc(mode, params, exp_config) → callable(t) → (Va, Vf)
 make_torque_fn_dc(mode, params, exp_config)  → callable(t) → Tl
@@ -16,7 +16,7 @@ def make_voltage_fn_dc(
     params: DCMachineParams,
     exp_config: dict,
 ) -> Callable[[float], tuple[float, float]]:
-    """Retorna função tensão (Va(t), Vf(t)) para o modo dado."""
+    """Returns voltage function (Va(t), Vf(t)) for the given mode."""
     Va_nom = params.Va
     Vf_nom = params.Vf
 
@@ -31,11 +31,11 @@ def make_voltage_fn_dc(
         Ra     = params.Ra
 
         def fn(t: float) -> tuple[float, float]:
-            # Reduz R_serie de R_ini → 0 linearmente até t_ramp
+            # Reduces R_series from R_ini → 0 linearly until t_ramp
             r = R_ini * max(0.0, 1.0 - t / t_ramp) if t_ramp > 0 else 0.0
-            # Va efetivo equivale a Va com queda em R_serie pré-calculada
-            # Mantemos Va nominal; r é tratado no modelo como parâmetro Ra temporário
-            # Para simplificar, escalamos Va: Vef = Va * Ra/(Ra+r) → ia mesma corrente
+            # Effective Va equals Va with pre-calculated R_series voltage drop
+            # Keep nominal Va; r is treated in model as temporary Ra parameter
+            # For simplicity, scale Va: Vef = Va * Ra/(Ra+r) → same ia current
             Va_eff = Va_nom * params.Ra / (params.Ra + r) if (params.Ra + r) > 0 else Va_nom
             return Va_eff, Vf_nom
         return fn
@@ -97,7 +97,7 @@ def make_voltage_fn_dc(
             return Va_nom, Vf_nom
         return fn
 
-    raise ValueError(f"Modo de tensão desconhecido: {mode!r}")
+    raise ValueError(f"Unknown voltage mode: {mode!r}")
 
 
 def make_torque_fn_dc(
@@ -105,7 +105,7 @@ def make_torque_fn_dc(
     params: DCMachineParams,
     exp_config: dict,
 ) -> Callable[[float], float]:
-    """Retorna função torque Tl(t)."""
+    """Returns torque function Tl(t)."""
     Tl_nom = params.Tload
 
     if mode == "pulso_dc":
@@ -120,10 +120,10 @@ def make_torque_fn_dc(
         Tl_gen = float(exp_config.get("Tl_gen", abs(Tl_nom)))
 
         def fn(t: float) -> float:
-            return Tl_gen   # tração mecânica (positivo → acelera gerador)
+            return Tl_gen   # mechanical traction (positive → accelerates generator)
         return fn
 
-    # Demais modos: torque constante
+    # Other modes: constant torque
     def fn(t: float) -> float:
         return Tl_nom
     return fn

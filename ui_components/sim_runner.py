@@ -1,8 +1,8 @@
-﻿# -*- coding: utf-8 -*-
-"""Execução da simulação — orquestra build_fns + run_simulation e persiste o resultado.
+# -*- coding: utf-8 -*-
+"""Simulation execution — orchestrates build_fns + run_simulation and persists the result.
 
-Exporta:
-    execute_simulation_flow — chamada única quando o botão "Executar Simulação" é clicado.
+Exports:
+    execute_simulation_flow — single entry point called when "Run Simulation" is clicked.
 """
 
 from __future__ import annotations
@@ -15,9 +15,9 @@ from core.IWS_PY import MachineParams, build_fns, run_simulation
 
 
 def calc_tmax_auto(exp_config: dict, mp: MachineParams) -> float:
-    """Calcula tmax automático: último evento + acomodação mecânica por inércia.
+    """Computes automatic tmax: last event + mechanical settling time based on inertia.
 
-    Retorna o tmax em segundos. Usado tanto pela UI (preview) quanto pelo runner.
+    Returns tmax in seconds. Used both by the UI (preview) and the runner.
     """
     exp_type = exp_config.get("exp_type", "")
     if exp_type == "dol":
@@ -49,17 +49,17 @@ def execute_simulation_flow(
     dark: bool,
     energy_tariff: float = 0.75,
 ) -> None:
-    """Valida, integra e salva o resultado em st.session_state["sim_result"].
+    """Validates, integrates, and saves the result to st.session_state["sim_result"].
 
-    Em caso de erro de parâmetro ou divergência numérica, exibe mensagens na UI
-    e não altera o estado da sessão.
+    On parameter error or numerical divergence, displays messages in the UI
+    and does not alter session state.
     """
     if not var_keys:
-        st.warning("Selecione ao menos uma grandeza para plotar antes de executar.")
+        st.warning("Select at least one variable to plot before running the simulation.")
         return
 
     if exp_config.get("_invalid"):
-        st.error("Corrija os parâmetros do experimento antes de executar.")
+        st.error("Correct the experiment parameters before running.")
         return
 
     vfn, tfn, t_events = build_fns(exp_config, mp)
@@ -94,7 +94,7 @@ def execute_simulation_flow(
     _t_broken_bar = float(exp_config.get("t_broken_bar", 0.0))
 
 
-    with st.spinner("Executando integração numérica..."):
+    with st.spinner("Running numerical integration..."):
         try:
             if _broken_bar > 0.0 and _t_broken_bar > 0.0:
                 t_events = t_events + [_t_broken_bar]
@@ -112,11 +112,11 @@ def execute_simulation_flow(
                 t_broken_bar=_t_broken_bar,
             )
             st.session_state["pdf_bytes"] = None
-            st.session_state["zoom_mode"] = "Completo"
+            st.session_state["zoom_mode"] = "Full"
             st.session_state["sim_result"] = dict(
                 res=res, var_keys=var_keys, var_labels=var_labels,
                 t_events=t_events, dark=dark, mp=mp,
-                exp_label=exp_config.get("exp_label", "Simulacao"),
+                exp_label=exp_config.get("exp_label", "Simulation"),
                 exp_type=exp_config.get("exp_type",   "dol"),
                 exp_config=exp_config,
                 tmax=tmax, h=h,
@@ -124,21 +124,21 @@ def execute_simulation_flow(
                 torque_fn=tfn,
             )
             st.session_state["_sim_toast"] = (
-                f"Simulação concluída — "
+                f"Simulation complete — "
                 f"n = {res['n'][-1]:.1f} RPM | "
                 f"Te = {res['Te'][-1]:.2f} N·m"
             )
             st.rerun()
         except Exception as e:
-            st.error("Falha durante a integração numérica da simulação.")
+            st.error("Failure during numerical integration of the simulation.")
             st.markdown(
-                "**Sugestões para resolver:**\n"
-                "- Reduza o tempo total da simulação (tmax).\n"
-                "- Diminua o passo de integração (h) — valores típicos: 1×10⁻⁴ a 1×10⁻⁵ s.\n"
-                "- Verifique se os parâmetros do motor estão fisicamente consistentes "
-                "(Rfe positivo e finito, Xm > Xls + Xlr, polos coerentes com a velocidade nominal).\n"
-                "- Se o experimento envolve falta de fase ou desequilíbrio severo, "
-                "reduza a duração — correntes muito elevadas podem divergir."
+                "**Suggestions to resolve:**\n"
+                "- Reduce the total simulation time (tmax).\n"
+                "- Decrease the integration step (h) — typical values: 1×10⁻⁴ to 1×10⁻⁵ s.\n"
+                "- Verify that the motor parameters are physically consistent "
+                "(Rfe positive and finite, Xm > Xls + Xlr, poles consistent with rated speed).\n"
+                "- If the experiment involves phase loss or severe unbalance, "
+                "reduce the duration — very high currents may cause divergence."
             )
-            with st.expander("Detalhes técnicos do erro (para depuração)", expanded=False):
+            with st.expander("Technical error details (for debugging)", expanded=False):
                 st.code(f"{type(e).__name__}: {e}", language="text")

@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-"""Configuração de parâmetros e experimento para MCC.
+"""DC machine parameter and experiment configuration.
 
-Exporta:
-    render_dc_machine_params        — col_params (seletor + inputs)
-    render_experiment_config_dc     — col_circuit inferior (modo + variáveis)
+Exports:
+    render_dc_machine_params        — col_params (selector + inputs)
+    render_experiment_config_dc     — lower col_circuit (mode + variables)
 """
 
 from __future__ import annotations
@@ -20,52 +20,73 @@ from core.dc_machine_model import DCMachineParams
 # PRESETS
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Presets por excitação — fontes: Sen (2013), Fitzgerald/Umans (2014)
+# Presets by excitation — sources: Sen (2013), Fitzgerald/Umans (2014)
 _PRESETS_BY_EXC: dict[str, dict[str, dict[str, Any]]] = {
     "sep_motor": {
-        "Motor Sep. 220 V — Sen Ex. 9.2": {
+        "Sep. Motor 220 V — Sen Ex. 9.2": {
             "Va": 220.0, "Ra": 0.5,   "La": 0.01,
             "Vf": 220.0, "Rf": 220.0, "Lf": 10.0,
             "kb": 1.05,  "J": 2.5,    "B": 0.05,   "Tload": 25.0,
         },
-        "Motor Sep. 500 V 100 HP — Fitzgerald Ex. 10.2/10.3": {
+        "Sep. Motor 24 V — Okoro et al. (2008)": {
+            "Va": 24.0,  "Ra": 0.013, "La": 0.01,
+            "Vf": 12.0,  "Rf": 1.43,  "Lf": 0.167,
+            "kb": 0.004, "J": 0.21,   "B": 1.074e-6, "Tload": 2.493,
+            "_dc_mode_sel": "Direct-On-Line Starting (DOL)",
+            "dol_vazio": False,
+        },
+        "Sep. Motor 500 V 100 HP — Fitzgerald Ex. 10.2/10.3": {
             "Va": 500.0, "Ra": 0.084, "La": 0.01,
             "Vf": 300.0, "Rf": 109.0, "Lf": 5.0,
             "kb": 1.91,  "J": 17.5,   "B": 0.1,    "Tload": 286.0,
         },
     },
     "shunt_motor": {
-        "Motor Shunt 100 V 12 kW — Sen Ex. 4.6": {
+        "Shunt Motor 24 V — Okoro et al. (2008)": {
+            "Va": 24.0,  "Ra": 0.013, "La": 0.01,
+            "Rf": 1.43,  "Lf": 0.167,
+            "kb": 0.004, "J": 0.21,   "B": 1.074e-6, "Tload": 2.493,
+            "_dc_mode_sel": "Direct-On-Line Starting (DOL)",
+            "dol_vazio": False,
+        },
+        "Shunt Motor 100 V 12 kW — Sen Ex. 4.6": {
             "Va": 100.0, "Ra": 0.1,   "La": 0.01,
             "Rf": 101.0, "Lf": 5.0,
             "kb": 0.949, "J": 0.5,    "B": 0.054,  "Tload": 113.9,
         },
-        "Motor Shunt 450 V 50 kW — Fitzgerald Ex. 7.4": {
+        "Shunt Motor 450 V 50 kW — Fitzgerald Ex. 7.4": {
             "Va": 450.0, "Ra": 0.242, "La": 0.02,
             "Rf": 167.0, "Lf": 8.0,
             "kb": 4.29,  "J": 5.0,    "B": 0.1,    "Tload": 497.0,
         },
     },
     "series_motor": {
-        "Motor Série 220 V 7 HP — Sen Ex. 4.9": {
+        "Series Motor 24 V — Okoro et al. (2008)": {
+            "Va": 24.0,  "Ra": 0.013, "La": 0.01,
+            "Rf": 0.026, "Lf": 0.167,
+            "kb": 0.004, "J": 0.21,   "B": 1.074e-6, "Tload": 2.493,
+            "_dc_mode_sel": "Direct-On-Line Starting (DOL)",
+            "dol_vazio": False,
+        },
+        "Series Motor 220 V 7 HP — Sen Ex. 4.9": {
             "Va": 220.0, "Ra": 0.6,  "La": 0.02,
             "Rf": 0.4,   "Lf": 0.05,
             "kb": 6.2,   "J": 2.0,   "B": 0.05,   "Tload": 155.2,
         },
-        "Motor Série 600 V Pesado — Sen Prob. 4.39": {
+        "Heavy Series Motor 600 V — Sen Prob. 4.39": {
             "Va": 600.0, "Ra": 0.5,  "La": 0.05,
             "Rf": 0.5,   "Lf": 0.1,
             "kb": 10.02, "J": 10.0,  "B": 0.1,    "Tload": 751.5,
         },
     },
     "sep_gen": {
-        "Gerador Sep. 200 V — Sen Ex. 9.1": {
+        "Sep. Generator 200 V — Sen Ex. 9.1": {
             "Va": 200.0, "Ra": 0.25,  "La": 0.02,
             "Vf": 200.0, "Rf": 100.0, "Lf": 25.0,
             "kb": 1.91,  "J": 2.5,    "B": 0.1,    "Tload": -25.0,
             "Rl": 1.0,   "Ll": 0.15,
         },
-        "Gerador Sep. 250 V 100 kW — Fitzgerald Ex. 7.1": {
+        "Sep. Generator 250 V 100 kW — Fitzgerald Ex. 7.1": {
             "Va": 250.0, "Ra": 0.025, "La": 0.005,
             "Vf": 250.0, "Rf": 100.0, "Lf": 5.0,
             "kb": 1.99,  "J": 10.0,   "B": 0.2,    "Tload": -800.0,
@@ -73,13 +94,13 @@ _PRESETS_BY_EXC: dict[str, dict[str, dict[str, Any]]] = {
         },
     },
     "shunt_gen": {
-        "Gerador Shunt 100 V 12 kW — Sen Ex. 4.2/4.3": {
+        "Shunt Generator 100 V 12 kW — Sen Ex. 4.2/4.3": {
             "Va": 100.0, "Ra": 0.1,   "La": 0.01,
             "Rf": 100.0, "Lf": 10.0,
             "kb": 0.95,  "J": 2.0,    "B": 0.05,   "Tload": -115.0,
             "Rl": 0.83,  "Ll": 0.01,
         },
-        "Gerador Shunt 250 V 100 kW — Fitzgerald Ex. 7.7": {
+        "Shunt Generator 250 V 100 kW — Fitzgerald Ex. 7.7": {
             "Va": 250.0, "Ra": 0.025, "La": 0.005,
             "Rf": 100.0, "Lf": 5.0,
             "kb": 1.99,  "J": 10.0,   "B": 0.1,    "Tload": -800.0,
@@ -88,34 +109,34 @@ _PRESETS_BY_EXC: dict[str, dict[str, dict[str, Any]]] = {
     },
 }
 
-# Flat dict para compatibilidade legada (não usado na UI nova)
+# Flat dict for legacy compatibility (not used in new UI)
 _PRESETS_DC: dict[str, dict[str, Any]] = {
     name: {**vals, "excitation": exc}
     for exc, presets in _PRESETS_BY_EXC.items()
     for name, vals in presets.items()
 }
 
-# Variáveis disponíveis para plotar por tipo de grandeza
+# Available variables to plot by quantity type
 _VAR_MECANICAS: dict[str, str] = {
-    "Velocidade Angular  ωm  (rad/s)":       "wm",
-    "Velocidade  n  (RPM)":                  "n",
-    "Conjugado Eletromagnético  Tₑ  (N·m)":  "Te",
+    "Angular Velocity  ωm  (rad/s)":          "wm",
+    "Speed  n  (RPM)":                        "n",
+    "Electromagnetic Torque  Tₑ  (N·m)":      "Te",
 }
 
 _VAR_ELETRICAS: dict[str, str] = {
-    "Corrente de Armadura  iₐ  (A)":         "ia",
-    "Corrente de Campo  i_fd  (A)":          "ifd",
-    "FEM  Eₐ  (V)":                          "Ea",
-    "Tensão de Terminal  Vt  (V)":           "Vt",
+    "Armature Current  iₐ  (A)":              "ia",
+    "Field Current  i_fd  (A)":               "ifd",
+    "Back-EMF  Eₐ  (V)":                      "Ea",
+    "Terminal Voltage  Vt  (V)":              "Vt",
 }
 
 _VAR_OPTIONS: dict[str, str] = {**_VAR_MECANICAS, **_VAR_ELETRICAS}
 
-_DEFAULT_VARS_MEC: list[str] = ["Conjugado Eletromagnético  Tₑ  (N·m)", "Velocidade  n  (RPM)"]
-_DEFAULT_VARS_ELE: list[str] = ["Corrente de Armadura  iₐ  (A)"]
+_DEFAULT_VARS_MEC: list[str] = ["Electromagnetic Torque  Tₑ  (N·m)", "Speed  n  (RPM)"]
+_DEFAULT_VARS_ELE: list[str] = ["Armature Current  iₐ  (A)"]
 _DEFAULT_VARS: list[str] = ["ia", "wm", "Te"]
 
-# Modos de operação disponíveis por configuração
+# Available operating modes by configuration
 _MODES_BY_EXC: dict[str, list[str]] = {
     "sep_motor":    ["campo_fraco_dc", "frenagem_dc", "gerador_dc", "resistencia_dc", "dol_dc", "pulso_dc"],
     "shunt_motor":  ["frenagem_dc", "resistencia_dc", "dol_dc", "pulso_dc"],
@@ -125,26 +146,26 @@ _MODES_BY_EXC: dict[str, list[str]] = {
 }
 
 _MODE_LABELS: dict[str, str] = {
-    "campo_fraco_dc": "Enfraquecimento de Campo",
-    "frenagem_dc":    "Frenagem Elétrica",
-    "gerador_dc":     "Gerador — Carga Resistiva",
-    "resistencia_dc": "Partida com Resistência Série",
-    "dol_dc":         "Partida Direta (DOL)",
-    "pulso_dc":       "Pulso de Carga",
+    "campo_fraco_dc": "Field Weakening",
+    "frenagem_dc":    "Electric Braking",
+    "gerador_dc":     "Generator — Resistive Load",
+    "resistencia_dc": "Series Resistance Starting",
+    "dol_dc":         "Direct-On-Line Starting (DOL)",
+    "pulso_dc":       "Load Pulse",
 }
 
 _BRAKE_LABELS: dict[str, str] = {
-    "plugging":    "Reversão de Polaridade (Plugging)",
-    "injecao_cc":  "Injeção de Corrente Contínua",
-    "regenerativo":"Frenagem Regenerativa",
+    "plugging":    "Plugging (Polarity Reversal)",
+    "injecao_cc":  "DC Injection Braking",
+    "regenerativo":"Regenerative Braking",
 }
 
 _EXC_LABELS: dict[str, str] = {
-    "sep_motor":    "Excitação Separada — Motor",
-    "shunt_motor":  "Shunt (Paralelo) — Motor",
-    "series_motor": "Série — Motor",
-    "sep_gen":      "Excitação Separada — Gerador",
-    "shunt_gen":    "Shunt (Paralelo) — Gerador",
+    "sep_motor":    "Separately Excited — Motor",
+    "shunt_motor":  "Shunt (Parallel) — Motor",
+    "series_motor": "Series — Motor",
+    "sep_gen":      "Separately Excited — Generator",
+    "shunt_gen":    "Shunt (Parallel) — Generator",
 }
 
 
@@ -161,36 +182,36 @@ def _ibox(html: str) -> None:
 
 
 def _wi(key: str, default: Any) -> None:
-    """Inicializa session_state se ausente."""
+    """Initializes session_state if absent."""
     if key not in st.session_state:
         st.session_state[key] = default
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# RENDER — PARÂMETROS DA MÁQUINA (col_params)
+# RENDER — MACHINE PARAMETERS (col_params)
 # ─────────────────────────────────────────────────────────────────────────────
 
 def render_dc_machine_params(dark: bool, experiment_mode: bool) -> tuple[DCMachineParams, int, float]:
-    """Renderiza seletor de parâmetros MCC.
+    """Renders DC machine parameter selector.
 
-    Retorna (DCMachineParams, ref_code, energy_tariff).
-    ref_code: hash inteiro para cache invalidation.
-    energy_tariff: tarifa R$/kWh lida de Parâmetros Avançados.
+    Returns (DCMachineParams, ref_code, energy_tariff).
+    ref_code: integer hash for cache invalidation.
+    energy_tariff: $/kWh tariff read from Advanced Parameters.
     """
     from core.dc_estimator import estimate_dc_nameplate, estimate_dc_tests
 
-    st.markdown('<p class="slabel">Parâmetros da Máquina</p>', unsafe_allow_html=True)
+    st.markdown('<p class="slabel">Machine Parameters</p>', unsafe_allow_html=True)
 
-    # ── Carga automática do preset padrão na primeira abertura ───────────────
+    # ── Automatic default preset load on first open ───────────────────────────
     if "wi_dc_Va" not in st.session_state:
-        _default_preset = _PRESETS_BY_EXC["sep_motor"]["Motor Sep. 220 V — Sen Ex. 9.2"]
+        _default_preset = _PRESETS_BY_EXC["sep_motor"]["Sep. Motor 220 V — Sen Ex. 9.2"]
         for k, v in _default_preset.items():
             st.session_state[f"wi_dc_{k}"] = v
         st.session_state["wi_dc_excitation"] = "sep_motor"
-        st.session_state["wi_dc_preset"]     = "Motor Sep. 220 V — Sen Ex. 9.2"
+        st.session_state["wi_dc_preset"]     = "Sep. Motor 220 V — Sen Ex. 9.2"
         st.rerun()
 
-    # ── Configuração de excitação ────────────────────────────────────────────
+    # ── Excitation configuration ──────────────────────────────────────────────
     _wi("wi_dc_excitation", "sep_motor")
     exc_options = list(_EXC_LABELS.keys())
     exc_labels  = [_EXC_LABELS[k] for k in exc_options]
@@ -198,22 +219,22 @@ def render_dc_machine_params(dark: bool, experiment_mode: bool) -> tuple[DCMachi
     exc_idx     = exc_options.index(exc_stored) if exc_stored in exc_options else 0
 
     exc_label_sel = st.selectbox(
-        "Configuração", exc_labels, index=exc_idx,
+        "Configuration", exc_labels, index=exc_idx,
         key="_dc_exc_sel", label_visibility="visible",
         disabled=experiment_mode,
     )
     exc = exc_options[exc_labels.index(exc_label_sel)]
     st.session_state["wi_dc_excitation"] = exc
 
-    # ── Fonte de dados: Manual / Placa / Ensaios ─────────────────────────────
+    # ── Data source: Manual / Nameplate / Tests ───────────────────────────────
     _PARAM_SOURCE_LABELS_DC = [
-        "Inserir parâmetros manualmente",
-        "Estimar por dados de placa (Nameplate)",
-        "Determinar por Ensaios IEEE 113",
+        "Enter parameters manually",
+        "Estimate from nameplate data",
+        "Determine from IEEE 113 tests",
     ]
     _wi("wi_dc_input_mode", _PARAM_SOURCE_LABELS_DC[0])
     input_mode = st.radio(
-        "Fonte de dados", _PARAM_SOURCE_LABELS_DC,
+        "Data source", _PARAM_SOURCE_LABELS_DC,
         index=_PARAM_SOURCE_LABELS_DC.index(
             st.session_state.get("wi_dc_input_mode", _PARAM_SOURCE_LABELS_DC[0])
         ),
@@ -221,8 +242,8 @@ def render_dc_machine_params(dark: bool, experiment_mode: bool) -> tuple[DCMachi
         disabled=experiment_mode,
     )
 
-    if input_mode == "Estimar por dados de placa (Nameplate)" and not experiment_mode:
-        _pgroup("Dados da Placa (NEMA)")
+    if input_mode == "Estimate from nameplate data" and not experiment_mode:
+        _pgroup("Nameplate Data (NEMA)")
         p1, p2, p3, p4 = st.columns(4)
         _wi("wi_dc_Pn_kW", 0.5)
         _wi("wi_dc_Vn_placa", 24.0)
@@ -240,17 +261,17 @@ def render_dc_machine_params(dark: bool, experiment_mode: bool) -> tuple[DCMachi
             if fld in est:
                 st.session_state[wk] = est[fld]
 
-        with st.expander("Como esses parâmetros foram estimados? (NEMA heurístico)", expanded=False):
+        with st.expander("How were these parameters estimated? (NEMA heuristic)", expanded=False):
             is_sep_placa  = exc in ("sep_motor", "sep_gen")
             is_shunt_placa = exc == "shunt_motor"
             _wm_n = nn_rpm * (2 * 3.14159265 / 60)
             _In   = (Pn_kW * 1000) / (Vn_p * max(eta_p, 0.01))
             _Ea_n = Vn_p - est["Ra"] * _In
             st.info(
-                f"**Método:** NEMA heurístico — estimação a partir de dados de placa.  \n"
-                f"**Excitação:** {_EXC_LABELS.get(exc, exc)}  \n"
-                f"**Premissas:** queda resistiva ≈ 5–10 % de $V_n$; "
-                f"τ_a = L_a/R_a ≈ 0,8 s; τ_f = L_f/R_f ≈ 0,1 s."
+                f"**Method:** NEMA heuristic — estimation from nameplate data.  \n"
+                f"**Excitation:** {_EXC_LABELS.get(exc, exc)}  \n"
+                f"**Assumptions:** resistive drop ≈ 5–10% of $V_n$; "
+                f"τ_a = L_a/R_a ≈ 0.8 s; τ_f = L_f/R_f ≈ 0.1 s."
             )
             _mp1, _mp2, _mp3, _mp4 = st.columns(4)
             _mp1.metric("Ra (Ω)",       f"{est['Ra']:.4f}")
@@ -269,166 +290,166 @@ def render_dc_machine_params(dark: bool, experiment_mode: bool) -> tuple[DCMachi
             _mm1, _mm2 = st.columns(2)
             _mm1.metric("J (kg·m²)", f"{est.get('J', 0):.4f}")
             _mm2.metric("B (N·m·s)", f"{est.get('B', 0):.2e}")
-            # Avisos de sanidade
+            # Sanity warnings
             if est["Ra"] / max(est["Va"], 1e-6) < 0.005:
-                st.warning("$R_a/V_a$ muito baixo — verifique resistência de armadura.")
+                st.warning("$R_a/V_a$ very low — check armature resistance.")
             if est["kb"] <= 0:
-                st.error("$k_b$ ≤ 0 — impossível. Revise Vn, nn ou η.")
+                st.error("$k_b$ ≤ 0 — impossible. Review Vn, nn or η.")
 
-    elif input_mode == "Determinar por Ensaios IEEE 113" and not experiment_mode:
-        # Guia de procedimento (fechado por padrão)
-        with st.expander("Como realizar os ensaios IEEE 113 (procedimento, fórmulas e dicas)", expanded=False):
+    elif input_mode == "Determine from IEEE 113 tests" and not experiment_mode:
+        # Procedure guide (collapsed by default)
+        with st.expander("How to perform the IEEE 113 tests (procedure, formulas, and tips)", expanded=False):
             st.markdown("""
-**Visão geral.** O método IEEE Std 113-1985 determina os parâmetros do circuito equivalente de
-um motor CC por meio de **dois ensaios físicos complementares**:
+**Overview.** The IEEE Std 113-1985 method determines the equivalent circuit parameters of a
+DC motor through **two complementary physical tests**:
 
-| Ensaio | Seção IEEE 113 | Parâmetros extraídos |
-|--------|--------------|---------------------|
-| **[1a] CC Armadura** | Sec. 4.2.2.2 | $R_a$ |
-| **[1b] CC Campo** | Sec. 4.2.2.1 | $R_f$ (excitação separada) |
-| **[2] CA Armadura** | Sec. 7.5.1 | $L_a$ (rotor travado, campo curto-circuitado) |
-| **[3] Degrau de Campo** | Sec. 7.5.3 | $L_f$ (constante de tempo $\tau_f$) |
-| **[4] Vazio** | Sec. 5.6 | $k_b$, $E_{a,nl}$, $R_f$ (shunt via $V_a/I_f$) |
+| Test | IEEE 113 Section | Extracted parameters |
+|------|-----------------|---------------------|
+| **[1a] DC Armature** | Sec. 4.2.2.2 | $R_a$ |
+| **[1b] DC Field** | Sec. 4.2.2.1 | $R_f$ (separately excited) |
+| **[2] AC Armature** | Sec. 7.5.1 | $L_a$ (locked rotor, shorted field) |
+| **[3] Field Step** | Sec. 7.5.3 | $L_f$ (time constant $\tau_f$) |
+| **[4] No-Load** | Sec. 5.6 | $k_b$, $E_{a,nl}$, $R_f$ (shunt via $V_a/I_f$) |
 
-Os ensaios [2] e [3] são opcionais — se não realizados, $L_a$ e $L_f$ são estimados
-por heurística ($L_a = R_a \\cdot 0{,}8$; $L_f = R_f \\cdot 0{,}1$).
+Tests [2] and [3] are optional — if not performed, $L_a$ and $L_f$ are estimated
+heuristically ($L_a = R_a \\cdot 0{.}8$; $L_f = R_f \\cdot 0{.}1$).
             """)
 
-            st.markdown("### [1a] Ensaio CC — Resistência da Armadura")
+            st.markdown("### [1a] DC Test — Armature Resistance")
             st.markdown("""
-**Objetivo.** Medir $R_a$ com o motor parado e desconectado da alimentação CC de operação.
+**Objective.** Measure $R_a$ with the motor at rest and disconnected from the operating DC supply.
 
-**Equipamento.** Fonte CC ajustável, voltímetro CC, amperímetro CC.
+**Equipment.** Adjustable DC source, DC voltmeter, DC ammeter.
 
-**Procedimento (IEEE 113 Sec. 3):**
-1. Garanta o motor **frio** (à temperatura ambiente) — a resistência varia ~0,4%/°C.
-2. Conecte a fonte CC entre os **dois terminais de armadura** (A1–A2).
-3. Eleve a tensão até a corrente atingir aproximadamente **25% de $I_n$**.
-4. Aguarde **1 minuto** para estabilização térmica.
-5. Anote $V_{dc,a}$ e $I_{dc,a}$ simultaneamente.
+**Procedure (IEEE 113 Sec. 3):**
+1. Ensure the motor is **cold** (at ambient temperature) — resistance varies ~0.4%/°C.
+2. Connect the DC source between the **two armature terminals** (A1–A2).
+3. Raise the voltage until the current reaches approximately **25% of $I_n$**.
+4. Wait **1 minute** for thermal stabilization.
+5. Record $V_{dc,a}$ and $I_{dc,a}$ simultaneously.
 
-**Fórmula aplicada:**
+**Applied formula:**
 
 $$R_a = \\frac{V_{dc,a}}{I_{dc,a}}$$
 
-**Dicas práticas:**
-- Não exceda 25% de $I_n$ — correntes maiores aquecem a armadura e falseiam $R_a$.
-- Repita o ensaio em **3 posições distintas do comutador** e use a média — evita erros de contato de escova.
-- Valor típico: 0,01–5 Ω, conforme a potência e tensão nominal do motor.
+**Practical tips:**
+- Do not exceed 25% of $I_n$ — higher currents heat the armature and distort $R_a$.
+- Repeat the test at **3 different commutator positions** and use the average — avoids brush contact errors.
+- Typical value: 0.01–5 Ω, depending on motor rating and voltage.
             """)
 
-            st.markdown("### [1b] Ensaio CC — Resistência do Campo (excitação separada)")
+            st.markdown("### [1b] DC Test — Field Resistance (separately excited)")
             st.markdown("""
-**Objetivo.** Medir $R_f$ com o circuito de campo isolado da armadura.
+**Objective.** Measure $R_f$ with the field circuit isolated from the armature.
 
-**Equipamento.** Fonte CC ajustável, voltímetro CC, amperímetro CC.
+**Equipment.** Adjustable DC source, DC voltmeter, DC ammeter.
 
-**Procedimento (IEEE 113 Sec. 3):**
-1. Garanta o motor **frio** — desconecte a alimentação de armadura.
-2. Conecte a fonte CC entre os **terminais de campo** (F1–F2).
-3. Eleve a tensão até a corrente atingir aproximadamente **25% de $I_{f,n}$**.
-4. Aguarde **1 minuto** para estabilização térmica.
-5. Anote $V_{dc,f}$ e $I_{dc,f}$ simultaneamente.
+**Procedure (IEEE 113 Sec. 3):**
+1. Ensure the motor is **cold** — disconnect the armature supply.
+2. Connect the DC source between the **field terminals** (F1–F2).
+3. Raise the voltage until the current reaches approximately **25% of $I_{f,n}$**.
+4. Wait **1 minute** for thermal stabilization.
+5. Record $V_{dc,f}$ and $I_{dc,f}$ simultaneously.
 
-**Fórmula aplicada:**
+**Applied formula:**
 
 $$R_f = \\frac{V_{dc,f}}{I_{dc,f}}$$
 
-**Nota:** Para excitação **shunt**, $R_f$ é calculado a partir do ensaio a vazio: $R_f = V_{a,nl}/I_{fd,nl}$.
+**Note:** For **shunt** excitation, $R_f$ is calculated from the no-load test: $R_f = V_{a,nl}/I_{fd,nl}$.
 
-**Dicas práticas:**
-- Valor típico: 10–500 Ω para excitação separada (alta resistência, baixa corrente).
-- Para motores shunt, o ensaio direto também é válido e mais preciso.
+**Practical tips:**
+- Typical value: 10–500 Ω for separately excited field (high resistance, low current).
+- For shunt motors, the direct test is also valid and more accurate.
             """)
 
-            st.markdown("### [2] Ensaio CA — Indutância de Armadura (Sec. 7.5.1)")
+            st.markdown("### [2] AC Test — Armature Inductance (Sec. 7.5.1)")
             st.markdown("""
-**Objetivo.** Medir $L_a$ por impedância CA com o rotor travado mecanicamente.
+**Objective.** Measure $L_a$ by AC impedance with the rotor mechanically locked.
 
-**Equipamento.** Fonte CA monofásica ajustável (50 ou 60 Hz), voltímetro CA, amperímetro CA,
-osciloscópio ou wattímetro (para medição do ângulo de fase).
+**Equipment.** Adjustable single-phase AC source (50 or 60 Hz), AC voltmeter, AC ammeter,
+oscilloscope or wattmeter (for phase angle measurement).
 
-**Procedimento (IEEE 113 Sec. 7.5.1):**
-1. **Trave o rotor** mecanicamente — não pode girar durante o ensaio.
-2. **Curto-circuite o enrolamento de campo** (shunt) para evitar sobretensões induzidas.
-3. Aplique tensão CA monofásica entre os terminais de armadura (A1–A2).
-4. Limite a corrente CA a **≤ 20% de $I_n$** para evitar superaquecimento das escovas.
-5. Meça $V_{ac}$, $I_{ac}$ e o ângulo de fase $\\theta$ entre tensão e corrente.
+**Procedure (IEEE 113 Sec. 7.5.1):**
+1. **Lock the rotor** mechanically — it must not rotate during the test.
+2. **Short-circuit the field winding** (shunt) to avoid induced overvoltages.
+3. Apply single-phase AC voltage between the armature terminals (A1–A2).
+4. Limit AC current to **≤ 20% of $I_n$** to avoid brush overheating.
+5. Measure $V_{ac}$, $I_{ac}$, and phase angle $\\theta$ between voltage and current.
 
-**Fórmula aplicada (IEEE 113 Sec. 7.5.1):**
+**Applied formula (IEEE 113 Sec. 7.5.1):**
 
 $$L_a = \\frac{V_{ac} \\cdot \\sin\\theta}{I_{ac} \\cdot 2\\pi f}$$
 
-**Dicas práticas:**
-- Use osciloscópio para observar a forma de onda e medir $\\theta$ com precisão.
-- Alternativamente, use wattímetro: $\\cos\\theta = P/(V_{ac}\\cdot I_{ac})$, logo $\\sin\\theta = \\sqrt{1 - \\cos^2\\theta}$.
-- Execute o ensaio rapidamente — corrente CA aquece escovas e comutador.
-- Se o ângulo $\\theta = 0$, a indutância é desprezível — verifique o circuito.
+**Practical tips:**
+- Use an oscilloscope to observe the waveform and measure $\\theta$ accurately.
+- Alternatively, use a wattmeter: $\\cos\\theta = P/(V_{ac}\\cdot I_{ac})$, so $\\sin\\theta = \\sqrt{1 - \\cos^2\\theta}$.
+- Perform the test quickly — AC current heats brushes and commutator.
+- If $\\theta = 0$, the inductance is negligible — check the circuit.
             """)
 
-            st.markdown("### [3] Ensaio de Degrau — Indutância de Campo (Sec. 7.5.3)")
+            st.markdown("### [3] Step Test — Field Inductance (Sec. 7.5.3)")
             st.markdown("""
-**Objetivo.** Medir $L_f$ a partir da constante de tempo de campo $\\tau_f$ (excitação separada).
+**Objective.** Measure $L_f$ from the field time constant $\\tau_f$ (separately excited).
 
-**Equipamento.** Fonte CC ajustável, osciloscópio ou registrador, interruptor rápido.
+**Equipment.** Adjustable DC source, oscilloscope or recorder, fast switch.
 
-**Procedimento (IEEE 113 Sec. 7.5.3):**
-1. Acione o motor à velocidade nominal em pleno campo (armadura aberta ou em vazio).
-2. Reduza a tensão de campo para ~50% do valor nominal.
-3. **Abra o circuito de campo** e ajuste a fonte para o valor nominal $V_f$.
-4. **Feche abruptamente** o circuito — aplique degrau de tensão ao campo.
-5. Registre $i_f(t)$ com osciloscópio e determine $\\tau_f$ = tempo para atingir **63,2%** de $I_{f,final}$.
+**Procedure (IEEE 113 Sec. 7.5.3):**
+1. Run the motor at rated speed in full field (armature open or unloaded).
+2. Reduce field voltage to ~50% of rated value.
+3. **Open the field circuit** and adjust the source to rated value $V_f$.
+4. **Abruptly close** the circuit — apply a voltage step to the field.
+5. Record $i_f(t)$ with an oscilloscope and determine $\\tau_f$ = time to reach **63.2%** of $I_{f,final}$.
 
-**Fórmula aplicada (IEEE 113 Sec. 7.5.3):**
+**Applied formula (IEEE 113 Sec. 7.5.3):**
 
 $$L_f = R_f \\cdot \\tau_f$$
 
-**Dicas práticas:**
-- Ciclar o campo duas vezes entre 50% e 100% antes do ensaio para estabilizar a saturação.
-- A norma define também $L_{f,ef}$ usando a tensão de armadura como indicador de fluxo — mais precisa em máquinas saturadas.
-- Valor típico: $\\tau_f$ = 0,1–2 s para motores industriais de excitação separada.
+**Practical tips:**
+- Cycle the field twice between 50% and 100% before the test to stabilize saturation.
+- The standard also defines $L_{f,ef}$ using armature voltage as a flux indicator — more accurate for saturated machines.
+- Typical value: $\\tau_f$ = 0.1–2 s for industrial separately excited motors.
             """)
 
-            st.markdown("### [4] Ensaio a Vazio — Constante de Máquina")
+            st.markdown("### [4] No-Load Test — Machine Constant")
             st.markdown("""
-**Objetivo.** Determinar $k_b$ e $E_{a,nl}$ operando o motor **sem carga mecânica no eixo**
-em tensão e velocidade nominais.
+**Objective.** Determine $k_b$ and $E_{a,nl}$ by operating the motor **with no mechanical load on the shaft**
+at rated voltage and speed.
 
-**Equipamento.** Fonte CC de armadura ajustável, fonte CC de campo (excitação separada),
-voltímetro CC, amperímetro CC, tacômetro.
+**Equipment.** Adjustable DC armature source, DC field source (separately excited),
+DC voltmeter, DC ammeter, tachometer.
 
-**Procedimento (IEEE 113 Sec. 4):**
-1. **Desacople** qualquer carga mecânica do eixo (motor gira livre).
-2. Aplique a tensão de armadura nominal $V_{a,nom}$ e a corrente de campo nominal $I_{fd,nom}$.
-3. Deixe o motor estabilizar em velocidade (regime permanente).
-4. Anote $V_{a,nl}$, $I_{a,nl}$, $I_{fd,nl}$ e $n_{nl}$ (RPM).
+**Procedure (IEEE 113 Sec. 4):**
+1. **Decouple** any mechanical load from the shaft (motor spins freely).
+2. Apply rated armature voltage $V_{a,nom}$ and rated field current $I_{fd,nom}$.
+3. Allow the motor to stabilize in speed (steady state).
+4. Record $V_{a,nl}$, $I_{a,nl}$, $I_{fd,nl}$, and $n_{nl}$ (RPM).
 
-**Fórmulas aplicadas:**
+**Applied formulas:**
 
 $$E_{a,nl} = V_{a,nl} - R_a \\cdot I_{a,nl}$$
 
 $$k_b = \\frac{E_{a,nl}}{I_{fd,nl} \\cdot \\omega_{nl}}, \\quad \\omega_{nl} = \\frac{2\\pi \\cdot n_{nl}}{60}$$
 
-**Sobre a indutância $L_a$:**
-- $L_a$ não é determinada diretamente por ensaio a vazio.
-- O estimador adota a heurística IEEE 113: $\\tau_a = L_a/R_a \\approx 10\\text{–}50\\,\\text{ms}$ para máquinas industriais.
-- Para medição direta, aplique degrau de tensão à armadura (motor travado) e meça a constante de tempo da corrente.
+**About inductance $L_a$:**
+- $L_a$ is not determined directly from the no-load test.
+- The estimator applies the IEEE 113 heuristic: $\\tau_a = L_a/R_a \\approx 10\\text{–}50\\,\\text{ms}$ for industrial machines.
+- For direct measurement, apply a voltage step to the armature (motor locked) and measure the current time constant.
 
-**Dicas práticas:**
-- $I_{a,nl}$ típica: 5–15% de $I_n$ (perdas em vazio dominadas por atrito e ventilação).
-- Motores com **saturação magnética** têm $k_b$ variável com $I_{fd}$ — o ensaio fornece o valor na região nominal.
-- Para excitação **shunt**, $I_{fd} = V_a / R_f$ — verificar consistência com $R_f$ medido.
+**Practical tips:**
+- Typical $I_{a,nl}$: 5–15% of $I_n$ (no-load losses dominated by friction and windage).
+- Motors with **magnetic saturation** have variable $k_b$ with $I_{fd}$ — the test gives the value at the rated operating point.
+- For **shunt** excitation, $I_{fd} = V_a / R_f$ — verify consistency with measured $R_f$.
             """)
 
             st.markdown("---")
             st.markdown("""
-**Referências bibliográficas:**
-- IEEE Std 113-1985 — *Guide on Test Procedures for DC Machines*, Sec. 4.2 (resistência), Sec. 5.6 (vazio), Sec. 7.5 (indutância).
-- Sen, P. C. — *Principles of Electric Machines and Power Electronics*, 3ª ed., §7.3 ("Testing of DC Machines").
-- Chapman, S. J. — *Máquinas Elétricas*, 5ª ed., §8.5 ("Determinação dos Parâmetros do Motor CC").
+**References:**
+- IEEE Std 113-1985 — *Guide on Test Procedures for DC Machines*, Sec. 4.2 (resistance), Sec. 5.6 (no-load), Sec. 7.5 (inductance).
+- Sen, P. C. — *Principles of Electric Machines and Power Electronics*, 3rd ed., §7.3 ("Testing of DC Machines").
+- Chapman, S. J. — *Electric Machinery Fundamentals*, 5th ed., §8.5 ("Determination of DC Motor Parameters").
             """)
 
-        _pgroup("Ensaio de Resistência CC — Armadura (IEEE 113 Sec. 3)")
+        _pgroup("DC Resistance Test — Armature (IEEE 113 Sec. 3)")
         e1, e2 = st.columns(2)
         _wi("wi_dc_V_dc_test", 1.0)
         _wi("wi_dc_I_dc_test", 0.1)
@@ -437,12 +458,12 @@ $$k_b = \\frac{E_{a,nl}}{I_{fd,nl} \\cdot \\omega_{nl}}, \\quad \\omega_{nl} = \
         _Ra_preview = V_dc_t / max(I_dc_t, 1e-9)
         st.caption(f"→ $R_a$ ≈ **{_Ra_preview:.4f} Ω**")
 
-        # Ensaio CC de campo — só para excitação separada (IEEE 113 Sec. 3, terminais F1–F2)
+        # DC field test — only for separately excited (IEEE 113 Sec. 3, terminals F1–F2)
         _is_sep_test = exc in ("sep_motor", "sep_gen")
         V_dc_f_t = 0.0
         I_dc_f_t = 0.0
         if _is_sep_test:
-            _pgroup("Ensaio de Resistência CC — Campo (IEEE 113 Sec. 3)")
+            _pgroup("DC Resistance Test — Field (IEEE 113 Sec. 3)")
             f1, f2 = st.columns(2)
             _wi("wi_dc_V_dc_f_test", 1.0)
             _wi("wi_dc_I_dc_f_test", 0.1)
@@ -451,46 +472,46 @@ $$k_b = \\frac{E_{a,nl}}{I_{fd,nl} \\cdot \\omega_{nl}}, \\quad \\omega_{nl} = \
             _Rf_preview = V_dc_f_t / max(I_dc_f_t, 1e-9)
             st.caption(f"→ $R_f$ ≈ **{_Rf_preview:.4f} Ω**")
 
-        # Ensaio CA de indutância de armadura (IEEE 113 Sec. 7.5.1)
-        _pgroup("Ensaio CA — Indutância de Armadura (IEEE 113 Sec. 7.5.1)")
+        # AC armature inductance test (IEEE 113 Sec. 7.5.1)
+        _pgroup("AC Test — Armature Inductance (IEEE 113 Sec. 7.5.1)")
         h1, h2, h3, h4 = st.columns(4)
         _wi("wi_dc_V_ac_test",    0.0)
         _wi("wi_dc_I_ac_test",    0.0)
         _wi("wi_dc_theta_test",   0.0)
         _wi("wi_dc_f_ac_test",   60.0)
         V_ac_t     = h1.number_input("$V_{ac}$ (V)",   min_value=0.0, key="wi_dc_V_ac_test",  format="%.3f",
-                                     help="Tensão CA aplicada à armadura (rotor travado, campo curto-circuitado). 0 = usar heurística.")
+                                     help="AC voltage applied to the armature (locked rotor, shorted field). 0 = use heuristic.")
         I_ac_t     = h2.number_input("$I_{ac}$ (A)",   min_value=0.0, key="wi_dc_I_ac_test",  format="%.3f",
-                                     help="Corrente CA medida (≤ 20% de I_n conforme IEEE 113).")
+                                     help="Measured AC current (≤ 20% of I_n per IEEE 113).")
         theta_t    = h3.number_input("$\\theta$ (°)",  min_value=0.0, max_value=90.0, key="wi_dc_theta_test", format="%.1f",
-                                     help="Ângulo de fase entre V e I medido por osciloscópio ou wattímetro.")
+                                     help="Phase angle between V and I measured by oscilloscope or wattmeter.")
         f_ac_t     = h4.number_input("$f_{ac}$ (Hz)",  min_value=1.0, key="wi_dc_f_ac_test",  format="%.1f",
-                                     help="Frequência da fonte CA (50 ou 60 Hz conforme IEEE 113).")
+                                     help="AC source frequency (50 or 60 Hz per IEEE 113).")
         if V_ac_t > 1e-9 and I_ac_t > 1e-9 and theta_t > 0.1:
             import math as _math
             _La_prev = V_ac_t * _math.sin(_math.radians(theta_t)) / (I_ac_t * 2 * _math.pi * max(f_ac_t, 1.0))
             st.caption(f"→ $L_a$ ≈ **{_La_prev*1000:.3f} mH**")
         else:
-            st.caption("→ $L_a$: heurística ($R_a \\cdot 0{,}8$) — informe $V_{{ac}}$, $I_{{ac}}$, $\\theta$ para cálculo IEEE 113.")
+            st.caption("→ $L_a$: heuristic ($R_a \\cdot 0{.}8$) — provide $V_{{ac}}$, $I_{{ac}}$, $\\theta$ for IEEE 113 calculation.")
 
-        # Ensaio de degrau de campo — indutância de campo (IEEE 113 Sec. 7.5.3)
+        # Field step test — field inductance (IEEE 113 Sec. 7.5.3)
         if _is_sep_test:
-            _pgroup("Ensaio de Degrau — Indutância de Campo (IEEE 113 Sec. 7.5.3)")
+            _pgroup("Step Test — Field Inductance (IEEE 113 Sec. 7.5.3)")
             _wi("wi_dc_tau_f_ms_test", 0.0)
             tau_f_t = st.number_input(
-                "$\\tau_f$ medido (ms)", min_value=0.0, key="wi_dc_tau_f_ms_test", format="%.1f",
-                help="Tempo para 63,2% da corrente de campo final após degrau de tensão. 0 = usar heurística (Rf·0,1).",
+                "$\\tau_f$ measured (ms)", min_value=0.0, key="wi_dc_tau_f_ms_test", format="%.1f",
+                help="Time to 63.2% of final field current after voltage step. 0 = use heuristic (Rf·0.1).",
             )
             if tau_f_t > 1e-3:
                 _Rf_prev = V_dc_f_t / max(I_dc_f_t, 1e-9)
                 _Lf_prev = _Rf_prev * (tau_f_t / 1000.0)
                 st.caption(f"→ $L_f$ ≈ **{_Lf_prev:.5f} H**  ($R_f \\cdot \\tau_f$ = {_Rf_prev:.4f}·{tau_f_t/1000:.4f})")
             else:
-                st.caption("→ $L_f$: heurística ($R_f \\cdot 0{,}1$) — informe $\\tau_f$ para cálculo IEEE 113.")
+                st.caption("→ $L_f$: heuristic ($R_f \\cdot 0{.}1$) — provide $\\tau_f$ for IEEE 113 calculation.")
         else:
             tau_f_t = 0.0
 
-        _pgroup("Ensaio a Vazio (IEEE 113 Sec. 5.6)")
+        _pgroup("No-Load Test (IEEE 113 Sec. 5.6)")
         g1, g2, g3, g4 = st.columns(4)
         _wi("wi_dc_V_nl_test",  24.0)
         _wi("wi_dc_I_nl_test",  0.05)
@@ -511,35 +532,35 @@ $$k_b = \\frac{E_{a,nl}}{I_{fd,nl} \\cdot \\omega_{nl}}, \\quad \\omega_{nl} = \
             if fld in est:
                 st.session_state[wk] = est[fld]
 
-        # Expander de Detalhes do Cálculo
-        with st.expander("Detalhes do Cálculo (IEEE Std 113-1985)", expanded=True):
-            # Cabeçalho — método e configuração
+        # Calculation Details expander
+        with st.expander("Calculation Details (IEEE Std 113-1985)", expanded=True):
+            # Header — method and configuration
             _exc_label_map = {
-                "sep_motor": "Excitação separada (motor)",
-                "sep_gen":   "Excitação separada (gerador)",
+                "sep_motor": "Separately excited (motor)",
+                "sep_gen":   "Separately excited (generator)",
                 "shunt":     "Shunt",
-                "series_motor": "Série",
+                "series_motor": "Series",
             }
             st.markdown(
-                f"**Método:** IEEE Std 113-1985 — dois ensaios físicos. "
-                f"**Configuração:** {_exc_label_map.get(exc, exc)}."
+                f"**Method:** IEEE Std 113-1985 — two physical tests. "
+                f"**Configuration:** {_exc_label_map.get(exc, exc)}."
             )
 
-            # ── Ensaios físicos: duas ou três colunas lado a lado ────
-            st.markdown("##### Ensaios físicos")
+            # ── Physical tests: two or three side-by-side columns ────
+            st.markdown("##### Physical tests")
             _has_rf = "Rf" in est
             _t1, _t2, *_t3 = st.columns(3 if _has_rf else 2)
             with _t1:
-                st.markdown("**Ensaio CC — Armadura**")
+                st.markdown("**DC Test — Armature**")
                 st.markdown(f"$R_a$ = **{est['Ra']:.4f} Ω**")
                 st.caption(f"via $V_{{dc,a}}/I_{{dc,a}}$ = {V_dc_t / max(I_dc_t, 1e-9):.4f} Ω")
             if _has_rf and _t3:
                 with _t3[0]:
-                    st.markdown("**Ensaio CC — Campo**")
+                    st.markdown("**DC Test — Field**")
                     st.markdown(f"$R_f$ = **{est['Rf']:.4f} Ω**")
                     st.caption(f"via $V_{{dc,f}}/I_{{dc,f}}$ = {V_dc_f_t / max(I_dc_f_t, 1e-9):.4f} Ω")
             with _t2:
-                st.markdown("**Ensaio a Vazio**")
+                st.markdown("**No-Load Test**")
                 _wm_nl = n_nl_t * (2 * 3.14159265 / 60)
                 st.markdown(
                     f"$E_{{a,nl}}$ = **{est['Ea_nl']:.3f} V**  \n"
@@ -553,8 +574,8 @@ $$k_b = \\frac{E_{a,nl}}{I_{fd,nl} \\cdot \\omega_{nl}}, \\quad \\omega_{nl} = \
 
             st.divider()
 
-            # ── Indicadores intermediários ───────────────────────────
-            st.markdown("##### Indicadores intermediários")
+            # ── Intermediate indicators ───────────────────────────
+            st.markdown("##### Intermediate indicators")
             _tau_a = est["La"] / max(est["Ra"], 1e-9)
             _im_c1, _im_c2, _im_c3, _im_c4 = st.columns(4)
             _im_c1.metric("Ea_nl (V)",        f"{est['Ea_nl']:.3f}")
@@ -566,8 +587,8 @@ $$k_b = \\frac{E_{a,nl}}{I_{fd,nl} \\cdot \\omega_{nl}}, \\quad \\omega_{nl} = \
                 _tau_f = _Lf_est / max(_Rf_est, 1e-9)
                 _im_c4.metric("τ_f = Lf/Rf (ms)", f"{_tau_f * 1000:.2f}")
 
-            # ── Parâmetros estimados ──────────────────────────────────
-            st.markdown("##### Parâmetros estimados (circuito equivalente)")
+            # ── Estimated parameters ──────────────────────────────────
+            st.markdown("##### Estimated parameters (equivalent circuit)")
             _p1 = st.columns(3)
             _p1[0].metric("Ra (Ω)",       f"{est['Ra']:.4f}")
             _p1[1].metric("La (H)",       f"{est['La']:.5f}")
@@ -583,30 +604,30 @@ $$k_b = \\frac{E_{a,nl}}{I_{fd,nl} \\cdot \\omega_{nl}}, \\quad \\omega_{nl} = \
                 _p2[1].metric("Rf (Ω)",  f"{est['Rf']:.4f}")
                 _p2[2].metric("If_nl (A)", f"{If_nl_t:.4f}")
 
-            # Avisos de sanidade
+            # Sanity warnings
             if est["kb"] <= 0:
-                st.error("$k_b$ ≤ 0 — impossível. Verifique $V_{a,nl}$, $R_a$ e $I_{a,nl}$.")
+                st.error("$k_b$ ≤ 0 — impossible. Check $V_{a,nl}$, $R_a$ and $I_{a,nl}$.")
             if est["Ra"] / max(V_nl_t, 1e-6) > 0.3:
-                st.warning("$R_a/V_{a,nl}$ > 30 % — Ra parece elevado para esta tensão de operação.")
+                st.warning("$R_a/V_{a,nl}$ > 30% — Ra appears high for this operating voltage.")
 
         if st.button(
-            "✔ Usar estes parâmetros na simulação",
+            "✔ Use these parameters in the simulation",
             key="btn_dc_use_tests",
-            help="Copia os parâmetros estimados para o modo Manual, permitindo ajustes antes de simular.",
+            help="Copies the estimated parameters to Manual mode, allowing adjustments before simulating.",
         ):
             for fld, wk in [("Ra","wi_dc_Ra"),("La","wi_dc_La"),("kb","wi_dc_kb"),("Lf","wi_dc_Lf")]:
                 if fld in est:
                     st.session_state[wk] = est[fld]
-            st.session_state["wi_dc_input_mode"] = "Inserir parâmetros manualmente"
+            st.session_state["wi_dc_input_mode"] = "Enter parameters manually"
             st.rerun()
 
-    # ── Preset loader — só no modo manual (estimadores têm própria fonte de dados) ──
-    if input_mode == "Inserir parâmetros manualmente":
+    # ── Preset loader — only in manual mode (estimators have their own data source) ──
+    if input_mode == "Enter parameters manually":
         if st.session_state.pop("_dc_reset_preset", False):
-            st.session_state["wi_dc_preset"] = "— Selecionar preset —"
+            st.session_state["wi_dc_preset"] = "— Select preset —"
 
         _presets_exc = _PRESETS_BY_EXC.get(exc, {})
-        _preset_names = ["— Selecionar preset —"] + list(_presets_exc.keys())
+        _preset_names = ["— Select preset —"] + list(_presets_exc.keys())
         pc1, pc2 = st.columns([3, 1], vertical_alignment="bottom")
         with pc1:
             preset_sel = st.selectbox(
@@ -615,11 +636,15 @@ $$k_b = \\frac{E_{a,nl}}{I_{fd,nl} \\cdot \\omega_{nl}}, \\quad \\omega_{nl} = \
                 disabled=experiment_mode,
             )
         with pc2:
-            if st.button("Carregar", key="btn_dc_load_preset", width="stretch",
-                         disabled=(preset_sel == "— Selecionar preset —" or experiment_mode)):
+            if st.button("Load", key="btn_dc_load_preset", width="stretch",
+                         disabled=(preset_sel == "— Select preset —" or experiment_mode)):
                 ps = _presets_exc[preset_sel]
+                _DIRECT_KEYS = {"_dc_mode_sel"}
                 for k, v in ps.items():
-                    st.session_state[f"wi_dc_{k}"] = v
+                    if k in _DIRECT_KEYS:
+                        st.session_state[k] = v
+                    else:
+                        st.session_state[f"wi_dc_{k}"] = v
                 st.session_state["_dc_reset_preset"] = True
                 st.rerun()
 
@@ -630,7 +655,7 @@ $$k_b = \\frac{E_{a,nl}}{I_{fd,nl} \\cdot \\omega_{nl}}, \\quad \\omega_{nl} = \
     _wi("wi_dc_energy_tariff", 0.75)
 
     if experiment_mode:
-        # Modo travado: resumo compacto com st.metric (igual padrão MIT)
+        # Locked mode: compact summary with st.metric (same pattern as MIT)
         va    = float(st.session_state.get("wi_dc_Va",    24.0))
         ra    = float(st.session_state.get("wi_dc_Ra",    0.013))
         la    = float(st.session_state.get("wi_dc_La",    0.01))
@@ -645,11 +670,11 @@ $$k_b = \\frac{E_{a,nl}}{I_{fd,nl} \\cdot \\omega_{nl}}, \\quad \\omega_{nl} = \
         Tload = float(st.session_state.get("wi_dc_Tload", 2.493))
 
         st.info(
-            "**Parâmetros travados** — desative o toggle no topo da página para editar.  "
-            "Variações no experimento (carga, tensão) não afetarão a máquina."
+            "**Parameters locked** — disable the toggle at the top of the page to edit.  "
+            "Experiment variations (load, voltage) will not affect the machine."
         )
 
-        st.markdown('<p class="slabel">Parâmetros de Armadura</p>', unsafe_allow_html=True)
+        st.markdown('<p class="slabel">Armature Parameters</p>', unsafe_allow_html=True)
         e1, e2, e3, e4 = st.columns(4)
         e1.metric("Va (V)",       f"{va:.3f}")
         e2.metric("Ra (Ω)",       f"{ra:.4f}")
@@ -657,7 +682,7 @@ $$k_b = \\frac{E_{a,nl}}{I_{fd,nl} \\cdot \\omega_{nl}}, \\quad \\omega_{nl} = \
         e4.metric("kb (V·s/rad)", f"{kb:.4f}")
 
         if not is_series:
-            st.markdown('<p class="slabel">Parâmetros de Campo</p>', unsafe_allow_html=True)
+            st.markdown('<p class="slabel">Field Parameters</p>', unsafe_allow_html=True)
             f1, f2, f3 = st.columns(3)
             if is_sep:
                 f1.metric("Vf (V)", f"{vf:.3f}")
@@ -666,24 +691,24 @@ $$k_b = \\frac{E_{a,nl}}{I_{fd,nl} \\cdot \\omega_{nl}}, \\quad \\omega_{nl} = \
             f2.metric("Rf (Ω)", f"{rf:.4f}")
             f3.metric("Lf (H)", f"{lf:.4f}")
         else:
-            st.markdown('<p class="slabel">Campo (série)</p>', unsafe_allow_html=True)
+            st.markdown('<p class="slabel">Series Field</p>', unsafe_allow_html=True)
             s1, s2 = st.columns(2)
             s1.metric("Rf_s (Ω)", f"{rf:.4f}")
             s2.metric("Lf_s (H)", f"{lf:.4f}")
 
         if is_gen:
-            st.markdown('<p class="slabel">Carga Elétrica</p>', unsafe_allow_html=True)
+            st.markdown('<p class="slabel">Electrical Load</p>', unsafe_allow_html=True)
             g1, g2 = st.columns(2)
             g1.metric("Rl (Ω)", f"{rl:.3f}")
             g2.metric("Ll (H)", f"{ll:.4f}")
 
-        st.markdown('<p class="slabel">Parâmetros Mecânicos</p>', unsafe_allow_html=True)
+        st.markdown('<p class="slabel">Mechanical Parameters</p>', unsafe_allow_html=True)
         m1, m2, m3 = st.columns(3)
         m1.metric("J (kg·m²)",   f"{J:.4f}")
         m2.metric("B (N·m·s)",   f"{B:.2e}")
         m3.metric("Tl (N·m)",    f"{Tload:.4f}")
     else:
-        # Inicializar defaults
+        # Initialize defaults
         _wi("wi_dc_Va",    24.0)
         _wi("wi_dc_Ra",    0.013)
         _wi("wi_dc_La",    0.01)
@@ -697,186 +722,186 @@ $$k_b = \\frac{E_{a,nl}}{I_{fd,nl} \\cdot \\omega_{nl}}, \\quad \\omega_{nl} = \
         _wi("wi_dc_B",     1.074e-6)
         _wi("wi_dc_Tload", 2.493)
 
-        _is_manual    = (input_mode == "Inserir parâmetros manualmente")
-        _is_nameplate = (input_mode == "Estimar por dados de placa (Nameplate)")
-        _is_ieee      = (input_mode == "Determinar por Ensaios IEEE 113")
+        _is_manual    = (input_mode == "Enter parameters manually")
+        _is_nameplate = (input_mode == "Estimate from nameplate data")
+        _is_ieee      = (input_mode == "Determine from IEEE 113 tests")
 
         if _is_manual:
-            # ── Grupo armadura completo ──────────────────────────────
-            _pgroup("Dados de Armadura")
+            # ── Full armature group ──────────────────────────────
+            _pgroup("Armature Data")
             va = st.number_input(
-                "Tensão de armadura — $V_a$ (V)",
+                "Armature voltage — $V_a$ (V)",
                 min_value=0.0, key="wi_dc_Va", format="%.3f",
-                help="Tensão CC aplicada ao enrolamento de armadura.",
+                help="DC voltage applied to the armature winding.",
             )
             ra = st.number_input(
-                "Resistência de armadura — $R_a$ (Ω)",
+                "Armature resistance — $R_a$ (Ω)",
                 min_value=1e-6, key="wi_dc_Ra", format="%.4f",
-                help="Resistência do enrolamento de armadura (inclui escovas). Afeta perdas Joule e corrente de partida.",
+                help="Armature winding resistance (including brushes). Affects Joule losses and starting current.",
             )
             la = st.number_input(
-                "Indutância de armadura — $L_a$ (H)",
+                "Armature inductance — $L_a$ (H)",
                 min_value=1e-6, key="wi_dc_La", format="%.4f",
-                help="Indutância do circuito de armadura. Determina a constante de tempo elétrica τ_a = L_a / R_a.",
+                help="Armature circuit inductance. Determines electrical time constant τ_a = L_a / R_a.",
             )
             kb = st.number_input(
-                "Constante de fcem — $k_b$ (V·s/rad)",
+                "Back-EMF constant — $k_b$ (V·s/rad)",
                 min_value=1e-6, key="wi_dc_kb", format="%.4f",
-                help="Relaciona fcem (Ea) e velocidade angular: Ea = kb · ωm. Também igual à constante de torque kt.",
+                help="Relates back-EMF (Ea) and angular velocity: Ea = kb · ωm. Also equal to torque constant kt.",
             )
             st.markdown('</div>', unsafe_allow_html=True)
 
-            # ── Grupo campo ──────────────────────────────────────────
+            # ── Field group ──────────────────────────────────────────
             if not is_series:
-                _pgroup("Dados de Campo")
+                _pgroup("Field Data")
                 if is_sep:
                     vf = st.number_input(
-                        "Tensão de campo — $V_f$ (V)",
+                        "Field voltage — $V_f$ (V)",
                         min_value=0.0, key="wi_dc_Vf", format="%.3f",
-                        help="Tensão da fonte independente de campo (excitação separada).",
+                        help="Independent field source voltage (separately excited).",
                     )
                 else:
                     vf = va
-                    st.caption("Shunt: $V_f = V_a$ (fixo — campo em paralelo com a armadura)")
+                    st.caption("Shunt: $V_f = V_a$ (fixed — field in parallel with armature)")
                 rf = st.number_input(
-                    "Resistência de campo — $R_f$ (Ω)",
+                    "Field resistance — $R_f$ (Ω)",
                     min_value=1e-6, key="wi_dc_Rf", format="%.4f",
-                    help="Resistência total do circuito de campo (enrolamento + reostato de campo).",
+                    help="Total field circuit resistance (winding + field rheostat).",
                 )
                 lf = st.number_input(
-                    "Indutância de campo — $L_f$ (H)",
+                    "Field inductance — $L_f$ (H)",
                     min_value=1e-6, key="wi_dc_Lf", format="%.4f",
-                    help="Indutância do enrolamento de campo. Determina τ_f = L_f / R_f.",
+                    help="Field winding inductance. Determines τ_f = L_f / R_f.",
                 )
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
-                _pgroup("Campo (série com armadura)")
+                _pgroup("Series Field (in series with armature)")
                 rf = st.number_input(
-                    "Resistência do campo série — $R_s$ (Ω)",
+                    "Series field resistance — $R_s$ (Ω)",
                     min_value=1e-6, key="wi_dc_Rf", format="%.4f",
-                    help="Resistência do enrolamento de campo série (em série com a armadura).",
+                    help="Series field winding resistance (in series with the armature).",
                 )
                 lf = st.number_input(
-                    "Indutância do campo série — $L_s$ (H)",
+                    "Series field inductance — $L_s$ (H)",
                     min_value=1e-6, key="wi_dc_Lf", format="%.4f",
-                    help="Indutância do enrolamento de campo série.",
+                    help="Series field winding inductance.",
                 )
                 vf = 0.0
                 st.markdown('</div>', unsafe_allow_html=True)
 
         else:
-            # Ra, La, kb, Lf estimados em ambos os modos — ler silenciosamente
+            # Ra, La, kb, Lf estimated in both modes — read silently
             ra = float(st.session_state.get("wi_dc_Ra", 0.013))
             la = float(st.session_state.get("wi_dc_La", 0.01))
             kb = float(st.session_state.get("wi_dc_kb", 0.004))
             lf = float(st.session_state.get("wi_dc_Lf", 0.167))
 
             if _is_nameplate:
-                # Nameplate estima tudo elétrico — ler Va, Vf, Rf silenciosamente
+                # Nameplate estimates all electrical — read Va, Vf, Rf silently
                 va = float(st.session_state.get("wi_dc_Va", 24.0))
                 rf = float(st.session_state.get("wi_dc_Rf", 1.43))
                 vf = float(st.session_state.get("wi_dc_Vf", va if not is_sep else 12.0))
             else:
-                # IEEE 113: Va e Vf não estimados — editáveis; Rf estimado pelo ensaio CC campo
-                _pgroup("Dados de Armadura")
+                # IEEE 113: Va and Vf not estimated — editable; Rf estimated from DC field test
+                _pgroup("Armature Data")
                 va = st.number_input(
-                    "Tensão de armadura — $V_a$ (V)",
+                    "Armature voltage — $V_a$ (V)",
                     min_value=0.0, key="wi_dc_Va", format="%.3f",
-                    help="Tensão CC aplicada ao enrolamento de armadura.",
+                    help="DC voltage applied to the armature winding.",
                 )
                 st.markdown('</div>', unsafe_allow_html=True)
 
                 if not is_series:
-                    _pgroup("Dados de Campo")
+                    _pgroup("Field Data")
                     if is_sep:
                         vf = st.number_input(
-                            "Tensão de campo — $V_f$ (V)",
+                            "Field voltage — $V_f$ (V)",
                             min_value=0.0, key="wi_dc_Vf", format="%.3f",
-                            help="Tensão da fonte independente de campo (excitação separada).",
+                            help="Independent field source voltage (separately excited).",
                         )
-                        # Rf estimado pelo ensaio CC campo — ler silenciosamente
+                        # Rf estimated from DC field test — read silently
                         rf = float(st.session_state.get("wi_dc_Rf", 1.43))
                     else:
                         vf = va
-                        st.caption("Shunt: $V_f = V_a$ (fixo — campo em paralelo com a armadura)")
-                        # Rf estimado via V_nl/If_nl — ler silenciosamente
+                        st.caption("Shunt: $V_f = V_a$ (fixed — field in parallel with armature)")
+                        # Rf estimated via V_nl/If_nl — read silently
                         rf = float(st.session_state.get("wi_dc_Rf", 1.43))
                     st.markdown('</div>', unsafe_allow_html=True)
                 else:
-                    _pgroup("Campo (série com armadura)")
+                    _pgroup("Series Field (in series with armature)")
                     rf = st.number_input(
-                        "Resistência do campo série — $R_s$ (Ω)",
+                        "Series field resistance — $R_s$ (Ω)",
                         min_value=1e-6, key="wi_dc_Rf", format="%.4f",
-                        help="Resistência do enrolamento de campo série (em série com a armadura).",
+                        help="Series field winding resistance (in series with the armature).",
                     )
                     vf = 0.0
                     st.markdown('</div>', unsafe_allow_html=True)
 
-        # Grupo carga elétrica (geradores) — não estimado, sempre visível
+        # Electrical load group (generators) — not estimated, always visible
         if is_gen:
-            _pgroup("Carga Elétrica")
+            _pgroup("Electrical Load")
             rl = st.number_input(
-                "Resistência de carga — $R_l$ (Ω)",
+                "Load resistance — $R_l$ (Ω)",
                 min_value=1e-6, key="wi_dc_Rl", format="%.3f",
-                help="Resistência da carga conectada ao gerador.",
+                help="Load resistance connected to the generator.",
             )
             ll = st.number_input(
-                "Indutância de carga — $L_l$ (H)",
+                "Load inductance — $L_l$ (H)",
                 min_value=0.0, key="wi_dc_Ll", format="%.4f",
-                help="Indutância da carga conectada ao gerador (0 para carga puramente resistiva).",
+                help="Load inductance connected to the generator (0 for purely resistive load).",
             )
             st.markdown('</div>', unsafe_allow_html=True)
         else:
             rl = float(st.session_state.get("wi_dc_Rl", 0.0))
             ll = float(st.session_state.get("wi_dc_Ll", 0.0))
 
-        # Grupo mecânico — Nameplate estima J e B; IEEE não estima nenhum
+        # Mechanical group — Nameplate estimates J and B; IEEE estimates neither
         if _is_nameplate:
             J     = float(st.session_state.get("wi_dc_J",     0.21))
             B     = float(st.session_state.get("wi_dc_B",     1.074e-6))
             Tload = float(st.session_state.get("wi_dc_Tload", 2.493))
         else:
-            # Manual e Ensaios: J, B, Tload editáveis
-            _pgroup("Dados Mecânicos")
+            # Manual and Tests: J, B, Tload editable
+            _pgroup("Mechanical Data")
             J = st.number_input(
-                "Momento de inércia — $J$ (kg·m²)",
+                "Moment of inertia — $J$ (kg·m²)",
                 min_value=1e-6, key="wi_dc_J", format="%.4f",
-                help="Inércia total do conjunto motor + carga. Determina τ_m = J·Ra / kb².",
+                help="Total inertia of motor + load assembly. Determines τ_m = J·Ra / kb².",
             )
             B = st.number_input(
-                "Coef. de atrito viscoso — $B$ (N·m·s/rad)",
+                "Viscous friction coeff. — $B$ (N·m·s/rad)",
                 min_value=0.0, key="wi_dc_B", format="%.2e",
-                help="Coeficiente de atrito viscoso (friccional). Tipicamente muito pequeno.",
+                help="Viscous friction coefficient. Typically very small.",
             )
             Tload = st.number_input(
-                "Torque de carga — $T_l$ (N·m)",
+                "Load torque — $T_l$ (N·m)",
                 min_value=0.0, key="wi_dc_Tload", format="%.4f",
-                help="Torque resistente de regime permanente aplicado ao eixo.",
+                help="Steady-state resistive torque applied to the shaft.",
             )
             st.markdown('</div>', unsafe_allow_html=True)
 
-        # Métricas derivadas
+        # Derived metrics
         _tau_a_ms = (la / max(ra, 1e-9)) * 1000
         _n0_rpm   = (va / max(kb, 1e-9)) * (60 / (2 * 3.14159265)) - (B * va / max(kb**2, 1e-9)) * (60 / (2 * 3.14159265))
         _d1, _d2, _d3 = st.columns(3)
-        _d1.metric("τ_a (ms)",      f"{_tau_a_ms:.2f}",   help="Constante de tempo elétrica da armadura = La/Ra")
+        _d1.metric("τ_a (ms)",      f"{_tau_a_ms:.2f}",   help="Armature electrical time constant = La/Ra")
         if not is_series and lf > 0 and rf > 0:
             _tau_f_ms = (lf / max(rf, 1e-9)) * 1000
-            _d2.metric("τ_f (ms)",  f"{_tau_f_ms:.2f}",   help="Constante de tempo do circuito de campo = Lf/Rf")
+            _d2.metric("τ_f (ms)",  f"{_tau_f_ms:.2f}",   help="Field circuit time constant = Lf/Rf")
         else:
-            _d2.metric("τ_f (ms)",  "—",                  help="Não aplicável para motor série")
-        _d3.metric("n₀ est. (RPM)", f"{max(_n0_rpm, 0):.0f}", help="Velocidade estimada em vazio (regime)")
+            _d2.metric("τ_f (ms)",  "—",                  help="Not applicable for series motor")
+        _d3.metric("n₀ est. (RPM)", f"{max(_n0_rpm, 0):.0f}", help="Estimated no-load speed (steady state)")
 
-        # Parâmetros Avançados
-        with st.expander("Parâmetros Avançados", expanded=False):
-            _pgroup("Análise Econômica")
+        # Advanced Parameters
+        with st.expander("Advanced Parameters", expanded=False):
+            _pgroup("Economic Analysis")
             _wi("wi_dc_energy_tariff", 0.75)
             st.number_input(
-                "Tarifa de energia — R$/kWh",
+                "Energy tariff — $/kWh",
                 min_value=0.0001, max_value=5.0,
                 step=0.01, format="%.4f",
                 key="wi_dc_energy_tariff",
-                help="Tarifa usada para calcular custo operacional anual na aba Gestão de Ativos.",
+                help="Tariff used to calculate annual operating cost in the Asset Management tab.",
             )
 
     mp = DCMachineParams(
@@ -894,11 +919,11 @@ $$k_b = \\frac{E_{a,nl}}{I_{fd,nl} \\cdot \\omega_{nl}}, \\quad \\omega_{nl} = \
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# RENDER — EXPERIMENTO (col_circuit inferior)
+# RENDER — EXPERIMENT (lower col_circuit)
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _tl_sugerido_dc(mp: DCMachineParams) -> float:
-    """Torque nominal estimado: kb·ia_nominal, onde ia_nominal = (Va-kb·wm_nom)/Ra."""
+    """Estimated rated torque: kb·ia_nominal, where ia_nominal = (Va-kb·wm_nom)/Ra."""
     try:
         wm_nom = mp.Tload if mp.Tload > 0 else mp.Va / mp.kb if mp.kb > 0 else 100.0
         ia_nom = (mp.Va - mp.kb * wm_nom) / mp.Ra if mp.Ra > 0 else mp.Va / mp.Ra
@@ -911,18 +936,18 @@ def render_experiment_config_dc(
     mp: DCMachineParams,
     _wk: Any = None,
 ) -> tuple[dict[str, Any], list[str], list[str], float, float]:
-    """Renderiza seletor de modo e parâmetros do experimento MCC.
+    """Renders DC machine mode selector and experiment parameters.
 
-    Retorna (exp_config, var_keys, var_labels, tmax, h).
+    Returns (exp_config, var_keys, var_labels, tmax, h).
     """
-    st.markdown('<p class="slabel">Experimento</p>', unsafe_allow_html=True)
+    st.markdown('<p class="slabel">Experiment</p>', unsafe_allow_html=True)
 
     exc = mp.excitation
     available_modes = _MODES_BY_EXC.get(exc, ["dol_dc"])
     mode_labels = [_MODE_LABELS[m] for m in available_modes]
 
     mode_sel_label = st.selectbox(
-        "Tipo de Experimento", mode_labels, index=0, key="_dc_mode_sel",
+        "Experiment Type", mode_labels, index=0, key="_dc_mode_sel",
         label_visibility="visible",
     )
     mode_sel_label = st.session_state.get("_dc_mode_sel", mode_labels[0])
@@ -930,46 +955,46 @@ def render_experiment_config_dc(
 
     exp_config: dict[str, Any] = {"exp_type": mode, "exp_label": _MODE_LABELS[mode]}
 
-    _pgroup("Parâmetros de Carga e Tensão")
+    _pgroup("Load and Voltage Parameters")
 
     _Tl_ref = float(st.session_state.get("wi_dc_Tload", mp.Tload))
     _tl_sug = _tl_sugerido_dc(mp)
-    st.caption(f"Torque de carga configurado: **{_Tl_ref:.3f} N·m** | τ_a = L_a/R_a = {mp.La/mp.Ra:.4f} s")
+    st.caption(f"Configured load torque: **{_Tl_ref:.3f} N·m** | τ_a = L_a/R_a = {mp.La/mp.Ra:.4f} s")
 
     if mode == "dol_dc":
         tmax_def = 12.0
         h_def    = 1e-3
         partir_em_vazio = st.checkbox(
-            "Partir em vazio (aplicar carga após partida)",
+            "Start unloaded (apply load after starting)",
             value=True, key="wi_dc_dol_vazio",
-            help="Quando ativo, o motor parte sem carga e recebe o torque em t_carga. "
-                 "Quando inativo, a carga já está presente desde o instante zero.",
+            help="When active, the motor starts unloaded and receives torque at t_carga. "
+                 "When inactive, the load is present from time zero.",
         )
         exp_config["partir_em_vazio"] = partir_em_vazio
         if partir_em_vazio:
             _wi("wi_dc_dol_t_carga", 2.0)
             exp_config["t_carga"] = st.number_input(
-                "Instante de aplicação da carga — $t_{carga}$ (s)",
+                "Load application instant — $t_{carga}$ (s)",
                 min_value=0.0, key="wi_dc_dol_t_carga", format="%.2f",
             )
             exp_config["Tl_inicial"] = 0.0
             exp_config["Tl_final"]   = _Tl_ref
             tmax_def = max(exp_config["t_carga"] + 8.0, 12.0)
             _ibox(
-                f"<strong>t = 0 s</strong> — tensão nominal ({mp.Va:.1f} V) aplicada; "
-                f"motor acelera em vazio (T<sub>l</sub> = 0).<br>"
-                f"<strong>t = {exp_config['t_carga']:.2f} s</strong> — carga de "
-                f"<strong>{_Tl_ref:.3f} N·m</strong> aplicada ao eixo; "
-                f"motor acomoda-se ao novo ponto de operação em regime permanente."
+                f"<strong>t = 0 s</strong> — rated voltage ({mp.Va:.1f} V) applied; "
+                f"motor accelerates unloaded (T<sub>l</sub> = 0).<br>"
+                f"<strong>t = {exp_config['t_carga']:.2f} s</strong> — load of "
+                f"<strong>{_Tl_ref:.3f} N·m</strong> applied to shaft; "
+                f"motor settles to new steady-state operating point."
             )
         else:
             exp_config["Tl_inicial"] = None
             exp_config["Tl_final"]   = _Tl_ref
             exp_config["t_carga"]    = 0.0
             _ibox(
-                f"<strong>t = 0 s</strong> — tensão nominal ({mp.Va:.1f} V) e carga de "
-                f"<strong>{_Tl_ref:.3f} N·m</strong> aplicadas simultaneamente; "
-                f"motor parte contra carga plena e acelera até o regime permanente."
+                f"<strong>t = 0 s</strong> — rated voltage ({mp.Va:.1f} V) and load of "
+                f"<strong>{_Tl_ref:.3f} N·m</strong> applied simultaneously; "
+                f"motor starts against full load and accelerates to steady state."
             )
 
     elif mode == "resistencia_dc":
@@ -977,15 +1002,15 @@ def render_experiment_config_dc(
         _wi("wi_dc_R_ini", 5.0)
         _wi("wi_dc_t_ramp", 2.0)
         exp_config["R_ini"]  = c1.number_input("$R_{ini}$ (Ω)", min_value=0.0, key="wi_dc_R_ini",  format="%.2f")
-        exp_config["t_ramp"] = c2.number_input("$t_{rampa}$ (s)", min_value=0.1, key="wi_dc_t_ramp", format="%.2f")
+        exp_config["t_ramp"] = c2.number_input("$t_{ramp}$ (s)", min_value=0.1, key="wi_dc_t_ramp", format="%.2f")
         exp_config["Tl_final"] = _Tl_ref
         tmax_def = exp_config["t_ramp"] + 8.0
         h_def    = 1e-3
         _ibox(
-            f"<strong>t = 0 s</strong> — motor parte com resistência série de "
-            f"<strong>{exp_config['R_ini']:.2f} Ω</strong> limitando a corrente de partida.<br>"
-            f"<strong>t = {exp_config['t_ramp']:.2f} s</strong> — resistência removida (curto-circuitada); "
-            f"motor acelera até o regime permanente com carga de {_Tl_ref:.3f} N·m."
+            f"<strong>t = 0 s</strong> — motor starts with series resistance of "
+            f"<strong>{exp_config['R_ini']:.2f} Ω</strong> limiting starting current.<br>"
+            f"<strong>t = {exp_config['t_ramp']:.2f} s</strong> — resistance removed (short-circuited); "
+            f"motor accelerates to steady state with load of {_Tl_ref:.3f} N·m."
         )
 
     elif mode == "frenagem_dc":
@@ -993,7 +1018,7 @@ def render_experiment_config_dc(
         brake_keys   = list(_BRAKE_LABELS.keys())
         _wi("wi_dc_brake_method", brake_labels[0])
         brake_sel = st.selectbox(
-            "Método de Frenagem", brake_labels,
+            "Braking Method", brake_labels,
             index=brake_labels.index(st.session_state.get("wi_dc_brake_method", brake_labels[0])),
             key="wi_dc_brake_method",
         )
@@ -1002,30 +1027,30 @@ def render_experiment_config_dc(
         exp_config["Tl_final"]     = _Tl_ref
 
         _BRAKE_DESC_DC = {
-            "plugging":    "Inverte a polaridade da tensão de armadura enquanto o motor ainda gira. "
-                           "Produz torque contrário ao movimento — frenagem muito rápida, mas com alta "
-                           "corrente de armadura e possível inversão de sentido se não houver chave de parada.",
-            "injecao_cc":  "Corta a alimentação de operação e injeta tensão CC reduzida na armadura. "
-                           "O fluxo de campo mantido produz torque de frenagem sem inverter o sentido. "
-                           "Frenagem suave e controlada — corrente limitada pela resistência de armadura.",
-            "regenerativo":"Reduz a tensão de armadura abaixo da fcem do motor. A corrente de armadura "
-                           "inverte — o motor opera como gerador, devolvendo energia à fonte. Frenagem "
-                           "suave; eficaz apenas em cargas com alta inércia ou velocidade elevada.",
+            "plugging":    "Reverses the armature voltage polarity while the motor is still rotating. "
+                           "Produces torque opposing motion — very fast braking, but with high "
+                           "armature current and possible direction reversal if no stopping switch is provided.",
+            "injecao_cc":  "Cuts the operating supply and injects a reduced DC voltage into the armature. "
+                           "The maintained field flux produces braking torque without reversing direction. "
+                           "Smooth and controlled braking — current limited by armature resistance.",
+            "regenerativo":"Reduces armature voltage below the motor back-EMF. Armature current "
+                           "reverses — the motor operates as a generator, returning energy to the source. "
+                           "Gentle braking; effective only for high-inertia or high-speed loads.",
         }
         st.info(_BRAKE_DESC_DC[brake])
 
         if brake == "plugging":
             _wi("wi_dc_t_freia", 3.0)
             exp_config["t_freia"] = st.number_input(
-                "Instante de reversão — $t_{freia}$ (s)", min_value=0.1,
+                "Reversal instant — $t_{brake}$ (s)", min_value=0.1,
                 key="wi_dc_t_freia", format="%.2f",
             )
             tmax_def = exp_config["t_freia"] * 2.5
             h_def    = 1e-3
             _ibox(
-                f"<strong>t = 0 s</strong> — motor parte em sentido positivo com carga de {_Tl_ref:.3f} N·m.<br>"
-                f"<strong>t = {exp_config['t_freia']:.2f} s</strong> — polaridade de armadura invertida; "
-                f"torque de frenagem opõe-se ao movimento; rotor desacelera e inverte o sentido."
+                f"<strong>t = 0 s</strong> — motor starts in positive direction with load {_Tl_ref:.3f} N·m.<br>"
+                f"<strong>t = {exp_config['t_freia']:.2f} s</strong> — armature polarity reversed; "
+                f"braking torque opposes motion; rotor decelerates and reverses direction."
             )
 
         elif brake == "injecao_cc":
@@ -1033,21 +1058,21 @@ def render_experiment_config_dc(
             _wi("wi_dc_t_freia",   3.0)
             _wi("wi_dc_Vdc_inj",   mp.Va * 0.1)
             exp_config["t_freia"]  = c1.number_input(
-                "Instante de corte — $t_{freia}$ (s)", min_value=0.1,
+                "Cut-off instant — $t_{brake}$ (s)", min_value=0.1,
                 key="wi_dc_t_freia", format="%.2f",
             )
             exp_config["Vdc_inj"]  = c2.number_input(
-                "Tensão CC injetada — $V_{inj}$ (V)", min_value=0.0,
+                "Injected DC voltage — $V_{inj}$ (V)", min_value=0.0,
                 key="wi_dc_Vdc_inj", format="%.2f",
-                help="Tensão CC aplicada à armadura após corte da alimentação CA. Tipicamente 5–15% de Va.",
+                help="DC voltage applied to the armature after supply cut. Typically 5–15% of Va.",
             )
             tmax_def = exp_config["t_freia"] * 2.5
             h_def    = 1e-3
             _ibox(
-                f"<strong>t = 0 s</strong> — motor opera em regime com carga de {_Tl_ref:.3f} N·m.<br>"
-                f"<strong>t = {exp_config['t_freia']:.2f} s</strong> — alimentação cortada; "
-                f"tensão CC de <strong>{exp_config['Vdc_inj']:.2f} V</strong> injetada na armadura; "
-                f"corrente produz torque oposto ao movimento — frenagem controlada sem inversão."
+                f"<strong>t = 0 s</strong> — motor operates in steady state with load {_Tl_ref:.3f} N·m.<br>"
+                f"<strong>t = {exp_config['t_freia']:.2f} s</strong> — supply cut; "
+                f"DC voltage of <strong>{exp_config['Vdc_inj']:.2f} V</strong> injected into armature; "
+                f"current produces torque opposing motion — controlled braking without reversal."
             )
 
         elif brake == "regenerativo":
@@ -1055,21 +1080,21 @@ def render_experiment_config_dc(
             _wi("wi_dc_t_freia",  3.0)
             _wi("wi_dc_Va_regen", mp.Va * 0.5)
             exp_config["t_freia"]   = c1.number_input(
-                "Instante de frenagem — $t_{freia}$ (s)", min_value=0.1,
+                "Braking instant — $t_{brake}$ (s)", min_value=0.1,
                 key="wi_dc_t_freia", format="%.2f",
             )
             exp_config["Va_regen"]  = c2.number_input(
-                "Tensão de armadura reduzida — $V_{a,regen}$ (V)", min_value=0.0,
+                "Reduced armature voltage — $V_{a,regen}$ (V)", min_value=0.0,
                 key="wi_dc_Va_regen", format="%.2f",
-                help="Tensão abaixo da fcem — motor opera como gerador devolvendo energia.",
+                help="Voltage below back-EMF — motor operates as generator returning energy.",
             )
             tmax_def = exp_config["t_freia"] * 2.5
             h_def    = 1e-3
             _ibox(
-                f"<strong>t = 0 s</strong> — motor opera em regime com carga de {_Tl_ref:.3f} N·m.<br>"
-                f"<strong>t = {exp_config['t_freia']:.2f} s</strong> — tensão de armadura reduzida para "
-                f"<strong>{exp_config['Va_regen']:.2f} V</strong> (abaixo da fcem); "
-                f"corrente inverte — motor opera como gerador, devolvendo energia à fonte."
+                f"<strong>t = 0 s</strong> — motor operates in steady state with load {_Tl_ref:.3f} N·m.<br>"
+                f"<strong>t = {exp_config['t_freia']:.2f} s</strong> — armature voltage reduced to "
+                f"<strong>{exp_config['Va_regen']:.2f} V</strong> (below back-EMF); "
+                f"current reverses — motor operates as generator, returning energy to source."
             )
 
     elif mode == "campo_fraco_dc":
@@ -1077,9 +1102,9 @@ def render_experiment_config_dc(
         _wi("wi_dc_Vf_fraco",  mp.Vf * 0.5 if mp.Vf > 0 else mp.Va * 0.5)
         _wi("wi_dc_t_campo",   3.0)
         _wi("wi_dc_t_trans",   0.5)
-        exp_config["Vf_fraco"] = c1.number_input("$V_f$ fraco (V)", min_value=0.0,
+        exp_config["Vf_fraco"] = c1.number_input("$V_f$ weakened (V)", min_value=0.0,
                                                    key="wi_dc_Vf_fraco", format="%.2f")
-        exp_config["t_campo"]  = c2.number_input("$t_{campo}$ (s)", min_value=0.1,
+        exp_config["t_campo"]  = c2.number_input("$t_{field}$ (s)", min_value=0.1,
                                                    key="wi_dc_t_campo", format="%.2f")
         exp_config["t_trans"]  = c3.number_input("$t_{trans}$ (s)", min_value=0.05,
                                                    key="wi_dc_t_trans", format="%.2f")
@@ -1087,37 +1112,37 @@ def render_experiment_config_dc(
         tmax_def = exp_config["t_campo"] + 10.0
         h_def    = 1e-3
         _ibox(
-            f"<strong>t = 0 s</strong> — motor opera em campo nominal; carga de {_Tl_ref:.3f} N·m.<br>"
-            f"<strong>t = {exp_config['t_campo']:.2f} s</strong> — tensão de campo reduzida para "
-            f"<strong>{exp_config['Vf_fraco']:.2f} V</strong> (enfraquecimento de campo); "
-            f"fluxo cai, velocidade aumenta para manter a potência — transitório de {exp_config['t_trans']:.2f} s."
+            f"<strong>t = 0 s</strong> — motor operates at rated field; load {_Tl_ref:.3f} N·m.<br>"
+            f"<strong>t = {exp_config['t_campo']:.2f} s</strong> — field voltage reduced to "
+            f"<strong>{exp_config['Vf_fraco']:.2f} V</strong> (field weakening); "
+            f"flux drops, speed increases to maintain power — {exp_config['t_trans']:.2f} s transient."
         )
 
     elif mode == "pulso_dc":
         c1, c2 = st.columns(2)
         _wi("wi_dc_t_pulso",  4.0)
         _wi("wi_dc_Tl_extra", _Tl_ref * 0.5)
-        exp_config["t_pulso"]  = c1.number_input("Instante do pulso — $t_{pulso}$ (s)", min_value=0.1, key="wi_dc_t_pulso",  format="%.2f")
-        exp_config["Tl_extra"] = c2.number_input("$\\Delta T_l$ adicional (N·m)", min_value=0.0, key="wi_dc_Tl_extra", format="%.3f")
+        exp_config["t_pulso"]  = c1.number_input("Pulse instant — $t_{pulse}$ (s)", min_value=0.1, key="wi_dc_t_pulso",  format="%.2f")
+        exp_config["Tl_extra"] = c2.number_input("Additional $\\Delta T_l$ (N·m)", min_value=0.0, key="wi_dc_Tl_extra", format="%.3f")
         exp_config["Tl_final"] = _Tl_ref
         tmax_def = exp_config["t_pulso"] + 8.0
         h_def    = 1e-3
         _ibox(
-            f"<strong>t = 0 s</strong> — motor opera em regime com carga de {_Tl_ref:.3f} N·m.<br>"
-            f"<strong>t = {exp_config['t_pulso']:.2f} s</strong> — pulso de carga adicional de "
-            f"<strong>{exp_config['Tl_extra']:.3f} N·m</strong> aplicado; motor desacelera e acomoda-se.<br>"
-            f"<strong>t = {exp_config['t_pulso']*2:.2f} s</strong> — pulso retirado; motor recupera velocidade de regime."
+            f"<strong>t = 0 s</strong> — motor operates in steady state with load {_Tl_ref:.3f} N·m.<br>"
+            f"<strong>t = {exp_config['t_pulso']:.2f} s</strong> — additional load pulse of "
+            f"<strong>{exp_config['Tl_extra']:.3f} N·m</strong> applied; motor decelerates and settles.<br>"
+            f"<strong>t = {exp_config['t_pulso']*2:.2f} s</strong> — pulse removed; motor recovers steady-state speed."
         )
 
     elif mode == "gerador_dc":
         _wi("wi_dc_Tl_gen", abs(mp.Tload))
-        exp_config["Tl_gen"] = st.number_input("Torque mecânico da primomotriz — $T_{mec}$ (N·m)", min_value=0.0, key="wi_dc_Tl_gen", format="%.3f")
+        exp_config["Tl_gen"] = st.number_input("Prime mover torque — $T_{mec}$ (N·m)", min_value=0.0, key="wi_dc_Tl_gen", format="%.3f")
         tmax_def = 15.0
         h_def    = 1e-3
         _ibox(
-            f"<strong>t = 0 s</strong> — máquina acelerada pela primomotriz com torque de "
-            f"<strong>{exp_config['Tl_gen']:.3f} N·m</strong>; campo excitado.<br>"
-            f"<strong>Regime</strong> — tensão de terminal $V_t$ se estabiliza; carga resistiva $R_L$ recebe potência gerada."
+            f"<strong>t = 0 s</strong> — machine accelerated by prime mover with torque of "
+            f"<strong>{exp_config['Tl_gen']:.3f} N·m</strong>; field excited.<br>"
+            f"<strong>Steady state</strong> — terminal voltage $V_t$ stabilizes; resistive load $R_L$ receives generated power."
         )
     else:
         tmax_def = 12.0
@@ -1125,20 +1150,20 @@ def render_experiment_config_dc(
 
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # Variáveis para visualização — separadas em Mecânicas / Elétricas (igual MIT)
+    # Variables for visualization — separated into Mechanical / Electrical (same as MIT)
     st.write("")
-    st.markdown('<p class="slabel">Variáveis para Visualização</p>', unsafe_allow_html=True)
-    _pgroup("Grandezas Mecânicas")
+    st.markdown('<p class="slabel">Variables for Visualization</p>', unsafe_allow_html=True)
+    _pgroup("Mechanical Quantities")
     sel_mec = st.multiselect(
-        "Grandezas mecânicas",
+        "Mechanical quantities",
         options=list(_VAR_MECANICAS.keys()),
         default=_DEFAULT_VARS_MEC,
         label_visibility="collapsed",
         key="wi_dc_vars_mec",
     )
-    _pgroup("Grandezas Elétricas")
+    _pgroup("Electrical Quantities")
     sel_ele = st.multiselect(
-        "Grandezas elétricas",
+        "Electrical quantities",
         options=list(_VAR_ELETRICAS.keys()),
         default=_DEFAULT_VARS_ELE,
         label_visibility="collapsed",
@@ -1153,69 +1178,69 @@ def render_experiment_config_dc(
         var_keys   = _DEFAULT_VARS
         var_labels = [k for k, v in _VAR_OPTIONS.items() if v in _DEFAULT_VARS]
 
-    # Parâmetros numéricos da simulação
+    # Simulation numerical parameters
     st.write("")
-    st.markdown('<p class="slabel">Parâmetros Numéricos da Simulação</p>', unsafe_allow_html=True)
-    _pgroup("Tempo Total e Passo de Integração")
+    st.markdown('<p class="slabel">Simulation Numerical Parameters</p>', unsafe_allow_html=True)
+    _pgroup("Total Time and Integration Step")
 
     _t_acomo = float(min(max(15.0 * mp.J, 2.0), 30.0))
     _tmax_auto_val = round(tmax_def + _t_acomo, 1)
 
     tc1, tc2 = st.columns(2)
     with tc1:
-        _tmax_auto = st.checkbox("Calcular tmax automaticamente (inércia do motor)", value=True, key="wi_dc_tmax_auto")
+        _tmax_auto = st.checkbox("Calculate tmax automatically (motor inertia)", value=True, key="wi_dc_tmax_auto")
         _wi("wi_dc_tmax", tmax_def)
-        tmax = st.number_input("Tempo total — $t_{max}$ (s)", min_value=0.001, max_value=3600.0,
+        tmax = st.number_input("Total time — $t_{max}$ (s)", min_value=0.001, max_value=3600.0,
                                 value=tmax_def, step=0.1, format="%.1f",
                                 key="wi_dc_tmax", disabled=_tmax_auto)
         if _tmax_auto:
-            tmax = 0.0  # sentinel: runner resolve
-            st.caption(f"Automático: **{_tmax_auto_val:.1f} s**  (modo + {_t_acomo:.1f} s de acomodação mecânica, J={mp.J:.4f} kg·m²)")
+            tmax = 0.0  # sentinel: runner resolves
+            st.caption(f"Automatic: **{_tmax_auto_val:.1f} s**  (mode + {_t_acomo:.1f} s mechanical settling, J={mp.J:.4f} kg·m²)")
         else:
-            st.caption(f"Sugestão: ≥ {round(tmax_def + 0.5, 1):.1f} s  (último evento + 0,5 s para atingir regime)")
+            st.caption(f"Suggestion: ≥ {round(tmax_def + 0.5, 1):.1f} s  (last event + 0.5 s to reach steady state)")
 
         _wi("wi_dc_h", h_def)
-        h = st.number_input("Passo de integração — $h$ (s)", min_value=1e-6, max_value=0.1,
+        h = st.number_input("Integration step — $h$ (s)", min_value=1e-6, max_value=0.1,
                              value=h_def, step=1e-4, format="%.6f", key="wi_dc_h")
 
         _tmax_display = _tmax_auto_val if _tmax_auto else tmax
         n_steps = int(_tmax_display / h) if (_tmax_display > 0 and h > 0) else 0
-        st.caption(f"Total de passos: {n_steps:,}")
+        st.caption(f"Total steps: {n_steps:,}")
         if n_steps > 500_000:
-            st.warning("Número elevado de passos. A simulação pode demorar vários segundos.")
+            st.warning("High number of steps. The simulation may take several seconds.")
 
-        # Validação: evento crítico não coberto por tmax
+        # Validation: critical event not covered by tmax
         if not _tmax_auto:
             _tmax_check = tmax
             _critical_dc: list[tuple[str, str, float]] = []
             if mode == "dol_dc" and exp_config.get("partir_em_vazio"):
-                _critical_dc = [("aplicação da carga", "t_{carga}", exp_config.get("t_carga", 0))]
+                _critical_dc = [("load application", "t_{carga}", exp_config.get("t_carga", 0))]
             elif mode == "resistencia_dc":
-                _critical_dc = [("remoção da resistência", "t_{rampa}", exp_config.get("t_ramp", 0))]
+                _critical_dc = [("resistance removal", "t_{ramp}", exp_config.get("t_ramp", 0))]
             elif mode == "frenagem_dc":
-                _critical_dc = [("frenagem", "t_{freia}", exp_config.get("t_freia", 0))]
+                _critical_dc = [("braking", "t_{brake}", exp_config.get("t_freia", 0))]
             elif mode == "campo_fraco_dc":
-                _critical_dc = [("enfraquecimento de campo", "t_{campo}", exp_config.get("t_campo", 0))]
+                _critical_dc = [("field weakening", "t_{field}", exp_config.get("t_campo", 0))]
             elif mode == "pulso_dc":
-                _critical_dc = [("pulso de carga", "t_{pulso}", exp_config.get("t_pulso", 0))]
+                _critical_dc = [("load pulse", "t_{pulse}", exp_config.get("t_pulso", 0))]
             for _lbl, _sym, _t in _critical_dc:
                 if _t >= _tmax_check:
                     st.warning(
                         f"$t_{{max}}$ ({_tmax_check:.2f} s) ≤ ${_sym}$ ({_t:.2f} s): "
-                        f"o evento de **{_lbl}** não ocorrerá na simulação — aumente $t_{{max}}$."
+                        f"the **{_lbl}** event will not occur in the simulation — increase $t_{{max}}$."
                     )
 
     with tc2:
         _ibox(
-            "<strong>t<sub>max</sub>:</strong> quanto maior, mais do transitório é capturado, "
-            "porém maior o custo computacional.<br><br>"
-            "<strong>h (passo):</strong> para MCC, recomenda-se h ≤ τ<sub>a</sub>/10, "
-            "onde τ<sub>a</sub> = L<sub>a</sub>/R<sub>a</sub> é a constante de tempo elétrica da armadura."
+            "<strong>t<sub>max</sub>:</strong> the larger the value, the more of the transient is captured, "
+            "but at higher computational cost.<br><br>"
+            "<strong>h (step):</strong> for DC machines, recommended h ≤ τ<sub>a</sub>/10, "
+            "where τ<sub>a</sub> = L<sub>a</sub>/R<sub>a</sub> is the armature electrical time constant."
         )
 
     exp_config["_tmax_auto_val"] = _tmax_auto_val
 
-    _ibox(f"<strong>Modo:</strong> {_MODE_LABELS[mode]} &nbsp;|&nbsp; "
-          f"<strong>Excitação:</strong> {_EXC_LABELS.get(exc, exc)}")
+    _ibox(f"<strong>Mode:</strong> {_MODE_LABELS[mode]} &nbsp;|&nbsp; "
+          f"<strong>Excitation:</strong> {_EXC_LABELS.get(exc, exc)}")
 
     return exp_config, var_keys, var_labels, float(tmax), float(h)

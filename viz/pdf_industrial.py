@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-pdf_industrial.py — Relatório Industrial do IWS Simulator.
+pdf_industrial.py — Industrial Report of the IWS Simulator.
 
-Perfil: tomada de decisão, KPIs, diagnóstico de falhas, análise econômica.
-Sem equacionamentos extensos. Todas as referências salvas incluídas.
-Exporta: generate_industrial(exp_label, mp, res, ..., ref_list) -> bytes
+Profile: decision-making, KPIs, fault diagnostics, economic analysis.
+No extensive equations. All saved references included.
+Exports: generate_industrial(exp_label, mp, res, ..., ref_list) -> bytes
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ from viz.pdf_commons import (
 )
 
 
-# Paleta industrial
+# Industrial palette
 _BG_DARK  = (10, 30, 80)
 _BG_CARD  = (240, 244, 255)
 _ACCENT   = (29, 78, 216)
@@ -35,7 +35,7 @@ _AMBER    = (217, 119, 6)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Primitivos de layout — industrial
+# Layout primitives — industrial
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _dash_title(pdf, title: str, subtitle: str = "") -> None:
@@ -122,7 +122,7 @@ def _banner(pdf, text: str) -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Bloco de simulação — industrial
+# Simulation block — industrial
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _write_sim_block(
@@ -139,7 +139,7 @@ def _write_sim_block(
     integrator = compute_integrator_params(res, mp, tmax, h)
     broken_bar = compute_broken_bar(res, mp)
 
-    # ── Capa executiva ────────────────────────────────────────────────────
+    # ── Executive cover ───────────────────────────────────────────────────
     pdf.add_page()
     pdf.set_fill_color(*_BG_DARK)
     pdf.rect(0, 0, 210, 58, style="F")
@@ -149,20 +149,20 @@ def _write_sim_block(
     pdf.cell(0, 12, "IWS SIMULATOR", border=0, new_x="LMARGIN", new_y="NEXT")
     pdf.set_xy(20, 28)
     pdf.set_font("Helvetica", "", 11)
-    pdf.cell(0, 8, "Relatório Industrial de Simulação",
+    pdf.cell(0, 8, "Industrial Simulation Report",
              border=0, new_x="LMARGIN", new_y="NEXT")
     pdf.set_xy(20, 38)
     pdf.set_font("Helvetica", "", 9)
-    pdf.cell(0, 6, f"Experimento: {exp_label}",
+    pdf.cell(0, 6, f"Experiment: {exp_label}",
              border=0, new_x="LMARGIN", new_y="NEXT")
     pdf.set_xy(20, 47)
     pdf.set_font("Helvetica", "I", 8)
-    ts = datetime.datetime.now().strftime("%d/%m/%Y  %H:%M")
-    pdf.cell(0, 6, f"Gerado em: {ts}", border=0, new_x="LMARGIN", new_y="NEXT")
+    ts = datetime.datetime.now().strftime("%Y-%m-%d  %H:%M")
+    pdf.cell(0, 6, f"Generated: {ts}", border=0, new_x="LMARGIN", new_y="NEXT")
     pdf.ln(10)
 
-    # ── KPIs de Desempenho ────────────────────────────────────────────────
-    _dash_title(pdf, "DESEMPENHO", f"Regime Permanente — {exp_type.upper()}")
+    # ── Performance KPIs ──────────────────────────────────────────────────
+    _dash_title(pdf, "PERFORMANCE", f"Steady State — {exp_type.upper()}")
     n_ss    = float(res.get("n_ss",    0.0))
     Te_ss   = float(res.get("Te_ss",   0.0))
     ias_rms = float(res.get("ias_rms", 0.0))
@@ -171,20 +171,20 @@ def _write_sim_block(
     P_in    = float(res.get("P_in",    0.0))
     v_pin, u_pin = fmt_power(P_in)
     _kpi_row(pdf, [
-        ("Velocidade de Regime",   f"{n_ss:.1f}",    "RPM"),
-        ("Torque de Regime Te",    f"{Te_ss:.2f}",   "N.m"),
-        ("Corrente Eficaz Ias",    f"{ias_rms:.3f}", "A"),
-        ("Rendimento eta",         f"{eta:.2f}",     "%"),
+        ("Steady-State Speed",   f"{n_ss:.1f}",    "RPM"),
+        ("Steady-State Torque Te", f"{Te_ss:.2f}", "N.m"),
+        ("RMS Current Ias",      f"{ias_rms:.3f}", "A"),
+        ("Efficiency eta",       f"{eta:.2f}",     "%"),
     ])
     _kpi_row(pdf, [
-        ("Escorregamento s",       f"{s_val*100:.3f}", "%"),
-        ("Potência de Entrada",    v_pin,              u_pin),
-        ("Número de Polos p",      str(mp.p),          "—"),
-        ("Tensão de Linha Vl",     f"{mp.Vl:.1f}",     "V"),
+        ("Slip s",               f"{s_val*100:.3f}", "%"),
+        ("Input Power",          v_pin,              u_pin),
+        ("Number of Poles p",    str(mp.p),          "—"),
+        ("Line Voltage Vl",      f"{mp.Vl:.1f}",     "V"),
     ])
 
-    # ── Balanço de Perdas ─────────────────────────────────────────────────
-    _sec_bar(pdf, "BALANÇO DE PERDAS")
+    # ── Loss Balance ──────────────────────────────────────────────────────
+    _sec_bar(pdf, "LOSS BALANCE")
     embed_fig(pdf, fig_to_png_bytes(build_losses_bar_fig(losses)), width_mm=170)
     pdf.set_font("Helvetica", "I", 8)
     pdf.set_text_color(*_TEXT_LGT)
@@ -198,80 +198,80 @@ def _write_sim_block(
              border=0, new_x="LMARGIN", new_y="NEXT")
     pdf.ln(3)
 
-    # ── Qualidade de Energia ──────────────────────────────────────────────
+    # ── Power Quality ──────────────────────────────────────────────────────
     if exp_type != "shutdown":
         em = compute_energy_metrics(res, mp, energy_tariff)
         _ensure_space(pdf, 55)
-        _sec_bar(pdf, "QUALIDADE DE ENERGIA")
+        _sec_bar(pdf, "POWER QUALITY")
         thd_ok = em["thd"] <= 5.0
         fp_ok  = em["fp"] >= 0.85
         _badge(pdf, thd_ok and fp_ok,
-               f"FP = {em['fp']:.3f} ({'OK >= 0.85' if fp_ok else 'BAIXO'})   |   "
-               f"THD = {em['thd']:.2f}% ({'OK < 5%' if thd_ok else 'ALTO > 5%'})")
+               f"PF = {em['fp']:.3f} ({'OK >= 0.85' if fp_ok else 'LOW'})   |   "
+               f"THD = {em['thd']:.2f}% ({'OK < 5%' if thd_ok else 'HIGH > 5%'})")
         _mini_table(pdf, [
-            ("Energia consumida no experimento",  f"{em['E_kwh']:.6f} kWh"),
-            ("Custo do experimento",              f"R$ {em['custo_exp']:.4f}"),
-            ("Potência de entrada em regime",     f"{em['P_in_kw']:.3f} kW"),
-            ("Rendimento em regime",              f"{em['eta']:.2f} %"),
+            ("Energy consumed in experiment",  f"{em['E_kwh']:.6f} kWh"),
+            ("Experiment cost",                f"$ {em['custo_exp']:.4f}"),
+            ("Steady-state input power",       f"{em['P_in_kw']:.3f} kW"),
+            ("Steady-state efficiency",        f"{em['eta']:.2f} %"),
         ], [105, 65])
         pdf.ln(2)
 
-        # ── Análise Econômica ─────────────────────────────────────────────
+        # ── Economic Analysis ──────────────────────────────────────────────
         _ensure_space(pdf, 45)
-        _sec_bar(pdf, "ANÁLISE ECONÔMICA")
+        _sec_bar(pdf, "ECONOMIC ANALYSIS")
         _mini_table(pdf, [
-            ("Tarifa de energia",                 f"R$ {energy_tariff:.2f}/kWh"),
-            ("Custo operacional anual (8760 h)",  f"R$ {em['custo_ano']:,.2f}"),
-            ("Custo mensal estimado (730 h)",     f"R$ {em['P_in_kw'] * 730.0 * energy_tariff:,.2f}"),
+            ("Energy tariff",                      f"$ {energy_tariff:.2f}/kWh"),
+            ("Annual operating cost (8760 h)",      f"$ {em['custo_ano']:,.2f}"),
+            ("Estimated monthly cost (730 h)",      f"$ {em['P_in_kw'] * 730.0 * energy_tariff:,.2f}"),
         ], [105, 65])
         pdf.set_font("Helvetica", "I", 8)
         pdf.set_text_color(*_TEXT_LGT)
-        pdf.cell(0, 5, "  Projeção baseada em operação contínua à potência de regime permanente.",
+        pdf.cell(0, 5, "  Projection based on continuous operation at steady-state power.",
                  border=0, new_x="LMARGIN", new_y="NEXT")
         pdf.ln(3)
 
-    # ── Diagnóstico — Barra Quebrada ──────────────────────────────────────
+    # ── Diagnostics — Broken Bar ──────────────────────────────────────────
     if broken_bar is not None:
         _ensure_space(pdf, 58)
-        _sec_bar(pdf, "DIAGNÓSTICO — BARRA QUEBRADA (MCSA)")
+        _sec_bar(pdf, "DIAGNOSTICS — BROKEN BAR (MCSA)")
         sev_ok = broken_bar["alpha"] < 0.2
         _badge(pdf, sev_ok,
-               f"Severidade: {broken_bar['severity_label']} "
+               f"Severity: {broken_bar['severity_label']} "
                f"(alpha = {broken_bar['alpha']:.3f})",
                warn=0.2 <= broken_bar["alpha"] < 0.5)
         _mini_table(pdf, [
-            ("Frequência lateral inferior (1-2s)f",   f"{broken_bar['f_lo']:.2f} Hz"),
-            ("Frequência lateral superior (1+2s)f",   f"{broken_bar['f_hi']:.2f} Hz"),
-            ("Amplitude relativa (1-2s)f / fund.",    f"{broken_bar['sb_ratio_lo']:.2f} %"),
-            ("Amplitude relativa (1+2s)f / fund.",    f"{broken_bar['sb_ratio_hi']:.2f} %"),
-            ("Escorregamento (s)",                    f"{broken_bar['s_val']*100:.3f} %"),
+            ("Lower sideband frequency (1-2s)f",   f"{broken_bar['f_lo']:.2f} Hz"),
+            ("Upper sideband frequency (1+2s)f",   f"{broken_bar['f_hi']:.2f} Hz"),
+            ("Relative amplitude (1-2s)f / fund.", f"{broken_bar['sb_ratio_lo']:.2f} %"),
+            ("Relative amplitude (1+2s)f / fund.", f"{broken_bar['sb_ratio_hi']:.2f} %"),
+            ("Slip (s)",                            f"{broken_bar['s_val']*100:.3f} %"),
         ], [115, 55])
         pdf.ln(2)
 
-    # ── Proteção — Trip Class ─────────────────────────────────────────────
+    # ── Protection — Trip Class ───────────────────────────────────────────
     if exp_type in ("dol", "yd", "comp", "soft", "voltage_sag"):
         tc = compute_trip_class(res, mp)
         if tc is not None:
             _ensure_space(pdf, 45)
-            _sec_bar(pdf, "RECOMENDAÇÃO DE PROTEÇÃO — RELÉ DE SOBRECARGA")
+            _sec_bar(pdf, "PROTECTION RECOMMENDATION — OVERLOAD RELAY")
             _badge(pdf, tc["class"] == 10,
-                   f"Classe {tc['class']} — t_aceleracao = {tc['t_accel']:.2f} s "
-                   f"(95% de {tc['n_sync']:.1f} RPM) — {tc['status']}",
+                   f"Class {tc['class']} — t_acceleration = {tc['t_accel']:.2f} s "
+                   f"(95% of {tc['n_sync']:.1f} RPM) — {tc['status']}",
                    warn=tc["class"] == 20)
             pdf.set_font("Helvetica", "I", 8)
             pdf.set_text_color(*_TEXT_LGT)
             pdf.cell(0, 5,
-                     "  Referência: IEC 60947-4-1 / NEMA ICS 2. "
-                     "Classe 10: t < 10 s | Classe 20: 10-20 s | Classe 30: > 20 s",
+                     "  Reference: IEC 60947-4-1 / NEMA ICS 2. "
+                     "Class 10: t < 10 s | Class 20: 10-20 s | Class 30: > 20 s",
                      border=0, new_x="LMARGIN", new_y="NEXT")
             pdf.ln(3)
 
-    # ── Diagnóstico Automatizado ──────────────────────────────────────────
+    # ── Automated Diagnostics ─────────────────────────────────────────────
     if insights:
         _ensure_space(pdf, 45)
-        _sec_bar(pdf, "DIAGNÓSTICO AUTOMATIZADO")
+        _sec_bar(pdf, "AUTOMATED DIAGNOSTICS")
         _COLORS = {"error": _RED, "warning": _AMBER, "info": _GREEN}
-        _LABELS = {"error": "ERRO", "warning": "ATENCAO", "info": "INFO"}
+        _LABELS = {"error": "ERROR", "warning": "WARNING", "info": "INFO"}
         for ins in insights:
             r_, g_, b_ = _COLORS.get(ins.level, (80, 80, 80))
             lbl_ = _LABELS.get(ins.level, ins.level.upper())
@@ -286,62 +286,62 @@ def _write_sim_block(
             pdf.ln(2)
         pdf.ln(2)
 
-    # ── Integrador Numérico ───────────────────────────────────────────────
+    # ── Numerical Integrator ──────────────────────────────────────────────
     _ensure_space(pdf, 52)
-    _sec_bar(pdf, "INTEGRADOR NUMÉRICO (LSODA)")
+    _sec_bar(pdf, "NUMERICAL INTEGRATOR (LSODA)")
     ny_ok = integrator["nyquist_ok"]
     _badge(pdf, ny_ok,
-           "Critério de Nyquist: satisfeito (>= 10 amostras/ciclo)"
+           "Nyquist criterion: satisfied (>= 10 samples/cycle)"
            if ny_ok else
-           "ATENCAO: critério de Nyquist não satisfeito — RMS e FFT podem ser imprecisos")
+           "WARNING: Nyquist criterion not satisfied — RMS and FFT may be inaccurate")
     _mini_table(pdf, [
-        ("Passo solicitado (h)",              f"{integrator['h_req']:.6f} s"),
-        ("Passo efetivo médio",               f"{integrator['dt_eff']:.6f} s"),
-        ("Amostras por ciclo",                f"{integrator['samples_per_cycle']:.1f}"),
-        ("Total de pontos de saída",          str(integrator["n_steps"])),
-        ("Duração total simulada (tmax)",     f"{integrator['tmax']:.3f} s"),
+        ("Requested step (h)",               f"{integrator['h_req']:.6f} s"),
+        ("Effective mean step",              f"{integrator['dt_eff']:.6f} s"),
+        ("Samples per cycle",                f"{integrator['samples_per_cycle']:.1f}"),
+        ("Total output points",              str(integrator["n_steps"])),
+        ("Total simulated duration (tmax)",  f"{integrator['tmax']:.3f} s"),
     ], [105, 65])
     pdf.ln(2)
 
-    # ── Correntes de Fase ABC ─────────────────────────────────────────────
+    # ── ABC Phase Currents ────────────────────────────────────────────────
     if any(k in res for k in ("ias", "ibs", "ics")):
         _ensure_space(pdf, 78)
-        _sec_bar(pdf, "CORRENTES DE FASE ABC — REGIME PERMANENTE")
+        _sec_bar(pdf, "ABC PHASE CURRENTS — STEADY STATE")
         embed_fig(pdf, fig_to_png_bytes(build_abc_currents_fig(res)), width_mm=170)
         pdf.ln(2)
 
-    # ── Parâmetros da Máquina (compacto) + Circuito ───────────────────────
+    # ── Machine Parameters (compact) + Circuit ────────────────────────────
     _ensure_space(pdf, 120)
-    _sec_bar(pdf, "PARÂMETROS DA MÁQUINA")
+    _sec_bar(pdf, "MACHINE PARAMETERS")
     _mini_table(pdf, [
-        ("R[sub]s[/sub]",  f"{mp.Rs:.4f} Ω", "R[sub]r[/sub]",  f"{mp.Rr:.4f} Ω"),
-        ("X[sub]m[/sub]",  f"{mp.Xm:.4f} Ω", "X[sub]ls[/sub]", f"{mp.Xls:.4f} Ω"),
-        ("X[sub]lr[/sub]", f"{mp.Xlr:.4f} Ω", "J",              f"{mp.J:.4f} kg·m²"),
+        ("R[sub]s[/sub]",  f"{mp.Rs:.4f} Ohm", "R[sub]r[/sub]",  f"{mp.Rr:.4f} Ohm"),
+        ("X[sub]m[/sub]",  f"{mp.Xm:.4f} Ohm", "X[sub]ls[/sub]", f"{mp.Xls:.4f} Ohm"),
+        ("X[sub]lr[/sub]", f"{mp.Xlr:.4f} Ohm", "J",              f"{mp.J:.4f} kg.m2"),
     ], [30, 45, 30, 45])
     pdf.ln(3)
     embed_fig(pdf, build_circuit_bytes(mp), width_mm=170)
     pdf.set_font("Helvetica", "I", 8)
     pdf.set_text_color(*_TEXT_LGT)
-    pdf.multi_cell(0, 5, "Circuito equivalente monofásico em T do Motor de Inducao Trifasico.",
+    pdf.multi_cell(0, 5, "Single-phase T equivalent circuit of the Three-Phase Induction Motor.",
                    border=0, align="C")
     pdf.ln(2)
 
-    # ── Análise do Modo de Operação ────────────────────────────────────────
+    # ── Operating Mode Analysis ────────────────────────────────────────────
     if exp_config and is_main:
         import numpy as _np
         _mode = exp_config.get("exp_type", exp_type)
         if _mode == "frenagem":
             _ensure_space(pdf, 50)
-            _sec_bar(pdf, "ANÁLISE DE FRENAGEM ELÉTRICA")
+            _sec_bar(pdf, "ELECTRIC BRAKING ANALYSIS")
             _brake = exp_config.get("brake_method", "plugging")
-            _BRAKE_NOMES = {
-                "plugging":    "Reversão de Polaridade (Plugging)",
-                "injecao_cc":  "Injeção de Corrente Contínua",
-                "regenerativo":"Frenagem Regenerativa",
+            _BRAKE_NAMES = {
+                "plugging":    "Polarity Reversal (Plugging)",
+                "injecao_cc":  "DC Injection Braking",
+                "regenerativo":"Regenerative Braking",
             }
             pdf.set_font("Helvetica", "", 9)
             pdf.set_text_color(*_TEXT_MID)
-            pdf.multi_cell(0, 5, f"  Método: {_BRAKE_NOMES.get(_brake, _brake)}")
+            pdf.multi_cell(0, 5, f"  Method: {_BRAKE_NAMES.get(_brake, _brake)}")
             pdf.ln(1)
             t_freia = exp_config.get("t_brake", exp_config.get("t_freia", 0.0))
             _wr_a = _np.asarray(res.get("wr", [0.0]))
@@ -353,64 +353,64 @@ def _write_sim_block(
             _idx_stop = next((i for i in range(_idx_f, len(_wr_a)) if abs(_wr_a[i]) < 1.0), len(_wr_a)-1)
             _t_stop = float(_t_a[_idx_stop]) - t_freia if _idx_stop < len(_t_a) else None
             _rows_b = [
-                ("Instante de frenagem",          f"{t_freia:.3f} s"),
-                ("Velocidade antes da frenagem",   f"{_wm_b:.1f} RPM"),
-                ("Corrente de pico pos-frenagem",  f"{_ia_pk:.3f} A"),
+                ("Braking instant",               f"{t_freia:.3f} s"),
+                ("Speed before braking",          f"{_wm_b:.1f} RPM"),
+                ("Post-braking peak current",     f"{_ia_pk:.3f} A"),
             ]
             if _t_stop is not None:
-                _rows_b.append(("Tempo ate parada estimado", f"{_t_stop:.3f} s"))
+                _rows_b.append(("Estimated time to stop", f"{_t_stop:.3f} s"))
             _mini_table(pdf, _rows_b, [115, 55])
 
         elif _mode == "gerador":
             _ensure_space(pdf, 50)
-            _sec_bar(pdf, "ANÁLISE DO MODO GERADOR")
+            _sec_bar(pdf, "GENERATOR MODE ANALYSIS")
             _wr_ss = float(res.get("wr_ss", 0.0))
             _Te_ss = float(res.get("Te_ss", 0.0))
             _P_mec = abs(_Te_ss) * abs(_wr_ss)
             _P_ele = float(res.get("P_out", _P_mec * 0.9))
             _eta_g = _P_ele / _P_mec * 100 if _P_mec > 1e-3 else 0.0
             _rows_g = [
-                ("Velocidade de regime",        f"{_wr_ss * 60/(2*3.14159):.1f} RPM"),
-                ("Torque de entrada (Te,ss)",   f"{_Te_ss:.3f} N.m"),
-                ("Potencia mecanica de entrada", f"{_P_mec:.2f} W"),
-                ("Potencia eletrica gerada",    f"{_P_ele:.2f} W"),
-                ("Rendimento estimado",         f"{_eta_g:.1f} %"),
+                ("Steady-state speed",          f"{_wr_ss * 60/(2*3.14159):.1f} RPM"),
+                ("Input torque (Te,ss)",         f"{_Te_ss:.3f} N.m"),
+                ("Input mechanical power",       f"{_P_mec:.2f} W"),
+                ("Generated electrical power",   f"{_P_ele:.2f} W"),
+                ("Estimated efficiency",         f"{_eta_g:.1f} %"),
             ]
             _mini_table(pdf, _rows_g, [115, 55])
 
-    # ── Estimacao de Parametros ────────────────────────────────────────────
-    if input_mode and input_mode != "Inserir parâmetros manualmente" and is_main:
+    # ── Parameter Estimation ───────────────────────────────────────────────
+    if input_mode and input_mode != "Enter parameters manually" and is_main:
         _ensure_space(pdf, 60)
-        _sec_bar(pdf, "ESTIMAÇÃO DE PARÂMETROS")
+        _sec_bar(pdf, "PARAMETER ESTIMATION")
         pdf.set_font("Helvetica", "", 9)
         pdf.set_text_color(*_TEXT_MID)
         if "Nameplate" in input_mode:
-            pdf.multi_cell(0, 5, "  Metodo: Nameplate (NEMA MG-1). Parametros estimados por heuristicas a partir da placa de identificacao.")
+            pdf.multi_cell(0, 5, "  Method: Nameplate (NEMA MG-1). Parameters estimated from nameplate data using heuristics.")
         else:
-            pdf.multi_cell(0, 5, "  Metodo: IEEE Std 112-2017 Eq.(38)-(49). Ensaios CC, vazio e rotor bloqueado.")
+            pdf.multi_cell(0, 5, "  Method: IEEE Std 112-2017 Eq.(38)-(49). DC, no-load and locked-rotor tests.")
         pdf.ln(1)
         _rows_e = [
-            ("Resistencia do estator (Rs)",         f"{mp.Rs:.5f} Ohm"),
-            ("Resistencia do rotor (Rr)",           f"{mp.Rr:.5f} Ohm"),
-            ("Reatancia de magnetizacao (Xm)",      f"{mp.Xm:.4f} Ohm"),
-            ("Reatancia de dispersao estator (Xls)", f"{mp.Xls:.5f} Ohm"),
-            ("Reatancia de dispersao rotor (Xlr)",   f"{mp.Xlr:.5f} Ohm"),
-            ("Resistencia de perdas no ferro (Rfe)", f"{mp.Rfe:.1f} Ohm"),
+            ("Stator resistance (Rs)",          f"{mp.Rs:.5f} Ohm"),
+            ("Rotor resistance (Rr)",            f"{mp.Rr:.5f} Ohm"),
+            ("Magnetising reactance (Xm)",       f"{mp.Xm:.4f} Ohm"),
+            ("Stator leakage reactance (Xls)",   f"{mp.Xls:.5f} Ohm"),
+            ("Rotor leakage reactance (Xlr)",    f"{mp.Xlr:.5f} Ohm"),
+            ("Iron-loss resistance (Rfe)",       f"{mp.Rfe:.1f} Ohm"),
         ]
         _mini_table(pdf, _rows_e, [115, 55])
 
-    # ── Curvas Características ────────────────────────────────────────────
+    # ── Characteristic Curves ─────────────────────────────────────────────
     chunks = make_chunks(var_keys, var_labels)
     for pg, (ck, cl) in enumerate(chunks):
         pdf.add_page()
         sfx = f" ({pg+1}/{len(chunks)})" if len(chunks) > 1 else ""
-        _dash_title(pdf, f"CURVAS CARACTERÍSTICAS{sfx}", ", ".join(cl))
+        _dash_title(pdf, f"CHARACTERISTIC CURVES{sfx}", ", ".join(cl))
         curves = build_curves_fig(res, ck, cl, t_events, color_offset=pg * 4)
         embed_fig(pdf, fig_to_png_bytes(curves), width_mm=170)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Tabela comparativa de KPIs — todas as simulações
+# KPI comparison table — all simulations
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _write_kpi_comparison(pdf, current_sim: dict, ref_list: list) -> None:
@@ -419,10 +419,10 @@ def _write_kpi_comparison(pdf, current_sim: dict, ref_list: list) -> None:
         return
 
     pdf.add_page()
-    _banner(pdf, "Histórico Comparativo — KPIs de Todas as Simulações")
-    _sec_bar(pdf, "COMPARAÇÃO DE DESEMPENHO E QUALIDADE DE ENERGIA")
+    _banner(pdf, "Comparative History — KPIs of All Simulations")
+    _sec_bar(pdf, "PERFORMANCE AND POWER QUALITY COMPARISON")
 
-    # Cabeçalho
+    # Header
     col_w = min(170.0 / len(all_sims), 38.0)
     label_w = 170.0 - col_w * len(all_sims)
     label_w = max(label_w, 50.0)
@@ -451,11 +451,11 @@ def _write_kpi_comparison(pdf, current_sim: dict, ref_list: list) -> None:
             return str(v)
 
     kpi_rows = [
-        ("Vel. regime (RPM)",    "n_ss",    ".1f"),
+        ("Speed (RPM)",          "n_ss",    ".1f"),
         ("Torque Te (N.m)",      "Te_ss",   ".2f"),
         ("Ias RMS (A)",          "ias_rms", ".3f"),
-        ("Rendimento (%)",       "eta",     ".2f"),
-        ("Escorregamento (%)",   "_s_pct",  ".3f"),
+        ("Efficiency (%)",       "eta",     ".2f"),
+        ("Slip (%)",             "_s_pct",  ".3f"),
         ("P_in (kW)",            "_pin_kw", ".3f"),
     ]
 
@@ -480,7 +480,7 @@ def _write_kpi_comparison(pdf, current_sim: dict, ref_list: list) -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Interface pública
+# Public interface
 # ─────────────────────────────────────────────────────────────────────────────
 
 def generate_industrial(
@@ -500,10 +500,10 @@ def generate_industrial(
     exp_config: dict | None = None,
     input_mode: str | None = None,
 ) -> bytes:
-    """Gera relatório industrial em PDF e retorna como bytes.
+    """Generates industrial PDF report and returns as bytes.
 
-    Itera sobre simulação atual + todas as referências em ref_list.
-    Inclui tabela comparativa de KPIs ao final.
+    Iterates over current simulation + all references in ref_list.
+    Includes KPI comparison table at the end.
     """
     var_labels = var_labels or var_keys
     t_events   = t_events   or []
@@ -521,21 +521,21 @@ def generate_industrial(
         "res": res, "exp_label": exp_label, "exp_type": exp_type,
     }
 
-    # ── Bloco: simulação atual ────────────────────────────────────────────
-    _banner(pdf, "Simulação Atual")
+    # ── Block: current simulation ─────────────────────────────────────────
+    _banner(pdf, "Current Simulation")
     _write_sim_block(
         pdf, res, mp, exp_label, exp_type, t_events,
         var_keys, var_labels, energy_tariff, tmax_eff, h, insights,
         exp_config=exp_config, input_mode=input_mode, is_main=True,
     )
 
-    # ── Bloco: cada referência salva ─────────────────────────────────────
+    # ── Block: each saved reference ───────────────────────────────────────
     for ref_i, ref in enumerate(ref_list):
         ref_res = ref.get("res")
         if ref_res is None:
             continue
         ref_mp        = ref.get("mp", mp)
-        ref_label     = ref.get("exp_label", f"Referência {ref_i+1}")
+        ref_label     = ref.get("exp_label", f"Reference {ref_i+1}")
         ref_exp_type  = ref.get("exp_type", "dol")
         ref_t_events  = ref.get("t_events", [])
         ref_var_keys  = ref.get("var_keys") or var_keys
@@ -543,14 +543,14 @@ def generate_industrial(
         ref_tariff    = ref.get("energy_tariff", energy_tariff)
         ref_tmax      = ref.get("tmax", tmax_eff)
         ref_h         = ref.get("h", h)
-        _banner(pdf, f"Referência {ref_i+1} — {ref_label}")
+        _banner(pdf, f"Reference {ref_i+1} — {ref_label}")
         _write_sim_block(
             pdf, ref_res, ref_mp, ref_label, ref_exp_type, ref_t_events,
             ref_var_keys, ref_var_labels, ref_tariff, ref_tmax, ref_h,
             insights=None,
         )
 
-    # ── Tabela comparativa de KPIs ────────────────────────────────────────
+    # ── KPI comparison table ──────────────────────────────────────────────
     if ref_list:
         _write_kpi_comparison(pdf, current_sim, ref_list)
 

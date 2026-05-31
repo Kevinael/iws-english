@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-"""Orquestrador principal do Infraestrutura Web de Simulação.
+"""Main orchestrator of the Web Simulation Infrastructure.
 
-Responsabilidades deste arquivo:
-  - Configuração da página Streamlit
-  - Inicialização do session_state
-  - Sidebar / cabeçalho
-  - Instanciação das abas e delegação para ui_components/
+Responsibilities of this file:
+  - Streamlit page configuration
+  - session_state initialization
+  - Sidebar / header
+  - Tab instantiation and delegation to ui_components/
 """
 
 from __future__ import annotations
@@ -36,10 +36,10 @@ from viz.eqcircuit_plotter_dc_v2 import render_circuit_dc_v2 as _render_circuit_
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# CONFIGURAÇÃO DA PÁGINA
+# PAGE CONFIGURATION
 # ─────────────────────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Infraestrutura Web de Simulação",
+    page_title="Web Simulation Infrastructure",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
@@ -85,7 +85,7 @@ def main() -> None:
         if k not in st.session_state:
             st.session_state[k] = v
 
-    # Reset ao trocar máquina
+    # Reset when switching machine
     _prev_machine = st.session_state.get("_prev_machine")
     _cur_machine  = st.session_state.get("selected_machine")
     if _prev_machine is not None and _prev_machine != _cur_machine:
@@ -93,8 +93,8 @@ def main() -> None:
         st.session_state["ref_list"]   = []
     st.session_state["_prev_machine"] = _cur_machine
 
-    # Carrega o preset Krause automaticamente na primeira execução da sessão
-    _KRAUSE_KEY = "Padrão — Krause 3 HP (2.2 kW / 12 N·m) 220 V/60 Hz"
+    # Loads Krause preset automatically on first session run
+    _KRAUSE_KEY = "Default — Krause 3 HP (2.2 kW / 12 N·m) 220 V/60 Hz"
     if "_preset_loaded" not in st.session_state:
         st.session_state["_preset_loaded"] = True
         _pdata = _PRESETS.get(_KRAUSE_KEY, {})
@@ -109,7 +109,7 @@ def main() -> None:
             if field in _pdata:
                 st.session_state[widget_key] = _pdata[field]
 
-    # responsividade via CSS puro — sem JS de viewport
+    # responsiveness via pure CSS — no viewport JS
     is_mobile = False
 
     dark = st.session_state.get("dark_mode", False)
@@ -117,12 +117,12 @@ def main() -> None:
 
     st.markdown(
         '<div class="app-header">'
-        '<div class="app-title">Infraestrutura Web de Simulação</div>'
+        '<div class="app-title">Web Simulation Infrastructure</div>'
         '</div>',
         unsafe_allow_html=True,
     )
 
-    # detecta máquina via query param (antes de verificar selected_machine)
+    # detect machine via query param (before checking selected_machine)
     if "machine" in st.query_params and not st.session_state["selected_machine"]:
         st.session_state["selected_machine"] = st.query_params["machine"]
 
@@ -132,7 +132,7 @@ def main() -> None:
 
     col_back, col_title = st.columns([1, 9], vertical_alignment="center")
     with col_back:
-        if st.button("Voltar", key="btn_back"):
+        if st.button("Back", key="btn_back"):
             st.session_state["selected_machine"] = None
             st.session_state["sim_result"]        = None
             st.rerun()
@@ -147,41 +147,41 @@ def main() -> None:
 
     selected_machine = st.session_state.get("selected_machine", "mit")
     if selected_machine == "dc":
-        tab_sim, tab_teoria_dc = st.tabs(["Simulação", "Teoria MCC"])
+        tab_sim, tab_teoria_dc = st.tabs(["Simulation", "DC Machine Theory"])
     else:
-        tab_sim, tab_teoria, tab_clean = st.tabs(["Simulação", "Teoria", "Visualização para Artigo"])
+        tab_sim, tab_teoria, tab_clean = st.tabs(["Simulation", "Theory", "Article Visualization"])
 
-    # ── ABA SIMULAÇÃO ─────────────────────────────────────────────────────
+    # ── SIMULATION TAB ────────────────────────────────────────────────────
     with tab_sim:
-        # controles globais — agrupados à esquerda; última coluna absorve o espaço restante
+        # global controls — grouped on the left; last column absorbs remaining space
         ct1, ct2, ct3, _ = st.columns([1.2, 1.8, 1.2, 6])
         with ct1:
-            st.toggle("Modo Escuro", value=dark, key="dark_mode")
+            st.toggle("Dark Mode", value=dark, key="dark_mode")
         with ct2:
-            st.toggle("Travar Parâmetros", value=False, key="experiment_mode",
-                      help="Quando ativado, desabilita os campos de parâmetros do motor (Rs, Rr, Xm, Xls, Xlr, p, J, B). Útil para comparar resultados variando apenas o experimento (carga, tensão, falha) sem alterar a máquina.")
+            st.toggle("Lock Parameters", value=False, key="experiment_mode",
+                      help="When enabled, disables the motor parameter fields (Rs, Rr, Xm, Xls, Xlr, p, J, B). Useful for comparing results by varying only the experiment (load, voltage, fault) without changing the machine.")
         with ct3:
-            st.number_input("Casas decimais", min_value=0, max_value=6, value=3, step=1, key="decimals")
+            st.number_input("Decimal places", min_value=0, max_value=6, value=3, step=1, key="decimals")
 
         experiment_mode = st.session_state.get("experiment_mode", False)
         dec = int(st.session_state.get("decimals", 3))
 
         if selected_machine == "dc":
-            # ── BRANCH MCC ────────────────────────────────────────────────
+            # ── DC BRANCH ─────────────────────────────────────────────────
             col_params, col_circuit = st.columns([1, 1], gap="large")
 
             with col_params:
                 mp_dc, ref_code_dc, energy_tariff_dc = render_dc_machine_params(dark, experiment_mode)
 
             with col_circuit:
-                st.markdown('<p class="slabel">Circuito Equivalente</p>', unsafe_allow_html=True)
+                st.markdown('<p class="slabel">Equivalent Circuit</p>', unsafe_allow_html=True)
                 _render_circuit_dc_v2(mp_dc, dark)
                 st.write("")
                 exp_config_dc, var_keys_dc, var_labels_dc, tmax_dc, h_dc = \
                     render_experiment_config_dc(mp_dc)
 
             st.write("")
-            run_clicked_dc = st.button("Executar Simulação", key="btn_run_dc", width="stretch")
+            run_clicked_dc = st.button("Run Simulation", key="btn_run_dc", width="stretch")
 
             _can_save_dc = (
                 st.session_state["sim_result"] is not None
@@ -189,14 +189,14 @@ def main() -> None:
             )
             dc1, dc2 = st.columns(2)
             with dc1:
-                save_ref_dc = st.button("Salvar como Referência", key="btn_save_ref_dc",
+                save_ref_dc = st.button("Save as Reference", key="btn_save_ref_dc",
                                         width="stretch", disabled=not _can_save_dc,
-                                        help="Salva o resultado atual para comparação (máx. 5)")
+                                        help="Saves the current result for comparison (max. 5)")
             with dc2:
-                clear_ref_dc = st.button("Limpar Referências", key="btn_clear_ref_dc",
+                clear_ref_dc = st.button("Clear References", key="btn_clear_ref_dc",
                                           width="stretch",
                                           disabled=not st.session_state["ref_list"],
-                                          help="Remove todas as referências salvas")
+                                          help="Removes all saved references")
 
             if save_ref_dc and _can_save_dc:
                 new_ref_dc = dict(st.session_state["sim_result"])
@@ -245,32 +245,32 @@ def main() -> None:
             else:
                 with st.container(border=True):
                     st.markdown(
-                        "### Nenhuma simulação MCC executada ainda\n\n"
-                        "Configure os parâmetros da máquina e do experimento acima, "
-                        "depois clique em **Executar Simulação** para visualizar:\n\n"
-                        "- Formas de onda de $i_a$, $\\omega_m$, $T_e$ no transitório\n"
-                        "- Métricas de regime permanente (velocidade, torque, corrente)\n"
-                        "- Diagnóstico de comutação e análise de perdas"
+                        "### No DC machine simulation has been run yet\n\n"
+                        "Configure the machine and experiment parameters above, "
+                        "then click **Run Simulation** to visualise:\n\n"
+                        "- Transient waveforms of $i_a$, $\\omega_m$, $T_e$\n"
+                        "- Steady-state metrics (speed, torque, current)\n"
+                        "- Commutation diagnostics and loss analysis"
                     )
 
         else:
-            # ── BRANCH MIT ────────────────────────────────────────────────
-            # parâmetros + circuito
+            # ── MIT BRANCH ────────────────────────────────────────────────
+            # parameters + circuit
             col_params, col_circuit = st.columns([1, 1], gap="large")
 
             with col_params:
                 mp, ref_code, energy_tariff = render_machine_params(dark, experiment_mode, _WK)
 
             with col_circuit:
-                st.markdown('<p class="slabel">Circuito Equivalente Monofásico</p>', unsafe_allow_html=True)
+                st.markdown('<p class="slabel">Single-Phase Equivalent Circuit</p>', unsafe_allow_html=True)
                 _render_circuit(mp, dark)
                 st.write("")
                 exp_config, var_keys, var_labels, tmax, h = render_experiment_config(mp, _WK)
 
-            # ── CTA principal ─────────────────────────────────────────────
+            # ── main CTA ──────────────────────────────────────────────────
             st.write("")
             run_clicked = st.button(
-                "Executar Simulação", key="btn_run",
+                "Run Simulation", key="btn_run",
                 width="stretch",
             )
 
@@ -281,17 +281,17 @@ def main() -> None:
             ba1, ba2 = st.columns(2)
             with ba1:
                 save_ref = st.button(
-                    "Salvar como Referência", key="btn_save_ref",
+                    "Save as Reference", key="btn_save_ref",
                     width="stretch",
                     disabled=not _can_save,
-                    help="Salva o resultado atual para comparação (máx. 5)",
+                    help="Saves the current result for comparison (max. 5)",
                 )
             with ba2:
                 clear_ref = st.button(
-                    "Limpar Referências", key="btn_clear_ref",
+                    "Clear References", key="btn_clear_ref",
                     width="stretch",
                     disabled=not st.session_state["ref_list"],
-                    help="Remove todas as referências salvas",
+                    help="Removes all saved references",
                 )
 
             if save_ref and _can_save:
@@ -341,26 +341,26 @@ def main() -> None:
             else:
                 with st.container(border=True):
                     st.markdown(
-                        "### Nenhuma simulação executada ainda\n\n"
-                        "Configure os parâmetros do motor e do experimento acima, "
-                        "depois clique em **Executar Simulação** para visualizar:\n\n"
-                        "- Formas de onda de corrente, torque e velocidade no transitório\n"
-                        "- Métricas de regime permanente (velocidade final, escorregamento, rendimento)\n"
-                        "- Análise harmônica (FFT) e diagnóstico\n"
-                        "- Indicadores de eficiência energética e custo operacional"
+                        "### No simulation has been run yet\n\n"
+                        "Configure the motor and experiment parameters above, "
+                        "then click **Run Simulation** to visualise:\n\n"
+                        "- Transient waveforms of current, torque and speed\n"
+                        "- Steady-state metrics (final speed, slip, efficiency)\n"
+                        "- Harmonic analysis (FFT) and diagnostics\n"
+                        "- Energy efficiency indicators and operational cost"
                     )
 
     if selected_machine == "dc":
-        # ── ABA TEORIA MCC ────────────────────────────────────────────────
+        # ── DC THEORY TAB ─────────────────────────────────────────────────
         with tab_teoria_dc:
             from ui.theory_dc import render_theory_dc_tab
             render_theory_dc_tab()
     else:
-        # ── ABA TEORIA ────────────────────────────────────────────────────
+        # ── THEORY TAB ────────────────────────────────────────────────────
         with tab_teoria:
             render_theory_tab()
 
-        # ── ABA VISUALIZAÇÃO PARA ARTIGO ──────────────────────────────────
+        # ── ARTICLE VISUALIZATION TAB ─────────────────────────────────────
         with tab_clean:
             render_clean_view()
 

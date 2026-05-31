@@ -12,7 +12,7 @@ _LATEX_RE = re.compile(r'\$([^$]+)\$')
 
 
 def _strip_latex(s: str) -> str:
-    """Converte notação LaTeX $...$ para texto simples (uso em labels do Plotly)."""
+    """Converts LaTeX $...$ notation to plain text (used in Plotly labels)."""
     def _convert(m: re.Match) -> str:
         inner = m.group(1)
         for cmd, uni in _GREEK.items():

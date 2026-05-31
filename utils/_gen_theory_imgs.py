@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-"""Gera os PNG usados na aba Teoria do simulador.
-Executa sem dependências do Streamlit — pode ser rodado diretamente.
+"""Generates the PNG images used in the simulator's Theory tab.
+Runs without Streamlit dependencies — can be executed directly.
 """
 
 import os
@@ -14,10 +14,10 @@ import matplotlib.pyplot as plt
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "imgs")
 
 # ─────────────────────────────────────────────────────────────────────────────
-# CIRCUITOS EQUIVALENTES
+# EQUIVALENT CIRCUITS
 # ─────────────────────────────────────────────────────────────────────────────
 
-# ── Circuito Completo ──────────────────────────────────────────────────────
+# ── Full Circuit ───────────────────────────────────────────────────────────
 with schemdraw.Drawing() as d:
     d.config(unit=2)
     d.push()
@@ -59,7 +59,7 @@ with schemdraw.Drawing() as d:
     d.save(os.path.join(OUT, 'ind_completo.png'), dpi=150)
 print("ind_completo.png OK")
 
-# ── Circuito IEEE ──────────────────────────────────────────────────────────
+# ── IEEE Circuit ──────────────────────────────────────────────────────────
 with schemdraw.Drawing() as d:
     d.config(unit=2)
     d.push()
@@ -91,7 +91,7 @@ with schemdraw.Drawing() as d:
     d.save(os.path.join(OUT, 'ind_ieee.png'), dpi=150)
 print("ind_ieee.png OK")
 
-# ── Circuito Thevenin ──────────────────────────────────────────────────────
+# ── Thevenin Circuit ──────────────────────────────────────────────────────
 with schemdraw.Drawing() as d:
     d.config(unit=2)
     d.push()
@@ -116,7 +116,7 @@ with schemdraw.Drawing() as d:
     d.save(os.path.join(OUT, 'ind_thevenin.png'), dpi=150)
 print("ind_thevenin.png OK")
 
-# ── Circuito IEEE duplo ────────────────────────────────────────────────────
+# ── Double IEEE Circuit ───────────────────────────────────────────────────
 with schemdraw.Drawing() as d:
     d.config(unit=2)
     d.push()
@@ -161,7 +161,7 @@ with schemdraw.Drawing() as d:
 print("ind_ieee_duplo.png OK")
 
 # ─────────────────────────────────────────────────────────────────────────────
-# FLUXO DE POTÊNCIA
+# POWER FLOW
 # ─────────────────────────────────────────────────────────────────────────────
 
 # ── Motor ──────────────────────────────────────────────────────────────────
@@ -207,7 +207,7 @@ with schemdraw.Drawing() as d:
     d.save(os.path.join(OUT, 'fluxo_P_motor.png'), dpi=150)
 print("fluxo_P_motor.png OK")
 
-# ── Gerador ────────────────────────────────────────────────────────────────
+# ── Generator ─────────────────────────────────────────────────────────────
 with schemdraw.Drawing() as d:
     d.config(unit=2)
     d.push()
@@ -250,7 +250,7 @@ with schemdraw.Drawing() as d:
     d.save(os.path.join(OUT, 'fluxo_P_gerador.png'), dpi=150)
 print("fluxo_P_gerador.png OK")
 
-# ── Frenagem ───────────────────────────────────────────────────────────────
+# ── Braking ───────────────────────────────────────────────────────────────
 with schemdraw.Drawing() as d:
     d.config(unit=2)
     d.push()
@@ -296,7 +296,7 @@ with schemdraw.Drawing() as d:
 print("fluxo_P_frenagem.png OK")
 
 # ─────────────────────────────────────────────────────────────────────────────
-# CURVAS TORQUE × ESCORREGAMENTO
+# TORQUE × SLIP CURVES
 # ─────────────────────────────────────────────────────────────────────────────
 
 V1 = 220; f = 60; p = 4
@@ -317,7 +317,7 @@ def _torque(s, V1, R1, X1, R2, X2, Xm, ns):
     return P2 / (2 * np.pi * ns / 60)
 
 
-# ── Curva completa T×s (preto e branco) ──────────────────────────────────
+# ── Full T×s curve (black and white) ────────────────────────────────────
 s_all  = np.linspace(-2, 2, 2000)
 s_all  = s_all[s_all != 0]
 T_all  = [_torque(s, V1, R1, X1, R2, X2, Xm, ns) for s in s_all]
@@ -328,15 +328,15 @@ ax1.plot(n_all, T_all, 'k-', linewidth=2.5)
 ax1.axhline(0, color='k', linewidth=0.8)
 ax1.axvline(ns, color='k', linestyle='--', linewidth=1, alpha=0.5)
 ax1.axvline(0,  color='k', linestyle='--', linewidth=1, alpha=0.5)
-ax1.text(-ns / 2,  min(T_all) * 0.6, 'REGIÃO 1', fontsize=12, fontweight='bold',
+ax1.text(-ns / 2,  min(T_all) * 0.6, 'REGION 1', fontsize=12, fontweight='bold',
          ha='center', alpha=0.35, rotation=90)
-ax1.text(ns / 2,   min(T_all) * 0.6, 'REGIÃO 2', fontsize=12, fontweight='bold',
+ax1.text(ns / 2,   min(T_all) * 0.6, 'REGION 2', fontsize=12, fontweight='bold',
          ha='center', alpha=0.35, rotation=90)
-ax1.text(ns * 2,   max(T_all) * 0.4, 'REGIÃO 3', fontsize=12, fontweight='bold',
+ax1.text(ns * 2,   max(T_all) * 0.4, 'REGION 3', fontsize=12, fontweight='bold',
          ha='center', alpha=0.35, rotation=90)
-ax1.set_xlabel('Velocidade (rpm)', fontsize=12, fontweight='bold')
-ax1.set_ylabel('Torque (N·m)',     fontsize=12, fontweight='bold')
-ax1.set_title('Curva Característica — Máquina de Indução\nTorque × Velocidade / Escorregamento',
+ax1.set_xlabel('Speed (rpm)', fontsize=12, fontweight='bold')
+ax1.set_ylabel('Torque (N·m)', fontsize=12, fontweight='bold')
+ax1.set_title('Characteristic Curve — Induction Machine\nTorque × Speed / Slip',
               fontsize=13, fontweight='bold')
 ax1.grid(True, alpha=0.3, linestyle='--')
 ax1.set_xlim(-ns, ns * 3)
@@ -346,14 +346,14 @@ ax2.set_xlim(ax1.get_xlim())
 s_ticks = np.array([2, 1.5, 1, 0.5, 0, -0.5, -1])
 ax2.set_xticks(ns * (1 - s_ticks))
 ax2.set_xticklabels([f'{s:.1f}' for s in s_ticks])
-ax2.set_xlabel('Escorregamento (s)', fontsize=12, fontweight='bold')
+ax2.set_xlabel('Slip (s)', fontsize=12, fontweight='bold')
 
 plt.tight_layout()
 plt.savefig(os.path.join(OUT, 'T_x_s.png'), dpi=150)
 plt.close()
 print("T_x_s.png OK")
 
-# ── Efeito de R2 ──────────────────────────────────────────────────────────
+# ── Effect of R2 ──────────────────────────────────────────────────────────
 R2_vals  = [0.2, 0.4, 0.6, 0.8, 1.0, 1.5]
 estilos  = ['-', '--', '-.', ':', (0, (3, 1, 1, 1)), (0, (5, 1))]
 marcad   = ['o', 's', 'D', '^', 'v', '>']
@@ -374,9 +374,9 @@ for i, r2 in enumerate(R2_vals):
 
 ax1.axhline(0,  color='k', linewidth=1.0)
 ax1.axvline(ns, color='k', linestyle='--', linewidth=1.5, alpha=0.8, label='$n_s$')
-ax1.set_xlabel('Velocidade (rpm)', fontsize=12, fontweight='bold')
-ax1.set_ylabel('Torque (N·m)',     fontsize=12, fontweight='bold')
-ax1.set_title("Curvas T×n — Variação de $R'_2$\n(Região de operação como motor)",
+ax1.set_xlabel('Speed (rpm)', fontsize=12, fontweight='bold')
+ax1.set_ylabel('Torque (N·m)', fontsize=12, fontweight='bold')
+ax1.set_title("T×n Curves — R'₂ Variation\n(Motor operating region)",
               fontsize=13, fontweight='bold')
 ax1.grid(True, alpha=0.3, linestyle=':')
 ax1.legend(fontsize=9, framealpha=1, edgecolor='black')
@@ -388,14 +388,14 @@ ax2.set_xlim(ax1.get_xlim())
 s_t = np.array([1.0, 0.8, 0.6, 0.4, 0.2, 0.0])
 ax2.set_xticks(ns * (1 - s_t))
 ax2.set_xticklabels([f'{s:.1f}' for s in s_t])
-ax2.set_xlabel('Escorregamento (s)', fontsize=12, fontweight='bold')
+ax2.set_xlabel('Slip (s)', fontsize=12, fontweight='bold')
 
 plt.tight_layout()
 plt.savefig(os.path.join(OUT, 'TR2.png'), dpi=150)
 plt.close()
 print("TR2.png OK")
 
-# ── Gaiola dupla ─────────────────────────────────────────────────────────
+# ── Double cage ──────────────────────────────────────────────────────────
 R2o, X2o = 4.0, 1.5   # externa
 R2i, X2i = 0.5, 4.5   # interna
 
@@ -418,14 +418,14 @@ for s in s_motor:
 
 nv = ns * (1 - s_motor)
 fig, ax1 = plt.subplots(figsize=(7, 5))
-ax1.plot(nv, Tt, 'k-',  linewidth=3,   label='Torque Total (Gaiola Dupla)')
-ax1.plot(nv, To, 'k--', linewidth=2,   label='Gaiola Externa')
-ax1.plot(nv, Ti, 'k:',  linewidth=2,   label='Gaiola Interna')
+ax1.plot(nv, Tt, 'k-',  linewidth=3,   label='Total Torque (Double Squirrel-Cage)')
+ax1.plot(nv, To, 'k--', linewidth=2,   label='Outer Cage')
+ax1.plot(nv, Ti, 'k:',  linewidth=2,   label='Inner Cage')
 ax1.axhline(0,  color='k', linewidth=1)
 ax1.axvline(ns, color='k', linestyle='--', linewidth=1.5, alpha=0.8)
-ax1.set_xlabel('Velocidade (rpm)', fontsize=13, fontweight='bold')
-ax1.set_ylabel('Torque (N·m)',     fontsize=13, fontweight='bold')
-ax1.set_title('Motor com Gaiola de Esquilo Dupla\nComposição do Torque por Gaiola',
+ax1.set_xlabel('Speed (rpm)', fontsize=13, fontweight='bold')
+ax1.set_ylabel('Torque (N·m)', fontsize=13, fontweight='bold')
+ax1.set_title('Double Squirrel-Cage Motor\nTorque Contribution per Cage',
               fontsize=12, fontweight='bold')
 ax1.grid(True, alpha=0.3, linestyle=':')
 ax1.legend(fontsize=11, framealpha=1, edgecolor='black')
@@ -436,11 +436,11 @@ ax2 = ax1.twiny()
 ax2.set_xlim(ax1.get_xlim())
 ax2.set_xticks(ns * (1 - s_t))
 ax2.set_xticklabels([f'{s:.1f}' for s in s_t])
-ax2.set_xlabel('Escorregamento (s)', fontsize=10, fontweight='bold')
+ax2.set_xlabel('Slip (s)', fontsize=10, fontweight='bold')
 
 plt.tight_layout()
 plt.savefig(os.path.join(OUT, 'SCdupla.png'), dpi=150)
 plt.close()
 print("SCdupla.png OK")
 
-print("\nTodos os PNGs gerados com sucesso.")
+print("\nAll PNGs generated successfully.")

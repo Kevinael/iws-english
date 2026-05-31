@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-curva_tn.py — Curva T×n e Fluxo de Potência (MIT)
+curva_tn.py — T×n Curve and Power Flow (MIT)
 
-Modelo: circuito equivalente completo com impedância complexa.
-Cobre as 3 regiões: motor (0<s≤1), gerador (s<0), frenagem (s>1).
+Model: full equivalent circuit with complex impedance.
+Covers all 3 regions: motor (0<s≤1), generator (s<0), braking (s>1).
 """
 from __future__ import annotations
 import numpy as np
@@ -12,21 +12,21 @@ import streamlit as st
 from viz.plotly_charts import _plot_theme
 
 
-# ── Mapeamento dos parâmetros da máquina para o circuito ─────────────────────
-#   V1     = mp.Vl                 tensão de fase RMS (simulação aplica Va_rms = Vl por enrolamento)
-#   R1     = mp.Rs                resistência do estator
-#   X1     = mp.Xls_a             reatância de dispersão do estator (wb·Lls)
-#   R2     = mp.Rr                resistência do rotor referida ao estator
-#   X2     = mp.Xlr_a             reatância de dispersão do rotor (wb·Llr)
-#   Xm     = mp.wb * mp.Lm        reatância de magnetização na frequência de operação
-#   ws_mec = mp.wb * 2 / mp.p    velocidade síncrona mecânica (rad/s)
+# ── Machine parameter mapping to circuit ─────────────────────────────────────
+#   V1     = mp.Vl                 phase RMS voltage (simulation applies Va_rms = Vl per winding)
+#   R1     = mp.Rs                stator resistance
+#   X1     = mp.Xls_a             stator leakage reactance (wb·Lls)
+#   R2     = mp.Rr                rotor resistance referred to stator
+#   X2     = mp.Xlr_a             rotor leakage reactance (wb·Llr)
+#   Xm     = mp.wb * mp.Lm        magnetising reactance at operating frequency
+#   ws_mec = mp.wb * 2 / mp.p    synchronous mechanical speed (rad/s)
 
 
 def _extract_params(mp):
-    """Extrai os parâmetros do circuito a partir de MachineParams.
+    """Extracts circuit parameters from MachineParams.
 
-    V1 = mp.Vl: tensão de fase RMS aplicada por enrolamento (igual à simulação,
-    que aplica Va = sqrt(2)*Vl*sin(θ) → Va_rms = Vl por fase).
+    V1 = mp.Vl: phase RMS voltage applied per winding (consistent with simulation,
+    which applies Va = sqrt(2)*Vl*sin(θ) → Va_rms = Vl per phase).
     """
     V1     = mp.Vl
     R1     = mp.Rs
@@ -40,8 +40,8 @@ def _extract_params(mp):
 
 
 def _torque_array(s_arr: np.ndarray, V1, R1, X1, R2, X2, Xm, ws_mec) -> np.ndarray:
-    """Calcula torque eletromagnético para um array de escorregamentos (vetorizado)."""
-    # substitui s=0 por valor pequeno para evitar divisão por zero
+    """Computes electromagnetic torque for an array of slip values (vectorised)."""
+    # replaces s=0 with a small value to avoid division by zero
     s = np.where(s_arr == 0.0, 1e-9, s_arr)
 
     Z2  = (R2 / s) + 1j * X2
@@ -55,23 +55,23 @@ def _torque_array(s_arr: np.ndarray, V1, R1, X1, R2, X2, Xm, ws_mec) -> np.ndarr
 
 
 def calc_curva_tn(mp, n_points: int = 600) -> dict:
-    """Calcula a curva T×n pelo circuito equivalente completo.
+    """Computes the T×n curve via the full equivalent circuit.
 
-    Cobre as 3 regiões: gerador (s<0), motor (0<s≤1) e frenagem (s>1).
-    Retorna dict com arrays e escalares de interesse.
+    Covers all 3 regions: generator (s<0), motor (0<s≤1) and braking (s>1).
+    Returns dict with arrays and scalars of interest.
     """
     V1, R1, X1, R2, X2, Xm, ws_mec, ns = _extract_params(mp)
 
-    # ── varredura de escorregamento cobrindo as 3 regiões ────────────────────
-    s_neg  = np.linspace(-1.0, -1e-4, n_points // 4)          # gerador
+    # ── slip sweep covering all 3 regions ────────────────────────────────────
+    s_neg  = np.linspace(-1.0, -1e-4, n_points // 4)          # generator
     s_pos1 = np.linspace(1e-4,  1.0,  n_points // 2)          # motor
-    s_pos2 = np.linspace(1.001, 2.0,  n_points // 4)          # frenagem
+    s_pos2 = np.linspace(1.001, 2.0,  n_points // 4)          # braking
     s_all  = np.concatenate([s_neg, s_pos1, s_pos2])
 
     Te_all = _torque_array(s_all, V1, R1, X1, R2, X2, Xm, ws_mec)
     n_rpm  = ns * (1.0 - s_all)
 
-    # ── pico de torque na região de motor ────────────────────────────────────
+    # ── peak torque in motor region ───────────────────────────────────────────
     mask_motor = (s_all > 0) & (s_all <= 1.0)
     Te_motor   = Te_all[mask_motor]
     s_motor    = s_all[mask_motor]
@@ -80,7 +80,7 @@ def calc_curva_tn(mp, n_points: int = 600) -> dict:
     s_max      = float(s_motor[idx_max])
     n_max      = float(ns * (1.0 - s_max))
 
-    # ── torque de partida (s = 1) ─────────────────────────────────────────────
+    # ── starting torque (s = 1) ───────────────────────────────────────────────
     Te_part = float(_torque_array(np.array([1.0]), V1, R1, X1, R2, X2, Xm, ws_mec)[0])
 
     return {
@@ -96,10 +96,10 @@ def calc_curva_tn(mp, n_points: int = 600) -> dict:
 
 
 def calc_fluxo_potencia(s: float, mp) -> dict:
-    """Calcula o fluxo de potência no ponto de operação.
+    """Computes the power flow at the operating point.
 
-    Parâmetros extraídos de mp (parâmetros do usuário).
-    Retorna P_in, P_cu1, P_ag, P_cu2, P_mec, P_out, eta, I1_rms, I2_rms, region.
+    Parameters extracted from mp (user parameters).
+    Returns P_in, P_cu1, P_ag, P_cu2, P_mec, P_out, eta, I1_rms, I2_rms, region.
     """
     V1, R1, X1, R2, X2, Xm, ws_mec, ns = _extract_params(mp)
 
@@ -118,14 +118,14 @@ def calc_fluxo_potencia(s: float, mp) -> dict:
     P_ag  = 3.0 * abs(I2) ** 2 * (R2 / s)    # = P_in - P_cu1
     P_cu2 = s * P_ag
     P_mec = (1.0 - s) * P_ag
-    P_out = P_mec                              # sem perdas rotacionais modeladas
+    P_out = P_mec                              # no rotational losses modelled
 
     eta = (P_out / P_in * 100.0) if P_in != 0 else 0.0
 
     if s < 0:
-        region = "Gerador"
+        region = "Generator"
     elif s > 1:
-        region = "Frenagem"
+        region = "Braking"
     else:
         region = "Motor"
 
@@ -146,11 +146,11 @@ def calc_fluxo_potencia(s: float, mp) -> dict:
 
 def build_fig_tn(tn: dict, dark: bool,
                  Te_op: float | None = None, n_op: float | None = None) -> go.Figure:
-    """Plota a curva T×n com as 3 regiões de operação."""
+    """Plots the T×n curve with all 3 operating regions."""
     pt  = _plot_theme(dark)
     ns  = tn["n_sinc"]
 
-    # cores por região
+    # region colours
     col_motor   = "#4f8ef7" if dark else "#1d4ed8"
     col_gen     = "#34d399" if dark else "#059669"
     col_brake   = "#f87171" if dark else "#dc2626"
@@ -167,11 +167,11 @@ def build_fig_tn(tn: dict, dark: bool,
 
     fig = go.Figure()
 
-    # ── regiões ──────────────────────────────────────────────────────────────
+    # ── regions ──────────────────────────────────────────────────────────────
     for mask, col, name in [
         (mask_motor, col_motor, "Motor (0 < s ≤ 1)"),
-        (mask_gen,   col_gen,   "Gerador (s < 0)"),
-        (mask_brake, col_brake, "Frenagem (s > 1)"),
+        (mask_gen,   col_gen,   "Generator (s < 0)"),
+        (mask_brake, col_brake, "Braking (s > 1)"),
     ]:
         if mask.any():
             fig.add_trace(go.Scatter(
@@ -181,7 +181,7 @@ def build_fig_tn(tn: dict, dark: bool,
                 hovertemplate="n = %{x:.1f} %ns<br>Te = %{y:.2f} N·m<extra>" + name + "</extra>",
             ))
 
-    # ── ponto de pico (pull-out) ──────────────────────────────────────────────
+    # ── pull-out (peak) point ─────────────────────────────────────────────────
     fig.add_trace(go.Scatter(
         x=[n_max_pct], y=[tn["Te_max"]],
         mode="markers+text", name="Te,max (pull-out)",
@@ -192,36 +192,36 @@ def build_fig_tn(tn: dict, dark: bool,
         hovertemplate=f"n = {n_max_pct:.1f} %ns<br>Te,max = {tn['Te_max']:.2f} N·m<extra>Pull-out</extra>",
     ))
 
-    # ── ponto de partida (s=1) ────────────────────────────────────────────────
+    # ── starting point (s=1) ─────────────────────────────────────────────────
     fig.add_trace(go.Scatter(
         x=[0.0], y=[tn["Te_part"]],
-        mode="markers+text", name="Te,partida (s=1)",
+        mode="markers+text", name="Te,start (s=1)",
         marker=dict(color=col_motor, size=7, symbol="circle-open"),
-        text=[f"Te,p = {tn['Te_part']:.1f} N·m"],
+        text=[f"Te,s = {tn['Te_part']:.1f} N·m"],
         textposition="top right",
         textfont=dict(color=pt["fg"], size=10),
-        hovertemplate=f"Te,partida = {tn['Te_part']:.2f} N·m<extra>Partida</extra>",
+        hovertemplate=f"Te,start = {tn['Te_part']:.2f} N·m<extra>Starting</extra>",
     ))
 
-    # ── ponto de operação da simulação ────────────────────────────────────────
+    # ── simulation operating point ────────────────────────────────────────────
     if Te_op is not None and n_op is not None:
         fig.add_trace(go.Scatter(
             x=[n_op / ns * 100.0], y=[Te_op],
-            mode="markers", name="Ponto de operação",
+            mode="markers", name="Operating Point",
             marker=dict(color=col_op, size=10, symbol="diamond"),
-            hovertemplate=f"n = {n_op:.1f} rpm<br>Te = {Te_op:.2f} N·m<extra>Operação</extra>",
+            hovertemplate=f"n = {n_op:.1f} rpm<br>Te = {Te_op:.2f} N·m<extra>Operating</extra>",
         ))
 
-    # ── linha da velocidade síncrona ──────────────────────────────────────────
+    # ── synchronous speed line ────────────────────────────────────────────────
     fig.add_vline(x=100.0, line_dash="dash", line_color=pt["grid"], line_width=1,
                   annotation_text="ns", annotation_font_color=pt["fg"],
                   annotation_position="top right")
 
-    # ── anotações de região ───────────────────────────────────────────────────
+    # ── region annotations ────────────────────────────────────────────────────
     for txt, xref, col in [
-        ("Motor",   50.0, col_motor),
-        ("Gerador", 115.0, col_gen),
-        ("Frenagem", -50.0, col_brake),
+        ("Motor",     50.0, col_motor),
+        ("Generator", 115.0, col_gen),
+        ("Braking",   -50.0, col_brake),
     ]:
         fig.add_annotation(x=xref, y=tn["Te_max"] * 0.15,
                            text=txt, showarrow=False,
@@ -230,7 +230,7 @@ def build_fig_tn(tn: dict, dark: bool,
 
     fig.update_layout(
         height=420,
-        title=dict(text="Curva Característica T×n — Três Regiões de Operação",
+        title=dict(text="Characteristic T×n Curve — Three Operating Regions",
                    x=0.5, xanchor="center", font=dict(size=13, color=pt["fg"])),
         paper_bgcolor=pt["paper_bg"], plot_bgcolor=pt["plot_bg"],
         font=dict(family="Inter, system-ui", size=11, color=pt["fg"]),
@@ -238,12 +238,12 @@ def build_fig_tn(tn: dict, dark: bool,
         hovermode="closest",
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1,
                     font=dict(size=10), bgcolor="rgba(0,0,0,0)"),
-        xaxis=dict(title="Velocidade (% da velocidade síncrona)",
+        xaxis=dict(title="Speed (% of synchronous speed)",
                    showgrid=True, gridcolor=pt["grid"], gridwidth=0.4,
                    zeroline=True, zerolinecolor=pt["grid"],
                    tickfont=dict(size=10, color=pt["fg"]),
                    ticksuffix=" %"),
-        yaxis=dict(title="Torque eletromagnético Te (N·m)",
+        yaxis=dict(title="Electromagnetic Torque Te (N·m)",
                    showgrid=True, gridcolor=pt["grid"], gridwidth=0.4,
                    tickfont=dict(size=10, color=pt["fg"]),
                    autorange=True),
@@ -252,11 +252,11 @@ def build_fig_tn(tn: dict, dark: bool,
 
 
 def build_fig_fluxo_potencia(fp: dict, dark: bool) -> go.Figure:
-    """Gráfico de barras horizontais mostrando o fluxo de potência."""
+    """Horizontal bar chart showing the power flow."""
     pt = _plot_theme(dark)
 
-    labels = ["P_in", "P_cu1 (cobre\nestator)", "P_ag\n(entreferro)",
-              "P_cu2 (cobre\nrotor)", "P_mec\n(mecânica)", "P_out\n(saída)"]
+    labels = ["P_in", "P_cu1 (stator\ncopper)", "P_ag\n(air gap)",
+              "P_cu2 (rotor\ncopper)", "P_mec\n(mechanical)", "P_out\n(output)"]
     values = [fp["P_in"], fp["P_cu1"], fp["P_ag"], fp["P_cu2"], fp["P_mec"], fp["P_out"]]
     colors = ["#94a3b8", "#f87171", "#4f8ef7", "#f87171", "#34d399", "#059669"]
     if not dark:
@@ -281,13 +281,13 @@ def build_fig_fluxo_potencia(fp: dict, dark: bool) -> go.Figure:
     fig.update_layout(
         height=320,
         title=dict(
-            text=f"Fluxo de Potência no Ponto de Operação — {region_str} | {eta_str}",
+            text=f"Power Flow at Operating Point — {region_str} | {eta_str}",
             x=0.5, xanchor="center", font=dict(size=12, color=pt["fg"])
         ),
         paper_bgcolor=pt["paper_bg"], plot_bgcolor=pt["plot_bg"],
         font=dict(family="Inter, system-ui", size=11, color=pt["fg"]),
         margin=dict(l=130, r=80, t=50, b=30),
-        xaxis=dict(title="Potência (W)", showgrid=True, gridcolor=pt["grid"],
+        xaxis=dict(title="Power (W)", showgrid=True, gridcolor=pt["grid"],
                    tickfont=dict(size=10, color=pt["fg"])),
         yaxis=dict(tickfont=dict(size=10, color=pt["fg"]), autorange="reversed"),
         showlegend=False,
@@ -296,11 +296,11 @@ def build_fig_fluxo_potencia(fp: dict, dark: bool) -> go.Figure:
 
 
 def _op_on_curve(tn: dict, res: dict):
-    """Retorna (Te_op, n_op) projetado sobre a curva T×n.
+    """Returns (Te_op, n_op) projected onto the T×n curve.
 
-    Usa Te_ss da simulação e interpola na região estável (0 < s < s_max)
-    para encontrar a velocidade correspondente na curva. Isso garante que
-    o ponto fique sobre a curva com o valor de torque correto.
+    Uses Te_ss from the simulation and interpolates in the stable region (0 < s < s_max)
+    to find the corresponding speed on the curve. This ensures the
+    point lies on the curve with the correct torque value.
     """
     Te_ss = float(res.get("Te_ss", 0.0))
     if Te_ss <= 0:
@@ -310,7 +310,7 @@ def _op_on_curve(tn: dict, res: dict):
     Te_arr = tn["Te"]
     n_arr  = tn["n_rpm"]
 
-    # região estável do motor: s entre 0 e s_max (Te cresce monotonicamente com s)
+    # stable motor region: s between 0 and s_max (Te increases monotonically with s)
     mask = (s_arr > 0) & (s_arr <= tn["s_max"])
     if not mask.any():
         return None, None
@@ -319,19 +319,19 @@ def _op_on_curve(tn: dict, res: dict):
     n_stable  = n_arr[mask]
 
     if Te_ss > Te_stable.max():
-        return None, None  # além do torque de pull-out
+        return None, None  # beyond pull-out torque
 
-    # interpolação: Te_stable crescente → n_stable decrescente
+    # interpolation: Te_stable increasing → n_stable decreasing
     n_op  = float(np.interp(Te_ss, Te_stable, n_stable))
     return Te_ss, n_op
 
 
 def render_curva_tn(mp, res: dict, dark: bool, decimals: int, render_plotly_fn) -> None:
-    """Renderiza a seção da curva T×n e fluxo de potência na UI."""
+    """Renders the T×n curve and power flow section in the UI."""
     st.divider()
-    st.markdown('<p class="slabel">Curva Característica</p>', unsafe_allow_html=True)
+    st.markdown('<p class="slabel">Characteristic Curve</p>', unsafe_allow_html=True)
 
-    with st.expander("Ver Curva T×n (Torque × Velocidade)", expanded=False):
+    with st.expander("View T×n Curve (Torque × Speed)", expanded=False):
         tn    = calc_curva_tn(mp)
         Te_op, n_op = _op_on_curve(tn, res)
 
@@ -339,6 +339,6 @@ def render_curva_tn(mp, res: dict, dark: bool, decimals: int, render_plotly_fn) 
         render_plotly_fn(fig_tn, div_id="ems-tn")
 
         c1, c2, c3 = st.columns(3)
-        c1.metric("Torque Máximo $T_{e,max}$ (pull-out)", f"{tn['Te_max']:.{decimals}f} N·m")
-        c2.metric("Torque de Partida $T_{e,p}$ (s=1)",    f"{tn['Te_part']:.{decimals}f} N·m")
-        c3.metric("Escorregamento em $T_{e,max}$",         f"{tn['s_max']*100:.{decimals}f} %")
+        c1.metric("Maximum Torque $T_{e,max}$ (pull-out)", f"{tn['Te_max']:.{decimals}f} N·m")
+        c2.metric("Starting Torque $T_{e,s}$ (s=1)",       f"{tn['Te_part']:.{decimals}f} N·m")
+        c3.metric("Slip at $T_{e,max}$",                   f"{tn['s_max']*100:.{decimals}f} %")

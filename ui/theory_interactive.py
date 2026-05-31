@@ -1,19 +1,19 @@
 # -*- coding: utf-8 -*-
-"""Componentes interativos Plotly para a aba Teoria.
+"""Interactive Plotly components for the Theory tab.
 
-Cada função é autocontida: lê parâmetros da máquina de st.session_state
-(usando o resultado da última simulação, ou o motor Krause 3HP como fallback)
-e renderiza um gráfico Plotly interativo via st.plotly_chart.
+Each function is self-contained: reads machine parameters from st.session_state
+(using the last simulation result, or the Krause 3HP motor as fallback)
+and renders an interactive Plotly chart via st.plotly_chart.
 
-Exporta:
-    render_boucherot                  — Te×s com slider de R'₂ (Boucherot)
-    render_zonas_operacao             — Te×n com zonas coloridas e diagrama vetorial
-    render_comparativo_partidas       — corrente×tempo: DOL, Y-D, Soft-Starter
-    render_park_dinamico              — plano vetorial αβ/dq + séries temporais
-    render_sankey_potencia            — Sankey de fluxo de potência com slider de s
-    render_circuito_alternavel        — Circuito equivalente alternável (completo / IEEE)
-    render_transitorios_sincronizados — n, Te e ias sincronizados para 3 cenários
-    render_fasorial_desequilibrio     — formas de onda + fasorial animado com desequilíbrio por fase
+Exports:
+    render_boucherot                  — Te×s with R'₂ slider (Boucherot)
+    render_zonas_operacao             — Te×n with colored zones and vector diagram
+    render_comparativo_partidas       — current×time: DOL, Y-D, Soft-Starter
+    render_park_dinamico              — αβ/dq vector plane + time series
+    render_sankey_potencia            — Power flow Sankey with slip slider
+    render_circuito_alternavel        — Switchable equivalent circuit (full / IEEE)
+    render_transitorios_sincronizados — n, Te and ias synchronized for 3 scenarios
+    render_fasorial_desequilibrio     — waveforms + animated phasor with per-phase unbalance
 """
 
 from __future__ import annotations
@@ -36,21 +36,21 @@ from core.curva_tn import _extract_params, _torque_array, calc_fluxo_potencia
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# PARÂMETROS FALLBACK — Motor Krause 3HP (NEMA, 60 Hz)
+# FALLBACK PARAMETERS — Krause 3HP Motor (NEMA, 60 Hz)
 # ─────────────────────────────────────────────────────────────────────────────
 
 class _FallbackMP:
-    """Subconjunto mínimo de MachineParams para os componentes interativos."""
-    Vl    = 220.0          # tensão de fase RMS (V)
-    f     = 60.0           # frequência (Hz)
-    Rs    = 0.435          # resistência do estator (Ω)
-    Rr    = 0.816          # resistência do rotor (Ω)
-    Xm    = 26.13          # reatância de magnetização (Ω)
-    Xls   = 0.754          # reatância de dispersão do estator (Ω)
-    Xlr   = 0.754          # reatância de dispersão do rotor (Ω)
+    """Minimal subset of MachineParams for interactive components."""
+    Vl    = 220.0          # phase voltage RMS (V)
+    f     = 60.0           # frequency (Hz)
+    Rs    = 0.435          # stator resistance (Ω)
+    Rr    = 0.816          # rotor resistance (Ω)
+    Xm    = 26.13          # magnetizing reactance (Ω)
+    Xls   = 0.754          # stator leakage reactance (Ω)
+    Xlr   = 0.754          # rotor leakage reactance (Ω)
     Rfe   = 500.0
-    p     = 4              # número de polos
-    J     = 0.089          # inércia (kg·m²)
+    p     = 4              # number of poles
+    J     = 0.089          # inertia (kg·m²)
     B     = 0.0
 
     @property
@@ -78,7 +78,7 @@ _MP_DEFAULT = _FallbackMP()
 
 
 def _get_mp():
-    """Retorna MachineParams da última simulação ou o fallback."""
+    """Returns MachineParams from the last simulation or the fallback."""
     res = st.session_state.get("sim_result")
     if res and "mp" in res:
         return res["mp"]
@@ -94,10 +94,10 @@ def _dark() -> bool:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def render_boucherot() -> None:
-    """Gráfico Te×s com slider nativo Plotly (zero latência) — teorema de Boucherot.
+    """T×s chart with native Plotly slider (zero latency) — Boucherot's theorem.
 
-    Pré-calcula N_STEPS curvas para o grid de R'₂ e empacota como frames Plotly.
-    O slider JS move entre frames no cliente, sem rerun do Streamlit.
+    Pre-computes N_STEPS curves for the R'₂ grid and packs them as Plotly frames.
+    The JS slider moves between frames on the client, without Streamlit rerun.
     """
     mp   = _get_mp()
     dark = _dark()
@@ -112,14 +112,14 @@ def render_boucherot() -> None:
     Vth  = abs(V1 * 1j * Xm / (R1 + 1j * (X1 + Xm)))
     Tmax = 3.0 * Vth**2 / (2.0 * ws_mec * (Rth + np.sqrt(Rth**2 + (Xth + X2)**2)))
 
-    # Grid de R'₂ — 60 passos logarítmicos entre 0.2× e 5× o nominal
+    # R'₂ grid — 60 logarithmic steps between 0.2× and 5× nominal
     N_STEPS = 60
     r2_grid = np.geomspace(R2_nom * 0.2, 3.0, N_STEPS)
-    # Índice inicial: valor nominal mais próximo
+    # Initial index: closest nominal value
     nom_idx = int(np.argmin(np.abs(r2_grid - R2_nom)))
 
     def _make_s_arr(scr: float) -> np.ndarray:
-        """Grid de s adaptativo: densidade alta ao redor de s_cr."""
+        """Adaptive s grid: high density around s_cr."""
         wing = min(scr * 0.8, 0.15)
         return np.unique(np.concatenate([
             np.linspace(1e-4, max(1e-4, scr - wing), 200),
@@ -132,7 +132,7 @@ def render_boucherot() -> None:
     col_peak = "#f97316"
     col_scr  = "#a78bfa" if dark else "#7c3aed"
 
-    # Curva inicial (frame nom_idx)
+    # Initial curve (frame nom_idx)
     r2_init   = r2_grid[nom_idx]
     scr_init  = r2_init / np.sqrt(Rth**2 + (Xth + X2)**2)
     s_arr_i   = _make_s_arr(scr_init)
@@ -141,7 +141,7 @@ def render_boucherot() -> None:
     s_peak_i  = float(s_arr_i[peak_idx])
     Te_peak_i = float(Te_init[peak_idx])
 
-    # s_arr fixo para calcular Te_max_plot (pior caso = R2 mínimo, scr menor)
+    # Fixed s_arr to compute Te_max_plot (worst case = min R2, smaller scr)
     s_ref     = _make_s_arr(R2_nom * 0.2 / np.sqrt(Rth**2 + (Xth + X2)**2))
 
     Te_max_plot = float(Tmax) * 1.25
@@ -149,7 +149,7 @@ def render_boucherot() -> None:
     # ── figura base ──────────────────────────────────────────────────────────
     fig = go.Figure()
 
-    # Trace 0 — curva principal (variável por frame)
+    # Trace 0 — main curve (varies per frame)
     fig.add_trace(go.Scatter(
         x=s_arr_i, y=Te_init,
         mode="lines",
@@ -177,7 +177,7 @@ def render_boucherot() -> None:
         showlegend=False,
     ))
 
-    # Trace 3 — marcador de s_cr no eixo (y=0) com rótulo
+    # Trace 3 — s_cr marker on axis (y=0) with label
     fig.add_trace(go.Scatter(
         x=[s_peak_i], y=[0],
         mode="markers+text",
@@ -224,13 +224,13 @@ def render_boucherot() -> None:
     # ── layout com slider JS ─────────────────────────────────────────────────
     fig.update_layout(
         height=460,
-        title=dict(text="Curva T×s — Teorema de Boucherot (T_max invariante com R'₂)",
+        title=dict(text="T×s Curve — Boucherot's Theorem (T_max invariant with R'₂)",
                    x=0.5, xanchor="center", font=dict(size=13, color=pt["fg"])),
         paper_bgcolor=pt["paper_bg"],
         plot_bgcolor=pt["plot_bg"],
         font=dict(family="Inter, system-ui", size=11, color=pt["fg"]),
         margin=dict(l=60, r=20, t=55, b=130),
-        xaxis=dict(title="Escorregamento s", showgrid=True, gridcolor=pt["grid"],
+        xaxis=dict(title="Slip s", showgrid=True, gridcolor=pt["grid"],
                    tickfont=dict(size=10, color=pt["fg"]), range=[0, 2.0],
                    zeroline=True, zerolinecolor=pt["grid"]),
         yaxis=dict(title="Torque (N·m)", showgrid=True, gridcolor=pt["grid"],
@@ -251,7 +251,7 @@ def render_boucherot() -> None:
                 xanchor="center",
                 font=dict(size=13, color=pt["fg"]),
             ),
-            # y=0 ancora o slider na base do paper; pad empurra para baixo do eixo X
+            # y=0 anchors the slider at the bottom of the paper; pad pushes it below the X axis
             y=0,
             pad=dict(t=55, b=10),
             len=0.92,
@@ -262,7 +262,7 @@ def render_boucherot() -> None:
             tickcolor=pt["fg"],
             font=dict(color=pt["fg"], size=9),
         )],
-        # updatemenus oculto é necessário para o slider animate funcionar
+        # hidden updatemenus required for slider animate to work
         updatemenus=[dict(
             type="buttons", visible=False,
             buttons=[dict(method="animate", args=[None])],
@@ -273,26 +273,26 @@ def render_boucherot() -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 2. ZONAS DE OPERAÇÃO — Te×n com zonas coloridas e diagrama vetorial
+# 2. OPERATING ZONES — Te×n with colored zones and vector diagram
 # ─────────────────────────────────────────────────────────────────────────────
 
 def render_zonas_operacao() -> None:
-    """Gráfico Te×n com três zonas coloridas e diagrama vetorial de ωs/ωm."""
+    """T×n chart with three colored zones and ωs/ωm vector diagram."""
     mp   = _get_mp()
     dark = _dark()
     pt   = _plot_theme(dark)
 
     V1, R1, X1, R2, X2, Xm, ws_mec, ns = _extract_params(mp)
 
-    # Seleciona zona para o diagrama vetorial
+    # Select zone for the vector diagram
     zona = st.radio(
-        "Região de operação",
-        options=["Motor (0 < s < 1)", "Gerador (s < 0)", "Frenagem (s > 1)"],
+        "Operating region",
+        options=["Motor (0 < s < 1)", "Generator (s < 0)", "Braking (s > 1)"],
         horizontal=True,
         key="th_zona_radio",
     )
 
-    # Arrays por região
+    # Arrays per region
     s_brake  = np.linspace(1.001, 2.0,  150)
     s_motor  = np.linspace(1e-4,  1.0,  400)
     s_gen    = np.linspace(-1.0, -1e-4, 150)
@@ -313,7 +313,7 @@ def render_zonas_operacao() -> None:
 
     fig = go.Figure()
 
-    # Faixas de fundo por zona
+    # Background bands per zone
     fig.add_vrect(x0=float(n_brake.min()), x1=float(n_brake.max()),
                   fillcolor=col_brake, opacity=alpha_zone, layer="below", line_width=0)
     fig.add_vrect(x0=0.0, x1=float(ns),
@@ -321,27 +321,27 @@ def render_zonas_operacao() -> None:
     fig.add_vrect(x0=float(ns), x1=float(n_gen.max()),
                   fillcolor=col_gen, opacity=alpha_zone, layer="below", line_width=0)
 
-    # Curvas
+    # Curves
     fig.add_trace(go.Scatter(x=n_brake, y=Te_brake, mode="lines",
-                             name="Frenagem", line=dict(color=col_brake, width=2.5)))
+                             name="Braking", line=dict(color=col_brake, width=2.5)))
     fig.add_trace(go.Scatter(x=n_motor, y=Te_motor, mode="lines",
                              name="Motor", line=dict(color=col_motor, width=2.5)))
     fig.add_trace(go.Scatter(x=n_gen, y=Te_gen, mode="lines",
-                             name="Gerador", line=dict(color=col_gen, width=2.5)))
+                             name="Generator", line=dict(color=col_gen, width=2.5)))
 
-    # Linha de velocidade síncrona
+    # Synchronous speed line
     fig.add_vline(x=float(ns), line_dash="dash", line_color=pt["fg"],
                   line_width=1.5, annotation_text=f"ns = {ns:.0f} RPM",
                   annotation_font_color=pt["fg"])
 
     fig.update_layout(
         height=340,
-        title=dict(text="Curva T×n — Três Regiões de Operação",
+        title=dict(text="T×n Curve — Three Operating Regions",
                    x=0.5, xanchor="center", font=dict(size=13, color=pt["fg"])),
         paper_bgcolor=pt["paper_bg"], plot_bgcolor=pt["plot_bg"],
         font=dict(family="Inter, system-ui", size=11, color=pt["fg"]),
         margin=dict(l=60, r=20, t=55, b=45),
-        xaxis=dict(title="Velocidade (RPM)", showgrid=True, gridcolor=pt["grid"],
+        xaxis=dict(title="Speed (RPM)", showgrid=True, gridcolor=pt["grid"],
                    tickfont=dict(size=10, color=pt["fg"])),
         yaxis=dict(title="Torque (N·m)", showgrid=True, gridcolor=pt["grid"],
                    tickfont=dict(size=10, color=pt["fg"])),
@@ -350,25 +350,25 @@ def render_zonas_operacao() -> None:
     )
     st.plotly_chart(fig, width="stretch", config={"displaylogo": False})
 
-    # Diagrama vetorial animado
+    # Animated phasor diagram
     _render_diagrama_vetorial(zona, dark, ns)
 
 
 @st.fragment
 def _render_diagrama_vetorial(zona: str, dark: bool, ns: float) -> None:
-    """Diagrama vetorial animado via requestAnimationFrame em iframe HTML.
+    """Animated vector diagram via requestAnimationFrame in HTML iframe.
 
-    θs gira continuamente. θm = θs − s·2π (defasagem fixa).
-    Sem botões play/pause — animação inicia automaticamente.
+    θs rotates continuously. θm = θs − s·2π (fixed phase shift).
+    No play/pause buttons — animation starts automatically.
     """
     if zona.startswith("Motor"):
-        s_val = st.slider("Escorregamento s", 0.01, 0.99, 0.05, step=0.01,
+        s_val = st.slider("Slip s", 0.01, 0.99, 0.05, step=0.01,
                           format="%.2f", key="_vetorial_s_motor")
-    elif zona.startswith("Gerador"):
-        s_val = st.slider("Escorregamento s", -0.99, -0.01, -0.05, step=0.01,
+    elif zona.startswith("Generator"):
+        s_val = st.slider("Slip s", -0.99, -0.01, -0.05, step=0.01,
                           format="%.2f", key="_vetorial_s_gen")
     else:
-        s_val = st.slider("Escorregamento s", 1.01, 2.50, 1.50, step=0.01,
+        s_val = st.slider("Slip s", 1.01, 2.50, 1.50, step=0.01,
                           format="%.2f", key="_vetorial_s_brake")
 
     wr_rpm = ns * (1.0 - s_val)
@@ -377,22 +377,22 @@ def _render_diagrama_vetorial(zona: str, dark: bool, ns: float) -> None:
     if zona.startswith("Motor"):
         col_rotor = "#4f8ef7" if dark else "#1d4ed8"
         titulo    = f"Motor — ωm < ωs  (s = {s_val:.0%})"
-        desc      = f"Campo puxa o rotor. Separação fixa Δθ = {s_val*360:.0f}°. Torque no sentido do movimento."
-    elif zona.startswith("Gerador"):
+        desc      = f"Field pulls the rotor. Fixed separation Δθ = {s_val*360:.0f}°. Torque in the direction of motion."
+    elif zona.startswith("Generator"):
         col_rotor = "#34d399" if dark else "#059669"
-        titulo    = f"Gerador — ωm > ωs  (s = {s_val:.0%})"
-        desc      = f"Rotor à frente do campo em {abs(s_val)*360:.0f}°. Torque opõe-se ao movimento — geração."
+        titulo    = f"Generator — ωm > ωs  (s = {s_val:.0%})"
+        desc      = f"Rotor leads the field by {abs(s_val)*360:.0f}°. Torque opposes motion — generation."
     else:
         col_rotor = "#f87171" if dark else "#dc2626"
-        titulo    = f"Frenagem — ωm < 0  (s = {s_val:.2f})"
-        desc      = "Rotor gira no sentido contrário ao campo. Energia cinética + elétrica viram calor."
+        titulo    = f"Braking — ωm < 0  (s = {s_val:.2f})"
+        desc      = "Rotor spins opposite to the field. Kinetic + electrical energy dissipated as heat."
 
     bg_hex   = "#151a24" if dark else "#ffffff"
     fg_hex   = "#e5e7eb" if dark else "#111111"
     grid_hex = "#2a2a3a" if dark else "#cccccc"
     delta_deg = abs(s_val) * 360.0
 
-    # ciclo visual: 1 volta do campo em 3 segundos
+    # visual cycle: 1 field revolution in 3 seconds
     cycle_ms = 3000.0
 
     html_src = f"""<!DOCTYPE html>
@@ -417,7 +417,7 @@ def _render_diagrama_vetorial(zona: str, dark: bool, ns: float) -> None:
   var deltaLbl = "{delta_deg:.0f}°  (s = {s_val:+.2f})";
   var titulo   = "{titulo}";
 
-  // círculo de referência
+  // reference circle
   var N = 120;
   var cx = [], cy = [];
   for (var i = 0; i <= N; i++) {{
@@ -426,23 +426,23 @@ def _render_diagrama_vetorial(zona: str, dark: bool, ns: float) -> None:
   }}
 
   var data = [
-    // trace 0: círculo
+    // trace 0: circle
     {{ x: cx, y: cy, mode:"lines", line:{{color:colGrid, width:1, dash:"dot"}},
       showlegend:false, hoverinfo:"skip" }},
     // trace 1: centro
     {{ x:[0], y:[0], mode:"markers", marker:{{color:colField, size:6}},
       showlegend:false, hoverinfo:"skip" }},
-    // trace 2: vetor campo (estator)
+    // trace 2: stator field vector
     {{ x:[0,1], y:[0,0], mode:"lines+markers",
       line:{{color:colField, width:3}},
       marker:{{size:[0,10], color:colField}},
-      name:"ωs (campo)" }},
-    // trace 3: vetor rotor
+      name:"ωs (field)" }},
+    // trace 3: rotor vector
     {{ x:[0,1], y:[0,0], mode:"lines+markers",
       line:{{color:colRotor, width:3, dash:"dash"}},
       marker:{{size:[0,10], color:colRotor}},
       name:"ωm (rotor)" }},
-    // trace 4: anotação Δθ
+    // trace 4: Δθ annotation
     {{ x:[0], y:[-1.35], mode:"text",
       text:["Δθ = " + deltaLbl],
       textfont:{{size:10, color:colRotor}},
@@ -497,57 +497,57 @@ def _render_diagrama_vetorial(zona: str, dark: bool, ns: float) -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def render_comparativo_partidas() -> None:
-    """Curvas analíticas de corrente de fase vs. tempo para DOL, Y-D e Soft-Starter."""
+    """Analytical phase current vs. time curves for DOL, Y-D and Soft-Starter."""
     mp   = _get_mp()
     dark = _dark()
     pt   = _plot_theme(dark)
 
     V1, R1, X1, R2, X2, Xm, ws_mec, ns = _extract_params(mp)
-    # Impedância a s=1 (partida)
+    # Impedance at s=1 (starting)
     Z2_start  = R2 + 1j * X2
     Zeq_start = (1j * Xm * Z2_start) / (1j * Xm + Z2_start)
     Ztotal    = R1 + 1j * X1 + Zeq_start
     I_dol     = abs(V1 / Ztotal)           # pico de corrente DOL (A)
-    # Corrente nominal: usa s ≈ 0.04
+    # Nominal current: uses s ≈ 0.04
     Z2_nom   = (R2 / 0.04) + 1j * X2
     Zeq_nom  = (1j * Xm * Z2_nom) / (1j * Xm + Z2_nom)
     Zt_nom   = R1 + 1j * X1 + Zeq_nom
     I_nom    = abs(V1 / Zt_nom)
 
-    # Constante de tempo elétrica aproximada
+    # Approximate electrical time constant
     tau_e  = (X1 + Xm * X2 / (Xm + X2)) / (2.0 * np.pi * mp.f * max(R1 + R2, 0.01))
-    t_acc  = max(tau_e * 4.0, 0.3)        # tempo até regime
+    t_acc  = max(tau_e * 4.0, 0.3)        # time to steady state
     t_max  = t_acc * 2.5
 
     t = np.linspace(0.0, t_max, 800)
 
     def _envelope(I_peak, tau):
-        """Envelope de decaimento exponencial do transitório de corrente."""
+        """Exponential decay envelope of the current transient."""
         env = I_nom + (I_peak - I_nom) * np.exp(-t / max(tau, 1e-6))
         return np.maximum(env, I_nom)
 
     # DOL
     i_dol = _envelope(I_dol, tau_e)
 
-    # Y-D: fase Y usa V/√3 → corrente reduzida a 1/3
-    t_yd  = t_acc * 0.6          # instante de comutação Y→D
+    # Y-D: Y phase uses V/√3 → current reduced to 1/3
+    t_yd  = t_acc * 0.6          # Y→D switching instant
     i_yd  = np.where(
         t < t_yd,
         _envelope(I_dol / 3.0, tau_e),
-        _envelope(I_dol * 0.7, tau_e * 0.5),   # pico menor no segundo transitório
+        _envelope(I_dol * 0.7, tau_e * 0.5),   # smaller peak in second transient
     )
 
-    # Soft-Starter: rampa de tensão de 0 → V em t_ramp
+    # Soft-Starter: voltage ramp from 0 → V over t_ramp
     t_ramp = t_acc * 0.8
     v_ramp = np.clip(t / t_ramp, 0.0, 1.0)
     i_ss   = _envelope(I_dol * v_ramp, tau_e * 0.4) * v_ramp
     i_ss   = np.maximum(i_ss, I_nom * v_ramp)
 
-    # Seleção de métodos
+    # Method selection
     metodos = st.multiselect(
-        "Métodos de partida",
-        options=["DOL (Direta)", "Estrela-Triângulo (Y-D)", "Soft-Starter"],
-        default=["DOL (Direta)", "Estrela-Triângulo (Y-D)", "Soft-Starter"],
+        "Starting methods",
+        options=["DOL (Direct)", "Star-Delta (Y-D)", "Soft-Starter"],
+        default=["DOL (Direct)", "Star-Delta (Y-D)", "Soft-Starter"],
         key="th_partidas_sel",
     )
 
@@ -557,10 +557,10 @@ def render_comparativo_partidas() -> None:
 
     fig = go.Figure()
 
-    if "DOL (Direta)" in metodos:
+    if "DOL (Direct)" in metodos:
         fig.add_trace(go.Scatter(x=t, y=i_dol, mode="lines", name="DOL",
                                  line=dict(color=col_dol, width=2.5)))
-    if "Estrela-Triângulo (Y-D)" in metodos:
+    if "Star-Delta (Y-D)" in metodos:
         fig.add_trace(go.Scatter(x=t, y=i_yd, mode="lines", name="Y-D",
                                  line=dict(color=col_yd, width=2.5, dash="dash")))
         fig.add_vline(x=t_yd, line_dash="dot", line_color=col_yd, line_width=1,
@@ -576,14 +576,14 @@ def render_comparativo_partidas() -> None:
 
     fig.update_layout(
         height=340,
-        title=dict(text="Comparativo de Partidas — Corrente de Fase (modelo analítico)",
+        title=dict(text="Starting Method Comparison — Phase Current (analytical model)",
                    x=0.5, xanchor="center", font=dict(size=13, color=pt["fg"])),
         paper_bgcolor=pt["paper_bg"], plot_bgcolor=pt["plot_bg"],
         font=dict(family="Inter, system-ui", size=11, color=pt["fg"]),
         margin=dict(l=60, r=20, t=55, b=45),
-        xaxis=dict(title="Tempo (s)", showgrid=True, gridcolor=pt["grid"],
+        xaxis=dict(title="Time (s)", showgrid=True, gridcolor=pt["grid"],
                    tickfont=dict(size=10, color=pt["fg"])),
-        yaxis=dict(title="Corrente de fase (A)", showgrid=True, gridcolor=pt["grid"],
+        yaxis=dict(title="Phase current (A)", showgrid=True, gridcolor=pt["grid"],
                    tickfont=dict(size=10, color=pt["fg"])),
         legend=dict(orientation="h", x=0.5, xanchor="center", y=-0.18,
                     font=dict(size=10, color=pt["fg"]), bgcolor="rgba(0,0,0,0)"),
@@ -592,12 +592,12 @@ def render_comparativo_partidas() -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 4. TRANSFORMADA DE PARK DINÂMICA — plano vetorial + séries temporais
+# 4. DYNAMIC PARK TRANSFORM — vector plane + time series
 # ─────────────────────────────────────────────────────────────────────────────
 
 @st.cache_data(show_spinner=False)
 def _build_fig_park(ref: str, dark: bool) -> tuple[go.Figure, str]:
-    """Animação Plotly frames da transformada de Clarke/Park — plano vetorial + séries temporais."""
+    """Plotly frames animation of Clarke/Park transform — vector plane + time series."""
     from plotly.subplots import make_subplots
 
     bg_hex   = "#151a24" if dark else "#ffffff"
@@ -619,11 +619,11 @@ def _build_fig_park(ref: str, dark: bool) -> tuple[go.Figure, str]:
     if ref == "dq":
         Vx = np.zeros(N)
         Vz = np.ones(N)
-        lbl_x = "Vds  (eixo direto)"
-        lbl_z = "Vqs  (eixo em quadratura)"
-        titulo = "Park — referencial dq (síncrono)"
-        desc   = ("No referencial dq, os eixos d e q giram a ωe junto com o vetor de tensão (laranja). "
-                  "Por isso Vqs = constante e Vds = 0 em regime — o vetor parece parado.")
+        lbl_x = "Vds  (direct axis)"
+        lbl_z = "Vqs  (quadrature axis)"
+        titulo = "Park — dq reference frame (synchronous)"
+        desc   = ("In the dq reference frame, the d and q axes rotate at ωe together with the voltage vector (orange). "
+                  "Therefore Vqs = constant and Vds = 0 in steady state — the vector appears stationary.")
         modo   = "dq"
         vec_x  = Vs_a
         vec_z  = Vs_b
@@ -631,24 +631,24 @@ def _build_fig_park(ref: str, dark: bool) -> tuple[go.Figure, str]:
         th_r = 2.0 * np.pi * s_typ * t
         Vx = np.cos(th_r)
         Vz = np.sin(th_r)
-        lbl_x = "Vdr  (componente direta — solidária ao rotor)"
-        lbl_z = "Vqr  (componente em quadratura)"
-        titulo = f"Referencial rotórico — vetor do estator gira a s·ωe  (s={s_typ} ilustrativo)"
-        desc   = (f"No referencial do rotor, os eixos giram a ωr = (1−s)·ωe. "
-                  f"O vetor de tensão do estator (laranja) oscila à frequência de escorregamento fs = s·fe. "
-                  f"Em motores reais s ≈ 0,02–0,08; s={s_typ} é usado aqui para tornar a animação visível.")
+        lbl_x = "Vdr  (direct component — rotor-fixed)"
+        lbl_z = "Vqr  (quadrature component)"
+        titulo = f"Rotor reference frame — stator vector rotates at s·ωe  (s={s_typ} illustrative)"
+        desc   = (f"In the rotor reference frame, the axes rotate at ωr = (1−s)·ωe. "
+                  f"The stator voltage vector (orange) oscillates at the slip frequency fs = s·fe. "
+                  f"In real motors s ≈ 0.02–0.08; s={s_typ} is used here to make the animation visible.")
         modo   = "rotor"
         vec_x  = Vx
         vec_z  = Vz
     else:
         Vx = Vs_a
         Vz = Vs_b
-        lbl_x = "Vα  (componente horizontal — eixo estacionário)"
-        lbl_z = "Vβ  (componente vertical — 90° de Vα)"
-        titulo = "Clarke — referencial αβ (estacionário)"
-        desc   = ("No referencial αβ, os eixos são fixos no espaço. "
-                  "O vetor de tensão (laranja) gira a ωe: "
-                  "Vα e Vβ são senoidais com 90° de defasagem entre si.")
+        lbl_x = "Vα  (horizontal component — stationary axis)"
+        lbl_z = "Vβ  (vertical component — 90° from Vα)"
+        titulo = "Clarke — αβ reference frame (stationary)"
+        desc   = ("In the αβ reference frame, the axes are fixed in space. "
+                  "The voltage vector (orange) rotates at ωe: "
+                  "Vα and Vβ are sinusoidal with 90° phase shift between them.")
         modo   = "ab"
         vec_x  = Vs_a
         vec_z  = Vs_b
@@ -658,18 +658,18 @@ def _build_fig_park(ref: str, dark: bool) -> tuple[go.Figure, str]:
     fig = make_subplots(
         rows=1, cols=2,
         column_widths=[0.42, 0.58],
-        subplot_titles=[titulo, "Séries temporais"],
+        subplot_titles=[titulo, "Time series"],
         horizontal_spacing=0.12,
     )
 
-    # ── Plano vetorial (col 1) ─────────────────────────────────────────────────
-    # Círculo de referência
+    # ── Vector plane (col 1) ──────────────────────────────────────────────────
+    # Reference circle
     fig.add_trace(go.Scatter(
         x=np.cos(circ), y=np.sin(circ), mode="lines",
         line=dict(color=grid_hex, width=1, dash="dot"),
         showlegend=False, hoverinfo="skip",
     ), row=1, col=1)
-    # Linhas dos eixos
+    # Axis lines
     fig.add_trace(go.Scatter(
         x=[-1.4, 1.4], y=[0, 0], mode="lines",
         line=dict(color=grid_hex, width=0.8),
@@ -680,39 +680,39 @@ def _build_fig_park(ref: str, dark: bool) -> tuple[go.Figure, str]:
         line=dict(color=grid_hex, width=0.8),
         showlegend=False, hoverinfo="skip",
     ), row=1, col=1)
-    # Eixo d girante (só dq)
+    # Rotating d-axis (dq only)
     if modo == "dq":
         d_x0, d_y0 = 1.3 * np.cos(th_e[0]), 1.3 * np.sin(th_e[0])
         q_x0, q_y0 = 1.3 * np.cos(th_e[0] + np.pi/2), 1.3 * np.sin(th_e[0] + np.pi/2)
         fig.add_trace(go.Scatter(
             x=[-d_x0, d_x0], y=[-d_y0, d_y0], mode="lines",
-            line=dict(color=col_a, width=1.5), name="eixo d", showlegend=True,
+            line=dict(color=col_a, width=1.5), name="d-axis", showlegend=True,
         ), row=1, col=1)
         fig.add_trace(go.Scatter(
             x=[-q_x0, q_x0], y=[-q_y0, q_y0], mode="lines",
-            line=dict(color=col_b, width=1.5), name="eixo q", showlegend=True,
+            line=dict(color=col_b, width=1.5), name="q-axis", showlegend=True,
         ), row=1, col=1)
-    # Vetor principal (laranja)
+    # Main vector (orange)
     fig.add_trace(go.Scatter(
         x=[0, vec_x[0]], y=[0, vec_z[0]], mode="lines+markers",
         line=dict(color=col_vec, width=3),
         marker=dict(size=[0, 12], color=col_vec, symbol=["circle", "arrow"],
                     angleref="previous"),
-        name="V (vetor de tensão)",
+        name="V (voltage vector)",
     ), row=1, col=1)
-    # Projeção α/d
+    # α/d projection
     fig.add_trace(go.Scatter(
         x=[vec_x[0]], y=[0], mode="markers",
         marker=dict(color=col_a, size=8), name=lbl_x,
     ), row=1, col=1)
-    # Projeção β/q
+    # β/q projection
     fig.add_trace(go.Scatter(
         x=[0], y=[vec_z[0]], mode="markers",
         marker=dict(color=col_b, size=8), name=lbl_z,
     ), row=1, col=1)
 
-    # ── Séries temporais (col 2) ───────────────────────────────────────────────
-    # Curvas fantasmas (fundo completo)
+    # ── Time series (col 2) ────────────────────────────────────────────────────
+    # Ghost curves (full background)
     fig.add_trace(go.Scatter(
         x=t, y=Vx, mode="lines",
         line=dict(color=col_a, width=1.2, dash="dot"),
@@ -723,7 +723,7 @@ def _build_fig_park(ref: str, dark: bool) -> tuple[go.Figure, str]:
         line=dict(color=col_b, width=1.2, dash="dot"),
         opacity=0.3, showlegend=False, hoverinfo="skip",
     ), row=1, col=2)
-    # Traços animados (crescem frame a frame)
+    # Animated traces (grow frame by frame)
     fig.add_trace(go.Scatter(
         x=t[:1], y=Vx[:1], mode="lines",
         line=dict(color=col_a, width=2), showlegend=False,
@@ -732,7 +732,7 @@ def _build_fig_park(ref: str, dark: bool) -> tuple[go.Figure, str]:
         x=t[:1], y=Vz[:1], mode="lines",
         line=dict(color=col_b, width=2, dash="dash"), showlegend=False,
     ), row=1, col=2)
-    # Cursor (marcador do instante atual)
+    # Cursor (current instant marker)
     fig.add_trace(go.Scatter(
         x=[t[0]], y=[Vx[0]], mode="markers",
         marker=dict(color=col_a, size=7), showlegend=False,
@@ -741,15 +741,15 @@ def _build_fig_park(ref: str, dark: bool) -> tuple[go.Figure, str]:
         x=[t[0]], y=[Vz[0]], mode="markers",
         marker=dict(color=col_b, size=7), showlegend=False,
     ), row=1, col=2)
-    # Linha vertical do cursor
+    # Vertical cursor line
     fig.add_trace(go.Scatter(
         x=[t[0], t[0]], y=[-1.4, 1.4], mode="lines",
         line=dict(color=fg_hex, width=0.8, dash="dot"),
         showlegend=False, hoverinfo="skip",
     ), row=1, col=2)
 
-    # ── Índices dos traces ─────────────────────────────────────────────────────
-    # col1: 0=circ, 1=eixo_h, 2=eixo_v, [3=d, 4=q se dq], vec, proj_a, proj_b
+    # ── Trace indices ─────────────────────────────────────────────────────────
+    # col1: 0=circ, 1=axis_h, 2=axis_v, [3=d, 4=q if dq], vec, proj_a, proj_b
     # col2: ghost_a, ghost_b, line_a, line_b, cur_a, cur_b, vline
     if modo == "dq":
         i_vec   = 5
@@ -778,7 +778,7 @@ def _build_fig_park(ref: str, dark: bool) -> tuple[go.Figure, str]:
     frames = []
     for i in range(N):
         frame_data = [None] * (i_vl + 1)
-        # traces estáticos (círculo, eixos)
+        # static traces (circle, axes)
         frame_data[0] = go.Scatter(x=np.cos(circ), y=np.sin(circ))
         frame_data[1] = go.Scatter(x=[-1.4, 1.4], y=[0, 0])
         frame_data[2] = go.Scatter(x=[0, 0], y=[-1.4, 1.4])
@@ -819,7 +819,7 @@ def _build_fig_park(ref: str, dark: bool) -> tuple[go.Figure, str]:
                      method="animate",
                      args=[None, dict(frame=dict(duration=50, redraw=True),
                                       fromcurrent=True, mode="immediate")]),
-                dict(label="⏸ Pausar",
+                dict(label="⏸ Pause",
                      method="animate",
                      args=[[None], dict(frame=dict(duration=0, redraw=False),
                                         mode="immediate")]),
@@ -838,7 +838,7 @@ def _build_fig_park(ref: str, dark: bool) -> tuple[go.Figure, str]:
         showticklabels=False, row=1, col=1,
     )
     fig.update_xaxes(
-        title_text="Ciclos de ωe", showgrid=True, gridcolor=grid_hex,
+        title_text="ωe cycles", showgrid=True, gridcolor=grid_hex,
         range=[0, float(n_cycles)], row=1, col=2,
     )
     fig.update_yaxes(
@@ -851,18 +851,18 @@ def _build_fig_park(ref: str, dark: bool) -> tuple[go.Figure, str]:
 
 
 def render_park_dinamico() -> None:
-    """Animação Plotly da transformada de Clarke/Park — vetor girante + séries temporais."""
+    """Plotly animation of Clarke/Park transform — rotating vector + time series."""
     dark = _dark()
 
     ref = st.radio(
-        "Referencial",
-        options=["dq (síncrono — Park)", "rotórico (ωref = ωr)", "αβ (estacionário — Clarke)"],
+        "Reference frame",
+        options=["dq (synchronous — Park)", "rotor (ωref = ωr)", "αβ (stationary — Clarke)"],
         horizontal=True,
         key="th_park_ref",
     )
     if ref.startswith("dq"):
         ref_key = "dq"
-    elif ref.startswith("rot"):
+    elif ref.startswith("rotor"):
         ref_key = "rotor"
     else:
         ref_key = "ab"
@@ -873,15 +873,15 @@ def render_park_dinamico() -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 5. FLUXO DE POTÊNCIA — barras horizontais com slider Plotly (zero latência)
+# 5. POWER FLOW — horizontal bars with Plotly slider (zero latency)
 # ─────────────────────────────────────────────────────────────────────────────
 
 def render_sankey_potencia() -> None:
-    """Fluxo de potência com slider nativo Plotly (zero latência).
+    """Power flow with native Plotly slider (zero latency).
 
-    go.Sankey não suporta frames Plotly; substituído por barras horizontais
-    empilhadas (go.Bar) que representam o mesmo fluxo e animam normalmente.
-    Pré-calcula N_STEPS valores de s; slider JS troca frames sem rerun.
+    go.Sankey does not support Plotly frames; replaced by horizontal bars
+    stacked (go.Bar) that represent the same flow and animate normally.
+    Pre-computes N_STEPS slip values; JS slider switches frames without rerun.
     """
     mp   = _get_mp()
     dark = _dark()
@@ -902,8 +902,8 @@ def render_sankey_potencia() -> None:
     COL_MEC  = "#34d399"
     COL_OUT  = "#22c55e"
 
-    LABELS = ["P_entrada", "P_cu1 (cobre est.)", "P_ag (entreferro)",
-              "P_cu2 (cobre rot.)", "P_mec (conv.)", "P_saída"]
+    LABELS = ["P_input", "P_cu1 (stator copper)", "P_ag (air-gap)",
+              "P_cu2 (rotor copper)", "P_mec (conv.)", "P_output"]
 
     def _make_frame_data(s: float):
         fp     = calc_fluxo_potencia(s, mp)
@@ -926,7 +926,7 @@ def render_sankey_potencia() -> None:
             traces.append(go.Bar(
                 name=lbl,
                 x=[val],
-                y=["Potência"],
+                y=["Power"],
                 orientation="h",
                 marker_color=col,
                 text=[txt],
@@ -936,7 +936,7 @@ def render_sankey_potencia() -> None:
                 hovertemplate=f"{lbl}: {txt}<extra></extra>",
             ))
 
-        # trace final: título dinâmico como anotação via scatter invisível
+        # final trace: dynamic title as annotation via invisible scatter
         traces.append(go.Scatter(
             x=[None], y=[None],
             mode="markers",
@@ -976,7 +976,7 @@ def render_sankey_potencia() -> None:
         height=260,
         barmode="stack",
         title=dict(
-            text=f"Fluxo de Potência — {region_0}  |  η = {eta_0:.1f}%  |  s = {s_grid[nom_idx]:.2f}",
+            text=f"Power Flow — {region_0}  |  η = {eta_0:.1f}%  |  s = {s_grid[nom_idx]:.2f}",
             x=0.5, xanchor="center", font=dict(size=13, color=pt["fg"]),
         ),
         paper_bgcolor=pt["paper_bg"],
@@ -984,7 +984,7 @@ def render_sankey_potencia() -> None:
         font=dict(family="Inter, system-ui", size=11, color=pt["fg"]),
         margin=dict(l=20, r=20, t=55, b=110),
         xaxis=dict(
-            title="Potência (W)", showgrid=True, gridcolor=pt["grid"],
+            title="Power (W)", showgrid=True, gridcolor=pt["grid"],
             tickfont=dict(size=10, color=pt["fg"]),
         ),
         yaxis=dict(showticklabels=False, showgrid=False),
@@ -996,7 +996,7 @@ def render_sankey_potencia() -> None:
         sliders=[dict(
             active=nom_idx,
             currentvalue=dict(
-                prefix="Escorregamento  s = ",
+                prefix="Slip  s = ",
                 visible=True, xanchor="center",
                 font=dict(size=13, color=pt["fg"]),
             ),
@@ -1016,19 +1016,19 @@ def render_sankey_potencia() -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 6. TRANSITÓRIOS SINCRONIZADOS — n, Te e ias para 3 cenários
+# 6. SYNCHRONISED TRANSIENTS — n, Te and ias for 3 scenarios
 # ─────────────────────────────────────────────────────────────────────────────
 
 def render_transitorios_sincronizados() -> None:
-    """Gráficos sincronizados de n(t), Te(t) e ias(t) para três cenários transitórios.
+    """Synchronised plots of n(t), Te(t) and ias(t) for three transient scenarios.
 
-    Usa updatemenus (botões Plotly) para alternar entre cenários sem rerun:
-      1. Partida DOL em vazio seguida de aplicação de carga
-      2. Voltage Sag (afundamento de tensão)
-      3. Desligamento (shutdown após regime permanente)
+    Uses updatemenus (Plotly buttons) to switch between scenarios without rerun:
+      1. DOL start at no load followed by load application
+      2. Voltage Sag
+      3. Shutdown (supply cut after steady state)
 
-    Os cenários são modelos analíticos aproximados — pedagogicamente corretos,
-    sem substituir a simulação numérica completa do solver.
+    Scenarios are approximate analytical models — pedagogically representative,
+    not a substitute for the full numerical simulation of the solver.
     """
     mp   = _get_mp()
     dark = _dark()
@@ -1041,13 +1041,13 @@ def render_transitorios_sincronizados() -> None:
     B   = float(mp.B) if mp.B > 0 else 0.005
     f   = float(mp.f)
 
-    # ── Parâmetros do circuito equivalente ───────────────────────────────────
-    # Impedância a s=1 → corrente de partida
+    # ── Equivalent circuit parameters ────────────────────────────────────────
+    # Impedance at s=1 → starting current
     Z2s1  = R2 + 1j * X2
     Zeqs1 = (1j * Xm * Z2s1) / (1j * Xm + Z2s1)
     Ztot1 = R1 + 1j * X1 + Zeqs1
     I_pk  = abs(V1 / Ztot1)           # corrente de pico a s=1 (A)
-    # Regime permanente (s≈0.04)
+    # Steady state (s≈0.04)
     s_ss  = 0.04
     Z2ss  = (R2 / s_ss) + 1j * X2
     Zeqss = (1j * Xm * Z2ss) / (1j * Xm + Z2ss)
@@ -1055,9 +1055,9 @@ def render_transitorios_sincronizados() -> None:
     I_ss  = abs(V1 / Ztss)            # corrente nominal (A)
     # Torque
     Te_ss = float(_torque_array(np.array([s_ss]), V1, R1, X1, R2, X2, Xm, ws_mec)[0])
-    Tl    = Te_ss * 0.85               # carga aplicada após partida
+    Tl    = Te_ss * 0.85               # load applied after starting
     n_ss  = ns * (1.0 - s_ss)
-    # Constante de tempo mecânica para a partida
+    # Mechanical time constant for starting
     tau_mec = J * ws_mec / max(Te_ss, 1.0)
 
     col_n   = "#4f8ef7" if dark else "#1d4ed8"
@@ -1065,16 +1065,16 @@ def render_transitorios_sincronizados() -> None:
     col_ias = "#f97316"
 
     # ─────────────────────────────────────────────────────────────────────────
-    # Cenário A — Partida DOL + aplicação de carga
+    # Scenario A — DOL Start + load application
     # ─────────────────────────────────────────────────────────────────────────
     t_max_A = max(tau_mec * 3.5, 4.0)
     t_A = np.linspace(0.0, t_max_A, 1200)
-    t_load = t_max_A * 0.55           # instante de aplicação de carga
+    t_load = t_max_A * 0.55           # load application instant
 
-    # n(t): curva exponencial de partida, leve afundamento na carga
+    # n(t): exponential starting curve, slight speed dip under load
     tau_acc = max(tau_mec * 0.8, 0.5)
     n_pre   = n_ss * (1.0 - np.exp(-t_A / tau_acc))
-    delta_n = n_ss * 0.025            # afundamento de ~2.5%
+    delta_n = n_ss * 0.025            # dip of ~2.5%
     tau_sag = tau_acc * 0.3
     n_post  = np.where(
         t_A < t_load, n_pre,
@@ -1082,21 +1082,21 @@ def render_transitorios_sincronizados() -> None:
     )
     n_A = n_post
 
-    # Te(t): pico de partida, decai ao valor de regime, segundo transitório na carga
+    # Te(t): starting peak, decays to steady-state value, second transient at load
     s_arr_A = np.maximum(1.0 - n_A / ns, 1e-4)
     Te_A_raw = _torque_array(s_arr_A, V1, R1, X1, R2, X2, Xm, ws_mec)
     Te_A = np.clip(Te_A_raw, 0.0, None)
 
-    # ias(t): envelope exponencial de decaimento do inrush
+    # ias(t): exponential decay envelope of the inrush
     tau_e = (X1 + X2) / (2.0 * np.pi * f * max(R1 + R2, 0.01))
     env_A = I_ss + (I_pk - I_ss) * np.exp(-t_A / max(tau_e, 1e-3))
     env_A = np.where(t_A < t_load, env_A, np.maximum(env_A, I_ss * 1.18))
     ias_A = env_A * np.abs(np.sin(2.0 * np.pi * f * t_A))
-    # marcar evento
+    # mark event
     t_events_A = [t_load]
 
     # ─────────────────────────────────────────────────────────────────────────
-    # Cenário B — Voltage Sag (afundamento de tensão de 30% por 0.2 s)
+    # Scenario B — Voltage Sag (30% voltage dip for 0.2 s)
     # ─────────────────────────────────────────────────────────────────────────
     t_sag_start = 1.0
     t_sag_dur   = 0.20
@@ -1104,9 +1104,9 @@ def render_transitorios_sincronizados() -> None:
     t_max_B     = t_sag_end + 1.5
     t_B = np.linspace(0.0, t_max_B, 1200)
 
-    sag_depth = 0.30                  # queda de 30% da tensão nominal
+    sag_depth = 0.30                  # 30% drop of nominal voltage
 
-    # n(t): em regime, leve queda durante sag, recuperação após
+    # n(t): at steady state, slight drop during sag, recovery after
     n_sag_drop = n_ss * 0.06 * sag_depth / 0.30
     tau_sag_n  = 0.08
     n_B = np.where(
@@ -1118,7 +1118,7 @@ def render_transitorios_sincronizados() -> None:
         ),
     )
 
-    # Te(t): cai proporcionalmente a V² durante sag, recupera depois
+    # Te(t): drops proportionally to V² during sag, recovers afterwards
     Te_sag = Te_ss * (1.0 - sag_depth) ** 2
     tau_Te_rec = 0.06
     Te_B = np.where(
@@ -1130,7 +1130,7 @@ def render_transitorios_sincronizados() -> None:
         ),
     )
 
-    # ias(t): corrente de re-partida após o sag (pico menor que partida fria)
+    # ias(t): re-start current after sag (peak smaller than cold start)
     I_restart = I_ss * (1.0 + 2.5 * sag_depth)
     ias_B_env = np.where(
         t_B < t_sag_start, I_ss,
@@ -1144,20 +1144,20 @@ def render_transitorios_sincronizados() -> None:
     t_events_B = [t_sag_start, t_sag_end]
 
     # ─────────────────────────────────────────────────────────────────────────
-    # Cenário C — Desligamento (corte de tensão em regime)
+    # Scenario C — Shutdown (supply cut at steady state)
     # ─────────────────────────────────────────────────────────────────────────
     t_cutoff = 0.5
     t_max_C  = t_cutoff + max(J * ws_mec / max(Tl * 0.5, 1.0), 2.0)
     t_C = np.linspace(0.0, t_max_C, 1200)
 
-    # tau de decaimento de n após corte: inércia / carga
+    # decay tau of n after cut: inertia / load
     tau_n_off = J / max(B + Tl / max(float(ws_mec), 1.0), 0.01)
     n_C = np.where(
         t_C < t_cutoff, n_ss,
         np.maximum(n_ss * np.exp(-(t_C - t_cutoff) / max(tau_n_off, 0.1)), 0.0),
     )
 
-    # Te(t): cai rapidamente a zero (constante de tempo elétrica)
+    # Te(t): drops rapidly to zero (electrical time constant)
     tau_Te_off = float(Xm / (wb * max(R2, 0.01))) * 0.15
     Te_C = np.where(
         t_C < t_cutoff, Te_ss,
@@ -1165,7 +1165,7 @@ def render_transitorios_sincronizados() -> None:
     )
     Te_C = np.maximum(Te_C, 0.0)
 
-    # ias(t): decai exponencialmente com a constante de fluxo de magnetização
+    # ias(t): decays exponentially with the magnetising flux time constant
     ias_C_env = np.where(
         t_C < t_cutoff, I_ss,
         I_ss * np.exp(-(t_C - t_cutoff) / max(tau_Te_off * 2, 0.05)),
@@ -1174,7 +1174,7 @@ def render_transitorios_sincronizados() -> None:
     t_events_C = [t_cutoff]
 
     # ─────────────────────────────────────────────────────────────────────────
-    # Figura com subplots — 3 linhas (n, Te, ias)
+    # Figure with subplots — 3 rows (n, Te, ias)
     # ─────────────────────────────────────────────────────────────────────────
     from plotly.subplots import make_subplots
 
@@ -1198,7 +1198,7 @@ def render_transitorios_sincronizados() -> None:
     traces_B, tevs_B = _make_subplots_for(t_B, n_B, Te_B, ias_B, t_events_B)
     traces_C, tevs_C = _make_subplots_for(t_C, n_C, Te_C, ias_C, t_events_C)
 
-    # Linha de evento: adicionar como trace shape-like scatter vertical
+    # Event line: add as shape-like vertical scatter trace
     def _event_traces(t_events, row_count=3, x_axis_sfx=None):
         ev_traces = []
         for te in t_events:
@@ -1217,8 +1217,8 @@ def render_transitorios_sincronizados() -> None:
                 ))
         return ev_traces
 
-    # Escala Y para eventos (domain 0..1 não funciona em scatter direto)
-    # Usamos shape via layout.shapes — adicionado via update_layout
+    # Y scale for events (domain 0..1 does not work in direct scatter)
+    # Using shape via layout.shapes — added via update_layout
     def _event_shapes(t_events, yref_count=3):
         shapes = []
         for te in t_events:
@@ -1232,16 +1232,16 @@ def render_transitorios_sincronizados() -> None:
                 ))
         return shapes
 
-    # Construção da figura base com cenário A
+    # Build base figure with scenario A
     SCENARIOS = [
-        ("Partida DOL + Carga", traces_A, _event_shapes(tevs_A),
-         f"n₀ → {n_ss:.0f} RPM → afundamento com carga",
+        ("DOL Start + Load", traces_A, _event_shapes(tevs_A),
+         f"n₀ → {n_ss:.0f} RPM → speed dip under load",
          t_A[-1], max(n_A) * 1.15, max(Te_A) * 1.15, max(ias_A) * 1.15),
-        ("Afundamento de Tensão (Sag)", traces_B, _event_shapes(tevs_B),
-         f"Sag de {int(sag_depth*100)}% de {t_sag_dur*1000:.0f} ms — re-partida transitória",
+        ("Voltage Sag", traces_B, _event_shapes(tevs_B),
+         f"{int(sag_depth*100)}% sag of {t_sag_dur*1000:.0f} ms — transient re-start",
          t_B[-1], max(n_B) * 1.05, max(Te_B) * 1.25, max(ias_B) * 1.25),
-        ("Desligamento (Shutdown)", traces_C, _event_shapes(tevs_C),
-         f"Corte em t={t_cutoff:.2f} s — decaimento por inércia (J={J:.3f} kg·m²)",
+        ("Shutdown", traces_C, _event_shapes(tevs_C),
+         f"Supply cut at t={t_cutoff:.2f} s — inertial decay (J={J:.3f} kg·m²)",
          t_C[-1], n_ss * 1.10, Te_ss * 1.25, I_ss * 1.25),
     ]
 
@@ -1250,7 +1250,7 @@ def render_transitorios_sincronizados() -> None:
                         vertical_spacing=0.06,
                         row_heights=[0.34, 0.33, 0.33])
 
-    # Inicializa com cenário A
+    # Initialise with scenario A
     for tr in SCENARIOS[0][1]:
         row = int(tr["xaxis"][-1]) if tr["xaxis"][-1].isdigit() else 1
         fig.add_trace(go.Scatter(
@@ -1261,7 +1261,7 @@ def render_transitorios_sincronizados() -> None:
             hovertemplate=f"t = %{{x:.4f}} s<br>{tr['name']} = %{{y:.2f}}<extra></extra>",
         ), row=row, col=1)
 
-    y_titles = ["Velocidade (RPM)", "Torque $T_e$ (N·m)", "Corrente $i_{as}$ (A)"]
+    y_titles = ["Speed (RPM)", "Torque $T_e$ (N·m)", "Current $i_{as}$ (A)"]
     for i, ytitle in enumerate(y_titles, 1):
         fig.update_yaxes(
             title_text=ytitle, row=i, col=1,
@@ -1270,13 +1270,13 @@ def render_transitorios_sincronizados() -> None:
             title_font=dict(size=11, color=pt["fg"]),
         )
     fig.update_xaxes(
-        title_text="Tempo (s)", row=3, col=1,
+        title_text="Time (s)", row=3, col=1,
         showgrid=True, gridcolor=pt["grid"],
         tickfont=dict(size=10, color=pt["fg"]),
     )
 
-    # ── updatemenus: botões de cenário (zero latência via restyle) ───────────
-    # Construir vetores de dados para cada cenário para restyle
+    # ── updatemenus: scenario buttons (zero latency via restyle) ─────────────
+    # Build data vectors for each scenario for restyle
     def _restyle_args(traces, t_end, y_n_max, y_Te_max, y_ias_max):
         x_data = [tr["x"] for tr in traces]
         y_data = [tr["y"] for tr in traces]
@@ -1298,7 +1298,7 @@ def render_transitorios_sincronizados() -> None:
     fig.update_layout(
         height=520,
         title=dict(
-            text="Transitórios Sincronizados — n(t) · Te(t) · ias(t)",
+            text="Synchronised Transients — n(t) · Te(t) · ias(t)",
             x=0.5, xanchor="center",
             font=dict(size=13, color=pt["fg"]),
         ),
@@ -1325,14 +1325,14 @@ def render_transitorios_sincronizados() -> None:
 
     st.plotly_chart(fig, width="stretch", config={"displaylogo": False})
     st.caption(
-        "Modelo analítico aproximado — didaticamente representativo. "
-        "Para curvas numéricas precisas, use o **Simulador** com os parâmetros da sua máquina. "
-        "Linhas pontilhadas âmbar indicam instantes de evento (aplicação de carga, início/fim de sag, corte de tensão)."
+        "Approximate analytical model — pedagogically representative. "
+        "For precise numerical curves, use the **Simulator** with your machine parameters. "
+        "Amber dashed lines indicate event instants (load application, sag start/end, supply cut)."
     )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 7. CIRCUITO EQUIVALENTE ALTERNÁVEL — Completo (com Rfe) vs. IEEE (sem Rfe)
+# 7. SWITCHABLE EQUIVALENT CIRCUIT — Full (with Rfe) vs. IEEE (without Rfe)
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _palette_theory(dark: bool) -> dict[str, str]:
@@ -1343,16 +1343,16 @@ def _palette_theory(dark: bool) -> dict[str, str]:
                 border="#d0d8f0", surface="#ffffff")
 
 
-@st.cache_data(show_spinner="Gerando circuito…")
+@st.cache_data(show_spinner="Generating circuit…")
 def _build_circuit_png(mp_key: tuple, dark: bool, simplified: bool) -> bytes:
-    """Gera os bytes PNG do circuito equivalente (cacheável)."""
-    # Reconstrói um objeto compatível com build_figure a partir da chave
+    """Generates PNG bytes of the equivalent circuit (cacheable)."""
+    # Rebuilds a build_figure-compatible object from the key
     class _MP:
         pass
     mp_obj = _MP()
     (mp_obj.Vl, mp_obj.f, mp_obj.Rs, mp_obj.Rr,
      mp_obj.Xm, mp_obj.Xls, mp_obj.Xlr, rfe_real, mp_obj.p) = mp_key
-    mp_obj.Rfe = 1e9 if simplified else rfe_real  # Rfe → ∞ remove o ramo shunt
+    mp_obj.Rfe = 1e9 if simplified else rfe_real  # Rfe → ∞ removes the shunt branch
 
     bg_hex = "#0d1117" if dark else "#ffffff"
     with matplotlib.rc_context({"mathtext.fontset": "dejavusans", "text.usetex": False}):
@@ -1364,16 +1364,16 @@ def _build_circuit_png(mp_key: tuple, dark: bool, simplified: bool) -> bytes:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 7. DESEQUILÍBRIO DE TENSÃO — senoidais com slider δ (amplitude) + Δf (freq)
+# 7. VOLTAGE UNBALANCE — sinusoids with δ slider (amplitude) + Δf (freq)
 # ─────────────────────────────────────────────────────────────────────────────
 
 @st.fragment
 def render_fasorial_desequilibrio() -> None:
-    """Formas de onda Va/Vb/Vc + diagrama fasorial animado com desequilíbrio por fase.
+    """Va/Vb/Vc waveforms + animated phasor diagram with per-phase unbalance.
 
-    Isolado em @st.fragment: sliders Streamlit rerrodam apenas este componente.
-    Fasorial usa animação Plotly nativa (Play/Pause) — vetores giram no plano complexo.
-    Formas de onda exibem cursor sincronizado com o slider de tempo do fasorial.
+    Isolated in @st.fragment: Streamlit sliders rerun only this component.
+    Phasor uses native Plotly animation (Play/Pause) — vectors rotate in the complex plane.
+    Waveforms display a cursor synchronised with the phasor time slider.
     """
     dark = _dark()
     pt   = _plot_theme(dark)
@@ -1388,43 +1388,43 @@ def render_fasorial_desequilibrio() -> None:
     col_fg  = pt["fg"]
     col_gr  = pt["grid"]
 
-    # ── controles: 3 colunas verticais por fase + coluna de velocidade ───────
+    # ── controls: 3 vertical columns per phase + speed column ─────────────────
     col_a, col_b, col_c, col_vel = st.columns(4)
 
     with col_a:
         st.markdown(f"<b style='color:{col_Va};font-size:15px'>● Va</b>",
                     unsafe_allow_html=True)
-        ativa_a = st.checkbox("Ativa", value=True, key="_fdeseq_ativa_a")
+        ativa_a = st.checkbox("Active", value=True, key="_fdeseq_ativa_a")
         delta_a = st.slider("Amplitude δ (%)", -30, 30, 0, key="_fdeseq_da",
                              disabled=not ativa_a, format="%+d%%")
-        freq_a  = st.slider("Frequência (Hz)", 50.0, 70.0, float(np.clip(f0, 50.0, 70.0)),
+        freq_a  = st.slider("Frequency (Hz)", 50.0, 70.0, float(np.clip(f0, 50.0, 70.0)),
                              key="_fdeseq_fa", step=0.5, disabled=not ativa_a,
                              format="%.1f Hz")
 
     with col_b:
         st.markdown(f"<b style='color:{col_Vb};font-size:15px'>● Vb</b>",
                     unsafe_allow_html=True)
-        ativa_b = st.checkbox("Ativa", value=True, key="_fdeseq_ativa_b")
+        ativa_b = st.checkbox("Active", value=True, key="_fdeseq_ativa_b")
         delta_b = st.slider("Amplitude δ (%)", -30, 30, 0, key="_fdeseq_db",
                              disabled=not ativa_b, format="%+d%%")
-        freq_b  = st.slider("Frequência (Hz)", 50.0, 70.0, float(np.clip(f0, 50.0, 70.0)),
+        freq_b  = st.slider("Frequency (Hz)", 50.0, 70.0, float(np.clip(f0, 50.0, 70.0)),
                              key="_fdeseq_fb", step=0.5, disabled=not ativa_b,
                              format="%.1f Hz")
 
     with col_c:
         st.markdown(f"<b style='color:{col_Vc};font-size:15px'>● Vc</b>",
                     unsafe_allow_html=True)
-        ativa_c = st.checkbox("Ativa", value=True, key="_fdeseq_ativa_c")
+        ativa_c = st.checkbox("Active", value=True, key="_fdeseq_ativa_c")
         delta_c = st.slider("Amplitude δ (%)", -30, 30, 0, key="_fdeseq_dc",
                              disabled=not ativa_c, format="%+d%%")
-        freq_c  = st.slider("Frequência (Hz)", 50.0, 70.0, float(np.clip(f0, 50.0, 70.0)),
+        freq_c  = st.slider("Frequency (Hz)", 50.0, 70.0, float(np.clip(f0, 50.0, 70.0)),
                              key="_fdeseq_fc", step=0.5, disabled=not ativa_c,
                              format="%.1f Hz")
 
     with col_vel:
-        st.markdown("**Animação**")
+        st.markdown("**Animation**")
         cycle_sec_pre = st.slider(
-            "Duração do ciclo (s/ciclo)",
+            "Cycle duration (s/cycle)",
             min_value=1, max_value=20, value=5, step=1,
             key="_fdeseq_vel", format="%d s",
         )
@@ -1436,7 +1436,7 @@ def render_fasorial_desequilibrio() -> None:
     fb    = float(freq_b) if ativa_b else f0
     fc    = float(freq_c) if ativa_c else f0
 
-    # ── VUF via Fortescue ────────────────────────────────────────────────────
+    # ── VUF via Fortescue ─────────────────────────────────────────────────────
     a_rot = np.exp(1j * 2 * np.pi / 3)
     F_mat = np.array([
         [1, 1,        1       ],
@@ -1452,9 +1452,9 @@ def render_fasorial_desequilibrio() -> None:
     v2_pu   = float(abs(V2s))
     vuf_txt = f"VUF = {vuf:.1f}%"
 
-    # ── período de loop: menor k·T0 que aproxime um ciclo inteiro de todas as fases ─
-    # Com frequências distintas, sin(2π·f_i·t) só fecha quando k·T0 é (quase) múltiplo
-    # inteiro de 1/f_i. Buscamos k∈[1,30] minimizando o erro de fase no fim da janela.
+    # ── loop period: smallest k·T0 that approximates a full cycle of all phases ─
+    # With distinct frequencies, sin(2π·f_i·t) only closes when k·T0 is (nearly) an
+    # integer multiple of 1/f_i. Search k∈[1,30] minimising phase error at end of window.
     T0       = 1.0 / f0
     freqs_on = [fa if ativa_a else f0, fb if ativa_b else f0, fc if ativa_c else f0]
     k_best, err_best = 1, float("inf")
@@ -1467,20 +1467,20 @@ def render_fasorial_desequilibrio() -> None:
                 break
     T_loop = k_best * T0
 
-    # ── eixo de tempo: ciclo de loop, N_T frames por ciclo nominal ────────────
-    N_T   = 72 * k_best   # 5°/frame por ciclo de 60 Hz, escalado pelo loop
-    # endpoint=False: array de animação (sem repetir t=T_loop)
+    # ── time axis: loop cycle, N_T frames per nominal cycle ───────────────────
+    N_T   = 72 * k_best   # 5°/frame per 60 Hz cycle, scaled by loop
+    # endpoint=False: animation array (no repeat at t=T_loop)
     t_arr  = np.linspace(0.0, T_loop, N_T, endpoint=False)
     t_ms   = (t_arr * 1000).tolist()
-    # endpoint=True: curva estática inclui t=T_loop para fechar o ciclo visualmente
+    # endpoint=True: static curve includes t=T_loop to close the cycle visually
     t_plot = np.linspace(0.0, T_loop, N_T + 1, endpoint=True)
     t_ms_plot = t_plot * 1000  # ndarray — Plotly aceita direto
 
-    # ── pré-calcula todas as ondas (vetorizado) ───────────────────────────────
+    # ── pre-compute all waveforms (vectorised) ────────────────────────────────
     Va_wave = amp_a * np.sin(2 * np.pi * fa * t_arr)
     Vb_wave = amp_b * np.sin(2 * np.pi * fb * t_arr - 2 * np.pi / 3)
     Vc_wave = amp_c * np.sin(2 * np.pi * fc * t_arr + 2 * np.pi / 3)
-    # curvas estáticas fechadas (para o plot)
+    # closed static curves (for the plot)
     Va_plot = amp_a * np.sin(2 * np.pi * fa * t_plot)
     Vb_plot = amp_b * np.sin(2 * np.pi * fb * t_plot - 2 * np.pi / 3)
     Vc_plot = amp_c * np.sin(2 * np.pi * fc * t_plot + 2 * np.pi / 3)
@@ -1488,7 +1488,7 @@ def render_fasorial_desequilibrio() -> None:
     y_max_wave = max(amp_a, amp_b, amp_c, 0.01) * 1.25
     r_max      = max(amp_a, amp_b, amp_c, 0.01) * 1.35
 
-    # ── traços base das formas de onda (curvas estáticas) ─────────────────────
+    # ── base waveform traces (static curves) ──────────────────────────────────
     base_wave: list = []
     if ativa_a:
         base_wave.append(go.Scatter(x=t_ms_plot, y=Va_plot, mode="lines",
@@ -1501,7 +1501,7 @@ def render_fasorial_desequilibrio() -> None:
             name=f"Vc ({fc:.1f} Hz)", line=dict(color=col_Vc, width=2.5)))
     n_static_wave = len(base_wave)
 
-    # marcadores animados: um por fase ativa + cursor vertical + VUF text
+    # animated markers: one per active phase + vertical cursor + VUF text
     n_markers = sum([ativa_a, ativa_b, ativa_c]) + 1 + 1  # +cursor +VUF
 
     def _wave_anim_traces(ti: int) -> list:
@@ -1524,7 +1524,7 @@ def render_fasorial_desequilibrio() -> None:
             mode="lines", line=dict(color=col_fg, width=1, dash="dot"),
             showlegend=False,
         ))
-        # VUF animado (placeholder; valor real calculado em JS)
+        # Animated VUF (placeholder; real value computed in JS)
         traces.append(go.Scatter(
             x=[t_ms[-1] * 0.70], y=[y_max_wave * 0.88],
             mode="text", text=[vuf_txt],
@@ -1532,7 +1532,7 @@ def render_fasorial_desequilibrio() -> None:
         ))
         return traces
 
-    # ── traços base do fasorial (apenas círculo de referência) ───────────────
+    # ── base phasor traces (reference circle only) ────────────────────────────
     theta_c = np.linspace(0, 2 * np.pi, 120)
     base_fas: list = [
         go.Scatter(
@@ -1543,7 +1543,7 @@ def render_fasorial_desequilibrio() -> None:
     ]
     n_static_fas = len(base_fas)
 
-    # vetores animados: 2 traces por fase ativa (seta + rótulo) + VUF text
+    # animated vectors: 2 traces per active phase (arrow + label) + VUF text
     n_arrows = sum([ativa_a, ativa_b, ativa_c]) * 2 + 1  # +1 VUF
 
     def _fas_anim_traces(ti: int) -> list:
@@ -1571,7 +1571,7 @@ def render_fasorial_desequilibrio() -> None:
                 mode="text", text=[f"{lbl} {amp:.2f}"],
                 textfont=dict(size=9, color=col), showlegend=False,
             ))
-        # VUF animado (placeholder; valor real calculado em JS)
+        # Animated VUF (placeholder; real value computed in JS)
         traces.append(go.Scatter(
             x=[0], y=[-r_max * 0.88],
             mode="text", text=[vuf_txt],
@@ -1579,7 +1579,7 @@ def render_fasorial_desequilibrio() -> None:
         ))
         return traces
 
-    # ── serializa figuras e parâmetros para JS ───────────────────────────────
+    # ── serialise figures and parameters for JS ───────────────────────────────
     import json
 
     fig_wave = go.Figure(data=base_wave + _wave_anim_traces(0))
@@ -1596,19 +1596,19 @@ def render_fasorial_desequilibrio() -> None:
     )
     fig_wave.update_layout(
         **layout_common,
-        title=dict(text="Formas de Onda Va / Vb / Vc", x=0.5, xanchor="center",
+        title=dict(text="Waveforms Va / Vb / Vc", x=0.5, xanchor="center",
                    font=dict(size=12, color=col_fg)),
         margin=dict(l=55, r=10, t=45, b=90),
-        xaxis=dict(title="Tempo (ms)", showgrid=True, gridcolor=col_gr,
+        xaxis=dict(title="Time (ms)", showgrid=True, gridcolor=col_gr,
                    zeroline=False, tickfont=dict(size=9, color=col_fg)),
-        yaxis=dict(title="Tensão (p.u.)", showgrid=True, gridcolor=col_gr,
+        yaxis=dict(title="Voltage (p.u.)", showgrid=True, gridcolor=col_gr,
                    zeroline=True, zerolinecolor=col_gr,
                    range=[-y_max_wave, y_max_wave],
                    tickfont=dict(size=9, color=col_fg)),
     )
     fig_fas.update_layout(
         **layout_common,
-        title=dict(text="Diagrama Fasorial", x=0.5, xanchor="center",
+        title=dict(text="Phasor Diagram", x=0.5, xanchor="center",
                    font=dict(size=12, color=col_fg)),
         margin=dict(l=50, r=10, t=45, b=90),
         xaxis=dict(title="Re (p.u.)", showgrid=True, gridcolor=col_gr,
@@ -1661,9 +1661,9 @@ def render_fasorial_desequilibrio() -> None:
   var tMs     = {json.dumps(t_ms)};
   var wIdx    = {json.dumps(wave_anim_idx)};
   var fIdx    = {json.dumps(fas_anim_idx)};
-  var T0real  = {T_loop_ms:.4f};   // janela de loop em ms (k·T0, fecha todas as fases)
-  var kBest   = {k_best};          // nº de ciclos nominais no loop
-  var tMax    = {t_ms_max:.4f}; // duração do eixo X em ms (== T0real)
+  var T0real  = {T_loop_ms:.4f};   // loop window in ms (k·T0, closes all phases)
+  var kBest   = {k_best};          // number of nominal cycles in the loop
+  var tMax    = {t_ms_max:.4f}; // X axis duration in ms (== T0real)
   var yMax    = {y_max_wave * 1.25:.4f};
   var PI2      = 2 * Math.PI;
   var startTs  = null;
@@ -1676,7 +1676,7 @@ def render_fasorial_desequilibrio() -> None:
     Plotly.newPlot('gf', fSpec.data, fSpec.layout, cfg)
   ]).then(function(divs){{
     gw = divs[0]; gf = divs[1];
-    // fixa os ranges para o restyle não comprimir os eixos
+    // fix ranges so restyle does not compress the axes
     Plotly.relayout(gw, {{'xaxis.autorange': false, 'xaxis.range': [0, tMax],
                           'yaxis.autorange': false, 'yaxis.range': [-yMax, yMax]}});
     Plotly.relayout(gf, {{'xaxis.autorange': false, 'yaxis.autorange': false}});
@@ -1685,13 +1685,13 @@ def render_fasorial_desequilibrio() -> None:
 
   function tick(ts){{
     if (!startTs) startTs = ts;
-    var T0ms  = cycleSec * 1000 * kBest;         // duração visual do loop completo (k ciclos nominais)
-    var frac  = ((ts - startTs) % T0ms) / T0ms;  // fração 0..1 dentro do loop visual
-    var tx    = frac * tMax;                     // ms dentro do loop para o cursor (fecha em tMax)
-    var tNorm = frac * T0real / 1000;            // segundos: 0..T0real/1000 (loop completo)
+    var T0ms  = cycleSec * 1000 * kBest;         // visual duration of full loop (k nominal cycles)
+    var frac  = ((ts - startTs) % T0ms) / T0ms;  // fraction 0..1 within visual loop
+    var tx    = frac * tMax;                     // ms within loop for cursor (closes at tMax)
+    var tNorm = frac * T0real / 1000;            // seconds: 0..T0real/1000 (full loop)
 
-    // ── VUF instantâneo via Fortescue ────────────────────────────────────────
-    // fasores complexos em tNorm
+    // ── Instantaneous VUF via Fortescue ──────────────────────────────────────
+    // complex phasors at tNorm
     var a120 = PI2 / 3;
     var fasors = [];
     for (var i = 0; i < phases.length; i++) {{
@@ -1699,7 +1699,7 @@ def render_fasorial_desequilibrio() -> None:
       var th = PI2 * p.freq * tNorm + p.ph0;
       fasors.push([p.amp * Math.cos(th), p.amp * Math.sin(th)]);  // [Re, Im]
     }}
-    // preenche fases inativas com zero
+    // fill inactive phases with zero
     var Va_c = [0,0], Vb_c = [0,0], Vc_c = [0,0];
     var fi2 = 0;
     var actMask = [{int(ativa_a)}, {int(ativa_b)}, {int(ativa_c)}];
@@ -1720,7 +1720,7 @@ def render_fasorial_desequilibrio() -> None:
     var vuf = cabs(V1) > 1e-9 ? (cabs(V2) / cabs(V1) * 100) : 0;
     var vufTxt = 'VUF = ' + vuf.toFixed(1) + '%';
 
-    // formas de onda: marcadores + cursor + VUF text
+    // waveforms: markers + cursor + VUF text
     var wx = [], wy = [], wi = [], wt = [];
     for (var i = 0; i < phases.length; i++){{
       var p  = phases[i];
@@ -1732,7 +1732,7 @@ def render_fasorial_desequilibrio() -> None:
     wi.push(wIdx[phases.length + 1]); wt.push([vufTxt]);
     Plotly.restyle(gw, {{x: wx, y: wy, text: wt}}, wi);
 
-    // fasorial: vetores + rótulos + VUF text
+    // phasor: vectors + labels + VUF text
     var fx = [], fy = [], fi_arr = [], ft = [];
     for (var i = 0; i < phases.length; i++){{
       var p  = phases[i];
@@ -1755,13 +1755,13 @@ def render_fasorial_desequilibrio() -> None:
 
 
 def render_circuito_alternavel() -> None:
-    """Circuito equivalente alternável: Completo (com Rfe) ↔ Simplificado IEEE (sem Rfe)."""
+    """Switchable equivalent circuit: Full (with Rfe) ↔ IEEE simplified (without Rfe)."""
     mp   = _get_mp()
     dark = _dark()
 
     modo = st.radio(
-        "Modelo de circuito",
-        options=["Completo — com $R_{fe}$", "Simplificado IEEE — sem $R_{fe}$"],
+        "Circuit model",
+        options=["Full — with $R_{fe}$", "IEEE simplified — without $R_{fe}$"],
         horizontal=True,
         key="th_circ_modo",
     )
@@ -1777,18 +1777,18 @@ def render_circuito_alternavel() -> None:
 
     if simplified:
         st.markdown(
-            r"**Equação de malha** — ramo $R_{fe}$ removido ($R_{fe} \to \infty$, circuito aberto):"
+            r"**Loop equation** — $R_{fe}$ branch removed ($R_{fe} \to \infty$, open circuit):"
         )
         st.latex(
             r"Z_{total} = R_s + jX_{ls} + jX_m \,\Big\|\,"
             r"\!\left(jX_{lr} + \tfrac{R_r}{s}\right)"
         )
         st.markdown(
-            "Simplificação válida quando $P_{fe} \\lesssim 2\\%\\,P_{nom}$. "
-            "O rendimento é calculado separadamente sem perder precisão."
+            "Simplification valid when $P_{fe} \\lesssim 2\\%\\,P_{nom}$. "
+            "Efficiency is calculated separately without loss of accuracy."
         )
     else:
-        st.markdown(r"**Equação de malha** — modelo completo com perdas no ferro:")
+        st.markdown(r"**Loop equation** — full model with core losses:")
         st.latex(
             r"Z_{total} = R_s + jX_{ls} + "
             r"\left(jX_m \,\Big\|\, R_{fe}\right) \,\Big\|\,"
@@ -1801,18 +1801,18 @@ def render_circuito_alternavel() -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def render_mcsa() -> None:
-    """Simulador MCSA — espectro de corrente com sidebands (1 ± 2k·s)·fe.
+    """MCSA simulator — current spectrum with sidebands (1 ± 2k·s)·fe.
 
-    Usa slider nativo Plotly (zero latência): pré-calcula N_STEPS espectros
-    para um grid de severidade α e empacota como frames. O slider JS move
-    entre frames no cliente sem rerun.
+    Uses native Plotly slider (zero latency): pre-computes N_STEPS spectra
+    for a severity grid α and packs them as frames. The JS slider moves
+    between frames on the client without rerun.
     """
     mp   = _get_mp()
     dark = _dark()
     pt   = _plot_theme(dark)
 
     f_e   = float(mp.f)
-    # escorregamento nominal típico (ou do último resultado, se disponível)
+    # typical nominal slip (or from the last result, if available)
     res   = st.session_state.get("sim_result")
     if res and "res" in res and "s" in res["res"]:
         s_op = float(res["res"]["s"])
@@ -1821,17 +1821,17 @@ def render_mcsa() -> None:
     else:
         s_op = 0.035
 
-    # Grid de severidade α — 51 passos lineares entre 0 e 0.5
+    # Severity grid α — 51 linear steps between 0 and 0.5
     N_STEPS = 51
     alpha_grid = np.linspace(0.0, 0.5, N_STEPS)
-    nom_idx    = int(np.argmin(np.abs(alpha_grid - 0.15)))  # arranque na falha incipiente
+    nom_idx    = int(np.argmin(np.abs(alpha_grid - 0.15)))  # start at incipient fault
 
-    # Frequências relevantes
+    # Relevant frequencies
     f_min = max(f_e - 12.0, 0.0)
     f_max = f_e + 12.0
     freqs = np.linspace(f_min, f_max, 1200)
 
-    # Largura espectral (Lorentziana) para visualizar picos discretos
+    # Spectral width (Lorentzian) to visualise discrete peaks
     fwhm = 0.20  # Hz
     gamma = fwhm / 2.0
 
@@ -1841,30 +1841,30 @@ def render_mcsa() -> None:
     A_fund = 1.0  # amplitude normalizada da fundamental
 
     def _spectrum(alpha: float) -> np.ndarray:
-        """Soma da fundamental + 3 pares de sidebands em (1 ± 2k·s)·f_e."""
+        """Sum of fundamental + 3 sideband pairs at (1 ± 2k·s)·f_e."""
         y = _lorentz(freqs, f_e, A_fund)
-        # amplitudes laterais decaem com k e crescem com α
+        # sideband amplitudes decrease with k and grow with α
         for k in (1, 2, 3):
             A_sb = (alpha / 2.0) * (1.0 / k) * A_fund
             f_low  = f_e * (1.0 - 2.0 * k * s_op)
             f_high = f_e * (1.0 + 2.0 * k * s_op)
             y = y + _lorentz(freqs, f_low,  A_sb)
             y = y + _lorentz(freqs, f_high, A_sb)
-        # piso de ruído
+        # noise floor
         y = y + 0.002
         return y
 
     col_fund = "#4f8ef7" if dark else "#1d4ed8"
     col_sb   = "#f87171"
-    col_th   = "#f97316"  # linha de limiar diagnóstico
+    col_th   = "#f97316"  # diagnostic threshold line
 
-    # Espectro inicial (frame nom_idx)
+    # Initial spectrum (frame nom_idx)
     y_init = _spectrum(alpha_grid[nom_idx])
 
     # ── figura base ──────────────────────────────────────────────────────────
     fig = go.Figure()
 
-    # Trace 0 — espectro (variável por frame)
+    # Trace 0 — spectrum (varies per frame)
     fig.add_trace(go.Scatter(
         x=freqs, y=20.0 * np.log10(np.clip(y_init, 1e-6, None)),
         mode="lines",
@@ -1875,7 +1875,7 @@ def render_mcsa() -> None:
         hovertemplate="f = %{x:.2f} Hz<br>%{y:.1f} dB<extra></extra>",
     ))
 
-    # Frequências dos sidebands (fixas, pois dependem apenas de s, não de α)
+    # Sideband frequencies (fixed, as they depend only on s, not on α)
     sb_x = []
     sb_text = []
     for k in (1, 2, 3):
@@ -1884,7 +1884,7 @@ def render_mcsa() -> None:
         sb_x.extend([f_low, f_high])
         sb_text.extend([f"k=-{k}", f"k=+{k}"])
 
-    # Trace 1 — marcadores nas posições dos sidebands (altura recalculada por frame)
+    # Trace 1 — markers at sideband positions (height recalculated per frame)
     sb_y_init = [20.0 * np.log10(max(_spectrum(alpha_grid[nom_idx])[int(np.argmin(np.abs(freqs - fx)))], 1e-6)) for fx in sb_x]
     fig.add_trace(go.Scatter(
         x=sb_x, y=sb_y_init,
@@ -1897,12 +1897,12 @@ def render_mcsa() -> None:
         hovertemplate="f = %{x:.2f} Hz<br>%{y:.1f} dB<extra></extra>",
     ))
 
-    # Trace 2 — limiar IEC 60034-26 (-45 dB → falha confirmada)
+    # Trace 2 — IEC 60034-26 threshold (-45 dB → confirmed fault)
     fig.add_trace(go.Scatter(
         x=[f_min, f_max], y=[-45.0, -45.0],
         mode="lines",
         line=dict(color=col_th, width=1.2, dash="dash"),
-        name="Limiar IEC 60034-26 (−45 dB)",
+        name="IEC 60034-26 threshold (−45 dB)",
         hoverinfo="skip",
     ))
 
@@ -1935,17 +1935,17 @@ def render_mcsa() -> None:
     fig.update_layout(
         height=440,
         title=dict(
-            text=f"Espectro MCSA — corrente do estator (s = {s_op*100:.2f}%, f_e = {f_e:.0f} Hz)",
+            text=f"MCSA Spectrum — stator current (s = {s_op*100:.2f}%, f_e = {f_e:.0f} Hz)",
             x=0.5, xanchor="center", font=dict(size=13, color=pt["fg"]),
         ),
         paper_bgcolor=pt["paper_bg"],
         plot_bgcolor=pt["plot_bg"],
         font=dict(family="Inter, system-ui", size=11, color=pt["fg"]),
         margin=dict(l=60, r=20, t=55, b=130),
-        xaxis=dict(title="Frequência (Hz)", showgrid=True, gridcolor=pt["grid"],
+        xaxis=dict(title="Frequency (Hz)", showgrid=True, gridcolor=pt["grid"],
                    tickfont=dict(size=10, color=pt["fg"]),
                    range=[f_min, f_max]),
-        yaxis=dict(title="Amplitude (dB rel. à fundamental)", showgrid=True,
+        yaxis=dict(title="Amplitude (dB rel. to fundamental)", showgrid=True,
                    gridcolor=pt["grid"], tickfont=dict(size=10, color=pt["fg"]),
                    range=[-70, 5]),
         showlegend=True,
@@ -1970,37 +1970,37 @@ def render_mcsa() -> None:
 
     st.plotly_chart(fig, use_container_width=True, config={"displaylogo": False})
 
-    # ── Tabela diagnóstica IEC 60034-26 ──────────────────────────────────────
+    # ── IEC 60034-26 diagnostic table ────────────────────────────────────────
     alpha_curr = alpha_grid[nom_idx]
-    # cálculo de amplitude do primeiro sideband (k=1) para diagnóstico
+    # compute amplitude of first sideband (k=1) for diagnosis
     A_sb_db = 20.0 * np.log10(max(alpha_curr / 2.0, 1e-6))
     if A_sb_db < -50:
-        diag = "**Rotor saudável** — sidebands abaixo do piso de ruído típico."
+        diag = "**Healthy rotor** — sidebands below typical noise floor."
     elif A_sb_db < -45:
-        diag = "**Monitoramento** — possível fissura incipiente; reavaliar em 30 dias."
+        diag = "**Monitor** — possible incipient crack; re-evaluate in 30 days."
     elif A_sb_db < -40:
-        diag = "**Falha confirmada** — planejar manutenção corretiva."
+        diag = "**Confirmed fault** — schedule corrective maintenance."
     elif A_sb_db < -35:
-        diag = "**Falha avançada** — intervenção urgente recomendada."
+        diag = "**Advanced fault** — urgent intervention recommended."
     else:
-        diag = "**Risco crítico** — risco de ruptura do anel; parada imediata."
+        diag = "**Critical risk** — ring rupture risk; immediate shutdown required."
 
     st.caption(
-        f"Para α = {alpha_curr:.2f}: amplitude do primeiro sideband ≈ {A_sb_db:.1f} dB → {diag}"
+        f"For α = {alpha_curr:.2f}: first sideband amplitude ≈ {A_sb_db:.1f} dB → {diag}"
     )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 5. COMPARADOR DE MÉTODOS DE FRENAGEM — n(t) e Te(t) interativos
+# 5. BRAKING METHOD COMPARATOR — n(t) and Te(t) interactive
 # ─────────────────────────────────────────────────────────────────────────────
 
 def render_comparador_frenagem() -> None:
-    """Comparador interativo dos 3 métodos de frenagem: Regenerativa, Plugging, CC.
+    """Interactive comparator of the 3 braking methods: Regenerative, Plugging, DC.
 
-    Zero latência via frames Plotly:
-    - Slider JS para intensidade da frenagem (N_INTENS steps)
-    - Dropdown Plotly para velocidade inicial n0 (N_N0 opções)
-    - 3 checkboxes Streamlit para mostrar/ocultar cada método (rerun OK pois muda estrutura de traces)
+    Zero latency via Plotly frames:
+    - JS slider for braking intensity (N_INTENS steps)
+    - Plotly dropdown for initial speed n0 (N_N0 options)
+    - 3 Streamlit checkboxes to show/hide each method (rerun OK as it changes trace structure)
     """
     mp   = _get_mp()
     dark = _dark()
@@ -2009,14 +2009,14 @@ def render_comparador_frenagem() -> None:
     n_sync = float(mp.n_sync)
     n_nom  = n_sync * 0.97
 
-    # Checkboxes Streamlit (rerun é aceitável — muda estrutura)
+    # Streamlit checkboxes (rerun is acceptable — changes structure)
     c3, c4, c5 = st.columns(3)
     with c3:
-        show_reg  = st.checkbox("Regenerativa",              value=True, key="_frenagem_reg")
+        show_reg  = st.checkbox("Regenerative",              value=True, key="_frenagem_reg")
     with c4:
-        show_plug = st.checkbox("Contracorrente (Plugging)", value=True, key="_frenagem_plug")
+        show_plug = st.checkbox("Counter-current (Plugging)", value=True, key="_frenagem_plug")
     with c5:
-        show_dc   = st.checkbox("Injeção CC",               value=True, key="_frenagem_dc")
+        show_dc   = st.checkbox("DC Injection",               value=True, key="_frenagem_dc")
 
     col_reg  = "#34d399" if dark else "#059669"
     col_plug = "#f87171"
@@ -2026,13 +2026,13 @@ def render_comparador_frenagem() -> None:
     t = np.linspace(0.0, t_max, 1200)
 
     # Grids
-    N_INTENS = 45  # intensidade: 0.3 → 2.5
-    N_N0     = 11  # n0: 50% → 100% de n_sync, step 5
+    N_INTENS = 45  # intensity: 0.3 → 2.5
+    N_N0     = 11  # n0: 50% → 100% of n_sync, step 5
 
     intens_grid = np.linspace(0.3, 2.5, N_INTENS)
     n0_pct_grid = np.arange(50, 105, 5)  # [50, 55, ..., 100]
 
-    # Índices iniciais
+    # Initial indices
     nom_intens_idx = int(np.argmin(np.abs(intens_grid - 1.0)))
     nom_n0_idx     = int(np.argmin(np.abs(n0_pct_grid - int(round(n_nom / n_sync * 100)))))
 
@@ -2060,24 +2060,24 @@ def render_comparador_frenagem() -> None:
         return (n0, n_reg, n_plug_motor, mask_plug, n_plug_no_disc, n_dc,
                 ts_reg, ts_plug, ts_dc)
 
-    # ── Figura base (frame inicial: nom_n0_idx, nom_intens_idx) ──────────────
+    # ── Base figure (initial frame: nom_n0_idx, nom_intens_idx) ──────────────
     (n0_i, n_reg_i, n_plug_i, mask_i, n_nod_i, n_dc_i,
      ts_reg_i, ts_plug_i, ts_dc_i) = _compute_curves(
         intens_grid[nom_intens_idx], n0_pct_grid[nom_n0_idx])
 
     fig = go.Figure()
 
-    # Trace 0 — Regenerativa
+    # Trace 0 — Regenerative
     fig.add_trace(go.Scatter(
         x=t, y=n_reg_i if show_reg else [None]*len(t),
         mode="lines",
-        name=f"Regenerativa (t_p ≈ {ts_reg_i:.2f} s)",
+        name=f"Regenerative (t_p ≈ {ts_reg_i:.2f} s)",
         line=dict(color=col_reg, width=2.5, dash="dash"),
-        hovertemplate="t = %{x:.2f} s<br>n = %{y:.0f} RPM<extra>Regenerativa</extra>",
+        hovertemplate="t = %{x:.2f} s<br>n = %{y:.0f} RPM<extra>Regenerative</extra>",
         visible=show_reg,
     ))
 
-    # Trace 1 — Plugging (parte ativa)
+    # Trace 1 — Plugging (active portion)
     t_plug_x = t[mask_i].tolist() if show_plug else []
     n_plug_y = n_plug_i[mask_i].tolist() if show_plug else []
     fig.add_trace(go.Scatter(
@@ -2089,7 +2089,7 @@ def render_comparador_frenagem() -> None:
         visible=show_plug,
     ))
 
-    # Trace 2 — Plugging sem desconexão (pontilhado)
+    # Trace 2 — Plugging without disconnection (dotted)
     t_ov = t[~mask_i][:60].tolist() if show_plug else []
     n_ov = n_nod_i[~mask_i][:60].tolist() if show_plug else []
     fig.add_trace(go.Scatter(
@@ -2102,21 +2102,21 @@ def render_comparador_frenagem() -> None:
         visible=show_plug,
     ))
 
-    # Trace 3 — Injeção CC
+    # Trace 3 — DC Injection
     fig.add_trace(go.Scatter(
         x=t, y=n_dc_i if show_dc else [None]*len(t),
         mode="lines",
-        name=f"Injeção CC (t_p ≈ {ts_dc_i:.2f} s)",
+        name=f"DC Injection (t_p ≈ {ts_dc_i:.2f} s)",
         line=dict(color=col_dc, width=2.5, dash="dot"),
-        hovertemplate="t = %{x:.2f} s<br>n = %{y:.0f} RPM<extra>CC</extra>",
+        hovertemplate="t = %{x:.2f} s<br>n = %{y:.0f} RPM<extra>DC</extra>",
         visible=show_dc,
     ))
 
     fig.add_hline(y=0.0,    line=dict(color=pt["fg"],   width=1.0))
     fig.add_hline(y=n_nom,  line=dict(color=pt["grid"], width=0.8, dash="dot"))
 
-    # ── Frames: slider para intensidade, dropdown para n0 ────────────────────
-    # Frames indexados por (n0_idx, intens_idx): frame_name = f"{n0_idx}_{intens_idx}"
+    # ── Frames: slider for intensity, dropdown for n0 ────────────────────────
+    # Frames indexed by (n0_idx, intens_idx): frame_name = f"{n0_idx}_{intens_idx}"
     frames = []
     for ni, n0_pct in enumerate(n0_pct_grid):
         for ii, intens in enumerate(intens_grid):
@@ -2132,22 +2132,22 @@ def render_comparador_frenagem() -> None:
                 name=f"{ni}_{ii}",
                 data=[
                     go.Scatter(x=t, y=n_reg_f,
-                               name=f"Regenerativa (t_p ≈ {ts_reg_f:.2f} s)"),
+                               name=f"Regenerative (t_p ≈ {ts_reg_f:.2f} s)"),
                     go.Scatter(x=t_plug_xf, y=n_plug_yf,
                                name=f"Plugging (t_p ≈ {ts_plug_f:.2f} s)"),
                     go.Scatter(x=t_ovf, y=n_ovf),
                     go.Scatter(x=t, y=n_dc_f,
-                               name=f"Injeção CC (t_p ≈ {ts_dc_f:.2f} s)"),
+                               name=f"DC Injection (t_p ≈ {ts_dc_f:.2f} s)"),
                 ],
                 traces=[0, 1, 2, 3],
             ))
 
     fig.frames = frames
 
-    # ── Slider JS para intensidade ────────────────────────────────────────────
+    # ── JS slider for intensity ────────────────────────────────────────────────
     slider_steps = []
     for ii, intens in enumerate(intens_grid):
-        # Frame do n0 atual (nom_n0_idx) com este intens
+        # Frame of current n0 (nom_n0_idx) with this intens
         slider_steps.append(dict(
             method="animate",
             label=f"{intens:.1f}x",
@@ -2157,9 +2157,9 @@ def render_comparador_frenagem() -> None:
                        transition=dict(duration=0))],
         ))
 
-    # ── Dropdown Plotly para n0 ───────────────────────────────────────────────
-    # Cada botão anima para o frame correspondente a (ni, intens_atual)
-    # Usa a intensidade inicial; ao mudar n0 via dropdown, o slider fica no mesmo intens step
+    # ── Plotly dropdown for n0 ───────────────────────────────────────────────
+    # Each button animates to the frame corresponding to (ni, current_intens)
+    # Uses initial intensity; when n0 changes via dropdown, slider stays at same intens step
     dropdown_buttons = []
     for ni, n0_pct in enumerate(n0_pct_grid):
         dropdown_buttons.append(dict(
@@ -2173,15 +2173,15 @@ def render_comparador_frenagem() -> None:
 
     fig.update_layout(
         height=500,
-        title=dict(text="Comparação de Métodos de Frenagem — n(t)",
+        title=dict(text="Braking Method Comparison — n(t)",
                    x=0.5, xanchor="center", font=dict(size=13, color=pt["fg"])),
         paper_bgcolor=pt["paper_bg"], plot_bgcolor=pt["plot_bg"],
         font=dict(family="Inter, system-ui", size=11, color=pt["fg"]),
         margin=dict(l=60, r=20, t=55, b=160),
-        xaxis=dict(title="Tempo desde início da frenagem (s)", showgrid=True,
+        xaxis=dict(title="Time since braking start (s)", showgrid=True,
                    gridcolor=pt["grid"], tickfont=dict(size=10, color=pt["fg"]),
                    range=[0, t_max]),
-        yaxis=dict(title="Velocidade (RPM)", showgrid=True, gridcolor=pt["grid"],
+        yaxis=dict(title="Speed (RPM)", showgrid=True, gridcolor=pt["grid"],
                    tickfont=dict(size=10, color=pt["fg"]),
                    range=[-n_sync * 0.15, n_sync * 1.05]),
         showlegend=True,
@@ -2200,14 +2200,14 @@ def render_comparador_frenagem() -> None:
                 bordercolor=pt["grid"],
                 font=dict(color=pt["fg"], size=11),
             ),
-            # Hidden button para ativar sistema de animação
+            # Hidden button to activate animation system
             dict(
                 type="buttons", visible=False,
                 buttons=[dict(method="animate", args=[None])],
             ),
         ],
         annotations=[dict(
-            text="Velocidade inicial (% n_sync):",
+            text="Initial speed (% n_sync):",
             x=0.01, y=1.17, xref="paper", yref="paper",
             showarrow=False,
             font=dict(size=11, color=pt["fg"]),
@@ -2216,7 +2216,7 @@ def render_comparador_frenagem() -> None:
         sliders=[dict(
             active=nom_intens_idx,
             currentvalue=dict(
-                prefix="Intensidade da frenagem: ",
+                prefix="Braking intensity: ",
                 suffix="x",
                 visible=True,
                 xanchor="center",
@@ -2236,34 +2236,34 @@ def render_comparador_frenagem() -> None:
 
     st.plotly_chart(fig, width="stretch", config={"displaylogo": False})
 
-    # ── Resumo comparativo ────────────────────────────────────────────────────
-    st.markdown("**Resumo dos métodos selecionados:**")
+    # ── Comparative summary ───────────────────────────────────────────────────
+    st.markdown("**Summary of selected methods:**")
     rows = []
     if show_reg:
-        rows.append(("Regenerativa", f"{ts_reg_i:.2f} s",  "Devolve à rede",    "Baixo (rede absorve)"))
+        rows.append(("Regenerative", f"{ts_reg_i:.2f} s",  "Returns to grid",      "Low (grid absorbs)"))
     if show_plug:
-        rows.append(("Plugging",     f"{ts_plug_i:.2f} s", "Dissipa no rotor",  "Muito alto (sobrecorrente)"))
+        rows.append(("Plugging",     f"{ts_plug_i:.2f} s", "Dissipated in rotor",  "Very high (overcurrent)"))
     if show_dc:
-        rows.append(("Injeção CC",   f"{ts_dc_i:.2f} s",   "Dissipa no rotor",  "Médio"))
+        rows.append(("DC Injection", f"{ts_dc_i:.2f} s",   "Dissipated in rotor",  "Moderate"))
     if rows:
         st.table({
-            "Método":              [r[0] for r in rows],
-            "Tempo até 5% de n₀":  [r[1] for r in rows],
-            "Destino da energia":  [r[2] for r in rows],
-            "Custo térmico":       [r[3] for r in rows],
+            "Method":               [r[0] for r in rows],
+            "Time to 5% of n₀":    [r[1] for r in rows],
+            "Energy destination":   [r[2] for r in rows],
+            "Thermal cost":         [r[3] for r in rows],
         })
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 6. DIAGRAMA DE BLOCOS DE KRAUSE — modelo 0dq expansível
+# 6. KRAUSE BLOCK DIAGRAM — expandable 0dq model
 # ─────────────────────────────────────────────────────────────────────────────
 
 def render_blocos_krause() -> None:
-    """Diagrama de blocos do modelo 0dq de Krause, com cards expansíveis por equação.
+    """Block diagram of the Krause 0dq model, with expandable cards per equation.
 
-    Layout: 6 cards principais (Vqs/Vds → ψqs/ψds, ψqr/ψdr, ψmq/ψmd, iqs/ids,
-    Te, ωr). Cada card mostra a equação simplificada; o usuário pode expandir
-    para ver a versão completa e o significado físico.
+    Layout: 6 main cards (Vqs/Vds → ψqs/ψds, ψqr/ψdr, ψmq/ψmd, iqs/ids,
+    Te, ωr). Each card shows the simplified equation; the user can expand
+    to see the full version and its physical meaning.
     """
     dark = _dark()
     pt   = _plot_theme(dark)
@@ -2273,7 +2273,7 @@ def render_blocos_krause() -> None:
     col_border = pt["grid"]
     col_accent = "#4f8ef7" if dark else "#1d4ed8"
 
-    # CSS dos cards (reutiliza estética dos pgroups do projeto)
+    # Card CSS (reuses project pgroup aesthetics)
     st.markdown(
         f"""
         <style>
@@ -2310,95 +2310,95 @@ def render_blocos_krause() -> None:
         unsafe_allow_html=True,
     )
 
-    # ── Layout em 2 colunas (lado a lado) ────────────────────────────────────
+    # ── 2-column layout (side by side) ───────────────────────────────────────
     blocos = [
         {
-            "titulo": "1. Tensões → Fluxos do Estator",
-            "sub":   "Integração das tensões aplicadas",
+            "titulo": "1. Voltages → Stator Flux Linkages",
+            "sub":   "Integration of applied voltages",
             "eq_simples": r"\dot{\psi}_{qs},\,\dot{\psi}_{ds} = f(V_{qs},\,V_{ds},\,\omega_e,\,\psi_{mq},\,\psi_{md})",
             "eq_full":    [
                 r"\dot{\psi}_{qs} = \omega_b\!\left(V_{qs} - \tfrac{\omega_e}{\omega_b}\psi_{ds} + \tfrac{R_s}{X_{ls}}(\psi_{mq}-\psi_{qs})\right)",
                 r"\dot{\psi}_{ds} = \omega_b\!\left(V_{ds} + \tfrac{\omega_e}{\omega_b}\psi_{qs} + \tfrac{R_s}{X_{ls}}(\psi_{md}-\psi_{ds})\right)",
             ],
             "fisica": (
-                "As tensões $V_{qs}$ e $V_{ds}$ (referencial síncrono) impõem a derivada dos "
-                "fluxos concatenados do estator. O acoplamento cruzado via $\\omega_e$ representa "
-                "a rotação do referencial e o termo $R_s/X_{ls}$ é a queda resistiva."
+                "The voltages $V_{qs}$ and $V_{ds}$ (synchronous reference frame) impose the derivative of "
+                "the stator flux linkages. The cross-coupling via $\\omega_e$ represents "
+                "the reference frame rotation, and the $R_s/X_{ls}$ term is the resistive voltage drop."
             ),
         },
         {
-            "titulo": "2. Fluxos do Rotor",
-            "sub":   "Curto-circuito no rotor de gaiola",
+            "titulo": "2. Rotor Flux Linkages",
+            "sub":   "Short-circuited squirrel-cage rotor",
             "eq_simples": r"\dot{\psi}_{qr},\,\dot{\psi}_{dr} = f(\omega_e-\omega_r,\,\psi_{mq},\,\psi_{md})",
             "eq_full":    [
                 r"\dot{\psi}_{qr} = \omega_b\!\left(-\tfrac{\omega_e-\omega_r}{\omega_b}\psi_{dr} + \tfrac{R_r}{X_{lr}}(\psi_{mq}-\psi_{qr})\right)",
                 r"\dot{\psi}_{dr} = \omega_b\!\left(\tfrac{\omega_e-\omega_r}{\omega_b}\psi_{qr} + \tfrac{R_r}{X_{lr}}(\psi_{md}-\psi_{dr})\right)",
             ],
             "fisica": (
-                "Como o rotor está curto-circuitado ($V_{qr} = V_{dr} = 0$), apenas o termo de "
-                "queda resistiva interna e o acoplamento cruzado pela velocidade relativa "
-                "$\\omega_e - \\omega_r$ determinam a evolução dos fluxos do rotor."
+                "Since the rotor is short-circuited ($V_{qr} = V_{dr} = 0$), only the internal "
+                "resistive drop term and the cross-coupling through the relative speed "
+                "$\\omega_e - \\omega_r$ govern the evolution of the rotor flux linkages."
             ),
         },
         {
-            "titulo": "3. Fluxos de Magnetização",
-            "sub":   "Acoplamento via entreferro",
-            "eq_simples": r"\psi_{mq},\,\psi_{md} = \text{média ponderada de }\psi_s,\,\psi_r",
+            "titulo": "3. Magnetising Flux Linkages",
+            "sub":   "Air-gap coupling",
+            "eq_simples": r"\psi_{mq},\,\psi_{md} = \text{weighted average of }\psi_s,\,\psi_r",
             "eq_full":    [
                 r"\psi_{mq} = X_{ml}\!\left(\tfrac{\psi_{qs}}{X_{ls}} + \tfrac{\psi_{qr}}{X_{lr}}\right)",
                 r"\psi_{md} = X_{ml}\!\left(\tfrac{\psi_{ds}}{X_{ls}} + \tfrac{\psi_{dr}}{X_{lr}}\right)",
                 r"\tfrac{1}{X_{ml}} = \tfrac{1}{X_m} + \tfrac{1}{X_{ls}} + \tfrac{1}{X_{lr}}",
             ],
             "fisica": (
-                "Os fluxos no entreferro são uma combinação ponderada dos fluxos do estator e "
-                "do rotor pela reatância mútua resultante $X_{ml}$. Este é o ponto onde estator "
-                "e rotor 'se enxergam' magneticamente."
+                "The air-gap fluxes are a weighted combination of stator and rotor flux linkages "
+                "through the resultant mutual reactance $X_{ml}$. This is the point at which "
+                "stator and rotor are magnetically coupled."
             ),
         },
         {
-            "titulo": "4. Correntes do Estator",
-            "sub":   "Lei de Ohm magnética",
+            "titulo": "4. Stator Currents",
+            "sub":   "Magnetic Ohm's law",
             "eq_simples": r"i_{qs},\,i_{ds} = \tfrac{\psi_{qs}-\psi_{mq}}{X_{ls}},\;\tfrac{\psi_{ds}-\psi_{md}}{X_{ls}}",
             "eq_full":    [
                 r"i_{qs} = \tfrac{\psi_{qs} - \psi_{mq}}{X_{ls}}",
                 r"i_{ds} = \tfrac{\psi_{ds} - \psi_{md}}{X_{ls}}",
             ],
             "fisica": (
-                "As correntes são obtidas diretamente da diferença entre fluxo total e fluxo de "
-                "magnetização, dividida pela reatância de dispersão. Em regime, a corrente está "
-                "em fase com a queda $R_s \\cdot i$ sobre o estator."
+                "The currents are obtained directly from the difference between total flux linkage and "
+                "magnetising flux linkage, divided by the leakage reactance. In steady state, the current "
+                "is in phase with the resistive drop $R_s \\cdot i$ across the stator."
             ),
         },
         {
-            "titulo": "5. Torque Eletromagnético",
-            "sub":   "Produto vetorial dos fluxos e correntes",
+            "titulo": "5. Electromagnetic Torque",
+            "sub":   "Cross product of flux linkages and currents",
             "eq_simples": r"T_e = \tfrac{3}{2}\cdot\tfrac{p}{2}\cdot\tfrac{1}{\omega_b}(\psi_{ds}\,i_{qs}-\psi_{qs}\,i_{ds})",
             "eq_full":    [
                 r"T_e = \tfrac{3}{2}\cdot\tfrac{p}{2}\cdot\tfrac{1}{\omega_b}\,(\psi_{ds}\,i_{qs} - \psi_{qs}\,i_{ds})",
             ],
             "fisica": (
-                "O produto vetorial entre fluxo do estator e corrente do estator gera o torque. "
-                "É o análogo dq da expressão clássica $T \\propto \\vec{\\psi}\\times\\vec{i}$. "
-                "O fator $3/2$ vem da transformação invariante em potência; $p/2$ converte "
-                "polos magnéticos em pares de polos mecânicos."
+                "The cross product of stator flux linkage and stator current produces the torque. "
+                "This is the dq analogue of the classical expression $T \\propto \\vec{\\psi}\\times\\vec{i}$. "
+                "The $3/2$ factor arises from the power-invariant transformation; $p/2$ converts "
+                "magnetic poles to mechanical pole pairs."
             ),
         },
         {
-            "titulo": "6. Equação Mecânica",
-            "sub":   "Dinâmica do eixo",
+            "titulo": "6. Mechanical Equation",
+            "sub":   "Shaft dynamics",
             "eq_simples": r"\dot{\omega}_r = \tfrac{p}{2J}(T_e - T_L) - \tfrac{B}{J}\,\omega_r",
             "eq_full":    [
                 r"\dot{\omega}_r = \tfrac{p}{2J}\,(T_e - T_L) - \tfrac{B}{J}\,\omega_r",
             ],
             "fisica": (
-                "A 2ª Lei de Newton rotacional: torque líquido ($T_e - T_L$) dividido pela "
-                "inércia $J$ determina a aceleração angular. O termo $B\\,\\omega_r/J$ modela "
-                "atrito viscoso. A constante de tempo mecânica é tipicamente 10–100× a elétrica."
+                "Newton's second law for rotation: net torque ($T_e - T_L$) divided by "
+                "inertia $J$ determines the angular acceleration. The $B\\,\\omega_r/J$ term models "
+                "viscous friction. The mechanical time constant is typically 10–100× the electrical one."
             ),
         },
     ]
 
-    # Renderiza grade de cards (resumo)
+    # Render card grid (summary)
     cards_html = '<div class="krause-grid">'
     for b in blocos:
         cards_html += (
@@ -2410,8 +2410,8 @@ def render_blocos_krause() -> None:
     cards_html += '</div>'
     st.markdown(cards_html, unsafe_allow_html=True)
 
-    # Expanders detalhados por bloco
-    st.caption("Expanda cada bloco para visualizar a equação completa e o significado físico.")
+    # Detailed expanders per block
+    st.caption("Expand each block to view the complete equation and its physical meaning.")
     for b in blocos:
         with st.expander(b["titulo"], expanded=False):
             st.markdown(f"_{b['sub']}_")
@@ -2419,11 +2419,11 @@ def render_blocos_krause() -> None:
                 st.latex(eq)
             st.markdown(b["fisica"])
 
-    # Diagrama de fluxo entre blocos (texto compacto)
+    # Flow diagram between blocks (compact text)
     st.markdown("---")
     st.markdown(
-        "**Fluxo computacional do solver:** "
+        "**Solver computational flow:** "
         "$V_{qs},V_{ds}$ → (1) → $\\psi_s$ ⇄ (3) ⇄ $\\psi_r$ ← (2) ← $\\omega_e-\\omega_r$ ; "
         "$\\psi_s,\\psi_m$ → (4) → $i_s$ ; $\\psi_s,i_s$ → (5) → $T_e$ → (6) → $\\omega_r$ "
-        "(realimenta em 2)."
+        "(feeds back into 2)."
     )

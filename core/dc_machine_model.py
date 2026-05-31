@@ -1,9 +1,9 @@
-"""Modelo de MCC — DCMachineParams + _make_rhs_dc().
+"""DC Machine model — DCMachineParams + _make_rhs_dc().
 
-ODEs derivadas dos modelos Scilab de referência:
+ODEs derived from Scilab reference models:
   sep_motor / sep_gen  → dcmei.sce, dgmei.sce
   shunt_motor          → dcmp.sce
-  shunt_gen            → dcgp.sce  (variáveis x1, x2 preservadas)
+  shunt_gen            → dcgp.sce  (variables x1, x2 preserved)
   series_motor         → dcms.sce  (Raf = Ra+Rf, Laf = La+Lf)
 """
 
@@ -15,32 +15,32 @@ from typing import Callable
 
 @dataclass
 class DCMachineParams:
-    # --- armadura ---
+    # --- armature ---
     Va: float
     Ra: float
     La: float
-    # --- campo (sep/shunt; series usa Ra/La combinados) ---
+    # --- field (sep/shunt; series uses combined Ra/La) ---
     Vf: float = 0.0
     Rf: float = 0.0
     Lf: float = 0.0
-    # --- carga (geradores) ---
+    # --- load (generators) ---
     Rl: float = 0.0
     Ll: float = 0.0
-    # --- mecânico ---
+    # --- mechanical ---
     J: float = 0.21
     B: float = 1.074e-6
-    # --- constante eletromecânica ---
+    # --- electromechanical constant ---
     kb: float = 0.004
-    # --- configuração ---
+    # --- configuration ---
     excitation: str = "sep_motor"   # sep_motor|sep_gen|shunt_motor|shunt_gen|series_motor
-    # --- torque de carga nominal (N·m) ---
+    # --- nominal load torque (N·m) ---
     Tload: float = 2.493
 
     def __post_init__(self) -> None:
         if self.excitation in ("shunt_motor", "shunt_gen"):
             self.Vf = self.Va
         if self.excitation == "series_motor":
-            # combina resistência e indutância em serie
+            # combine resistance and inductance in series
             self._Raf = self.Ra + self.Rf
             self._Laf = self.La + self.Lf
         if self.excitation in ("sep_gen", "shunt_gen"):
@@ -53,11 +53,11 @@ def _make_rhs_dc(
     voltage_fn: Callable[[float], tuple[float, float]],
     torque_fn: Callable[[float], float],
 ) -> Callable[[float, list[float]], list[float]]:
-    """Retorna rhs(t, y) para solve_ivp.
+    """Returns rhs(t, y) for solve_ivp.
 
-    Estados y = [ia, ifd, wm].
-    series_motor: ifd = ia (campo = armadura); slot ifd apenas por consistência.
-    shunt_gen: estados internos [x1, x2, wm]; ia/ifd reconstituídos.
+    States y = [ia, ifd, wm].
+    series_motor: ifd = ia (field = armature); ifd slot for consistency only.
+    shunt_gen: internal states [x1, x2, wm]; ia/ifd reconstructed.
     """
     p = params
     exc = p.excitation
@@ -108,7 +108,7 @@ def _make_rhs_dc(
             return [dia, difd, dwm]
 
     elif exc == "shunt_gen":
-        # Variáveis de estado transformadas x1, x2 conforme dcgp.sce
+        # Transformed state variables x1, x2 as per dcgp.sce
         Llf  = p.Ll + p.Lf
         Lla  = p.Ll + p.La
         Rlf  = p.Rl + p.Rf
@@ -117,7 +117,7 @@ def _make_rhs_dc(
 
         def rhs(t: float, y: list[float]) -> list[float]:
             x1, x2, wm = y
-            _, _ = voltage_fn(t)   # gerador shunt: sem excitação externa
+            _, _ = voltage_fn(t)   # shunt generator: no external excitation
             Tl = torque_fn(t)
             dx1 = (p.Rl * p.Ll - Rlf * Lla) * x1 / Leq + (p.Rl * Llf - Rlf * p.Ll) * x2 / Leq
             dx2 = ((p.kb * wm + p.Rl) * Lla - Rla * p.Ll) * x1 / Leq + \
@@ -128,13 +128,13 @@ def _make_rhs_dc(
             return [dx1, dx2, dwm]
 
     else:
-        raise ValueError(f"Excitação desconhecida: {exc!r}")
+        raise ValueError(f"Unknown excitation: {exc!r}")
 
     return rhs
 
 
 def decode_shunt_gen(y: list[float], params: DCMachineParams) -> tuple[float, float]:
-    """Reconstrói ia e ifd a partir dos estados [x1, x2, wm] do gerador shunt."""
+    """Reconstructs ia and ifd from states [x1, x2, wm] of the shunt generator."""
     p = params
     Llf = p.Ll + p.Lf
     Lla = p.Ll + p.La
