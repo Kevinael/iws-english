@@ -1,7 +1,24 @@
-"""DC machine equivalent circuit renderer — on-the-fly schemdraw, same as IM.
+# -*- coding: utf-8 -*-
+"""
+eqcircuit_plotter_dc.py
+=======================
+Renders DC machine equivalent circuits as in-memory PNGs using schemdraw,
+with per-excitation-type builders and dark/light caching.
 
-Generates PNG in memory (io.BytesIO, dpi=150) via matplotlib + schemdraw.
-Caches bytes by (excitation, dark). st.image(bytes, width='stretch').
+Responsibilities:
+  - Build circuit diagrams for sep_motor, sep_gen, shunt_motor, shunt_gen,
+    and series_motor configurations.
+  - Cache rendered PNG bytes by (excitation, dark) key for performance.
+  - Expose _CIRCUIT_LABELS mapping of excitation keys to display titles.
+
+Relationships:
+  Imported by : viz.pdf_dc, ui.theory_dc_interactive
+  Imports     : (schemdraw, matplotlib — lazy imports)
+
+Extending:
+  - To add a compound configuration circuit, create _build_compound_motor()
+    following the existing per-type builder pattern and register it in the
+    dispatch table.
 """
 
 from __future__ import annotations

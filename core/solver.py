@@ -1,22 +1,23 @@
 # -*- coding: utf-8 -*-
 """
-solver.py — Numerical integration and post-processing of the Krause model
+solver.py
+=========
+Integrates the induction-machine ODEs via LSODA (scipy), detects steady state,
+and reconstructs physical quantities (currents, voltages, powers, temperature).
 
-Exports:
-  _solve                  — integrates the ODE via LSODA; supports wr=0 clamp and t_cutoff
-  _voltages_vectorized    — reconstructs Va/Vb/Vc for the full t vector
-  _reconstruct_currents   — dq and abc currents from state variables
-  _detect_steady_state    — detects the index of steady-state onset
-  _compute_steady_state   — RMS, averages and power balance in steady state
-  _compute_thermal        — integrates thermal ODE in post-processing over vectorized P_joule
+Responsibilities:
+  - Run _solve with step-size control (h ≤ 1/(20f)) via LSODA
+  - Detect steady-state onset from torque variation
+  - Compute RMS values, powers, and power factor at steady state
+  - Post-process the coupled thermal ODE
 
-Integration/analysis constants (imported by IWS_PY for compatibility):
-  SS_TOL, MIN_SS_CYCLES, NYQUIST_LIMIT, F_ROTOR_FLOOR
-  RTOL, ATOL, MAX_STEP_FACTOR
+Relationships:
+  Imported by : core.IWS_PY
+  Imports     : core.machine_model, core.transforms, core.desequilibrio_falta
 
-Detailed documentation of each implementation decision:
-  SME/2. Modulos/core/solver.md
-  SME/2. Modulos/Guia de Leitura do Codigo.md  (sections 3-5)
+Extending:
+  - For a new starting mode, add logic in _solve; for new post-processing
+    (e.g. harmonic loss analysis), create a helper and call it after _solve.
 """
 
 from __future__ import annotations

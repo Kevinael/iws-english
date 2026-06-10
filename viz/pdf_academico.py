@@ -1,9 +1,21 @@
 # -*- coding: utf-8 -*-
 """
-pdf_academico.py — Academic Report of the IWS Simulator.
+pdf_academico.py
+================
+Generates an academic-style PDF report for induction-machine simulations
+(equations, all curves, saved references).
 
-Profile: scientific rigour, equations, complete curves, all saved references.
-Exports: generate_academico(exp_label, mp, res, ..., ref_list) -> bytes
+Responsibilities:
+  - Export generate_academico(exp_label, mp, res, ..., ref_list) -> bytes.
+  - Render equations, full waveform plots, and bibliography sections.
+
+Relationships:
+  Imported by : ui_components.sim_results
+  Imports     : viz.pdf_commons
+
+Extending:
+  - To add a new report section, create a _section_<name>() helper and call
+    it inside generate_academico.
 """
 
 from __future__ import annotations

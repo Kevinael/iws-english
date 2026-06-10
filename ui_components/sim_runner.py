@@ -1,8 +1,20 @@
 # -*- coding: utf-8 -*-
-"""Simulation execution — orchestrates build_fns + run_simulation and persists the result.
+"""
+sim_runner.py
+=============
+Orchestrates induction-machine simulation execution — computes automatic time limits, calls core.IWS_PY, and persists results to session_state.
 
-Exports:
-    execute_simulation_flow — single entry point called when "Run Simulation" is clicked.
+Responsibilities:
+  - Compute tmax_auto based on experiment type and motor inertia (calc_tmax_auto).
+  - Validate inputs and construct MachineParams before calling run_simulation.
+  - Store the result dict in st.session_state["sim_result"] for downstream consumers.
+
+Relationships:
+  Imported by : IWS_UI
+  Imports     : core.IWS_PY
+
+Extending:
+  - To change the automatic time limit formula, modify calc_tmax_auto for the relevant experiment key.
 """
 
 from __future__ import annotations

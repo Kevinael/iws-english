@@ -1,9 +1,22 @@
 # -*- coding: utf-8 -*-
 """
-curva_tn.py — T×n Curve and Power Flow (MIT)
+curva_tn.py
+===========
+Computes the torque-speed curve (T×n) and power flow of the induction machine
+via the full complex-impedance equivalent circuit.
 
-Model: full equivalent circuit with complex impedance.
-Covers all 3 regions: motor (0<s≤1), generator (s<0), braking (s>1).
+Responsibilities:
+  - Extract circuit parameters from MachineParams (_extract_params)
+  - Compute torque as a function of slip s (_torque_array)
+  - Compute input, air-gap, mechanical, and loss power (calc_fluxo_potencia)
+
+Relationships:
+  Imported by : ui.theory_interactive
+  Imports     : (numpy, plotly, streamlit)
+
+Extending:
+  - To include the Thévenin simplified model, add _torque_thevenin and
+    compare it against the full circuit.
 """
 from __future__ import annotations
 import numpy as np

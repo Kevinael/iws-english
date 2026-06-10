@@ -1,7 +1,21 @@
-"""Voltage and torque sources for DC machine simulation.
+# -*- coding: utf-8 -*-
+"""
+dc_sources.py
+=============
+Factory for DC machine voltage and torque excitation functions — supports DOL,
+resistor starting, load pulse, and generator modes.
 
-make_voltage_fn_dc(mode, params, exp_config) → callable(t) → (Va, Vf)
-make_torque_fn_dc(mode, params, exp_config)  → callable(t) → Tl
+Responsibilities:
+  - Build callable(t) → (Va, Vf) for armature and field voltages
+  - Build callable(t) → Tl for load torque
+
+Relationships:
+  Imported by : ui_components.sim_runner_dc
+  Imports     : core.dc_machine_model
+
+Extending:
+  - For DC injection braking, add a make_voltage_fn_dc variant with a Va
+    reversal profile.
 """
 
 from __future__ import annotations

@@ -1,19 +1,23 @@
-"""DC machine equivalent circuit — topology matching mcc_desenhos.py + value injection.
+# -*- coding: utf-8 -*-
+"""
+eqcircuit_plotter_dc_v2.py
+==========================
+Alternative DC machine circuit renderer matching the mcc_desenhos.py
+topology — EXPERIMENTAL, not used by default.
 
-Available attributes in DCMachineParams (use according to excitation):
-  mp.Ra      — armature resistance [Ω]
-  mp.La      — armature inductance [H]
-  mp.Rf      — field resistance (sep/shunt) [Ω]
-  mp.Lf      — field inductance (sep/shunt) [H]
-  mp.Rs_ser  — series field resistance [Ω]  (series_motor)
-  mp.Ls_ser  — series field inductance [H]   (series_motor)
-  mp.Vt      — armature voltage [V]
-  mp.Vf      — field voltage (sep) [V]
-  mp.excitation — "sep_motor"|"shunt_motor"|"series_motor"|"sep_gen"|"shunt_gen"
+Responsibilities:
+  - Provide a second circuit layout variant with value injection for
+    different excitation types.
+  - Expose _ea_label() helper for back-EMF annotation strings.
+  - Expose _CIRCUIT_LABELS mapping of excitation keys to display titles.
 
-Optional computed fields (use getattr):
-  mp.Ea      — nominal back-EMF [V]
-  mp.Ke      — back-EMF constant
+Relationships:
+  Imported by : (not used by production UI — experimental)
+  Imports     : (schemdraw, matplotlib — lazy imports)
+
+Extending:
+  - If adopted as default, replace the import in viz/eqcircuit_plotter_dc.py
+    to point to this module instead.
 """
 
 from __future__ import annotations

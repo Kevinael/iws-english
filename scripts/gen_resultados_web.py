@@ -1,3 +1,22 @@
+# -*- coding: utf-8 -*-
+"""
+gen_resultados_web.py
+=====================
+Generates web-ready article figures from a 50 Hz MIT simulation for the
+Overleaf project.
+
+Responsibilities:
+  - Run simulation with European-system parameters (220 V / 50 Hz).
+  - Save matplotlib figures to the configured output directory.
+
+Relationships:
+  Imported by : (standalone script — run directly)
+  Imports     : core.IWS_PY
+
+Extending:
+  - To change motor parameters or output path, edit the configuration block
+    at the top of the script.
+"""
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import numpy as np
@@ -8,7 +27,8 @@ import matplotlib.pyplot as plt
 from core.IWS_PY import MachineParams, run_simulation
 from core.sources import build_fns
 
-OUT = r"C:\Users\gacas\OneDrive\Códigos\IWS\artigo\overleaf\imagens\resultados_web.png"
+from pathlib import Path
+OUT = str(Path(__file__).parent.parent / "overleaf" / "imagens" / "resultados_web.png")
 
 mp = MachineParams(
     Vl=220.0, f=50.0, p=4,

@@ -1,18 +1,22 @@
 # -*- coding: utf-8 -*-
 """
-sources.py — Funcoes de tensao, torque e fabrica de experimentos
+sources.py
+==========
+Implements voltage and torque excitation functions for each simulation mode,
+and the build_fns factory that constructs them by experiment type.
 
-Exporta:
-  voltage_reduced_start  — chave tensao reduzida -> nominal
-  voltage_soft_starter   — rampa de tensao
-  voltage_sag            — afundamento retangular
-  torque_step            — degrau de torque
-  torque_pulse           — pulso de torque
-  build_fns              — monta (voltage_fn, torque_fn, t_eventos) para cada exp_type
+Responsibilities:
+  - Generate three-phase voltages with ramp, reduced-start, sag, and nominal profiles
+  - Generate torques with step and pulse profiles
+  - Map experiment type to a (voltage_fn, torque_fn) pair via build_fns
 
-Padrao de implementacao: todos os lambdas em build_fns capturam variaveis por valor
-via argumento default (_x=x) para evitar o bug classico de closure por referencia.
-Ver SME/2. Modulos/core/sources.md e SME/2. Modulos/Guia de Leitura do Codigo.md (secao 6).
+Relationships:
+  Imported by : core.IWS_PY, ui_components.sim_runner, scripts.*
+  Imports     : core.machine_model
+
+Extending:
+  - For a PWM inverter mode, add voltage_pwm() and register it in the
+    build_fns dispatch dict.
 """
 
 from __future__ import annotations

@@ -1,9 +1,21 @@
 # -*- coding: utf-8 -*-
 """
-pdf_dc.py — DC Machine Technical Report for the IWS Simulator.
+pdf_dc.py
+=========
+Generates the technical PDF report for DC machine simulations, matching the
+visual style of pdf_academico.py.
 
-Profile: same visual style as pdf_academico.py, adapted for DC machines.
-Exports: generate_dc(exp_label, mp, res, ...) -> bytes
+Responsibilities:
+  - Export generate_dc(exp_label, mp, res, ...) -> bytes.
+  - Render DC machine parameters, waveform figures, and diagnostic summary.
+
+Relationships:
+  Imported by : ui_components.sim_results_dc
+  Imports     : core.dc_machine_model, viz.pdf_commons
+
+Extending:
+  - To add a new report section, create a _sec_<name>() helper and call it
+    inside generate_dc.
 """
 
 from __future__ import annotations

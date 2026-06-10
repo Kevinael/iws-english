@@ -1,8 +1,21 @@
 # -*- coding: utf-8 -*-
-"""DC machine results rendering — 4 sub-tabs mirroring sim_results.py MIT.
+"""
+sim_results_dc.py
+=================
+Renders the four DC machine result sub-tabs: Overview, Dynamic Analysis, Diagnostics & Faults, and Asset Management.
 
-Exports:
-    render_results_dc — 4 tabs (Overview, Dynamic Analysis, Diagnostics & Faults, Asset Management)
+Responsibilities:
+  - Render DCM KPI cards and health summary in the Overview sub-tab.
+  - Build and cache Plotly waveform charts for the Dynamic Analysis sub-tab.
+  - Display DCM diagnostics and fault analysis in the Diagnostics & Faults sub-tab.
+  - Support PDF download for DCM simulation reports.
+
+Relationships:
+  Imported by : IWS_UI
+  Imports     : core.dc_machine_model, viz.plotly_charts_dc
+
+Extending:
+  - To add a new DCM sub-tab, follow the same pattern as sim_results.py.
 """
 
 from __future__ import annotations

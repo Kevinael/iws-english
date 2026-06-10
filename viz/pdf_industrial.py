@@ -1,10 +1,22 @@
 # -*- coding: utf-8 -*-
 """
-pdf_industrial.py — Industrial Report of the IWS Simulator.
+pdf_industrial.py
+=================
+Generates an industrial-style PDF report for induction-machine simulations
+(KPIs, fault diagnostics, economic analysis).
 
-Profile: decision-making, KPIs, fault diagnostics, economic analysis.
-No extensive equations. All saved references included.
-Exports: generate_industrial(exp_label, mp, res, ..., ref_list) -> bytes
+Responsibilities:
+  - Export generate_industrial(exp_label, mp, res, ..., ref_list) -> bytes.
+  - Render KPI summary, fault signature table, and economic analysis.
+  - Omit detailed equations to keep the report concise for decision-makers.
+
+Relationships:
+  Imported by : ui_components.sim_results
+  Imports     : viz.pdf_commons
+
+Extending:
+  - To add a cost-of-downtime section, create _section_cost_downtime() and
+    call it inside generate_industrial.
 """
 
 from __future__ import annotations

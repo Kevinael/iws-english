@@ -1,8 +1,23 @@
 # -*- coding: utf-8 -*-
-"""Simulation results rendering: KPIs, charts, and PDF export.
+"""
+sim_results.py
+==============
+Renders the four induction-machine result sub-tabs: Overview (KPIs), Dynamic Analysis (waveforms), Diagnostics, and Asset Management.
 
-Exports:
-    render_results   — KPIs + Plotly charts + PDF export button
+Responsibilities:
+  - Render KPI cards and health panel in the Overview sub-tab.
+  - Build and cache Plotly waveform charts for the Dynamic Analysis sub-tab.
+  - Display automated diagnostics and fault signatures in the Diagnostics sub-tab.
+  - Generate and provide download buttons for academic and industrial PDF reports.
+
+Relationships:
+  Imported by : IWS_UI
+  Imports     : core.IWS_PY, core.energy_analysis, core.harmonica_analysis,
+                core.sim_diagnostics, viz.plotly_charts, viz.pdf_academico,
+                viz.pdf_industrial, utils.text_utils, ui.theme
+
+Extending:
+  - To add a new result sub-tab, create a render_<tab>() function and append it to the st.tabs call.
 """
 
 from __future__ import annotations

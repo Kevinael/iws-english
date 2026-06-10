@@ -1,12 +1,21 @@
 # -*- coding: utf-8 -*-
-"""Energy and economic analysis at steady state.
+"""
+energy_analysis.py
+==================
+Computes steady-state energy metrics — consumption, efficiency, cost, THD,
+and power factor.
 
-Exports:
-    compute_energy_metrics — energy, cost, THD and power factor
+Responsibilities:
+  - Extract steady-state quantities from the simulation results dict
+  - Compute η, P_in, P_out, THD, power factor, and estimated annual cost
 
-Detailed documentation for each implementation decision:
-  SME/2. Modulos/core/energy_analysis.md
-  SME/2. Modulos/Guia de Leitura do Codigo.md  (section 8)
+Relationships:
+  Imported by : ui_components.sim_results
+  Imports     : (numpy only)
+
+Extending:
+  - For time-of-use tariff bands, add a tariff-mode parameter to
+    compute_energy_metrics.
 """
 
 from __future__ import annotations

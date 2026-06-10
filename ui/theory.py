@@ -1,5 +1,21 @@
 # -*- coding: utf-8 -*-
-"""Theory Tab — educational content for the induction machine simulator."""
+"""
+theory.py
+=========
+Orchestrator for the induction-machine Theory tab — renders 8 pedagogical sub-tabs and delegates to interactive components.
+
+Responsibilities:
+  - Lay out 8 sub-tabs: dq0 model, steady state, unbalance, MCSA, braking, Krause, estimator, and manual.
+  - Load static images via _b64 for embedding in Streamlit markdown.
+  - Call render_* functions from theory_interactive for each interactive component.
+
+Relationships:
+  Imported by : ui_components.theory_view
+  Imports     : ui.theory_interactive
+
+Extending:
+  - To add a new sub-tab, create a render_* function in theory_interactive.py and add a tab call here.
+"""
 
 from __future__ import annotations
 import base64

@@ -1,9 +1,22 @@
 ﻿# -*- coding: utf-8 -*-
 """
-calc_potencias.py — Prints steady-state indicators and power flow.
+demo_potencias.py
+=================
+Demonstration script that runs a DOL simulation and prints steady-state
+power metrics to stdout.
 
-Reuses run_simulation (which already delivers RMS, averages and powers
-correctly computed over a steady-state window with whole cycles).
+Responsibilities:
+  - Instantiate a reference motor via MachineParams.
+  - Run run_simulation with a DOL configuration.
+  - Print RMS voltages, currents, and power flow (input, air-gap,
+    mechanical, output, losses).
+
+Relationships:
+  Imported by : (standalone script — run directly)
+  Imports     : core.IWS_PY
+
+Extending:
+  - To benchmark a different motor, replace the MachineParams block.
 """
 
 import sys, os; sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))

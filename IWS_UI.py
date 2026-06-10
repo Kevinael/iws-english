@@ -1,11 +1,26 @@
 # -*- coding: utf-8 -*-
-"""Main orchestrator of the Web Simulation Infrastructure.
+"""
+IWS_UI.py
+=========
+Main Streamlit orchestrator — configures the page, initialises session_state,
+and routes to tabs.
 
-Responsibilities of this file:
-  - Streamlit page configuration
-  - session_state initialization
-  - Sidebar / header
-  - Tab instantiation and delegation to ui_components/
+Responsibilities:
+  - Configure page_config and session_state with default values
+  - Render sidebar, header, and machine selector (MIT / DCM)
+  - Instantiate MIT and DCM tabs and delegate to ui_components
+
+Relationships:
+  Imported by : (entry point — not imported by any project module)
+  Imports     : ui.theme, ui.clean_view, ui_components.theory_view,
+                ui_components.sim_config, ui_components.sim_results,
+                ui_components.sim_runner, ui_components.sim_config_dc,
+                ui_components.sim_results_dc, ui_components.sim_runner_dc
+
+Extending:
+  - To add a new machine type, create a new tab and matching
+    sim_config_X / sim_results_X / sim_runner_X modules, following the
+    same delegation pattern used for MIT and DCM.
 """
 
 from __future__ import annotations

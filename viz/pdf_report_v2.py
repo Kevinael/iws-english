@@ -1,14 +1,22 @@
 # -*- coding: utf-8 -*-
 """
-pdf_report_v2.py — Technical Report V2 with two layout styles.
+pdf_report_v2.py
+================
+Induction-machine PDF report v2 — supports two layout styles: IEEE-formal
+(academic) and dashboard (KPI-focused).
 
-Available styles:
-  "academico"  — IEEE/formal: numbered sections, formal typography, real subscripts
-  "dashboard"  — Technical Dashboard: KPI cards, coloured loss bar, quick reading
+Responsibilities:
+  - Export generate_pdf_report_v2(style, ...) -> bytes; select layout via
+    the style parameter ("academico" or "dashboard").
+  - Provide _LATIN1_MAP for safe Unicode-to-latin-1 character substitution.
 
-Exports:
-  generate_pdf_report_v2(style, exp_label, mp, res, var_keys, var_labels,
-                         t_events, exp_type, ref_list, energy_tariff) -> bytes
+Relationships:
+  Imported by : ui_components.sim_results (legacy path)
+  Imports     : core.IWS_PY, viz.eqcircuit_plotter, ui.theme
+
+Extending:
+  - Prefer pdf_academico/pdf_industrial for new features; this module is a
+    transitional version.
 """
 
 from __future__ import annotations

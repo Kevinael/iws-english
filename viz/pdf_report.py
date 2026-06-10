@@ -1,3 +1,21 @@
+# -*- coding: utf-8 -*-
+"""
+pdf_report.py
+=============
+Legacy induction-machine PDF report generator — superseded by
+pdf_academico.py and pdf_industrial.py; retained for backwards compatibility.
+
+Responsibilities:
+  - Provide the original single-style PDF generation function.
+  - Serve as fallback if newer generators are unavailable.
+
+Relationships:
+  Imported by : (legacy — check usages before removing)
+  Imports     : core.IWS_PY, viz.eqcircuit_plotter, ui.theme
+
+Extending:
+  - Do not extend; migrate callers to pdf_academico or pdf_industrial instead.
+"""
 from __future__ import annotations
 import io
 import numpy as np

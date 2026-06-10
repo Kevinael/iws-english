@@ -1,6 +1,22 @@
-"""LSODA integrator for DC machine.
+# -*- coding: utf-8 -*-
+"""
+dc_solver.py
+============
+Integrates the DC machine ODEs via LSODA and returns a results dict with keys
+compatible with render_results_dc.
 
-run_simulation_dc(params, tmax, h, voltage_fn, torque_fn) → dict
+Responsibilities:
+  - Run time integration via LSODA (scipy)
+  - Reconstruct derived quantities (Ea, Pem, η)
+  - Format output as a dict compatible with ui_components.sim_results_dc
+
+Relationships:
+  Imported by : ui_components.sim_runner_dc
+  Imports     : core.dc_machine_model
+
+Extending:
+  - For DCM steady-state analysis, add a steady-state detection step similar
+    to the MIT solver.
 """
 
 from __future__ import annotations

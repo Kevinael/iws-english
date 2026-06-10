@@ -1,8 +1,21 @@
-"""DC machine parameter estimator.
+# -*- coding: utf-8 -*-
+"""
+dc_estimator.py
+===============
+Estimates DC machine parameters from nameplate data and laboratory tests.
 
-Exports:
-    estimate_dc_nameplate  — from nameplate data (Pn, Vn, nn, η)
-    estimate_dc_tests      — from laboratory tests (DC + no-load)
+Responsibilities:
+  - Compute Ra, La, Rf, Lf, Ke, J from Pn, Vn, nn, η, and excitation type
+    (nameplate method)
+  - Process locked-rotor and no-load test data (tests method)
+
+Relationships:
+  Imported by : ui.theory_dc_interactive
+  Imports     : (math only)
+
+Extending:
+  - To include field-to-armature mutual inductance Laf, add it to the
+    separately-excited nameplate estimator.
 """
 
 from __future__ import annotations

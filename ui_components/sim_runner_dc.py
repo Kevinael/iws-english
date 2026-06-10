@@ -1,8 +1,20 @@
 # -*- coding: utf-8 -*-
-"""DC machine simulation execution — orchestrates sources + solver and persists the result.
+"""
+sim_runner_dc.py
+================
+Orchestrates DC machine simulation execution — validates parameters, calls dc_solver, and persists results to session_state.
 
-Exports:
-    execute_simulation_flow_dc — single entry point called when "Run Simulation" is clicked.
+Responsibilities:
+  - Validate var_keys and simulation mode before dispatching to the solver.
+  - Call run_simulation_dc with source functions constructed from make_voltage_fn_dc and make_torque_fn_dc.
+  - Store the result dict in st.session_state["dc_sim_result"] for downstream consumers.
+
+Relationships:
+  Imported by : IWS_UI
+  Imports     : core.dc_machine_model, core.dc_solver, core.dc_sources
+
+Extending:
+  - To add a new DCM simulation mode, register it in dc_sources and add the case to the runner dispatch logic.
 """
 
 from __future__ import annotations

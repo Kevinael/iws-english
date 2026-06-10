@@ -1,10 +1,24 @@
-"""DC Machine model — DCMachineParams + _make_rhs_dc().
+# -*- coding: utf-8 -*-
+"""
+dc_machine_model.py
+===================
+Defines DCMachineParams (dataclass) and _make_rhs_dc — supports six DC machine
+configurations (sep/shunt/series × motor/generator).
 
-ODEs derived from Scilab reference models:
-  sep_motor / sep_gen  → dcmei.sce, dgmei.sce
-  shunt_motor          → dcmp.sce
-  shunt_gen            → dcgp.sce  (variables x1, x2 preserved)
-  series_motor         → dcms.sce  (Raf = Ra+Rf, Laf = La+Lf)
+Responsibilities:
+  - Store electrical, mechanical, and load parameters for the DCM
+  - Build the 4-state ODE system (ωr, ia, if or ψf) for each configuration
+  - Decode excitation variants (sep, shunt, series)
+
+Relationships:
+  Imported by : core.dc_solver, core.dc_sources, core.dc_estimator,
+                ui_components.sim_config_dc, ui_components.sim_results_dc,
+                viz.pdf_dc, viz.pdf_commons, analysis.compare_dc_ac_dol
+  Imports     : (dataclasses, typing only)
+
+Extending:
+  - For a compound configuration, add compound_motor to _make_rhs_dc with
+    two independent field windings.
 """
 
 from __future__ import annotations

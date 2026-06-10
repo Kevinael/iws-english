@@ -1,5 +1,24 @@
 # -*- coding: utf-8 -*-
 """
+param_estimator.py
+==================
+Estimates induction-machine equivalent-circuit parameters from nameplate data
+(NEMA MG-1) and electrical tests (IEEE Std 112-2017).
+
+Responsibilities:
+  - Compute Rs, Rr, Xs, Xr, Xm from Pn, Vn, fn, η, fp, and slip (Nameplate)
+  - Iterate the phasor solution for E1 using no-load and locked-rotor test
+    data (IEEE Std 112-2017)
+
+Relationships:
+  Imported by : ui_components.sim_config
+  Imports     : (math only)
+
+Extending:
+  - For a least-squares method using T×n curve data, add
+    estimate_params_curve_fit.
+
+----
 param_estimator.py — Equivalent-circuit parameter estimation from nameplate data.
 
 Method: classical IEEE equivalent circuit (steady-state T-circuit approximation).
@@ -375,8 +394,9 @@ def estimate_params_ieee_tests(
                 break
 
         # Final Xls and Xlr after convergence
+        # Xk is already at rated frequency (f_nl); Xls (X1) converged in same units.
         Xls = X1
-        Xlr = Xk * (f_nl / f_lr) - Xls  # X2 = Xk_total - X1, Eq. (45)/(46)
+        Xlr = Xk - Xls  # X2 = Xk_total - X1, Eq. (45)/(46)
         Xlr = max(Xlr, 1e-4)
 
         # Eq. (47) — Gfe = Ph·Xm² / (m·V1²) → Rfe = 1/Gfe

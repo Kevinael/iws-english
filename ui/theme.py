@@ -1,3 +1,22 @@
+# -*- coding: utf-8 -*-
+"""
+theme.py
+========
+Defines the dark/light colour palette and applies global CSS styling to the Streamlit application.
+
+Responsibilities:
+  - Provide _palette(dark) returning a colour dict with surface, border, text, and accent keys.
+  - Apply Streamlit-compatible CSS via apply_css(dark) for typography and component overrides.
+  - Expose REF_COLORS and REF_DASHES constants for consistent chart theming across the project.
+
+Relationships:
+  Imported by : ui_components.sim_config, ui_components.sim_results, viz.pdf_commons,
+                viz.pdf_report_v2, IWS_UI
+  Imports     : streamlit
+
+Extending:
+  - To add a new theme variant, extend _palette with a new branch and update apply_css accordingly.
+"""
 import streamlit as st
 
 REF_COLORS = ["#e74c3c", "#3498db", "#2ecc71", "#f39c12", "#9b59b6"]

@@ -1,9 +1,20 @@
 # -*- coding: utf-8 -*-
-"""DC machine parameter and experiment configuration.
+"""
+sim_config_dc.py
+================
+DC machine selector, parameter inputs, and experiment configuration widgets — mirrors sim_config.py for DCM.
 
-Exports:
-    render_dc_machine_params        — col_params (selector + inputs)
-    render_experiment_config_dc     — lower col_circuit (mode + variables)
+Responsibilities:
+  - Render DCM parameter selector by excitation type (render_dc_machine_params).
+  - Render mode and variable selection for DCM experiments (render_experiment_config_dc).
+  - Expose _PRESETS_BY_EXC with motor and generator presets keyed by excitation type.
+
+Relationships:
+  Imported by : IWS_UI
+  Imports     : core.dc_machine_model
+
+Extending:
+  - To add a new DCM preset, add an entry to _PRESETS_BY_EXC under the appropriate excitation key.
 """
 
 from __future__ import annotations

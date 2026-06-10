@@ -1,5 +1,23 @@
 # -*- coding: utf-8 -*-
 """
+thermal.py
+==========
+First-order thermal model for the induction machine — estimates thermal
+resistance/capacitance and provides the temperature ODE.
+
+Responsibilities:
+  - Estimate Rth and Cth from electrical parameters (estimate_rth_cth)
+  - Compute the temperature derivative dTemp_dt for coupled integration
+
+Relationships:
+  Imported by : core.machine_model
+  Imports     : (math only)
+
+Extending:
+  - For a two-node model (stator/rotor independently), create
+    estimate_rth_cth_2node and dTemp_dt_2node.
+
+----
 thermal.py — First-order thermal model for induction motors
 
 Exports:

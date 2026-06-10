@@ -1,19 +1,22 @@
 # -*- coding: utf-8 -*-
 """
-transforms.py — Transformadas de referencial para motores de inducao
+transforms.py
+=============
+Implements amplitude-invariant Clarke and Park transforms for abc → dq
+conversion in the synchronous reference frame.
 
-Exporta:
-  abc_voltages(t, Vl, f)              — tensoes trifasicas balanceadas (amplitude-invariante)
-  clarke_park_transform(Va, Vb, Vc, tetae) — Clarke + Park: abc -> dq sincrono
+Responsibilities:
+  - Generate balanced three-phase voltages (abc_voltages)
+  - Apply the Clarke-Park transform (clarke_park_transform)
+  - Provide the _SQRT3_2 constant for internal use
 
-Convencao amplitude-invariante (fator k = sqrt(2/3) na Clarke):
-  - modulo das grandezas dq = modulo de fase no dominio abc
-  - potencia: P = (3/2) * (Vqs*iqs + Vds*ids)
+Relationships:
+  Imported by : core.machine_model, core.solver, core.desequilibrio_falta
+  Imports     : (numpy only)
 
-Documentacao detalhada de cada decisao de implementacao:
-  SME/2. Modulos/core/transforms.md
-  SME/2. Modulos/Guia de Leitura do Codigo.md  (secao 6)
-  SME/1. Fundamentos/3 - Transformadas Clarke-Park.md
+Extending:
+  - For a stationary reference frame (αβ), add a separate clarke_transform
+    without the Park rotation step.
 """
 
 from __future__ import annotations

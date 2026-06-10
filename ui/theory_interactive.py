@@ -1,19 +1,21 @@
 # -*- coding: utf-8 -*-
-"""Interactive Plotly components for the Theory tab.
+"""
+theory_interactive.py
+=====================
+Self-contained interactive Plotly components for the Theory tab — reads machine parameters from session_state and renders sliders and charts.
 
-Each function is self-contained: reads machine parameters from st.session_state
-(using the last simulation result, or the Krause 3HP motor as fallback)
-and renders an interactive Plotly chart via st.plotly_chart.
+Responsibilities:
+  - Render Boucherot circle, operating zones, starting comparison, Park dynamics, Sankey,
+    phasor unbalance, MCSA, braking comparator, and Krause block diagram.
+  - Read machine parameters from st.session_state (fallback: Krause 3 HP motor defaults).
+  - Expose each component as a standalone render_*() function callable from ui/theory.py.
 
-Exports:
-    render_boucherot                  — Te×s with R'₂ slider (Boucherot)
-    render_zonas_operacao             — Te×n with colored zones and vector diagram
-    render_comparativo_partidas       — current×time: DOL, Y-D, Soft-Starter
-    render_park_dinamico              — αβ/dq vector plane + time series
-    render_sankey_potencia            — Power flow Sankey with slip slider
-    render_circuito_alternavel        — Switchable equivalent circuit (full / IEEE)
-    render_transitorios_sincronizados — n, Te and ias synchronized for 3 scenarios
-    render_fasorial_desequilibrio     — waveforms + animated phasor with per-phase unbalance
+Relationships:
+  Imported by : ui.theory
+  Imports     : viz.plotly_charts, viz.eqcircuit_plotter, core.curva_tn
+
+Extending:
+  - To add a new interactive component, create render_<name>() here and register it in ui/theory.py.
 """
 
 from __future__ import annotations

@@ -1,6 +1,23 @@
-"""Plotly charts for DC machines — mirrors plotly_charts.py MIT.
+# -*- coding: utf-8 -*-
+"""
+plotly_charts_dc.py
+===================
+Builds interactive Plotly charts for DC machine simulation results,
+mirroring plotly_charts.py for visual consistency.
 
-Imports theme/colours directly from MIT for visual consistency.
+Responsibilities:
+  - Build stacked (build_fig_stacked_dc) figures for DCM time-series results.
+  - Build side-by-side (build_fig_sidebyside_dc) and overlay
+    (build_fig_overlay_dc) multi-trace figures.
+  - Build torque-speed (build_fig_torque_speed_dc) characteristic figures.
+
+Relationships:
+  Imported by : ui_components.sim_results_dc
+  Imports     : viz.plotly_charts
+
+Extending:
+  - To add a new DCM chart type, create build_fig_<type>_dc() here following
+    the MIT counterpart convention in viz.plotly_charts.
 """
 
 from __future__ import annotations

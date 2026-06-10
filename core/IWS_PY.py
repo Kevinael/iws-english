@@ -1,24 +1,27 @@
 ﻿# -*- coding: utf-8 -*-
 """
-IWS_PY.py — Public facade of the induction machine simulator (Krause 0dq model)
+IWS_PY.py
+=========
+Public facade for the induction-machine simulator — exports MachineParams,
+run_simulation, and build_fns with a backwards-compatible interface.
 
-Exports (backwards-compatible interface):
-  MachineParams  — core.machine_model
-  run_simulation — integrates the ODE and returns dict with time series
-  build_fns      — core.sources
+Responsibilities:
+  - Re-export MachineParams from core.machine_model
+  - Orchestrate run_simulation by calling the solver and post-processing
+  - Expose build_fns from core.sources for experiment construction
 
-Internal modules:
-  core.machine_model  — MachineParams, _make_rhs
-  core.solver         — _solve, post-processing, steady-state detection
-  core.sources        — voltage/torque sources, build_fns
-  core.transforms     — abc_voltages, clarke_park_transform
-  core.thermal        — estimate_rth_cth, dTemp_dt
+Relationships:
+  Imported by : ui_components.sim_config, ui_components.sim_runner,
+                ui_components.sim_results, viz.pdf_commons, viz.pdf_report_v2,
+                scripts.gen_figures, scripts.gen_resultados_web,
+                scripts.demo_potencias, analysis.compare_dc_ac_dol,
+                tests.conftest, tests.test_physics
+  Imports     : core.machine_model, core.solver, core.sources,
+                core.transforms, core.thermal
 
-Detailed architecture and implementation decision documentation:
-  SME/2. Modulos/core/IWS_PY.md
-  SME/Fluxo de Dados e Execucao.md
-  SME/1. Fundamentos/6 - API Publica (run_simulation e build_fns).md
-  SME/2. Modulos/Guia de Leitura do Codigo.md
+Extending:
+  - Add a new simulation mode in core.sources and core.solver; expose it via
+    run_simulation without breaking the existing public interface.
 """
 
 from __future__ import annotations

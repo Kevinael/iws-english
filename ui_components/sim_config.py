@@ -1,14 +1,21 @@
 # -*- coding: utf-8 -*-
-"""Simulation configuration and inputs — machine parameters and experiment.
+"""
+sim_config.py
+=============
+Induction-machine selector, parameter inputs, presets, and experiment configuration widgets.
 
-Exports:
-    _WK                     — logical field → widget key mapping
-    VARIABLE_CATALOG        — complete catalog of plottable variables
-    VARIABLE_CATALOG_MECANICAS
-    VARIABLE_CATALOG_ELETRICAS
-    render_machine_selector — equipment selection screen
-    render_machine_params   — physical parameters column
-    render_experiment_config — experiment and variable configuration
+Responsibilities:
+  - Render machine selector screen (render_machine_selector).
+  - Render physical parameter inputs with lock/unlock experiment mode (render_machine_params).
+  - Render experiment type and variable selection widgets (render_experiment_config).
+  - Expose MACHINES, _WK, _PRESETS, and VARIABLE_CATALOG for downstream consumers.
+
+Relationships:
+  Imported by : IWS_UI
+  Imports     : core.IWS_PY, core.desequilibrio_falta, core.param_estimator, ui.theme
+
+Extending:
+  - To add a new preset motor, add an entry to _PRESETS with its MachineParams kwargs.
 """
 
 from __future__ import annotations

@@ -1,9 +1,19 @@
 # -*- coding: utf-8 -*-
-"""Theory Tab — entry point for ui_components.
+"""
+theory_view.py
+==============
+Thin re-export wrapper providing a uniform interface for the Theory tab within ui_components.
 
-The complete educational logic lives in ui/theory.py.
-This module re-exports render_theory_tab to maintain a uniform
-interface within the ui_components package.
+Responsibilities:
+  - Re-export render_theory_tab from ui.theory so IWS_UI imports only from ui_components.
+  - Keep the ui_components package interface stable regardless of internal ui/ restructuring.
+
+Relationships:
+  Imported by : IWS_UI
+  Imports     : ui.theory
+
+Extending:
+  - To route Theory to a different module, change the import source here without touching IWS_UI.
 """
 
 from __future__ import annotations

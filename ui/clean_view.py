@@ -1,8 +1,20 @@
+# -*- coding: utf-8 -*-
 """
 clean_view.py
 =============
-Clean parameter configuration view for screenshot / article capture.
-Reads data from st.session_state (sim_result) — works only after a simulation.
+Renders clean HTML parameter tables for article screenshots — reads from session_state after a completed simulation.
+
+Responsibilities:
+  - Format machine parameters as an HTML table with styled rows and sections.
+  - Render the clean view panel via render_clean_view().
+  - Depend on sim_result being present in session_state before rendering.
+
+Relationships:
+  Imported by : IWS_UI
+  Imports     : streamlit
+
+Extending:
+  - To add a new section, create a _section() call and append rows with _row().
 """
 from __future__ import annotations
 import streamlit as st

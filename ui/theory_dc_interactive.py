@@ -1,12 +1,22 @@
 # -*- coding: utf-8 -*-
-"""Interactive components for the DC Machine Theory tab.
+"""
+theory_dc_interactive.py
+========================
+Interactive Plotly components for the DC machine Theory tab — comparative curves, current patterns, speed control, estimator, and block diagrams.
 
-Exports:
-    render_curvas_comparativas_excitacao
-    render_padrao_corrente_dc
-    render_controle_velocidade_dc
-    render_estimador_dc
-    render_diagrama_blocos_mcc
+Responsibilities:
+  - Render comparative excitation T×ωm curves (render_curvas_comparativas_excitacao).
+  - Render current patterns for DCM excitation types (render_padrao_corrente_dc).
+  - Render speed control strategies (render_controle_velocidade_dc).
+  - Render parameter estimator UI (render_estimador_dc).
+  - Render DCM block diagram (render_diagrama_blocos_mcc).
+
+Relationships:
+  Imported by : ui.theory_dc
+  Imports     : viz.plotly_charts
+
+Extending:
+  - To add a new DCM interactive component, create render_<name>() here and register it in ui/theory_dc.py.
 """
 
 from __future__ import annotations

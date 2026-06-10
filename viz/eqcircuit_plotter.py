@@ -1,15 +1,22 @@
 # -*- coding: utf-8 -*-
 """
-eqcircuit_plotter.py — Single-Phase T Equivalent Circuit (IM)
-Draws the circuit with schemdraw + matplotlib.
+eqcircuit_plotter.py
+====================
+Draws the single-phase T equivalent circuit of the induction machine using
+schemdraw and matplotlib, supporting dark and light modes.
 
-Module usage (Streamlit):
-    from eqcircuit_plotter import render_circuit
-    render_circuit(mp, dark, _palette)
+Responsibilities:
+  - Build a matplotlib Figure containing the per-phase equivalent circuit
+    via build_figure(mp, dark, palette_fn).
+  - Support theme switching via the dark parameter and palette_fn callback.
 
-Standalone usage:
-    python eqcircuit_plotter.py           # dark background
-    python eqcircuit_plotter.py --light   # light background
+Relationships:
+  Imported by : ui.theory_interactive, viz.pdf_commons, viz.pdf_report_v2
+  Imports     : (schemdraw, matplotlib — lazy imports)
+
+Extending:
+  - To add an alternative circuit topology (e.g. L-circuit), add a topology
+    parameter to build_figure and branch on its value.
 """
 
 from __future__ import annotations

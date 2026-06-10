@@ -1,3 +1,23 @@
+# -*- coding: utf-8 -*-
+"""
+harmonica_analysis.py
+=====================
+Generates FFT amplitude spectra of steady-state variables and provides unit
+mapping for MCSA diagnostic display.
+
+Responsibilities:
+  - Map result key to physical unit (_fft_unit_for_key)
+  - Build a Plotly FFT figure (build_fig_fft)
+
+Relationships:
+  Imported by : ui_components.sim_results
+  Imports     : viz.plotly_charts, utils.text_utils
+
+Extending:
+  - To automatically detect broken-bar sidebands, add a peak-detection
+    function around (1±2s)f.
+"""
+
 from __future__ import annotations
 import numpy as np
 import plotly.graph_objects as go

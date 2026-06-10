@@ -1,6 +1,21 @@
 # -*- coding: utf-8 -*-
-"""Generates the PNG images used in the simulator's Theory tab.
-Runs without Streamlit dependencies — can be executed directly.
+"""
+_gen_theory_imgs.py
+===================
+Standalone script that generates PNG circuit diagram images used by the
+Theory tab, via schemdraw and matplotlib.
+
+Responsibilities:
+  - Draw equivalent circuits without Streamlit dependencies.
+  - Save output PNGs to utils/imgs/.
+
+Relationships:
+  Imported by : (standalone script — run directly)
+  Imports     : (schemdraw, matplotlib only)
+
+Extending:
+  - To regenerate images after circuit changes, re-run this script and
+    verify the output PNGs in the Theory tab.
 """
 
 import os

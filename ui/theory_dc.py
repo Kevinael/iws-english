@@ -1,8 +1,20 @@
 # -*- coding: utf-8 -*-
-"""DC Machine Theory Tab — 7 pedagogical sub-tabs.
+"""
+theory_dc.py
+============
+DC machine Theory tab with 7 pedagogical sub-tabs covering modelling, dynamics, current patterns, speed control, generator operation, parameter estimator, and user manual.
 
-Exports:
-    render_theory_dc_tab — called in IWS_UI.py when selected_machine == "dc"
+Responsibilities:
+  - Render 7 sub-tabs for DCM theory content in a structured Streamlit layout.
+  - Load PNG images from docs/bases para simulação via _show_png.
+  - Call interactive components from theory_dc_interactive for each sub-tab.
+
+Relationships:
+  Imported by : IWS_UI (indirectly via theory_view)
+  Imports     : ui.theory_dc_interactive
+
+Extending:
+  - To add a sub-tab, create the interactive component in theory_dc_interactive.py and add a tab here.
 """
 
 from __future__ import annotations

@@ -1,3 +1,21 @@
+# -*- coding: utf-8 -*-
+"""
+text_utils.py
+=============
+Converts LaTeX inline notation to Unicode plain text — used to strip math
+symbols from axis labels and UI strings.
+
+Responsibilities:
+  - Map LaTeX commands to Greek Unicode symbols via the _GREEK dict.
+  - Strip $...$ delimiters and replace commands via _strip_latex(s).
+
+Relationships:
+  Imported by : core.harmonica_analysis, ui_components.sim_results
+  Imports     : (re only)
+
+Extending:
+  - To support additional LaTeX commands, add entries to the _GREEK dict.
+"""
 from __future__ import annotations
 import re
 

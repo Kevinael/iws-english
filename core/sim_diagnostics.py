@@ -1,9 +1,22 @@
 # -*- coding: utf-8 -*-
 """
-sim_diagnostics.py — Automatic physical diagnostic module.
+sim_diagnostics.py
+==================
+Automatic post-simulation diagnostic module — analyses ODE states and
+generates physics-based insights classified by severity.
 
-Analyses the ODE solver state vectors and produces technical insights
-based on Newton-Euler equations and the Krause (0dq) model.
+Responsibilities:
+  - Detect steady state from the state vectors
+  - Check torque balance, temperature, voltage unbalance, and speed anomalies
+  - Return a list of Insight objects (info / warning / error)
+
+Relationships:
+  Imported by : ui_components.sim_results
+  Imports     : (math, numpy only)
+
+Extending:
+  - To add a new diagnostic rule, create a _check_X function and register it
+    in the orchestrator's check list.
 """
 
 from __future__ import annotations

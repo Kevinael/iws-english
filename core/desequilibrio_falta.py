@@ -2,12 +2,20 @@
 """
 desequilibrio_falta.py
 ======================
-Module reserved for voltage unbalance and phase-loss simulation.
-Not imported or used by the rest of the application.
+Generates unbalanced three-phase voltages and phase-loss conditions using
+symmetrical components — UNDER DEVELOPMENT, not active in the current UI.
 
-To reactivate: import render_desequilibrio_ui in IWS_UI.py and add
-deseq_a, deseq_b, deseq_c, falta_fase_a, falta_fase_b, falta_fase_c
-as parameters of run_simulation in IWS_PY.py.
+Responsibilities:
+  - Generate abc_voltages_deseq with per-phase amplitude and angle adjustments
+  - Support phase-loss mode (zero voltage on one phase)
+
+Relationships:
+  Imported by : core.machine_model, core.solver (conditionally)
+  Imports     : (math, numpy only)
+
+Extending:
+  - To activate in the UI, integrate render_desequilibrio_ui in sim_config.py
+    and pass parameters via a MachineParams.deseq_config field.
 """
 from __future__ import annotations
 import math

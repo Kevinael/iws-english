@@ -1,26 +1,25 @@
 # -*- coding: utf-8 -*-
 """
-machine_model.py — Parameters and RHS of the Krause 0dq model
+machine_model.py
+================
+Defines MachineParams (dataclass) and _make_rhs, which builds the right-hand
+side of the Krause dq0 ODE system for the induction machine.
 
-Exports:
-  MachineParams  — dataclass with all machine parameters (electrical,
-                   mechanical, thermal, network) and derived fields
-  _lm_saturado   — Froelich model for non-linear Lm (legacy, no effect on RHS)
-  _xml_from_lm   — resulting mutual reactance given Lm
-  _make_rhs      — builds and returns rhs(t, y) for solve_ivp
+Responsibilities:
+  - Store all electrical, mechanical, and thermal parameters of the MIT
+  - Compute derived inductances and reactances in __post_init__
+  - Build the RHS of the 8-state ODE system via _make_rhs
 
-ODE states (8):
-  [PSIqs, PSIds, PSIqr, PSIdr, wr, tetar, Temp, theta_slip]
+Relationships:
+  Imported by : core.IWS_PY, core.solver, core.sources, core.curva_tn,
+                ui_components.sim_config, viz.pdf_commons,
+                tests.conftest, tests.test_machine_model
+  Imports     : core.thermal, core.transforms, core.desequilibrio_falta
 
-Internal dependencies:
-  core.thermal    — estimate_rth_cth, dTemp_dt
-  core.transforms — abc_voltages, clarke_park_transform
-  core.desequilibrio_falta — abc_voltages_deseq
-
-Detailed documentation of each implementation decision:
-  SME/2. Modulos/core/machine_model.md
-  SME/2. Modulos/Guia de Leitura do Codigo.md  (secoes 1-2)
-  SME/1. Fundamentos/4 - Modelo Matematico (RHS Krause).md
+Extending:
+  - For magnetic saturation, modify _lm_saturado and _xml_from_lm; for
+    additional states (e.g. damper winding), expand MachineParams and
+    _make_rhs.
 """
 
 from __future__ import annotations

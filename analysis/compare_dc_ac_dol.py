@@ -1,13 +1,22 @@
+# -*- coding: utf-8 -*-
 """
-Comparative analysis: DC sep_motor vs AC 3-phase induction motor (DOL).
+compare_dc_ac_dol.py
+====================
+Comparative analysis overlaying DC (separately excited) and AC (three-phase
+induction) motor DOL transients on shared ia(t), Te(t), and ωm(t) axes.
 
-Overlay transient responses: ia(t), Te(t), ωm(t).
-Same mechanical properties (J, B) to isolate electrical transients.
+Responsibilities:
+  - Match mechanical parameters (J, B) between MIT and DCM.
+  - Run both simulations with equivalent operating conditions.
+  - Produce overlay Plotly frames and print comparison statistics.
 
-DC: sep_motor (J=0.21, B=1.074e-6)
-AC: IM (J=0.21, B=1.074e-6) — matched J, B from sep_motor
+Relationships:
+  Imported by : (standalone script — run directly)
+  Imports     : core.IWS_PY, core.dc_machine_model
 
-Output: overlay frames for visualization + summary stats.
+Extending:
+  - To add a third motor type (e.g. PMSM), add a simulation block and an
+    overlay trace following the existing DC/AC pattern.
 """
 
 import numpy as np

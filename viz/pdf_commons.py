@@ -1,8 +1,23 @@
 # -*- coding: utf-8 -*-
 """
-pdf_commons.py — Shared utilities for PDF report generation.
+pdf_commons.py
+==============
+Shared utilities for PDF report generation — base class SimBlock and pure
+helper functions used by all report generators.
 
-Exports pure functions and the SimBlock base class used by pdf_academico and pdf_industrial.
+Responsibilities:
+  - Provide safe_text, fmt_power, embed_fig, build_circuit_bytes,
+    cell_rich, and render_rich helper functions.
+  - Expose compute_* metric helpers for KPI calculation.
+  - Define the SimBlock base PDF class shared by all report styles.
+
+Relationships:
+  Imported by : viz.pdf_academico, viz.pdf_industrial, viz.pdf_dc
+  Imports     : core.IWS_PY, viz.eqcircuit_plotter, ui.theme
+
+Extending:
+  - To add a new shared helper, add it here and import it in the consumer
+    report modules (pdf_academico, pdf_industrial, pdf_dc).
 """
 
 from __future__ import annotations

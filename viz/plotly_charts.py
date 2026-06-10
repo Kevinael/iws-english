@@ -1,3 +1,25 @@
+# -*- coding: utf-8 -*-
+"""
+plotly_charts.py
+================
+Builds interactive Plotly waveform charts for induction-machine simulation
+results with dark/light theme support and pre-computed frames for
+zero-latency rendering.
+
+Responsibilities:
+  - Provide _plot_theme() and _colors() theming helpers for dark/light modes.
+  - Build stacked, side-by-side, and overlay multi-trace figures.
+  - Pre-compute animation frames to eliminate render lag in Streamlit.
+
+Relationships:
+  Imported by : ui_components.sim_results, core.harmonica_analysis,
+                ui.theory_interactive, viz.plotly_charts_dc
+  Imports     : (numpy, plotly only)
+
+Extending:
+  - To add a new chart layout, create a build_fig_<layout>() function
+    following the existing pattern.
+"""
 from __future__ import annotations
 import numpy as np
 import plotly.graph_objects as go
