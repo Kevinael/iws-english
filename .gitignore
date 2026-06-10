@@ -8,8 +8,7 @@ artigo/
 .gitignore
 CLAUDE.md
 Obsidian/
-# testes e artefatos de cobertura
-tests/
+# artefatos de cobertura
 .coverage
 .pytest_cache/
 htmlcov/
