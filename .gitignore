@@ -8,6 +8,9 @@ artigo/
 .gitignore
 CLAUDE.md
 Obsidian/
+__pycache__/
+*.pyc
+overleaf/
 # artefatos de cobertura
 .coverage
 .pytest_cache/
