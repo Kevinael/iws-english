@@ -95,7 +95,7 @@ def calc_curva_tn(mp, n_points: int = 600) -> dict:
 
     # ── starting torque (s = 1) ───────────────────────────────────────────────
     Te_part = float(_torque_array(np.array([1.0]), V1, R1, X1, R2, X2, Xm, ws_mec)[0])
-
+    # Return parameters:
     return {
         "n_rpm":   n_rpm,
         "Te":      Te_all,
