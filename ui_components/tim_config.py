@@ -179,7 +179,7 @@ class _WidgetKeys:
     ieee_P_lr:     str = "wi_ieee_P_lr"
     ieee_f_lr:     str = "wi_ieee_f_lr"
     # DOL — rated torque reference (used to compute starting-time KPI)
-    Tl_nom_dol:    str = _WK.Tl_nom_dol
+    Tl_nom_dol:    str = "wi_dol_Tl_nom"
 
 
 _WK = _WidgetKeys()
