@@ -178,6 +178,8 @@ class _WidgetKeys:
     ieee_I_lr:     str = "wi_ieee_I_lr"
     ieee_P_lr:     str = "wi_ieee_P_lr"
     ieee_f_lr:     str = "wi_ieee_f_lr"
+    # DOL — rated torque reference (used to compute starting-time KPI)
+    Tl_nom_dol:    str = _WK.Tl_nom_dol
 
 
 _WK = _WidgetKeys()
@@ -961,7 +963,7 @@ Separation uses Table 1 of IEEE 112, according to the **NEMA class** selected be
                 st.session_state[wk.Xlr] = Xlr
                 st.session_state[wk.Rfe] = Rfe
                 st.session_state[wk.Tl_final]  = _tl_tmp
-                st.session_state["wi_dol_Tl_nom"] = _tl_tmp
+                st.session_state[_WK.Tl_nom_dol] = _tl_tmp
                 st.rerun()
 
         # Fixed parameters for MachineParams in IEEE mode
@@ -1181,7 +1183,7 @@ def render_experiment_config(
         config["partir_em_vazio"] = partir_em_vazio
 
         if partir_em_vazio:
-            Tl_nom = st.number_input("Rated reference torque — $T_{nom}$ (N·m)", value=_Tl_ref, min_value=0.0001, key="wi_dol_Tl_nom")
+            Tl_nom = st.number_input("Rated reference torque — $T_{nom}$ (N·m)", value=_Tl_ref, min_value=0.0001, key=_WK.Tl_nom_dol)
             pct_fin = st.number_input(
                 "Applied load (%)", value=100.0,
                 help="Load torque as a percentage of T_nom. Applied at t_carga.",
