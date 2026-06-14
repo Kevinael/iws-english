@@ -1,5 +1,56 @@
 # Refactoring Notes — IWS English
 
+## Session: 2026-06-14 (part 4)
+
+### 1. `core/constants.py` — `W_TO_KW` and `P_NOM_MIN_KW` added
+
+**Commits:** `ab54d46`
+
+**Before:** two numeric literals scattered across `sim_results_dc.py` and `tim_results.py`:
+
+| Literal | Location | Meaning |
+|---|---|---|
+| `/ 1000` | `sim_results_dc.py:236,241` | W → kW conversion for economic metrics |
+| `/ 1000.0, 0.5` | `tim_results.py:563` | W → kW + minimum power fallback for T×n KPI |
+
+**After:** two constants added to the `# ENERGY / ECONOMIC` section of `core/constants.py`:
+
+```python
+W_TO_KW      = 1000   # conversion factor W → kW
+P_NOM_MIN_KW = 0.5    # minimum nominal power fallback [kW] — avoids zero-division in T×n KPI
+```
+
+Both files import via the existing `from core.constants import (...)` block.
+
+**Benefits:**
+
+- **Semantic intent:** `_P_elec_ss / W_TO_KW` is self-documenting; `/ 1000` is ambiguous.
+- **Single change point:** if unit scaling ever differs (e.g. MW display), one edit propagates everywhere.
+- **`P_NOM_MIN_KW` names the guard:** the `max(..., 0.5)` floor in the T×n call was previously an unexplained magic number; now it is a named constant with a documented reason.
+
+---
+
+### 2. Sankey MIT + T×n marker — investigation result
+
+No work required. Both charts already use `@st.cache_data` cache layers
+(`_cached_fig_torque_speed`, `_cached_fig_stacked`) introduced in previous sessions.
+Neither uses Plotly animation `frames=` — static figures cached per `_cache_key`. No conversion needed.
+
+---
+
+### 3. `render_desequilibrio_ui` / `render_broken_bar_ui` — extraction rejected
+
+**Decision:** do not extract sub-renderers.
+
+**Reasoning:**
+
+- Both functions (145 and 149 lines) consist of one outer expander → one theory expander (wall-of-text `st.markdown`) → interactive controls → config fill. Structure is linear with no repeated patterns.
+- Sub-renderers would not be reused anywhere — extraction adds indirection with zero reuse benefit.
+- Both live in `core/tim/fault.py`, which already has a clear single responsibility (fault UI). The file is not growing.
+- Extraction would touch 3 files (`fault.py`, `tim_config.py`, tests) for no measurable improvement.
+
+---
+
 ## Session: 2026-06-14 (part 3)
 
 ### 1. `ui_components/tim_config.py` — Extraction of sub-functions from `render_machine_params()`
