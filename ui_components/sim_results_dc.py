@@ -37,6 +37,7 @@ from core.constants import (
     DC_FIELD_INSTABILITY_RATIO,
     DC_STEADY_STATE_CONV_THRESHOLD,
     HOURS_PER_YEAR,
+    W_TO_KW,
 )
 from viz.plotly_config import DC_PLOT_CFG as _PLOT_CFG
 from viz.plotly_charts_dc import (
@@ -233,12 +234,12 @@ def _render_dc_tab_overview(
     if energy_tariff > 0 and _P_elec_ss > 1e-3 and not is_gen:
         st.write("")
         _eta_pct   = P_mec_out_nom / max(_P_elec_ss, 1e-9) * 100
-        _custo_ano = _P_elec_ss / 1000 * HOURS_PER_YEAR * energy_tariff
+        _custo_ano = _P_elec_ss / W_TO_KW * HOURS_PER_YEAR * energy_tariff
         ec1, ec2, ec3 = st.columns(3)
         ec1.metric("Efficiency η (%)",         f"{_eta_pct:.1f}")
         ec2.metric("Annual Cost ($)",           f"{_custo_ano:,.2f}",
                    help=f"Tariff: $ {energy_tariff:.4f}/kWh — continuous operation")
-        ec3.metric("Input power (kW)",          f"{_P_elec_ss/1000:.3f}")
+        ec3.metric("Input power (kW)",          f"{_P_elec_ss/W_TO_KW:.3f}")
 
 
 def _render_dc_tab_dynamic(

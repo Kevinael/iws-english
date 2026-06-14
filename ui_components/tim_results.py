@@ -61,6 +61,8 @@ from core.constants import (
     THD_LIMIT_IEEE519,
     POWER_FACTOR_MIN,
     HOURS_PER_YEAR,
+    W_TO_KW,
+    P_NOM_MIN_KW,
 )
 from viz.plotly_config import MIT_PLOT_CFG as _PLOT_CFG
 from ui_components.chart_notes import emit_mit_note, MITNoteCtx
@@ -560,7 +562,7 @@ def _render_tab_dynamic(
     with st.expander("Torque × Speed", expanded=False):
         _P_mec_ss = float(res.get("P_mec", 0.0))
         _fig_ts = _cached_fig_torque_speed(
-            P_nom_kw=max(_P_mec_ss / 1000.0, 0.5),
+            P_nom_kw=max(_P_mec_ss / W_TO_KW, P_NOM_MIN_KW),
             f=mp.f, p=mp.p, dark=dark_plot,
             _cache_key=res_hash, res=res,
         )

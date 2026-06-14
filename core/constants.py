@@ -71,6 +71,8 @@ POWER_FACTOR_MIN         = 0.85   # IEC/IEEE recommended minimum power factor
 
 # ENERGY / ECONOMIC
 HOURS_PER_YEAR           = 8760   # hours per year (24 h × 365 d)
+W_TO_KW                  = 1000   # conversion factor W → kW
+P_NOM_MIN_KW             = 0.5    # minimum nominal power fallback [kW] — avoids zero-division in T×n KPI
 
 # DC MACHINE PROTECTION & DIAGNOSTIC THRESHOLDS
 DC_OVERCURRENT_WARN_RATIO       = 10.0   # peak/steady-state ratio → warning
