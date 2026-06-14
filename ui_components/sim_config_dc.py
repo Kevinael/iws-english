@@ -19,6 +19,7 @@ Extending:
 
 from __future__ import annotations
 
+import dataclasses
 from typing import Any
 
 import numpy as np
@@ -89,6 +90,83 @@ _EXC_LABELS: dict[str, str] = {
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# WIDGET KEYS
+# ─────────────────────────────────────────────────────────────────────────────
+
+@dataclasses.dataclass(frozen=True)
+class _WidgetKeysDC:
+    # machine parameters
+    Va:         str = _WK_DC.Va
+    Ra:         str = _WK_DC.Ra
+    La:         str = _WK_DC.La
+    kb:         str = _WK_DC.kb
+    Vf:         str = _WK_DC.Vf
+    Rf:         str = _WK_DC.Rf
+    Lf:         str = _WK_DC.Lf
+    Rl:         str = _WK_DC.Rl
+    Ll:         str = _WK_DC.Ll
+    J:          str = _WK_DC.J
+    B:          str = _WK_DC.B
+    Tload:      str = _WK_DC.Tload
+    # selector / mode
+    excitation: str = _WK_DC.excitation
+    preset:     str = _WK_DC.preset
+    input_mode: str = _WK_DC.input_mode
+    # nameplate estimator
+    Pn_kW:      str = _WK_DC.Pn_kW
+    Vn_placa:   str = _WK_DC.Vn_placa
+    nn_rpm:     str = _WK_DC.nn_rpm
+    eta_placa:  str = _WK_DC.eta_placa
+    # DC resistance tests
+    V_dc_test:  str = _WK_DC.V_dc_test
+    I_dc_test:  str = _WK_DC.I_dc_test
+    V_dc_f_test:str = _WK_DC.V_dc_f_test
+    I_dc_f_test:str = _WK_DC.I_dc_f_test
+    # AC inductance tests
+    V_ac_test:  str = _WK_DC.V_ac_test
+    I_ac_test:  str = _WK_DC.I_ac_test
+    theta_test: str = _WK_DC.theta_test
+    f_ac_test:  str = _WK_DC.f_ac_test
+    # field step / no-load tests
+    tau_f_ms_test: str = _WK_DC.tau_f_ms_test
+    V_nl_test:  str = _WK_DC.V_nl_test
+    I_nl_test:  str = _WK_DC.I_nl_test
+    If_nl_test: str = _WK_DC.If_nl_test
+    n_nl_test:  str = _WK_DC.n_nl_test
+    # economics
+    energy_tariff: str = _WK_DC.energy_tariff
+    # experiment — DOL
+    dol_vazio:  str = _WK_DC.dol_vazio
+    dol_t_carga:str = _WK_DC.dol_t_carga
+    # experiment — series resistance
+    R_ini:      str = _WK_DC.R_ini
+    t_ramp:     str = _WK_DC.t_ramp
+    # experiment — braking
+    brake_method: str = _WK_DC.brake_method
+    t_freia:    str = _WK_DC.t_freia
+    Vdc_inj:    str = _WK_DC.Vdc_inj
+    Va_regen:   str = _WK_DC.Va_regen
+    # experiment — field weakening
+    Vf_fraco:   str = _WK_DC.Vf_fraco
+    t_campo:    str = _WK_DC.t_campo
+    t_trans:    str = _WK_DC.t_trans
+    # experiment — load pulse
+    t_pulso:    str = _WK_DC.t_pulso
+    Tl_extra:   str = _WK_DC.Tl_extra
+    # experiment — generator
+    Tl_gen:     str = _WK_DC.Tl_gen
+    # variable selection
+    vars_mec:   str = _WK_DC.vars_mec
+    vars_ele:   str = _WK_DC.vars_ele
+    # simulation settings
+    tmax_auto:  str = _WK_DC.tmax_auto
+    tmax:       str = _WK_DC.tmax
+    h:          str = _WK_DC.h
+
+_WK_DC = _WidgetKeysDC()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # HELPERS
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -122,19 +200,19 @@ def render_dc_machine_params(dark: bool, experiment_mode: bool) -> tuple[DCMachi
     st.markdown('<p class="slabel">Machine Parameters</p>', unsafe_allow_html=True)
 
     # ── Automatic default preset load on first open ───────────────────────────
-    if "wi_dc_Va" not in st.session_state:
+    if _WK_DC.Va not in st.session_state:
         _default_preset = _PRESETS_BY_EXC["sep_motor"]["Sep. Motor 220 V — Sen Ex. 9.2"]
         for k, v in _default_preset.items():
             st.session_state[f"wi_dc_{k}"] = v
-        st.session_state["wi_dc_excitation"] = "sep_motor"
-        st.session_state["wi_dc_preset"]     = "Sep. Motor 220 V — Sen Ex. 9.2"
+        st.session_state[_WK_DC.excitation] = "sep_motor"
+        st.session_state[_WK_DC.preset]     = "Sep. Motor 220 V — Sen Ex. 9.2"
         st.rerun()
 
     # ── Excitation configuration ──────────────────────────────────────────────
-    _wi("wi_dc_excitation", "sep_motor")
+    _wi(_WK_DC.excitation, "sep_motor")
     exc_options = list(_EXC_LABELS.keys())
     exc_labels  = [_EXC_LABELS[k] for k in exc_options]
-    exc_stored  = st.session_state.get("wi_dc_excitation", "sep_motor")
+    exc_stored  = st.session_state.get(_WK_DC.excitation, "sep_motor")
     exc_idx     = exc_options.index(exc_stored) if exc_stored in exc_options else 0
 
     exc_label_sel = st.selectbox(
@@ -143,7 +221,7 @@ def render_dc_machine_params(dark: bool, experiment_mode: bool) -> tuple[DCMachi
         disabled=experiment_mode,
     )
     exc = exc_options[exc_labels.index(exc_label_sel)]
-    st.session_state["wi_dc_excitation"] = exc
+    st.session_state[_WK_DC.excitation] = exc
 
     # ── Data source: Manual / Nameplate / Tests ───────────────────────────────
     _PARAM_SOURCE_LABELS_DC = [
@@ -151,32 +229,32 @@ def render_dc_machine_params(dark: bool, experiment_mode: bool) -> tuple[DCMachi
         "Estimate from nameplate data",
         "Determine from IEEE 113 tests",
     ]
-    _wi("wi_dc_input_mode", _PARAM_SOURCE_LABELS_DC[0])
+    _wi(_WK_DC.input_mode, _PARAM_SOURCE_LABELS_DC[0])
     input_mode = st.radio(
         "Data source", _PARAM_SOURCE_LABELS_DC,
         index=_PARAM_SOURCE_LABELS_DC.index(
-            st.session_state.get("wi_dc_input_mode", _PARAM_SOURCE_LABELS_DC[0])
+            st.session_state.get(_WK_DC.input_mode, _PARAM_SOURCE_LABELS_DC[0])
         ),
-        horizontal=True, key="wi_dc_input_mode",
+        horizontal=True, key=_WK_DC.input_mode,
         disabled=experiment_mode,
     )
 
     if input_mode == "Estimate from nameplate data" and not experiment_mode:
         _pgroup("Nameplate Data (NEMA)")
         p1, p2, p3, p4 = st.columns(4)
-        _wi("wi_dc_Pn_kW", 0.5)
-        _wi("wi_dc_Vn_placa", 24.0)
-        _wi("wi_dc_nn_rpm", 6500.0)
-        _wi("wi_dc_eta_placa", 0.85)
-        Pn_kW    = p1.number_input("$P_n$ (kW)",  min_value=0.001, key="wi_dc_Pn_kW",     format="%.3f")
-        Vn_p     = p2.number_input("$V_n$ (V)",   min_value=1.0,   key="wi_dc_Vn_placa",  format="%.1f")
-        nn_rpm   = p3.number_input("$n_n$ (RPM)", min_value=1.0,   key="wi_dc_nn_rpm",    format="%.0f")
+        _wi(_WK_DC.Pn_kW, 0.5)
+        _wi(_WK_DC.Vn_placa, 24.0)
+        _wi(_WK_DC.nn_rpm, 6500.0)
+        _wi(_WK_DC.eta_placa, 0.85)
+        Pn_kW    = p1.number_input("$P_n$ (kW)",  min_value=0.001, key=_WK_DC.Pn_kW,     format="%.3f")
+        Vn_p     = p2.number_input("$V_n$ (V)",   min_value=1.0,   key=_WK_DC.Vn_placa,  format="%.1f")
+        nn_rpm   = p3.number_input("$n_n$ (RPM)", min_value=1.0,   key=_WK_DC.nn_rpm,    format="%.0f")
         eta_p    = p4.number_input("$\\eta$",      min_value=0.01, max_value=1.0,
-                                    key="wi_dc_eta_placa", format="%.3f")
+                                    key=_WK_DC.eta_placa, format="%.3f")
         est = estimate_dc_nameplate(Pn_kW * 1000, Vn_p, nn_rpm, eta_p, exc)
-        for fld, wk in [("Ra","wi_dc_Ra"),("La","wi_dc_La"),("kb","wi_dc_kb"),
-                        ("Va","wi_dc_Va"),("Vf","wi_dc_Vf"),("Rf","wi_dc_Rf"),
-                        ("Lf","wi_dc_Lf"),("J","wi_dc_J"),("B","wi_dc_B")]:
+        for fld, wk in [("Ra",_WK_DC.Ra),("La",_WK_DC.La),("kb",_WK_DC.kb),
+                        ("Va",_WK_DC.Va),("Vf",_WK_DC.Vf),("Rf",_WK_DC.Rf),
+                        ("Lf",_WK_DC.Lf),("J",_WK_DC.J),("B",_WK_DC.B)]:
             if fld in est:
                 st.session_state[wk] = est[fld]
 
@@ -370,10 +448,10 @@ $$k_b = \\frac{E_{a,nl}}{I_{fd,nl} \\cdot \\omega_{nl}}, \\quad \\omega_{nl} = \
 
         _pgroup("DC Resistance Test — Armature (IEEE 113 Sec. 3)")
         e1, e2 = st.columns(2)
-        _wi("wi_dc_V_dc_test", 1.0)
-        _wi("wi_dc_I_dc_test", 0.1)
-        V_dc_t = e1.number_input("$V_{dc,a}$ (V)", min_value=0.001, key="wi_dc_V_dc_test", format="%.3f")
-        I_dc_t = e2.number_input("$I_{dc,a}$ (A)", min_value=0.001, key="wi_dc_I_dc_test", format="%.3f")
+        _wi(_WK_DC.V_dc_test, 1.0)
+        _wi(_WK_DC.I_dc_test, 0.1)
+        V_dc_t = e1.number_input("$V_{dc,a}$ (V)", min_value=0.001, key=_WK_DC.V_dc_test, format="%.3f")
+        I_dc_t = e2.number_input("$I_{dc,a}$ (A)", min_value=0.001, key=_WK_DC.I_dc_test, format="%.3f")
         _Ra_preview = V_dc_t / max(I_dc_t, 1e-9)
         st.caption(f"→ $R_a$ ≈ **{_Ra_preview:.4f} Ω**")
 
@@ -384,27 +462,27 @@ $$k_b = \\frac{E_{a,nl}}{I_{fd,nl} \\cdot \\omega_{nl}}, \\quad \\omega_{nl} = \
         if _is_sep_test:
             _pgroup("DC Resistance Test — Field (IEEE 113 Sec. 3)")
             f1, f2 = st.columns(2)
-            _wi("wi_dc_V_dc_f_test", 1.0)
-            _wi("wi_dc_I_dc_f_test", 0.1)
-            V_dc_f_t = f1.number_input("$V_{dc,f}$ (V)", min_value=0.001, key="wi_dc_V_dc_f_test", format="%.3f")
-            I_dc_f_t = f2.number_input("$I_{dc,f}$ (A)", min_value=0.001, key="wi_dc_I_dc_f_test", format="%.3f")
+            _wi(_WK_DC.V_dc_f_test, 1.0)
+            _wi(_WK_DC.I_dc_f_test, 0.1)
+            V_dc_f_t = f1.number_input("$V_{dc,f}$ (V)", min_value=0.001, key=_WK_DC.V_dc_f_test, format="%.3f")
+            I_dc_f_t = f2.number_input("$I_{dc,f}$ (A)", min_value=0.001, key=_WK_DC.I_dc_f_test, format="%.3f")
             _Rf_preview = V_dc_f_t / max(I_dc_f_t, 1e-9)
             st.caption(f"→ $R_f$ ≈ **{_Rf_preview:.4f} Ω**")
 
         # AC armature inductance test (IEEE 113 Sec. 7.5.1)
         _pgroup("AC Test — Armature Inductance (IEEE 113 Sec. 7.5.1)")
         h1, h2, h3, h4 = st.columns(4)
-        _wi("wi_dc_V_ac_test",    0.0)
-        _wi("wi_dc_I_ac_test",    0.0)
-        _wi("wi_dc_theta_test",   0.0)
-        _wi("wi_dc_f_ac_test",   60.0)
-        V_ac_t     = h1.number_input("$V_{ac}$ (V)",   min_value=0.0, key="wi_dc_V_ac_test",  format="%.3f",
+        _wi(_WK_DC.V_ac_test,    0.0)
+        _wi(_WK_DC.I_ac_test,    0.0)
+        _wi(_WK_DC.theta_test,   0.0)
+        _wi(_WK_DC.f_ac_test,   60.0)
+        V_ac_t     = h1.number_input("$V_{ac}$ (V)",   min_value=0.0, key=_WK_DC.V_ac_test,  format="%.3f",
                                      help="AC voltage applied to the armature (locked rotor, shorted field). 0 = use heuristic.")
-        I_ac_t     = h2.number_input("$I_{ac}$ (A)",   min_value=0.0, key="wi_dc_I_ac_test",  format="%.3f",
+        I_ac_t     = h2.number_input("$I_{ac}$ (A)",   min_value=0.0, key=_WK_DC.I_ac_test,  format="%.3f",
                                      help="Measured AC current (≤ 20% of I_n per IEEE 113).")
-        theta_t    = h3.number_input("$\\theta$ (°)",  min_value=0.0, max_value=90.0, key="wi_dc_theta_test", format="%.1f",
+        theta_t    = h3.number_input("$\\theta$ (°)",  min_value=0.0, max_value=90.0, key=_WK_DC.theta_test, format="%.1f",
                                      help="Phase angle between V and I measured by oscilloscope or wattmeter.")
-        f_ac_t     = h4.number_input("$f_{ac}$ (Hz)",  min_value=1.0, key="wi_dc_f_ac_test",  format="%.1f",
+        f_ac_t     = h4.number_input("$f_{ac}$ (Hz)",  min_value=1.0, key=_WK_DC.f_ac_test,  format="%.1f",
                                      help="AC source frequency (50 or 60 Hz per IEEE 113).")
         if V_ac_t > 1e-9 and I_ac_t > 1e-9 and theta_t > 0.1:
             import math as _math
@@ -416,9 +494,9 @@ $$k_b = \\frac{E_{a,nl}}{I_{fd,nl} \\cdot \\omega_{nl}}, \\quad \\omega_{nl} = \
         # Field step test — field inductance (IEEE 113 Sec. 7.5.3)
         if _is_sep_test:
             _pgroup("Step Test — Field Inductance (IEEE 113 Sec. 7.5.3)")
-            _wi("wi_dc_tau_f_ms_test", 0.0)
+            _wi(_WK_DC.tau_f_ms_test, 0.0)
             tau_f_t = st.number_input(
-                "$\\tau_f$ measured (ms)", min_value=0.0, key="wi_dc_tau_f_ms_test", format="%.1f",
+                "$\\tau_f$ measured (ms)", min_value=0.0, key=_WK_DC.tau_f_ms_test, format="%.1f",
                 help="Time to 63.2% of final field current after voltage step. 0 = use heuristic (Rf·0.1).",
             )
             if tau_f_t > 1e-3:
@@ -432,22 +510,22 @@ $$k_b = \\frac{E_{a,nl}}{I_{fd,nl} \\cdot \\omega_{nl}}, \\quad \\omega_{nl} = \
 
         _pgroup("No-Load Test (IEEE 113 Sec. 5.6)")
         g1, g2, g3, g4 = st.columns(4)
-        _wi("wi_dc_V_nl_test",  24.0)
-        _wi("wi_dc_I_nl_test",  0.05)
-        _wi("wi_dc_If_nl_test", 8.4)
-        _wi("wi_dc_n_nl_test",  6500.0)
-        V_nl_t  = g1.number_input("$V_{a,nl}$ (V)",    min_value=0.01,  key="wi_dc_V_nl_test",  format="%.3f")
-        I_nl_t  = g2.number_input("$I_{a,nl}$ (A)",    min_value=0.001, key="wi_dc_I_nl_test",  format="%.3f")
-        If_nl_t = g3.number_input("$I_{fd,nl}$ (A)",   min_value=0.001, key="wi_dc_If_nl_test", format="%.3f")
-        n_nl_t  = g4.number_input("$n_{nl}$ (RPM)",    min_value=1.0,   key="wi_dc_n_nl_test",  format="%.1f")
+        _wi(_WK_DC.V_nl_test,  24.0)
+        _wi(_WK_DC.I_nl_test,  0.05)
+        _wi(_WK_DC.If_nl_test, 8.4)
+        _wi(_WK_DC.n_nl_test,  6500.0)
+        V_nl_t  = g1.number_input("$V_{a,nl}$ (V)",    min_value=0.01,  key=_WK_DC.V_nl_test,  format="%.3f")
+        I_nl_t  = g2.number_input("$I_{a,nl}$ (A)",    min_value=0.001, key=_WK_DC.I_nl_test,  format="%.3f")
+        If_nl_t = g3.number_input("$I_{fd,nl}$ (A)",   min_value=0.001, key=_WK_DC.If_nl_test, format="%.3f")
+        n_nl_t  = g4.number_input("$n_{nl}$ (RPM)",    min_value=1.0,   key=_WK_DC.n_nl_test,  format="%.1f")
         est = estimate_dc_tests(
             V_dc_t, I_dc_t, V_nl_t, I_nl_t, If_nl_t, n_nl_t, exc,
             V_dc_f=V_dc_f_t, I_dc_f=I_dc_f_t,
             V_ac=V_ac_t, I_ac=I_ac_t, theta_deg=theta_t, f_ac=f_ac_t,
             tau_f_ms=tau_f_t,
         )
-        for fld, wk in [("Ra","wi_dc_Ra"),("La","wi_dc_La"),("kb","wi_dc_kb"),
-                        ("Lf","wi_dc_Lf"),("Rf","wi_dc_Rf")]:
+        for fld, wk in [("Ra",_WK_DC.Ra),("La",_WK_DC.La),("kb",_WK_DC.kb),
+                        ("Lf",_WK_DC.Lf),("Rf",_WK_DC.Rf)]:
             if fld in est:
                 st.session_state[wk] = est[fld]
 
@@ -502,7 +580,7 @@ $$k_b = \\frac{E_{a,nl}}{I_{fd,nl} \\cdot \\omega_{nl}}, \\quad \\omega_{nl} = \
             _im_c3.metric("τ_a = La/Ra (ms)", f"{_tau_a * 1000:.2f}")
             if exc in ("sep_motor", "sep_gen"):
                 _Lf_est = est.get("Lf", 0.0)
-                _Rf_est = float(st.session_state.get("wi_dc_Rf", 1.0))
+                _Rf_est = float(st.session_state.get(_WK_DC.Rf, 1.0))
                 _tau_f = _Lf_est / max(_Rf_est, 1e-9)
                 _im_c4.metric("τ_f = Lf/Rf (ms)", f"{_tau_f * 1000:.2f}")
 
@@ -534,23 +612,23 @@ $$k_b = \\frac{E_{a,nl}}{I_{fd,nl} \\cdot \\omega_{nl}}, \\quad \\omega_{nl} = \
             key="btn_dc_use_tests",
             help="Copies the estimated parameters to Manual mode, allowing adjustments before simulating.",
         ):
-            for fld, wk in [("Ra","wi_dc_Ra"),("La","wi_dc_La"),("kb","wi_dc_kb"),("Lf","wi_dc_Lf")]:
+            for fld, wk in [("Ra",_WK_DC.Ra),("La",_WK_DC.La),("kb",_WK_DC.kb),("Lf",_WK_DC.Lf)]:
                 if fld in est:
                     st.session_state[wk] = est[fld]
-            st.session_state["wi_dc_input_mode"] = "Enter parameters manually"
+            st.session_state[_WK_DC.input_mode] = "Enter parameters manually"
             st.rerun()
 
     # ── Preset loader — only in manual mode (estimators have their own data source) ──
     if input_mode == "Enter parameters manually":
         if st.session_state.pop("_dc_reset_preset", False):
-            st.session_state["wi_dc_preset"] = "— Select preset —"
+            st.session_state[_WK_DC.preset] = "— Select preset —"
 
         _presets_exc = _PRESETS_BY_EXC.get(exc, {})
         _preset_names = ["— Select preset —"] + list(_presets_exc.keys())
         pc1, pc2 = st.columns([3, 1], vertical_alignment="bottom")
         with pc1:
             preset_sel = st.selectbox(
-                "Preset", _preset_names, key="wi_dc_preset",
+                "Preset", _preset_names, key=_WK_DC.preset,
                 label_visibility="collapsed",
                 disabled=experiment_mode,
             )
@@ -571,22 +649,22 @@ $$k_b = \\frac{E_{a,nl}}{I_{fd,nl} \\cdot \\omega_{nl}}, \\quad \\omega_{nl} = \
     is_sep    = exc in ("sep_motor", "sep_gen")
     is_series = exc == "series_motor"
 
-    _wi("wi_dc_energy_tariff", 0.75)
+    _wi(_WK_DC.energy_tariff, 0.75)
 
     if experiment_mode:
         # Locked mode: compact summary with st.metric (same pattern as MIT)
-        va    = float(st.session_state.get("wi_dc_Va",    24.0))
-        ra    = float(st.session_state.get("wi_dc_Ra",    0.013))
-        la    = float(st.session_state.get("wi_dc_La",    0.01))
-        vf    = float(st.session_state.get("wi_dc_Vf",    va if not is_sep else 12.0))
-        rf    = float(st.session_state.get("wi_dc_Rf",    1.43))
-        lf    = float(st.session_state.get("wi_dc_Lf",    0.167))
-        rl    = float(st.session_state.get("wi_dc_Rl",    0.0))
-        ll    = float(st.session_state.get("wi_dc_Ll",    0.0))
-        kb    = float(st.session_state.get("wi_dc_kb",    0.004))
-        J     = float(st.session_state.get("wi_dc_J",     0.21))
-        B     = float(st.session_state.get("wi_dc_B",     1.074e-6))
-        Tload = float(st.session_state.get("wi_dc_Tload", 2.493))
+        va    = float(st.session_state.get(_WK_DC.Va,    24.0))
+        ra    = float(st.session_state.get(_WK_DC.Ra,    0.013))
+        la    = float(st.session_state.get(_WK_DC.La,    0.01))
+        vf    = float(st.session_state.get(_WK_DC.Vf,    va if not is_sep else 12.0))
+        rf    = float(st.session_state.get(_WK_DC.Rf,    1.43))
+        lf    = float(st.session_state.get(_WK_DC.Lf,    0.167))
+        rl    = float(st.session_state.get(_WK_DC.Rl,    0.0))
+        ll    = float(st.session_state.get(_WK_DC.Ll,    0.0))
+        kb    = float(st.session_state.get(_WK_DC.kb,    0.004))
+        J     = float(st.session_state.get(_WK_DC.J,     0.21))
+        B     = float(st.session_state.get(_WK_DC.B,     1.074e-6))
+        Tload = float(st.session_state.get(_WK_DC.Tload, 2.493))
 
         st.info(
             "**Parameters locked** — disable the toggle at the top of the page to edit.  "
@@ -628,18 +706,18 @@ $$k_b = \\frac{E_{a,nl}}{I_{fd,nl} \\cdot \\omega_{nl}}, \\quad \\omega_{nl} = \
         m3.metric("Tl (N·m)",    f"{Tload:.4f}")
     else:
         # Initialize defaults
-        _wi("wi_dc_Va",    24.0)
-        _wi("wi_dc_Ra",    0.013)
-        _wi("wi_dc_La",    0.01)
-        _wi("wi_dc_Vf",    12.0)
-        _wi("wi_dc_Rf",    1.43)
-        _wi("wi_dc_Lf",    0.167)
-        _wi("wi_dc_Rl",    0.0)
-        _wi("wi_dc_Ll",    0.0)
-        _wi("wi_dc_kb",    0.004)
-        _wi("wi_dc_J",     0.21)
-        _wi("wi_dc_B",     1.074e-6)
-        _wi("wi_dc_Tload", 2.493)
+        _wi(_WK_DC.Va,    24.0)
+        _wi(_WK_DC.Ra,    0.013)
+        _wi(_WK_DC.La,    0.01)
+        _wi(_WK_DC.Vf,    12.0)
+        _wi(_WK_DC.Rf,    1.43)
+        _wi(_WK_DC.Lf,    0.167)
+        _wi(_WK_DC.Rl,    0.0)
+        _wi(_WK_DC.Ll,    0.0)
+        _wi(_WK_DC.kb,    0.004)
+        _wi(_WK_DC.J,     0.21)
+        _wi(_WK_DC.B,     1.074e-6)
+        _wi(_WK_DC.Tload, 2.493)
 
         _is_manual    = (input_mode == "Enter parameters manually")
         _is_nameplate = (input_mode == "Estimate from nameplate data")
@@ -650,22 +728,22 @@ $$k_b = \\frac{E_{a,nl}}{I_{fd,nl} \\cdot \\omega_{nl}}, \\quad \\omega_{nl} = \
             _pgroup("Armature Data")
             va = st.number_input(
                 "Armature voltage — $V_a$ (V)",
-                min_value=0.0, key="wi_dc_Va", format="%.3f",
+                min_value=0.0, key=_WK_DC.Va, format="%.3f",
                 help="DC voltage applied to the armature winding.",
             )
             ra = st.number_input(
                 "Armature resistance — $R_a$ (Ω)",
-                min_value=1e-6, key="wi_dc_Ra", format="%.4f",
+                min_value=1e-6, key=_WK_DC.Ra, format="%.4f",
                 help="Armature winding resistance (including brushes). Affects Joule losses and starting current.",
             )
             la = st.number_input(
                 "Armature inductance — $L_a$ (H)",
-                min_value=1e-6, key="wi_dc_La", format="%.4f",
+                min_value=1e-6, key=_WK_DC.La, format="%.4f",
                 help="Armature circuit inductance. Determines electrical time constant τ_a = L_a / R_a.",
             )
             kb = st.number_input(
                 "Back-EMF constant — $k_b$ (V·s/rad)",
-                min_value=1e-6, key="wi_dc_kb", format="%.4f",
+                min_value=1e-6, key=_WK_DC.kb, format="%.4f",
                 help="Relates back-EMF (Ea) and angular velocity: Ea = kb · ωm. Also equal to torque constant kt.",
             )
             st.markdown('</div>', unsafe_allow_html=True)
@@ -676,7 +754,7 @@ $$k_b = \\frac{E_{a,nl}}{I_{fd,nl} \\cdot \\omega_{nl}}, \\quad \\omega_{nl} = \
                 if is_sep:
                     vf = st.number_input(
                         "Field voltage — $V_f$ (V)",
-                        min_value=0.0, key="wi_dc_Vf", format="%.3f",
+                        min_value=0.0, key=_WK_DC.Vf, format="%.3f",
                         help="Independent field source voltage (separately excited).",
                     )
                 else:
@@ -684,12 +762,12 @@ $$k_b = \\frac{E_{a,nl}}{I_{fd,nl} \\cdot \\omega_{nl}}, \\quad \\omega_{nl} = \
                     st.caption("Shunt: $V_f = V_a$ (fixed — field in parallel with armature)")
                 rf = st.number_input(
                     "Field resistance — $R_f$ (Ω)",
-                    min_value=1e-6, key="wi_dc_Rf", format="%.4f",
+                    min_value=1e-6, key=_WK_DC.Rf, format="%.4f",
                     help="Total field circuit resistance (winding + field rheostat).",
                 )
                 lf = st.number_input(
                     "Field inductance — $L_f$ (H)",
-                    min_value=1e-6, key="wi_dc_Lf", format="%.4f",
+                    min_value=1e-6, key=_WK_DC.Lf, format="%.4f",
                     help="Field winding inductance. Determines τ_f = L_f / R_f.",
                 )
                 st.markdown('</div>', unsafe_allow_html=True)
@@ -697,12 +775,12 @@ $$k_b = \\frac{E_{a,nl}}{I_{fd,nl} \\cdot \\omega_{nl}}, \\quad \\omega_{nl} = \
                 _pgroup("Series Field (in series with armature)")
                 rf = st.number_input(
                     "Series field resistance — $R_s$ (Ω)",
-                    min_value=1e-6, key="wi_dc_Rf", format="%.4f",
+                    min_value=1e-6, key=_WK_DC.Rf, format="%.4f",
                     help="Series field winding resistance (in series with the armature).",
                 )
                 lf = st.number_input(
                     "Series field inductance — $L_s$ (H)",
-                    min_value=1e-6, key="wi_dc_Lf", format="%.4f",
+                    min_value=1e-6, key=_WK_DC.Lf, format="%.4f",
                     help="Series field winding inductance.",
                 )
                 vf = 0.0
@@ -710,22 +788,22 @@ $$k_b = \\frac{E_{a,nl}}{I_{fd,nl} \\cdot \\omega_{nl}}, \\quad \\omega_{nl} = \
 
         else:
             # Ra, La, kb, Lf estimated in both modes — read silently
-            ra = float(st.session_state.get("wi_dc_Ra", 0.013))
-            la = float(st.session_state.get("wi_dc_La", 0.01))
-            kb = float(st.session_state.get("wi_dc_kb", 0.004))
-            lf = float(st.session_state.get("wi_dc_Lf", 0.167))
+            ra = float(st.session_state.get(_WK_DC.Ra, 0.013))
+            la = float(st.session_state.get(_WK_DC.La, 0.01))
+            kb = float(st.session_state.get(_WK_DC.kb, 0.004))
+            lf = float(st.session_state.get(_WK_DC.Lf, 0.167))
 
             if _is_nameplate:
                 # Nameplate estimates all electrical — read Va, Vf, Rf silently
-                va = float(st.session_state.get("wi_dc_Va", 24.0))
-                rf = float(st.session_state.get("wi_dc_Rf", 1.43))
-                vf = float(st.session_state.get("wi_dc_Vf", va if not is_sep else 12.0))
+                va = float(st.session_state.get(_WK_DC.Va, 24.0))
+                rf = float(st.session_state.get(_WK_DC.Rf, 1.43))
+                vf = float(st.session_state.get(_WK_DC.Vf, va if not is_sep else 12.0))
             else:
                 # IEEE 113: Va and Vf not estimated — editable; Rf estimated from DC field test
                 _pgroup("Armature Data")
                 va = st.number_input(
                     "Armature voltage — $V_a$ (V)",
-                    min_value=0.0, key="wi_dc_Va", format="%.3f",
+                    min_value=0.0, key=_WK_DC.Va, format="%.3f",
                     help="DC voltage applied to the armature winding.",
                 )
                 st.markdown('</div>', unsafe_allow_html=True)
@@ -735,22 +813,22 @@ $$k_b = \\frac{E_{a,nl}}{I_{fd,nl} \\cdot \\omega_{nl}}, \\quad \\omega_{nl} = \
                     if is_sep:
                         vf = st.number_input(
                             "Field voltage — $V_f$ (V)",
-                            min_value=0.0, key="wi_dc_Vf", format="%.3f",
+                            min_value=0.0, key=_WK_DC.Vf, format="%.3f",
                             help="Independent field source voltage (separately excited).",
                         )
                         # Rf estimated from DC field test — read silently
-                        rf = float(st.session_state.get("wi_dc_Rf", 1.43))
+                        rf = float(st.session_state.get(_WK_DC.Rf, 1.43))
                     else:
                         vf = va
                         st.caption("Shunt: $V_f = V_a$ (fixed — field in parallel with armature)")
                         # Rf estimated via V_nl/If_nl — read silently
-                        rf = float(st.session_state.get("wi_dc_Rf", 1.43))
+                        rf = float(st.session_state.get(_WK_DC.Rf, 1.43))
                     st.markdown('</div>', unsafe_allow_html=True)
                 else:
                     _pgroup("Series Field (in series with armature)")
                     rf = st.number_input(
                         "Series field resistance — $R_s$ (Ω)",
-                        min_value=1e-6, key="wi_dc_Rf", format="%.4f",
+                        min_value=1e-6, key=_WK_DC.Rf, format="%.4f",
                         help="Series field winding resistance (in series with the armature).",
                     )
                     vf = 0.0
@@ -761,40 +839,40 @@ $$k_b = \\frac{E_{a,nl}}{I_{fd,nl} \\cdot \\omega_{nl}}, \\quad \\omega_{nl} = \
             _pgroup("Electrical Load")
             rl = st.number_input(
                 "Load resistance — $R_l$ (Ω)",
-                min_value=1e-6, key="wi_dc_Rl", format="%.3f",
+                min_value=1e-6, key=_WK_DC.Rl, format="%.3f",
                 help="Load resistance connected to the generator.",
             )
             ll = st.number_input(
                 "Load inductance — $L_l$ (H)",
-                min_value=0.0, key="wi_dc_Ll", format="%.4f",
+                min_value=0.0, key=_WK_DC.Ll, format="%.4f",
                 help="Load inductance connected to the generator (0 for purely resistive load).",
             )
             st.markdown('</div>', unsafe_allow_html=True)
         else:
-            rl = float(st.session_state.get("wi_dc_Rl", 0.0))
-            ll = float(st.session_state.get("wi_dc_Ll", 0.0))
+            rl = float(st.session_state.get(_WK_DC.Rl, 0.0))
+            ll = float(st.session_state.get(_WK_DC.Ll, 0.0))
 
         # Mechanical group — Nameplate estimates J and B; IEEE estimates neither
         if _is_nameplate:
-            J     = float(st.session_state.get("wi_dc_J",     0.21))
-            B     = float(st.session_state.get("wi_dc_B",     1.074e-6))
-            Tload = float(st.session_state.get("wi_dc_Tload", 2.493))
+            J     = float(st.session_state.get(_WK_DC.J,     0.21))
+            B     = float(st.session_state.get(_WK_DC.B,     1.074e-6))
+            Tload = float(st.session_state.get(_WK_DC.Tload, 2.493))
         else:
             # Manual and Tests: J, B, Tload editable
             _pgroup("Mechanical Data")
             J = st.number_input(
                 "Moment of inertia — $J$ (kg·m²)",
-                min_value=1e-6, key="wi_dc_J", format="%.4f",
+                min_value=1e-6, key=_WK_DC.J, format="%.4f",
                 help="Total inertia of motor + load assembly. Determines τ_m = J·Ra / kb².",
             )
             B = st.number_input(
                 "Viscous friction coeff. — $B$ (N·m·s/rad)",
-                min_value=0.0, key="wi_dc_B", format="%.2e",
+                min_value=0.0, key=_WK_DC.B, format="%.2e",
                 help="Viscous friction coefficient. Typically very small.",
             )
             Tload = st.number_input(
                 "Load torque — $T_l$ (N·m)",
-                min_value=0.0, key="wi_dc_Tload", format="%.4f",
+                min_value=0.0, key=_WK_DC.Tload, format="%.4f",
                 help="Steady-state resistive torque applied to the shaft.",
             )
             st.markdown('</div>', unsafe_allow_html=True)
@@ -814,12 +892,12 @@ $$k_b = \\frac{E_{a,nl}}{I_{fd,nl} \\cdot \\omega_{nl}}, \\quad \\omega_{nl} = \
         # Advanced Parameters
         with st.expander("Advanced Parameters", expanded=False):
             _pgroup("Economic Analysis")
-            _wi("wi_dc_energy_tariff", 0.75)
+            _wi(_WK_DC.energy_tariff, 0.75)
             st.number_input(
                 "Energy tariff — $/kWh",
                 min_value=0.0001, max_value=5.0,
                 step=0.01, format="%.4f",
-                key="wi_dc_energy_tariff",
+                key=_WK_DC.energy_tariff,
                 help="Tariff used to calculate annual operating cost in the Asset Management tab.",
             )
 
@@ -833,7 +911,7 @@ $$k_b = \\frac{E_{a,nl}}{I_{fd,nl} \\cdot \\omega_{nl}}, \\quad \\omega_{nl} = \
     )
 
     ref_code = hash((va, ra, la, vf, rf, lf, rl, ll, J, B, kb, exc, Tload))
-    energy_tariff = float(st.session_state.get("wi_dc_energy_tariff", 0.75))
+    energy_tariff = float(st.session_state.get(_WK_DC.energy_tariff, 0.75))
     return mp, ref_code, energy_tariff
 
 
@@ -876,7 +954,7 @@ def render_experiment_config_dc(
 
     _pgroup("Load and Voltage Parameters")
 
-    _Tl_ref = float(st.session_state.get("wi_dc_Tload", mp.Tload))
+    _Tl_ref = float(st.session_state.get(_WK_DC.Tload, mp.Tload))
     _tl_sug = _tl_sugerido_dc(mp)
     st.caption(f"Configured load torque: **{_Tl_ref:.3f} N·m** | τ_a = L_a/R_a = {mp.La/mp.Ra:.4f} s")
 
@@ -885,16 +963,16 @@ def render_experiment_config_dc(
         h_def    = 1e-3
         partir_em_vazio = st.checkbox(
             "Start unloaded (apply load after starting)",
-            value=True, key="wi_dc_dol_vazio",
+            value=True, key=_WK_DC.dol_vazio,
             help="When active, the motor starts unloaded and receives torque at t_carga. "
                  "When inactive, the load is present from time zero.",
         )
         exp_config["partir_em_vazio"] = partir_em_vazio
         if partir_em_vazio:
-            _wi("wi_dc_dol_t_carga", 2.0)
+            _wi(_WK_DC.dol_t_carga, 2.0)
             exp_config["t_carga"] = st.number_input(
                 "Load application instant — $t_{carga}$ (s)",
-                min_value=0.0, key="wi_dc_dol_t_carga", format="%.2f",
+                min_value=0.0, key=_WK_DC.dol_t_carga, format="%.2f",
             )
             exp_config["Tl_inicial"] = 0.0
             exp_config["Tl_final"]   = _Tl_ref
@@ -918,10 +996,10 @@ def render_experiment_config_dc(
 
     elif mode == "resistencia_dc":
         c1, c2 = st.columns(2)
-        _wi("wi_dc_R_ini", 5.0)
-        _wi("wi_dc_t_ramp", 2.0)
-        exp_config["R_ini"]  = c1.number_input("$R_{ini}$ (Ω)", min_value=0.0, key="wi_dc_R_ini",  format="%.2f")
-        exp_config["t_ramp"] = c2.number_input("$t_{ramp}$ (s)", min_value=0.1, key="wi_dc_t_ramp", format="%.2f")
+        _wi(_WK_DC.R_ini, 5.0)
+        _wi(_WK_DC.t_ramp, 2.0)
+        exp_config["R_ini"]  = c1.number_input("$R_{ini}$ (Ω)", min_value=0.0, key=_WK_DC.R_ini,  format="%.2f")
+        exp_config["t_ramp"] = c2.number_input("$t_{ramp}$ (s)", min_value=0.1, key=_WK_DC.t_ramp, format="%.2f")
         exp_config["Tl_final"] = _Tl_ref
         tmax_def = exp_config["t_ramp"] + 8.0
         h_def    = 1e-3
@@ -935,11 +1013,11 @@ def render_experiment_config_dc(
     elif mode == "frenagem_dc":
         brake_labels = list(_BRAKE_LABELS.values())
         brake_keys   = list(_BRAKE_LABELS.keys())
-        _wi("wi_dc_brake_method", brake_labels[0])
+        _wi(_WK_DC.brake_method, brake_labels[0])
         brake_sel = st.selectbox(
             "Braking Method", brake_labels,
-            index=brake_labels.index(st.session_state.get("wi_dc_brake_method", brake_labels[0])),
-            key="wi_dc_brake_method",
+            index=brake_labels.index(st.session_state.get(_WK_DC.brake_method, brake_labels[0])),
+            key=_WK_DC.brake_method,
         )
         brake = brake_keys[brake_labels.index(brake_sel)]
         exp_config["brake_method"] = brake
@@ -959,10 +1037,10 @@ def render_experiment_config_dc(
         st.info(_BRAKE_DESC_DC[brake])
 
         if brake == "plugging":
-            _wi("wi_dc_t_freia", 3.0)
+            _wi(_WK_DC.t_freia, 3.0)
             exp_config["t_freia"] = st.number_input(
                 "Reversal instant — $t_{brake}$ (s)", min_value=0.1,
-                key="wi_dc_t_freia", format="%.2f",
+                key=_WK_DC.t_freia, format="%.2f",
             )
             tmax_def = exp_config["t_freia"] * 2.5
             h_def    = 1e-3
@@ -974,15 +1052,15 @@ def render_experiment_config_dc(
 
         elif brake == "injecao_cc":
             c1, c2 = st.columns(2)
-            _wi("wi_dc_t_freia",   3.0)
-            _wi("wi_dc_Vdc_inj",   mp.Va * 0.1)
+            _wi(_WK_DC.t_freia,   3.0)
+            _wi(_WK_DC.Vdc_inj,   mp.Va * 0.1)
             exp_config["t_freia"]  = c1.number_input(
                 "Cut-off instant — $t_{brake}$ (s)", min_value=0.1,
-                key="wi_dc_t_freia", format="%.2f",
+                key=_WK_DC.t_freia, format="%.2f",
             )
             exp_config["Vdc_inj"]  = c2.number_input(
                 "Injected DC voltage — $V_{inj}$ (V)", min_value=0.0,
-                key="wi_dc_Vdc_inj", format="%.2f",
+                key=_WK_DC.Vdc_inj, format="%.2f",
                 help="DC voltage applied to the armature after supply cut. Typically 5–15% of Va.",
             )
             tmax_def = exp_config["t_freia"] * 2.5
@@ -996,15 +1074,15 @@ def render_experiment_config_dc(
 
         elif brake == "regenerativo":
             c1, c2 = st.columns(2)
-            _wi("wi_dc_t_freia",  3.0)
-            _wi("wi_dc_Va_regen", mp.Va * 0.5)
+            _wi(_WK_DC.t_freia,  3.0)
+            _wi(_WK_DC.Va_regen, mp.Va * 0.5)
             exp_config["t_freia"]   = c1.number_input(
                 "Braking instant — $t_{brake}$ (s)", min_value=0.1,
-                key="wi_dc_t_freia", format="%.2f",
+                key=_WK_DC.t_freia, format="%.2f",
             )
             exp_config["Va_regen"]  = c2.number_input(
                 "Reduced armature voltage — $V_{a,regen}$ (V)", min_value=0.0,
-                key="wi_dc_Va_regen", format="%.2f",
+                key=_WK_DC.Va_regen, format="%.2f",
                 help="Voltage below back-EMF — motor operates as generator returning energy.",
             )
             tmax_def = exp_config["t_freia"] * 2.5
@@ -1018,15 +1096,15 @@ def render_experiment_config_dc(
 
     elif mode == "campo_fraco_dc":
         c1, c2, c3 = st.columns(3)
-        _wi("wi_dc_Vf_fraco",  mp.Vf * 0.5 if mp.Vf > 0 else mp.Va * 0.5)
-        _wi("wi_dc_t_campo",   3.0)
-        _wi("wi_dc_t_trans",   0.5)
+        _wi(_WK_DC.Vf_fraco,  mp.Vf * 0.5 if mp.Vf > 0 else mp.Va * 0.5)
+        _wi(_WK_DC.t_campo,   3.0)
+        _wi(_WK_DC.t_trans,   0.5)
         exp_config["Vf_fraco"] = c1.number_input("$V_f$ weakened (V)", min_value=0.0,
-                                                   key="wi_dc_Vf_fraco", format="%.2f")
+                                                   key=_WK_DC.Vf_fraco, format="%.2f")
         exp_config["t_campo"]  = c2.number_input("$t_{field}$ (s)", min_value=0.1,
-                                                   key="wi_dc_t_campo", format="%.2f")
+                                                   key=_WK_DC.t_campo, format="%.2f")
         exp_config["t_trans"]  = c3.number_input("$t_{trans}$ (s)", min_value=0.05,
-                                                   key="wi_dc_t_trans", format="%.2f")
+                                                   key=_WK_DC.t_trans, format="%.2f")
         exp_config["Tl_final"] = _Tl_ref
         tmax_def = exp_config["t_campo"] + 10.0
         h_def    = 1e-3
@@ -1039,10 +1117,10 @@ def render_experiment_config_dc(
 
     elif mode == "pulso_dc":
         c1, c2 = st.columns(2)
-        _wi("wi_dc_t_pulso",  4.0)
-        _wi("wi_dc_Tl_extra", _Tl_ref * 0.5)
-        exp_config["t_pulso"]  = c1.number_input("Pulse instant — $t_{pulse}$ (s)", min_value=0.1, key="wi_dc_t_pulso",  format="%.2f")
-        exp_config["Tl_extra"] = c2.number_input("Additional $\\Delta T_l$ (N·m)", min_value=0.0, key="wi_dc_Tl_extra", format="%.3f")
+        _wi(_WK_DC.t_pulso,  4.0)
+        _wi(_WK_DC.Tl_extra, _Tl_ref * 0.5)
+        exp_config["t_pulso"]  = c1.number_input("Pulse instant — $t_{pulse}$ (s)", min_value=0.1, key=_WK_DC.t_pulso,  format="%.2f")
+        exp_config["Tl_extra"] = c2.number_input("Additional $\\Delta T_l$ (N·m)", min_value=0.0, key=_WK_DC.Tl_extra, format="%.3f")
         exp_config["Tl_final"] = _Tl_ref
         tmax_def = exp_config["t_pulso"] + 8.0
         h_def    = 1e-3
@@ -1054,8 +1132,8 @@ def render_experiment_config_dc(
         )
 
     elif mode == "gerador_dc":
-        _wi("wi_dc_Tl_gen", abs(mp.Tload))
-        exp_config["Tl_gen"] = st.number_input("Prime mover torque — $T_{mec}$ (N·m)", min_value=0.0, key="wi_dc_Tl_gen", format="%.3f")
+        _wi(_WK_DC.Tl_gen, abs(mp.Tload))
+        exp_config["Tl_gen"] = st.number_input("Prime mover torque — $T_{mec}$ (N·m)", min_value=0.0, key=_WK_DC.Tl_gen, format="%.3f")
         tmax_def = 15.0
         h_def    = 1e-3
         _ibox(
@@ -1078,7 +1156,7 @@ def render_experiment_config_dc(
         options=list(_VAR_MECANICAS.keys()),
         default=_DEFAULT_VARS_MEC,
         label_visibility="collapsed",
-        key="wi_dc_vars_mec",
+        key=_WK_DC.vars_mec,
     )
     _pgroup("Electrical Quantities")
     sel_ele = st.multiselect(
@@ -1086,7 +1164,7 @@ def render_experiment_config_dc(
         options=list(_VAR_ELETRICAS.keys()),
         default=_DEFAULT_VARS_ELE,
         label_visibility="collapsed",
-        key="wi_dc_vars_ele",
+        key=_WK_DC.vars_ele,
     )
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -1107,20 +1185,20 @@ def render_experiment_config_dc(
 
     tc1, tc2 = st.columns(2)
     with tc1:
-        _tmax_auto = st.checkbox("Calculate tmax automatically (motor inertia)", value=True, key="wi_dc_tmax_auto")
-        _wi("wi_dc_tmax", tmax_def)
+        _tmax_auto = st.checkbox("Calculate tmax automatically (motor inertia)", value=True, key=_WK_DC.tmax_auto)
+        _wi(_WK_DC.tmax, tmax_def)
         tmax = st.number_input("Total time — $t_{max}$ (s)", min_value=0.001, max_value=3600.0,
                                 value=tmax_def, step=0.1, format="%.1f",
-                                key="wi_dc_tmax", disabled=_tmax_auto)
+                                key=_WK_DC.tmax, disabled=_tmax_auto)
         if _tmax_auto:
             tmax = 0.0  # sentinel: runner resolves
             st.caption(f"Automatic: **{_tmax_auto_val:.1f} s**  (mode + {_t_acomo:.1f} s mechanical settling, J={mp.J:.4f} kg·m²)")
         else:
             st.caption(f"Suggestion: ≥ {round(tmax_def + 0.5, 1):.1f} s  (last event + 0.5 s to reach steady state)")
 
-        _wi("wi_dc_h", h_def)
+        _wi(_WK_DC.h, h_def)
         h = st.number_input("Integration step — $h$ (s)", min_value=1e-6, max_value=0.1,
-                             value=h_def, step=1e-4, format="%.6f", key="wi_dc_h")
+                             value=h_def, step=1e-4, format="%.6f", key=_WK_DC.h)
 
         _tmax_display = _tmax_auto_val if _tmax_auto else tmax
         n_steps = int(_tmax_display / h) if (_tmax_display > 0 and h > 0) else 0
