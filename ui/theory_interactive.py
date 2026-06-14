@@ -403,7 +403,7 @@ def _render_diagrama_vetorial(zona: str, dark: bool, ns: float) -> None:
 <style>
   * {{ box-sizing:border-box; margin:0; padding:0; }}
   body {{ background:{bg_hex}; display:flex; justify-content:center; }}
-  #gv {{ width:320px; height:360px; }}
+  #gv {{ width:320px; height:420px; }}
 </style>
 </head><body>
 <div id="gv"></div>
@@ -452,16 +452,16 @@ def _render_diagrama_vetorial(zona: str, dark: bool, ns: float) -> None:
   ];
 
   var layout = {{
-    width:320, height:360,
+    width:320, height:380,
     paper_bgcolor:colBg, plot_bgcolor:colBg,
     title:{{text:titulo, x:0.5, xanchor:"center",
             font:{{size:11, color:colField}}}},
     xaxis:{{range:[-1.6,1.6], showgrid:false, zeroline:false, showticklabels:false,
              scaleanchor:"y"}},
     yaxis:{{range:[-1.6,1.6], showgrid:false, zeroline:false, showticklabels:false}},
-    margin:{{l:10, r:10, t:40, b:30}},
+    margin:{{l:10, r:10, t:40, b:60}},
     font:{{color:colField}},
-    legend:{{orientation:"h", x:0.5, xanchor:"center", y:-0.08,
+    legend:{{orientation:"h", x:0.5, xanchor:"center", y:-0.12,
              font:{{size:10, color:colField}}, bgcolor:"rgba(0,0,0,0)"}},
   }};
 
@@ -490,7 +490,7 @@ def _render_diagrama_vetorial(zona: str, dark: bool, ns: float) -> None:
 </script>
 </body></html>"""
 
-    st.iframe(html_src, height=370)
+    st.iframe(html_src, height=430)
     st.caption(desc)
 
 

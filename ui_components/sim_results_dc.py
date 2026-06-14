@@ -275,7 +275,7 @@ def render_results_dc(
         if ref_list:
             try:
                 from ui_components.tim_results import render_ref_panel
-                render_ref_panel()
+                render_ref_panel(ref_list)
             except Exception:
                 pass
 

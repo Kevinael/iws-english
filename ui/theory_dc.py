@@ -104,7 +104,9 @@ The pedagogical distinction of the DC machine is how each excitation type modifi
 **Field weakening (separately excited):**
 Reducing $V_f$ → $i_{fd}$ decreases → $E_a = k_b i_{fd} \omega_m$ reduces → $i_a$ increases → motor accelerates beyond base speed.
 """)
-        _show_png("wm_x_T.png", "T×ωm curves for the three excitation types")
+        col_img, _ = st.columns([1, 1])
+        with col_img:
+            _show_png("wm_x_T.png", "T×ωm curves for the three excitation types")
 
         try:
             from ui.theory_dc_interactive import render_curvas_comparativas_excitacao

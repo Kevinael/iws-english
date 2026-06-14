@@ -247,7 +247,7 @@ def render_broken_bar_ui(config: dict, tmax: float = 2.0, wk: dict | None = None
     """
     import streamlit as st
 
-    _wk_key   = (wk or {}).get("broken_bar_severity", "wi_broken_bar_severity")
+    _wk_key   = wk.broken_bar_severity if wk is not None else "wi_broken_bar_severity"
     _t_ref    = float(config.get("t_carga", 0.0))
 
     # reads values from session_state BEFORE the expander — ensures config is filled

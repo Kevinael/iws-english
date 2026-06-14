@@ -32,58 +32,115 @@ from viz.tim_charts import _plot_theme
 # 1. Comparative T×ωm curves
 # ─────────────────────────────────────────────────────────────────────────────
 
-def render_curvas_comparativas_excitacao() -> None:
-    st.markdown("### Interactive T×ωm Curves")
-    st.caption("Adjust parameters and compare the three excitation types.")
+@st.cache_data(show_spinner=False)
+def _build_fig_txwm_dc(dark: bool) -> go.Figure:
+    """Pre-computes T×ωm frames for Va grid — zero-latency JS slider, no Streamlit rerun."""
+    from viz.tim_charts import _plot_theme as _pt
+    pt = _pt(dark)
 
-    c1, c2 = st.columns(2)
-    Va  = c1.slider("$V_a$ (V)",   1.0, 48.0, 24.0, step=0.5, key="theory_dc_Va")
-    Ra  = c2.slider("$R_a$ (Ω)",   0.01, 1.0,  0.013, step=0.001, key="theory_dc_Ra",
-                    format="%.3f")
-    kb  = c1.slider("$k_b$",       0.001, 0.02, 0.004, step=0.001, key="theory_dc_kb",
-                    format="%.3f")
-    Rf  = c2.slider("$R_f$ (Ω)",   0.1, 5.0,  1.43, step=0.01, key="theory_dc_Rf",
-                    format="%.2f")
+    Ra    = 0.013
+    kb    = 0.004
+    Rf    = 1.43
+    Tload = 2.493
+    Rsf   = 0.026   # series field resistance
+    N_STEPS = 40
+    Va_grid = np.linspace(6.0, 48.0, N_STEPS)
+    Va_init = 24.0
+    init_idx = int(np.argmin(np.abs(Va_grid - Va_init)))
 
-    dark = st.session_state.get("dark_mode", False)
-    pt   = _plot_theme(dark)
+    C_SEP   = "#60a5fa"
+    C_SHU   = "#34d399"
+    C_SER   = "#f87171"
+    C_LOAD  = "#f59e0b"
 
-    wm_max = Va / (kb * 0.1) * 1.1   # speed range estimate
-    wm     = np.linspace(0, wm_max, 400)
-    Tload  = 2.493
+    def _curves(Va):
+        wm_max = Va / (kb * 0.01) * 0.88
+        wm = np.linspace(0, wm_max, 500)
+        ifd_sep   = (Va * 0.5) / Rf
+        ifd_shunt = Va / Rf
+        ia_sep    = (Va - kb * ifd_sep   * wm) / Ra
+        ia_shunt  = (Va - kb * ifd_shunt * wm) / Ra
+        Te_sep    = np.maximum(kb * ifd_sep   * ia_sep,   0)
+        Te_shunt  = np.maximum(kb * ifd_shunt * ia_shunt, 0)
+        ia_s      = Va / (Ra + Rsf + kb * wm + 1e-9)
+        Te_series = np.maximum(kb * ia_s**2, 0)
+        return wm, Te_sep, Te_shunt, Te_series
 
-    # Separately excited / shunt: ifd = Va/Rf (shunt) or Vf/Rf (sep → using Vf=Va/2)
-    ifd_shunt = Va / Rf
-    ifd_sep   = (Va * 0.5) / Rf
-
-    def Te_lin(ifd: float, wm_arr: np.ndarray) -> np.ndarray:
-        ia = (Va - kb * ifd * wm_arr) / Ra
-        return kb * ifd * ia
-
-    # Series: Te = kb² * ia², ia = Va / (Ra+Rf + kb*wm)
-    Raf   = Ra + 0.026   # Ra_series from dcms preset
-    ia_s  = Va / (Raf + kb * wm + 1e-9)
-    Te_serie = kb * ia_s * ia_s
+    wm0, te_sep0, te_shu0, te_ser0 = _curves(Va_init)
 
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=wm, y=Te_lin(ifd_sep, wm), mode="lines",
-                             name="Separately Excited", line=dict(color="#60a5fa", width=2)))
-    fig.add_trace(go.Scatter(x=wm, y=Te_lin(ifd_shunt, wm), mode="lines",
-                             name="Shunt", line=dict(color="#34d399", width=2)))
-    fig.add_trace(go.Scatter(x=wm, y=np.maximum(Te_serie, 0), mode="lines",
-                             name="Series", line=dict(color="#f87171", width=2)))
-    fig.add_hline(y=Tload, line_dash="dot", line_color="#f59e0b",
-                  annotation_text="Load", annotation_position="right")
+    fig.add_trace(go.Scatter(x=wm0, y=te_sep0, mode="lines", name="Separately Excited",
+                             line=dict(color=C_SEP, width=2.2)))
+    fig.add_trace(go.Scatter(x=wm0, y=te_shu0, mode="lines", name="Shunt",
+                             line=dict(color=C_SHU, width=2.2)))
+    fig.add_trace(go.Scatter(x=wm0, y=te_ser0, mode="lines", name="Series",
+                             line=dict(color=C_SER, width=2.2)))
+    fig.add_trace(go.Scatter(
+        x=[0, wm0[-1]], y=[Tload, Tload], mode="lines", name=f"Load ({Tload} N·m)",
+        line=dict(color=C_LOAD, width=1.4, dash="dot"),
+    ))
+
+    frames = []
+    slider_steps = []
+    for i, Va in enumerate(Va_grid):
+        wm, te_sep, te_shu, te_ser = _curves(Va)
+        frames.append(go.Frame(
+            name=str(i),
+            data=[
+                go.Scatter(x=wm, y=te_sep),
+                go.Scatter(x=wm, y=te_shu),
+                go.Scatter(x=wm, y=te_ser),
+                go.Scatter(x=[0, wm[-1]], y=[Tload, Tload]),
+            ],
+            traces=[0, 1, 2, 3],
+        ))
+        slider_steps.append(dict(
+            method="animate",
+            label=f"{Va:.0f}",
+            args=[[str(i)], dict(mode="immediate",
+                                 frame=dict(duration=0, redraw=True),
+                                 transition=dict(duration=0))],
+        ))
+
+    fig.frames = frames
 
     fig.update_layout(
-        xaxis_title="ωm (rad/s)", yaxis_title="Te (N·m)",
-        height=320,
-        paper_bgcolor=pt["paper_bg"], plot_bgcolor=pt["plot_bg"],
-        font=dict(family="Inter, system-ui", size=10, color=pt["fg"]),
-        margin=dict(l=50, r=20, t=30, b=40),
-        legend=dict(orientation="h", y=1.05, x=1, xanchor="right", font=dict(size=9)),
+        height=420,
+        title=dict(text="T×ωm — DC Machine Excitation Comparison",
+                   x=0.5, xanchor="center", font=dict(size=13, color=pt["fg"])),
+        paper_bgcolor=pt["paper_bg"],
+        plot_bgcolor=pt["plot_bg"],
+        font=dict(family="Inter, system-ui", size=11, color=pt["fg"]),
+        margin=dict(l=60, r=20, t=50, b=110),
+        xaxis=dict(title="ωm (rad/s)", showgrid=True, gridcolor=pt["grid"],
+                   tickfont=dict(size=10, color=pt["fg"]), rangemode="nonnegative"),
+        yaxis=dict(title="Te (N·m)", showgrid=True, gridcolor=pt["grid"],
+                   tickfont=dict(size=10, color=pt["fg"]), rangemode="nonnegative"),
         showlegend=True,
+        legend=dict(orientation="h", y=1.08, x=0.5, xanchor="center",
+                    font=dict(size=10, color=pt["fg"])),
+        sliders=[dict(
+            active=init_idx,
+            currentvalue=dict(prefix="Va = ", suffix=" V", visible=True,
+                              xanchor="center", font=dict(size=13, color=pt["fg"])),
+            y=0, pad=dict(t=45, b=10), len=0.92, x=0.04,
+            steps=slider_steps,
+            bgcolor=pt["paper_bg"], bordercolor=pt["grid"],
+            tickcolor=pt["fg"], font=dict(color=pt["fg"], size=9),
+        )],
+        updatemenus=[dict(
+            type="buttons", visible=False,
+            buttons=[dict(method="animate", args=[None])],
+        )],
     )
+    return fig
+
+
+def render_curvas_comparativas_excitacao() -> None:
+    st.markdown("### Interactive T×ωm Curves")
+    st.caption("Drag the Va slider — curves update instantly with no page reload. Fixed: Ra = 0.013 Ω, kb = 0.004, Rf = 1.43 Ω.")
+    dark = st.session_state.get("dark_mode", False)
+    fig  = _build_fig_txwm_dc(dark)
     st.plotly_chart(fig, use_container_width=True, key="theory_torque_speed_dc")
 
 
@@ -192,7 +249,7 @@ def render_estimador_dc() -> None:
         If_nl = g3.number_input("$I_{fd,nl}$ (A)", min_value=0.001, value=8.4, format="%.3f")
         n_nl  = g4.number_input("$n_{nl}$ (RPM)", min_value=1.0, value=6500.0, format="%.1f")
 
-        submitted = st.form_subtim_button("Estimate")
+        submitted = st.form_submit_button("Estimate")
 
     if submitted:
         Ra = V_dc / I_dc

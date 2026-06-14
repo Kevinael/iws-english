@@ -106,11 +106,11 @@ def main() -> None:
         st.session_state["_preset_loaded"] = True
         _pdata = _PRESETS.get(_KRAUSE_KEY, {})
         _wk_map = {
-            "Vl": _WK["Vl"], "f": _WK["f"], "Rs": _WK["Rs"], "Rr": _WK["Rr"],
-            "input_mode": _WK["input_mode"], "f_ref": _WK["f_ref"],
-            "Xm": _WK["Xm"], "Xls": _WK["Xls"], "Xlr": _WK["Xlr"],
-            "Rfe": _WK["Rfe"], "p": _WK["p"], "J": _WK["J"], "B": _WK["B"],
-            "exp_type": _WK["exp_type"], "Tl_final": _WK["Tl_final"],
+            "Vl": _WK.Vl, "f": _WK.f, "Rs": _WK.Rs, "Rr": _WK.Rr,
+            "input_mode": _WK.input_mode, "f_ref": _WK.f_ref,
+            "Xm": _WK.Xm, "Xls": _WK.Xls, "Xlr": _WK.Xlr,
+            "Rfe": _WK.Rfe, "p": _WK.p, "J": _WK.J, "B": _WK.B,
+            "exp_type": _WK.exp_type, "Tl_final": _WK.Tl_final,
         }
         for field, widget_key in _wk_map.items():
             if field in _pdata:
@@ -229,8 +229,8 @@ def main() -> None:
                 st.success(_toast)
 
             sr_dc = st.session_state.get("sim_result")
-            render_ref_panel()
             ref_list_dc = st.session_state["ref_list"]
+            render_ref_panel(ref_list_dc)
 
             if sr_dc is not None:
                 render_results_dc(
@@ -324,8 +324,8 @@ def main() -> None:
                 st.success(_toast)
 
             sr = st.session_state.get("sim_result")
-            render_ref_panel()
             ref_list = st.session_state["ref_list"]
+            render_ref_panel(ref_list)
 
             if sr is not None:
                 render_results(
