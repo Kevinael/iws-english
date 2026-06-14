@@ -23,7 +23,7 @@ from __future__ import annotations
 import datetime
 import numpy as np
 
-from core.mit_facade import MachineParams
+from core.tim_facade import MachineParams
 from viz.pdf_commons import (
     safe_text, fmt_power, embed_fig, build_circuit_bytes,
     cell_rich,

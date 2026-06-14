@@ -26,7 +26,7 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from viz.mit_charts import _plot_theme, _colors, _TL_COLOR
+from viz.tim_charts import _plot_theme, _colors, _TL_COLOR
 
 
 # ─────────────────────────────────────────────────────────────────────────────

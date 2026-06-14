@@ -2,7 +2,7 @@
 """Testes de core/thermal.py — dTemp_dt e estimate_rth_cth."""
 import numpy as np
 import pytest
-from core.mit_thermal import dTemp_dt, estimate_rth_cth
+from core.tim_thermal import dTemp_dt, estimate_rth_cth
 
 
 def test_dTemp_dt_equilibrio():

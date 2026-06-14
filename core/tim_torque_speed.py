@@ -22,7 +22,7 @@ from __future__ import annotations
 import numpy as np
 import plotly.graph_objects as go
 import streamlit as st
-from viz.mit_charts import _plot_theme
+from viz.tim_charts import _plot_theme
 
 
 # ── Machine parameter mapping to circuit ─────────────────────────────────────

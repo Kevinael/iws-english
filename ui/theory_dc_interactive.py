@@ -25,7 +25,7 @@ import numpy as np
 import streamlit as st
 import plotly.graph_objects as go
 
-from viz.mit_charts import _plot_theme
+from viz.tim_charts import _plot_theme
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -192,7 +192,7 @@ def render_estimador_dc() -> None:
         If_nl = g3.number_input("$I_{fd,nl}$ (A)", min_value=0.001, value=8.4, format="%.3f")
         n_nl  = g4.number_input("$n_{nl}$ (RPM)", min_value=1.0, value=6500.0, format="%.1f")
 
-        submitted = st.form_submit_button("Estimate")
+        submitted = st.form_subtim_button("Estimate")
 
     if submitted:
         Ra = V_dc / I_dc

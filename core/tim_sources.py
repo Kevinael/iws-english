@@ -21,7 +21,7 @@ Extending:
 
 from __future__ import annotations
 import numpy as np
-from core.mit_machine_model import MachineParams
+from core.tim_machine_model import MachineParams
 
 
 # ═══════════════════════════════════════════════════════════════════════════

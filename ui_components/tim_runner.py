@@ -23,7 +23,7 @@ from typing import Any
 
 import streamlit as st
 
-from core.mit_facade import MachineParams, build_fns, run_simulation
+from core.tim_facade import MachineParams, build_fns, run_simulation
 
 
 def calc_tmax_auto(exp_config: dict, mp: MachineParams) -> float:

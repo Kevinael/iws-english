@@ -2,7 +2,7 @@
 """Testes de invariantes físicos — conservação de energia, balanço de torques, térmica."""
 import numpy as np
 import pytest
-from core.mit_facade import run_simulation, build_fns
+from core.tim_facade import run_simulation, build_fns
 
 
 # ── Balanço de torques em regime permanente ────────────────────────────────

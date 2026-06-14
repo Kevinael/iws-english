@@ -32,9 +32,9 @@ except Exception:
     pass
 import matplotlib.pyplot as plt
 
-from viz.mit_charts import _plot_theme
-from viz.mit_eqcircuit import build_figure
-from core.mit_torque_speed import _extract_params, _torque_array, calc_fluxo_potencia
+from viz.tim_charts import _plot_theme
+from viz.tim_eqcircuit import build_figure
+from core.tim_torque_speed import _extract_params, _torque_array, calc_fluxo_potencia
 
 
 # ─────────────────────────────────────────────────────────────────────────────
