@@ -33,7 +33,7 @@ from ui.clean_view import render_clean_view
 from viz.mit_eqcircuit import render_circuit as _render_circuit_eqcircuit_plotter
 
 from ui_components.theory_view import render_theory_tab
-from ui_components.sim_config import (
+from ui_components.mit_config import (
     MACHINES,
     _WK,
     _PRESETS,
@@ -41,8 +41,8 @@ from ui_components.sim_config import (
     render_machine_params,
     render_experiment_config,
 )
-from ui_components.sim_results import render_results, render_ref_panel
-from ui_components.sim_runner import execute_simulation_flow
+from ui_components.mit_results import render_results, render_ref_panel
+from ui_components.mit_runner import execute_simulation_flow
 
 # MCC
 from ui_components.sim_config_dc import render_dc_machine_params, render_experiment_config_dc

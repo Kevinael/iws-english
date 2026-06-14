@@ -274,7 +274,7 @@ def render_results_dc(
         # ── Saved References Panel ────────────────────────────────────────
         if ref_list:
             try:
-                from ui_components.sim_results import render_ref_panel
+                from ui_components.mit_results import render_ref_panel
                 render_ref_panel()
             except Exception:
                 pass
