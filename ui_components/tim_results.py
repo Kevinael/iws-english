@@ -46,6 +46,7 @@ from core.constants import (
     INSULATION_CLASS_F_C,
     INSULATION_CLASS_H_C,
 )
+from viz.plotly_config import MIT_PLOT_CFG as _PLOT_CFG
 
 
 @st.cache_data(show_spinner=False)
@@ -79,19 +80,6 @@ def _cached_fig_torque_speed(
     return build_fig_torque_speed(res=res, P_nom_kw=P_nom_kw, f=f, p=p, dark=dark)
 
 
-_PLOT_CFG: dict[str, Any] = {
-    "responsive": True,
-    "scrollZoom": False,
-    "displaylogo": False,
-    "modeBarButtonsToRemove": ["lasso2d", "select2d"],
-    "toImageButtonOptions": {
-        "format": "png",
-        "filename": "simulation_chart",
-        "scale": 3,
-        "height": 600,
-        "width": 1200,
-    },
-}
 
 
 

@@ -20,13 +20,12 @@ Extending:
 
 from __future__ import annotations
 
-from typing import Any
-
 import numpy as np
 import streamlit as st
 import plotly.graph_objects as go
 
 from core.dc.machine_model import DCMachineParams
+from viz.plotly_config import DC_PLOT_CFG as _PLOT_CFG
 from viz.plotly_charts_dc import (
     build_fig_stacked_dc,
     build_fig_sidebyside_dc,
@@ -62,19 +61,6 @@ def _cached_fig_torque_speed_dc(
     return build_fig_torque_speed_dc(res, exc, dark)
 
 
-_PLOT_CFG: dict[str, Any] = {
-    "responsive": True,
-    "scrollZoom": False,
-    "displaylogo": False,
-    "modeBarButtonsToRemove": ["lasso2d", "select2d"],
-    "toImageButtonOptions": {
-        "format": "png",
-        "filename": "dcm_simulation",
-        "scale": 3,
-        "height": 600,
-        "width": 1200,
-    },
-}
 
 _EXC_LABELS: dict[str, str] = {
     "sep_motor":    "Separately Excited — Motor",
