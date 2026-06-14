@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """
 sim_config.py
 =============
@@ -20,6 +20,7 @@ Extending:
 
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 import json
 from typing import Any
@@ -108,72 +109,76 @@ VARIABLE_CATALOG: dict[str, str] = {
 # LOGICAL FIELD → WIDGET KEY MAPPING
 # ─────────────────────────────────────────────────────────────────────────────
 
-_WK: dict[str, str] = {
-    "Vl":           "wi_Vl",
-    "f":            "wi_f",
-    "Rs":           "wi_Rs",
-    "Rr":           "wi_Rr",
-    "input_mode":   "wi_input_mode",
-    "f_ref":        "wi_f_ref",
-    "Xm":           "wi_Xm",       # reactance (Ω) in X mode
-    "Xls":          "wi_Xls",
-    "Xlr":          "wi_Xlr",
-    "Xm_L":         "wi_Xm_L",    # inductance (H) in L mode
-    "Xls_L":        "wi_Xls_L",
-    "Xlr_L":        "wi_Xlr_L",
-    "Rfe":          "wi_Rfe",
-    "p":            "wi_p",
-    "J":            "wi_J",
-    "B":            "wi_B",
+@dataclasses.dataclass(frozen=True)
+class _WidgetKeys:
+    # electrical parameters
+    Vl:          str = "wi_Vl"
+    f:           str = "wi_f"
+    Rs:          str = "wi_Rs"
+    Rr:          str = "wi_Rr"
+    input_mode:  str = "wi_input_mode"
+    f_ref:       str = "wi_f_ref"
+    Xm:          str = "wi_Xm"      # reactance (Ω) in X mode
+    Xls:         str = "wi_Xls"
+    Xlr:         str = "wi_Xlr"
+    Xm_L:        str = "wi_Xm_L"   # inductance (H) in L mode
+    Xls_L:       str = "wi_Xls_L"
+    Xlr_L:       str = "wi_Xlr_L"
+    Rfe:         str = "wi_Rfe"
+    p:           str = "wi_p"
+    J:           str = "wi_J"
+    B:           str = "wi_B"
     # experiment
-    "exp_type":     "exp_select",
-    "Tl_final":     "wi_Tl_final",
-    "t_carga":      "wi_t_carga",
-    "Tl_pulso":     "wi_Tl_pulso",
-    "Tl_pulso_abs": "wi_Tl_pulso_abs",
-    "t_pulso_on":   "wi_t_pulso_on",
-    "t_pulso_off":  "wi_t_pulso_off",
-    "Tl_mec":       "wi_Tl_mec",
-    "t_2_gerador":  "wi_t_2_gerador",
-    "tmax":         "wi_tmax",
-    "h":            "wi_h",
+    exp_type:     str = "exp_select"
+    Tl_final:     str = "wi_Tl_final"
+    t_carga:      str = "wi_t_carga"
+    Tl_pulso:     str = "wi_Tl_pulso"
+    Tl_pulso_abs: str = "wi_Tl_pulso_abs"
+    t_pulso_on:   str = "wi_t_pulso_on"
+    t_pulso_off:  str = "wi_t_pulso_off"
+    Tl_mec:       str = "wi_Tl_mec"
+    t_2_gerador:  str = "wi_t_2_gerador"
+    tmax:         str = "wi_tmax"
+    h:            str = "wi_h"
     # advanced models
-    "Rgrid":                "wi_Rgrid",
-    "Lgrid":                "wi_Lgrid",
+    Rgrid:               str = "wi_Rgrid"
+    Lgrid:               str = "wi_Lgrid"
     # Park reference frame (persisted for locked mode)
-    "ref_park":             "wi_ref_park",
+    ref_park:            str = "wi_ref_park"
     # digital twin and economic analysis
-    "broken_bar_severity":  "wi_broken_bar_severity",
-    "energy_tariff":        "wi_energy_tariff",
+    broken_bar_severity: str = "wi_broken_bar_severity"
+    energy_tariff:       str = "wi_energy_tariff"
     # voltage sag
-    "sag_magnitude":        "wi_sag_magnitude",
-    "t_start_sag":          "wi_t_start_sag",
-    "t_duration_sag":       "wi_t_duration_sag",
-    "sag_Tl":               "wi_sag_Tl",
+    sag_magnitude: str = "wi_sag_magnitude"
+    t_start_sag:   str = "wi_t_start_sag"
+    t_duration_sag:str = "wi_t_duration_sag"
+    sag_Tl:        str = "wi_sag_Tl"
     # nameplate estimator
-    "param_source": "wi_param_source",
-    "Pn_kW":    "wi_Pn_kW",
-    "N_nom":    "wi_N_nom",
-    "rend":     "wi_rend",
-    "fp_placa": "wi_fp_placa",
-    "Ip_In":    "wi_Ip_In",
-    "Tp_Tn":    "wi_Tp_Tn",
-    "is_delta": "wi_is_delta",
+    param_source: str = "wi_param_source"
+    Pn_kW:        str = "wi_Pn_kW"
+    N_nom:        str = "wi_N_nom"
+    rend:         str = "wi_rend"
+    fp_placa:     str = "wi_fp_placa"
+    Ip_In:        str = "wi_Ip_In"
+    Tp_Tn:        str = "wi_Tp_Tn"
+    is_delta:     str = "wi_is_delta"
     # IEEE 112 estimator — physical tests
-    "ieee_split":    "wi_ieee_split",
-    "ieee_Xls_frac": "wi_ieee_Xls_frac",
-    "ieee_Pfw":      "wi_ieee_Pfw",
-    "ieee_V_dc":     "wi_ieee_V_dc",
-    "ieee_I_dc":     "wi_ieee_I_dc",
-    "ieee_Vl_nl":    "wi_ieee_Vl_nl",
-    "ieee_I_nl":     "wi_ieee_I_nl",
-    "ieee_P_nl":     "wi_ieee_P_nl",
-    "ieee_f_nl":     "wi_ieee_f_nl",
-    "ieee_Vl_lr":    "wi_ieee_Vl_lr",
-    "ieee_I_lr":     "wi_ieee_I_lr",
-    "ieee_P_lr":     "wi_ieee_P_lr",
-    "ieee_f_lr":     "wi_ieee_f_lr",
-}
+    ieee_split:    str = "wi_ieee_split"
+    ieee_Xls_frac: str = "wi_ieee_Xls_frac"
+    ieee_Pfw:      str = "wi_ieee_Pfw"
+    ieee_V_dc:     str = "wi_ieee_V_dc"
+    ieee_I_dc:     str = "wi_ieee_I_dc"
+    ieee_Vl_nl:    str = "wi_ieee_Vl_nl"
+    ieee_I_nl:     str = "wi_ieee_I_nl"
+    ieee_P_nl:     str = "wi_ieee_P_nl"
+    ieee_f_nl:     str = "wi_ieee_f_nl"
+    ieee_Vl_lr:    str = "wi_ieee_Vl_lr"
+    ieee_I_lr:     str = "wi_ieee_I_lr"
+    ieee_P_lr:     str = "wi_ieee_P_lr"
+    ieee_f_lr:     str = "wi_ieee_f_lr"
+
+
+_WK = _WidgetKeys()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -359,43 +364,43 @@ def render_machine_selector(dark: bool) -> None:
 def render_machine_params(
     dark: bool,
     experiment_mode: bool,
-    wk: dict[str, str] = _WK,
+    wk: _WidgetKeys = _WK,
 ) -> tuple[MachineParams, int]:
     """Left column: all parameter fields. Returns (mp, ref_code).
 
     Args:
         dark: dark theme active.
         experiment_mode: when True, locks all inputs.
-        wk: logical field → widget key mapping (uses _WK by default).
+        wk: widget key mapping (uses _WK singleton by default).
     """
     st.markdown('<p class="slabel">Machine Physical Parameters</p>', unsafe_allow_html=True)
 
     # ── Locked mode: replace editable UI with compact summary ─────────
     if experiment_mode:
         # Read current values from session_state (filled by presets or prior edits)
-        Vl  = float(st.session_state.get(wk["Vl"],  _DEFAULTS["Vl"]))
-        f   = float(st.session_state.get(wk["f"],   _DEFAULTS["f"]))
-        Rs  = float(st.session_state.get(wk["Rs"],  _DEFAULTS["Rs"]))
-        Rr  = float(st.session_state.get(wk["Rr"],  _DEFAULTS["Rr"]))
-        Xm  = float(st.session_state.get(wk["Xm"],  _DEFAULTS["Xm"]))
-        Xls = float(st.session_state.get(wk["Xls"], _DEFAULTS["Xls"]))
-        Xlr = float(st.session_state.get(wk["Xlr"], _DEFAULTS["Xlr"]))
-        Rfe = float(st.session_state.get(wk["Rfe"], _DEFAULTS["Rfe"]))
-        p   = int(st.session_state.get(wk["p"],     _DEFAULTS["p"]))
-        J   = float(st.session_state.get(wk["J"],   _DEFAULTS["J"]))
-        B   = float(st.session_state.get(wk["B"],   _DEFAULTS["B"]))
-        Rgrid = float(st.session_state.get(wk["Rgrid"], 0.0))
-        Lgrid = float(st.session_state.get(wk["Lgrid"], 0.0))
-        energy_tariff = float(st.session_state.get(wk["energy_tariff"], 0.75))
+        Vl  = float(st.session_state.get(wk.Vl,  _DEFAULTS["Vl"]))
+        f   = float(st.session_state.get(wk.f,   _DEFAULTS["f"]))
+        Rs  = float(st.session_state.get(wk.Rs,  _DEFAULTS["Rs"]))
+        Rr  = float(st.session_state.get(wk.Rr,  _DEFAULTS["Rr"]))
+        Xm  = float(st.session_state.get(wk.Xm,  _DEFAULTS["Xm"]))
+        Xls = float(st.session_state.get(wk.Xls, _DEFAULTS["Xls"]))
+        Xlr = float(st.session_state.get(wk.Xlr, _DEFAULTS["Xlr"]))
+        Rfe = float(st.session_state.get(wk.Rfe, _DEFAULTS["Rfe"]))
+        p   = int(st.session_state.get(wk.p,     _DEFAULTS["p"]))
+        J   = float(st.session_state.get(wk.J,   _DEFAULTS["J"]))
+        B   = float(st.session_state.get(wk.B,   _DEFAULTS["B"]))
+        Rgrid = float(st.session_state.get(wk.Rgrid, 0.0))
+        Lgrid = float(st.session_state.get(wk.Lgrid, 0.0))
+        energy_tariff = float(st.session_state.get(wk.energy_tariff, 0.75))
 
         # Park reference frame — persisted via key added to selectbox
-        ref_label = st.session_state.get(wk["ref_park"], "Synchronous  (ω = ωₑ)")
+        ref_label = st.session_state.get(wk.ref_park, "Synchronous  (ω = ωₑ)")
         ref_code = {"Synchronous  (ω = ωₑ)": 1,
                     "Rotor  (ω = ωᵣ)": 2,
                     "Stationary  (ω = 0)": 3}.get(ref_label, 1)
 
         input_mode = "X"
-        f_ref = float(st.session_state.get(wk["f_ref"], f))
+        f_ref = float(st.session_state.get(wk.f_ref, f))
 
         st.info(
             "**Parameters locked** — disable the toggle at the top of the page to edit.  "
@@ -454,18 +459,18 @@ def render_machine_params(
                      disabled=(preset_sel == "— Select preset —")):
             pdata = _PRESETS[preset_sel]
             _wk_preset = {
-                "Vl": wk["Vl"], "f": wk["f"], "Rs": wk["Rs"], "Rr": wk["Rr"],
-                "input_mode": wk["input_mode"], "f_ref": wk["f_ref"],
-                "Xm": wk["Xm"], "Xls": wk["Xls"], "Xlr": wk["Xlr"],
-                "Rfe": wk["Rfe"], "p": wk["p"], "J": wk["J"], "B": wk["B"],
-                "exp_type": wk["exp_type"],
-                "Tl_final": wk["Tl_final"],
-                "Tl_pulso": wk["Tl_pulso"],
-                "Tl_pulso_abs": wk["Tl_pulso_abs"],
-                "t_pulso_on": wk["t_pulso_on"],
-                "t_pulso_off": wk["t_pulso_off"],
-                "t_carga": wk["t_carga"],
-                "tmax": wk["tmax"],
+                "Vl": wk.Vl, "f": wk.f, "Rs": wk.Rs, "Rr": wk.Rr,
+                "input_mode": wk.input_mode, "f_ref": wk.f_ref,
+                "Xm": wk.Xm, "Xls": wk.Xls, "Xlr": wk.Xlr,
+                "Rfe": wk.Rfe, "p": wk.p, "J": wk.J, "B": wk.B,
+                "exp_type": wk.exp_type,
+                "Tl_final": wk.Tl_final,
+                "Tl_pulso": wk.Tl_pulso,
+                "Tl_pulso_abs": wk.Tl_pulso_abs,
+                "t_pulso_on": wk.t_pulso_on,
+                "t_pulso_off": wk.t_pulso_off,
+                "t_carga": wk.t_carga,
+                "tmax": wk.tmax,
             }
             for key, widget_key in _wk_preset.items():
                 if key in pdata:
@@ -503,11 +508,11 @@ def render_machine_params(
         # NAMEPLATE MODE — all parameters derived from nameplate
         # ══════════════════════════════════════════════════════════════════
         _pgroup("Grid Data")
-        Vl = st.number_input("Line RMS voltage — $V_l$ (V)", min_value=50.0, max_value=15000.0, value=_DEFAULTS["Vl"], step=1.0, key=wk["Vl"], disabled=dis)
-        f  = st.number_input("Grid frequency — $f$ (Hz)",    min_value=1.0,  max_value=400.0,   value=_DEFAULTS["f"],  step=1.0, key=wk["f"],  disabled=dis)
+        Vl = st.number_input("Line RMS voltage — $V_l$ (V)", min_value=50.0, max_value=15000.0, value=_DEFAULTS["Vl"], step=1.0, key=wk.Vl, disabled=dis)
+        f  = st.number_input("Grid frequency — $f$ (Hz)",    min_value=1.0,  max_value=400.0,   value=_DEFAULTS["f"],  step=1.0, key=wk.f,  disabled=dis)
         is_delta = st.checkbox(
             "Delta (Δ) connection — uncheck for Star (Y)",
-            value=False, key=wk["is_delta"], disabled=dis,
+            value=False, key=wk.is_delta, disabled=dis,
             help="Affects the phase voltage and phase current used in the equivalent circuit calculation.",
         )
         st.markdown('</div>', unsafe_allow_html=True)
@@ -516,37 +521,37 @@ def render_machine_params(
         Pn_kW = st.number_input(
             "Rated shaft power (kW)",
             min_value=0.01, max_value=10000.0, value=2.2, step=0.1, format="%.2f",
-            key=wk["Pn_kW"], disabled=dis,
+            key=wk.Pn_kW, disabled=dis,
             help="Rated mechanical power at the motor flange (nameplate value).",
         )
         N_nom = st.number_input(
             "Rated speed (RPM)",
             min_value=1.0, max_value=60000.0, value=1746.0, step=1.0, format="%.0f",
-            key=wk["N_nom"], disabled=dis,
+            key=wk.N_nom, disabled=dis,
             help="Full-load rated speed. Number of poles is deduced automatically.",
         )
         rend_placa = st.number_input(
             "Rated efficiency η (e.g. 0.91)",
             min_value=0.01, max_value=0.999, value=0.85, step=0.01, format="%.3f",
-            key=wk["rend"], disabled=dis,
+            key=wk.rend, disabled=dis,
             help="Full-load efficiency — η = P_shaft / P_electrical.",
         )
         fp_placa = st.number_input(
             "Rated power factor cos(φ) (e.g. 0.85)",
             min_value=0.01, max_value=0.999, value=0.85, step=0.01, format="%.3f",
-            key=wk["fp_placa"], disabled=dis,
+            key=wk.fp_placa, disabled=dis,
             help="cos(φ) at full rated load.",
         )
         Ip_In = st.number_input(
             "Starting-to-rated current ratio  (Ip/In)",
             min_value=1.0, max_value=15.0, value=6.0, step=0.1, format="%.1f",
-            key=wk["Ip_In"], disabled=dis,
+            key=wk.Ip_In, disabled=dis,
             help="DOL starting current in multiples of rated current (typically 5–8 for NEMA B).",
         )
         Tp_Tn = st.number_input(
             "Starting-to-rated torque ratio  (Tp/Tn)",
             min_value=0.1, max_value=5.0, value=1.5, step=0.1, format="%.2f",
-            key=wk["Tp_Tn"], disabled=dis,
+            key=wk.Tp_Tn, disabled=dis,
             help="Starting torque (s=1) in multiples of rated torque (typically 1.0–2.0 for NEMA B).",
         )
         st.markdown('</div>', unsafe_allow_html=True)
@@ -608,16 +613,16 @@ def render_machine_params(
         Vl = st.number_input(
             "Line RMS voltage — $V_l$ (V)",
             min_value=50.0, max_value=15000.0, value=_DEFAULTS["Vl"], step=1.0,
-            key=wk["Vl"], disabled=dis,
+            key=wk.Vl, disabled=dis,
         )
         f  = st.number_input(
             "Grid frequency — $f$ (Hz)",
             min_value=1.0, max_value=400.0, value=_DEFAULTS["f"], step=1.0,
-            key=wk["f"], disabled=dis,
+            key=wk.f, disabled=dis,
         )
         is_delta = st.checkbox(
             "Delta (Δ) connection — uncheck for Star (Y)",
-            value=False, key=wk["is_delta"], disabled=dis,
+            value=False, key=wk.is_delta, disabled=dis,
             help="Defines the DC test factor: Y → Rs = (V_dc/I_dc)/2; Δ → Rs = (V_dc/I_dc)·1.5.",
         )
         st.markdown('</div>', unsafe_allow_html=True)
@@ -747,13 +752,13 @@ Separation uses Table 1 of IEEE 112, according to the **NEMA class** selected be
         V_dc = c_dc1.number_input(
             "Applied DC voltage — $V_{dc}$ (V)",
             min_value=0.01, max_value=1000.0, value=10.0, step=0.1, format="%.3f",
-            key=wk["ieee_V_dc"], disabled=dis,
+            key=wk.ieee_V_dc, disabled=dis,
             help="DC voltage applied between two motor terminals (cold resistance).",
         )
         I_dc = c_dc2.number_input(
             "Measured DC current — $I_{dc}$ (A)",
             min_value=0.001, max_value=10000.0, value=11.5, step=0.1, format="%.3f",
-            key=wk["ieee_I_dc"], disabled=dis,
+            key=wk.ieee_I_dc, disabled=dis,
             help="Stabilized DC current after the thermal transient.",
         )
         # Live Rs preview (without calling the full estimator)
@@ -767,31 +772,31 @@ Separation uses Table 1 of IEEE 112, according to the **NEMA class** selected be
         Vl_nl = c_nl1.number_input(
             "Line voltage — $V_{l,NL}$ (V)",
             min_value=10.0, max_value=15000.0, value=float(Vl), step=1.0, format="%.1f",
-            key=wk["ieee_Vl_nl"], disabled=dis,
+            key=wk.ieee_Vl_nl, disabled=dis,
             help="Line voltage applied during the no-load test (typically equal to rated).",
         )
         I_nl = c_nl2.number_input(
             "Line current — $I_{NL}$ (A)",
             min_value=0.001, max_value=10000.0, value=4.5, step=0.1, format="%.3f",
-            key=wk["ieee_I_nl"], disabled=dis,
+            key=wk.ieee_I_nl, disabled=dis,
             help="Steady-state line current, motor uncoupled.",
         )
         c_nl3, c_nl4 = st.columns(2)
         P_nl = c_nl3.number_input(
             "Three-phase power — $P_{NL}$ (W)",
             min_value=0.1, max_value=1e7, value=180.0, step=1.0, format="%.2f",
-            key=wk["ieee_P_nl"], disabled=dis,
+            key=wk.ieee_P_nl, disabled=dis,
             help="Total three-phase active power absorbed in the no-load test.",
         )
         f_nl = c_nl4.number_input(
             "Frequency — $f_{NL}$ (Hz)",
             min_value=1.0, max_value=400.0, value=float(f), step=1.0, format="%.2f",
-            key=wk["ieee_f_nl"], disabled=dis,
+            key=wk.ieee_f_nl, disabled=dis,
         )
         Pfw = st.number_input(
             "Mechanical losses — $P_{fw}$ (W) — 0 = estimate as 0.8% of $P_{NL}$",
             min_value=0.0, max_value=1e6, value=0.0, step=1.0, format="%.2f",
-            key=wk["ieee_Pfw"], disabled=dis,
+            key=wk.ieee_Pfw, disabled=dis,
             help="Friction + windage. If left at 0, the IEEE heuristic estimates 0.8% of P_NL.",
         )
         st.markdown('</div>', unsafe_allow_html=True)
@@ -801,25 +806,25 @@ Separation uses Table 1 of IEEE 112, according to the **NEMA class** selected be
         Vl_lr = c_lr1.number_input(
             "Line voltage — $V_{l,LR}$ (V)",
             min_value=0.1, max_value=15000.0, value=31.68, step=0.1, format="%.2f",
-            key=wk["ieee_Vl_lr"], disabled=dis,
+            key=wk.ieee_Vl_lr, disabled=dis,
             help="Reduced voltage applied with rotor locked (caution: rated current).",
         )
         I_lr = c_lr2.number_input(
             "Line current — $I_{LR}$ (A)",
             min_value=0.001, max_value=10000.0, value=14.0, step=0.1, format="%.3f",
-            key=wk["ieee_I_lr"], disabled=dis,
+            key=wk.ieee_I_lr, disabled=dis,
             help="Line current measured with rotor locked.",
         )
         c_lr3, c_lr4 = st.columns(2)
         P_lr = c_lr3.number_input(
             "Three-phase power — $P_{LR}$ (W)",
             min_value=0.1, max_value=1e7, value=735.59, step=1.0, format="%.2f",
-            key=wk["ieee_P_lr"], disabled=dis,
+            key=wk.ieee_P_lr, disabled=dis,
         )
         f_lr = c_lr4.number_input(
             "Frequency — $f_{LR}$ (Hz)",
             min_value=1.0, max_value=400.0, value=15.0, step=0.5, format="%.2f",
-            key=wk["ieee_f_lr"], disabled=dis,
+            key=wk.ieee_f_lr, disabled=dis,
             help="IEEE Std 112 recommends f_LR ≈ 25% of rated frequency to minimize saturation.",
         )
         st.markdown('</div>', unsafe_allow_html=True)
@@ -829,7 +834,7 @@ Separation uses Table 1 of IEEE 112, according to the **NEMA class** selected be
             "NEMA distribution class",
             list(_IEEE_SPLIT_LABELS.values()),
             index=0,
-            key=wk["ieee_split"], disabled=dis,
+            key=wk.ieee_split, disabled=dis,
             help="IEEE Std 112-2017, Table 1 — fraction of Xk assigned to Xls.",
         )
         split_code = next(k for k, v in _IEEE_SPLIT_LABELS.items() if v == split_label)
@@ -837,7 +842,7 @@ Separation uses Table 1 of IEEE 112, according to the **NEMA class** selected be
             Xls_frac = st.slider(
                 "Fraction $X_{ls} / X_k$",
                 min_value=0.10, max_value=0.90, value=0.40, step=0.05,
-                key=wk["ieee_Xls_frac"], disabled=dis,
+                key=wk.ieee_Xls_frac, disabled=dis,
             )
         else:
             Xls_frac = 0.4
@@ -943,17 +948,17 @@ Separation uses Table 1 of IEEE 112, according to the **NEMA class** selected be
                 key="ieee_apply_btn",
                 help="Copies the estimated parameters to Manual mode, allowing adjustments before simulating.",
             ):
-                _p_tmp = int(st.session_state.get(wk["p"], _DEFAULTS["p"]))
+                _p_tmp = int(st.session_state.get(wk.p, _DEFAULTS["p"]))
                 _mp_tmp = MachineParams(Vl=Vl, f=f, Rs=Rs, Rr=Rr, Xm=Xm, Xls=Xls, Xlr=Xlr, Rfe=Rfe, p=_p_tmp)
                 _tl_tmp = _tl_sugerido(_mp_tmp)
                 st.session_state["_param_source_idx"] = 0  # "Enter parameters manually"
-                st.session_state[wk["Rs"]]  = Rs
-                st.session_state[wk["Rr"]]  = Rr
-                st.session_state[wk["Xm"]]  = Xm
-                st.session_state[wk["Xls"]] = Xls
-                st.session_state[wk["Xlr"]] = Xlr
-                st.session_state[wk["Rfe"]] = Rfe
-                st.session_state[wk["Tl_final"]]  = _tl_tmp
+                st.session_state[wk.Rs]  = Rs
+                st.session_state[wk.Rr]  = Rr
+                st.session_state[wk.Xm]  = Xm
+                st.session_state[wk.Xls] = Xls
+                st.session_state[wk.Xlr] = Xlr
+                st.session_state[wk.Rfe] = Rfe
+                st.session_state[wk.Tl_final]  = _tl_tmp
                 st.session_state["wi_dol_Tl_nom"] = _tl_tmp
                 st.rerun()
 
@@ -966,18 +971,18 @@ Separation uses Table 1 of IEEE 112, according to the **NEMA class** selected be
         # MANUAL MODE — parameters entered directly by the user
         # ══════════════════════════════════════════════════════════════════
         _pgroup("Electrical Data")
-        Vl = st.number_input("Line RMS voltage — $V_l$ (V)",               min_value=50.0,   max_value=15000.0, value=_DEFAULTS["Vl"],  step=1.0,   key=wk["Vl"],  disabled=dis)
-        f  = st.number_input("Grid frequency — $f$ (Hz)",                  min_value=1.0,    max_value=400.0,   value=_DEFAULTS["f"],   step=1.0,   key=wk["f"],   disabled=dis)
-        Rs = st.number_input("Stator resistance — $R_s$ (Ω)",              min_value=0.0001, max_value=100.0,   value=_DEFAULTS["Rs"],  step=0.001, key=wk["Rs"],  format="%.3f", disabled=dis,
+        Vl = st.number_input("Line RMS voltage — $V_l$ (V)",               min_value=50.0,   max_value=15000.0, value=_DEFAULTS["Vl"],  step=1.0,   key=wk.Vl,  disabled=dis)
+        f  = st.number_input("Grid frequency — $f$ (Hz)",                  min_value=1.0,    max_value=400.0,   value=_DEFAULTS["f"],   step=1.0,   key=wk.f,   disabled=dis)
+        Rs = st.number_input("Stator resistance — $R_s$ (Ω)",              min_value=0.0001, max_value=100.0,   value=_DEFAULTS["Rs"],  step=0.001, key=wk.Rs,  format="%.3f", disabled=dis,
                              help="Stator winding resistance per phase. Typical: 0.01–10 Ω. Affects Joule losses and voltage drop during starting transient.")
-        Rr = st.number_input("Rotor resistance — $R_r$ (Ω)",               min_value=0.0001, max_value=100.0,   value=_DEFAULTS["Rr"],  step=0.001, key=wk["Rr"],  format="%.3f", disabled=dis,
+        Rr = st.number_input("Rotor resistance — $R_r$ (Ω)",               min_value=0.0001, max_value=100.0,   value=_DEFAULTS["Rr"],  step=0.001, key=wk.Rr,  format="%.3f", disabled=dis,
                              help="Rotor winding resistance referred to the stator. Typical: similar to Rs (Class B). Determines rated slip and starting torque.")
 
         input_mode_label = st.radio(
             "Magnetic parameter format",
             _INPUT_MODE_LABELS,
             index=0,
-            key=wk["input_mode"],
+            key=wk.input_mode,
             disabled=dis,
             horizontal=True,
         )
@@ -987,38 +992,38 @@ Separation uses Table 1 of IEEE 112, according to the **NEMA class** selected be
             f_ref = st.number_input(
                 "Test reference frequency — $f_{ref}$ (Hz)",
                 min_value=1.0, max_value=400.0, value=60.0, step=1.0,
-                key=wk["f_ref"],
+                key=wk.f_ref,
                 help="Frequency at which $X_m$, $X_{ls}$, and $X_{lr}$ were measured (typically 50 Hz or 60 Hz).",
                 disabled=dis,
             )
-            Xm  = st.number_input("Magnetizing reactance — $X_m$ (Ω)",              min_value=0.0001, max_value=500.0, value=_DEFAULTS["Xm"],  step=0.01,  key=wk["Xm"],  format="%.2f", disabled=dis,
+            Xm  = st.number_input("Magnetizing reactance — $X_m$ (Ω)",              min_value=0.0001, max_value=500.0, value=_DEFAULTS["Xm"],  step=0.01,  key=wk.Xm,  format="%.2f", disabled=dis,
                                   help="Magnetizing reactance — represents the air-gap flux path. Typical: 10–30× Xls. Very low values indicate saturation or incorrect no-load test.")
-            Xls = st.number_input("Stator leakage reactance — $X_{ls}$ (Ω)",        min_value=0.0001, max_value=50.0,  value=_DEFAULTS["Xls"], step=0.001, key=wk["Xls"], format="%.3f", disabled=dis,
+            Xls = st.number_input("Stator leakage reactance — $X_{ls}$ (Ω)",        min_value=0.0001, max_value=50.0,  value=_DEFAULTS["Xls"], step=0.001, key=wk.Xls, format="%.3f", disabled=dis,
                                   help="Stator leakage reactance — flux that does not cross the air gap. Typical: 0.1–2 Ω (motors up to 10 kW). Along with Xlr, determines the slope of the T×n curve at starting.")
-            Xlr = st.number_input("Rotor leakage reactance — $X_{lr}$ (Ω)",         min_value=0.0001, max_value=50.0,  value=_DEFAULTS["Xlr"], step=0.001, key=wk["Xlr"], format="%.3f", disabled=dis,
+            Xlr = st.number_input("Rotor leakage reactance — $X_{lr}$ (Ω)",         min_value=0.0001, max_value=50.0,  value=_DEFAULTS["Xlr"], step=0.001, key=wk.Xlr, format="%.3f", disabled=dis,
                                   help="Rotor leakage reactance referred to the stator. Typically close to Xls (Class B/D) or larger (Class C).")
         else:
             f_ref   = 60.0
             _wb_ref = 2.0 * 3.141592653589793 * 60.0
-            Xm  = st.number_input("Magnetizing inductance — $L_m$ (H)",              min_value=1e-6, max_value=10.0, value=round(_DEFAULTS["Xm"]  / _wb_ref, 6), step=0.0001, key=wk["Xm_L"],  format="%.6f", disabled=dis,
+            Xm  = st.number_input("Magnetizing inductance — $L_m$ (H)",              min_value=1e-6, max_value=10.0, value=round(_DEFAULTS["Xm"]  / _wb_ref, 6), step=0.0001, key=wk.Xm_L,  format="%.6f", disabled=dis,
                                   help="Magnetizing inductance (frequency-independent). Related to reactance by Xm = 2π·f·Lm.")
-            Xls = st.number_input("Stator leakage inductance — $L_{ls}$ (H)",        min_value=1e-6, max_value=1.0,  value=round(_DEFAULTS["Xls"] / _wb_ref, 6), step=0.0001, key=wk["Xls_L"], format="%.6f", disabled=dis,
+            Xls = st.number_input("Stator leakage inductance — $L_{ls}$ (H)",        min_value=1e-6, max_value=1.0,  value=round(_DEFAULTS["Xls"] / _wb_ref, 6), step=0.0001, key=wk.Xls_L, format="%.6f", disabled=dis,
                                   help="Stator leakage inductance. Determines the slope of the T×n curve in the starting region.")
-            Xlr = st.number_input("Rotor leakage inductance — $L_{lr}$ (H)",         min_value=1e-6, max_value=1.0,  value=round(_DEFAULTS["Xlr"] / _wb_ref, 6), step=0.0001, key=wk["Xlr_L"], format="%.6f", disabled=dis,
+            Xlr = st.number_input("Rotor leakage inductance — $L_{lr}$ (H)",         min_value=1e-6, max_value=1.0,  value=round(_DEFAULTS["Xlr"] / _wb_ref, 6), step=0.0001, key=wk.Xlr_L, format="%.6f", disabled=dis,
                                   help="Rotor leakage inductance referred to the stator. Typically close to Lls (Class B/D).")
 
-        Rfe = st.number_input("Core loss resistance — $R_{fe}$ (Ω)", min_value=10.0, max_value=10000.0, value=_DEFAULTS["Rfe"], step=10.0, key=wk["Rfe"], format="%.1f", disabled=dis,
+        Rfe = st.number_input("Core loss resistance — $R_{fe}$ (Ω)", min_value=10.0, max_value=10000.0, value=_DEFAULTS["Rfe"], step=10.0, key=wk.Rfe, format="%.1f", disabled=dis,
                               help="Parallel resistance representing core losses (hysteresis + eddy currents). Typical: 100–2000 Ω. Low values model poor-quality magnetic material or high frequencies.")
         st.caption("$R_{fe}$ affects both the ODE dynamics (core loss currents) and the steady-state power balance.")
         st.markdown('</div>', unsafe_allow_html=True)
 
     # ── Mechanical ─────────────────────────────────────────────────────────
     _pgroup("Mechanical Data and Reference Frame")
-    p = st.selectbox("Number of poles — $p$", options=[2, 4, 6, 8, 10, 12], index=1, key=wk["p"], disabled=dis,
+    p = st.selectbox("Number of poles — $p$", options=[2, 4, 6, 8, 10, 12], index=1, key=wk.p, disabled=dis,
                      help="Number of magnetic poles. Determines synchronous speed ns = 120·f/p. Common industrial motors: 2, 4, or 6 poles.")
-    J = st.number_input("Moment of inertia — $J$ (kg·m²)",                min_value=0.0001, max_value=100.0, value=_DEFAULTS["J"], step=0.001, key=wk["J"], format="%.3f", disabled=dis,
+    J = st.number_input("Moment of inertia — $J$ (kg·m²)",                min_value=0.0001, max_value=100.0, value=_DEFAULTS["J"], step=0.001, key=wk.J, format="%.3f", disabled=dis,
                         help="Total rotational inertia on the shaft (rotor + coupled load). Determines starting time and mechanical time constant.")
-    B = st.number_input("Viscous friction coefficient — $B$ (N·m·s/rad)", min_value=0.0,   max_value=10.0,  value=_DEFAULTS["B"], step=0.001, key=wk["B"], format="%.3f", disabled=dis,
+    B = st.number_input("Viscous friction coefficient — $B$ (N·m·s/rad)", min_value=0.0,   max_value=10.0,  value=_DEFAULTS["B"], step=0.001, key=wk.B, format="%.3f", disabled=dis,
                         help="Viscous friction proportional to angular velocity (bearings + windage). B = 0 idealizes the motor without mechanical losses; leave at 0 to use the empirical estimate shown below.")
     if B == 0.0:
         _T_nom_est = float(st.session_state.get("wi_Tl_final", 0.0))
@@ -1035,7 +1040,7 @@ Separation uses Table 1 of IEEE 112, according to the **NEMA class** selected be
         "Park Transform Reference Frame",
         ["Synchronous  (ω = ωₑ)", "Rotor  (ω = ωᵣ)", "Stationary  (ω = 0)"],
         disabled=dis,
-        key=wk["ref_park"],
+        key=wk.ref_park,
         help=(
             "Coordinate system for the Park (dq0) transform:\n"
             "• Synchronous (ω = ωₑ): steady-state currents appear as DC — ideal for "
@@ -1061,7 +1066,7 @@ Separation uses Table 1 of IEEE 112, according to the **NEMA class** selected be
             Rgrid = st.number_input(
                 "$R_{grid}$ (Ω/phase)",
                 min_value=0.0, max_value=100.0, value=0.0, step=0.01, format="%.4f",
-                key=wk["Rgrid"],
+                key=wk.Rgrid,
                 disabled=dis,
                 help="Feed line resistance per phase. 0 = no resistive voltage drop.",
             )
@@ -1069,7 +1074,7 @@ Separation uses Table 1 of IEEE 112, according to the **NEMA class** selected be
             Lgrid = st.number_input(
                 "$L_{grid}$ (H/phase)",
                 min_value=0.0, max_value=1.0, value=0.0, step=0.0001, format="%.4f",
-                key=wk["Lgrid"],
+                key=wk.Lgrid,
                 disabled=dis,
                 help="Feed line inductance per phase (H). 0 = no inductive voltage drop.",
             )
@@ -1089,7 +1094,7 @@ Separation uses Table 1 of IEEE 112, according to the **NEMA class** selected be
         energy_tariff = st.number_input(
             "Electricity tariff ($/kWh)",
             min_value=0.0001, max_value=5.0, value=0.75, step=0.01, format="%.2f",
-            key=wk["energy_tariff"],
+            key=wk.energy_tariff,
             disabled=dis,
             help=(
                 "Average tariff used to project annual operating cost based on "
@@ -1122,13 +1127,13 @@ Separation uses Table 1 of IEEE 112, according to the **NEMA class** selected be
 
 def render_experiment_config(
     mp: MachineParams,
-    wk: dict[str, str] = _WK,
+    wk: _WidgetKeys = _WK,
 ) -> tuple[dict[str, Any], list[str], list[str], float, float]:
     """Experiment, variable, and numerical parameter configuration.
 
     Args:
         mp: machine parameters already constructed.
-        wk: logical field → widget key mapping (uses _WK by default).
+        wk: widget key mapping (uses _WK singleton by default).
 
     Returns:
         (config, var_keys, var_labels, tmax, h)
@@ -1152,7 +1157,7 @@ def render_experiment_config(
         "injecao_cc":  "DC Injection Braking",
         "regenerativo":"Regenerative Braking",
     }
-    exp_label = st.selectbox("Experiment Type", list(exp_options.keys()), key=wk["exp_type"])
+    exp_label = st.selectbox("Experiment Type", list(exp_options.keys()), key=wk.exp_type)
     exp_type  = exp_options[exp_label]
     config: dict[str, Any] = {"exp_type": exp_type, "exp_label": exp_label}
 
@@ -1160,7 +1165,7 @@ def render_experiment_config(
 
     # Reference torque from loaded preset — used as initial value in all experiments.
     # Ensures that switching between experiment types does not reset torque to the fixed default 80 N·m.
-    _Tl_ref = float(st.session_state.get(wk["Tl_final"], _tl_sugerido(mp)))
+    _Tl_ref = float(st.session_state.get(wk.Tl_final, _tl_sugerido(mp)))
     st.caption(f"Estimated rated torque from electrical parameters (s = 5%): **{_tl_sugerido(mp):.2f} N·m**")
 
     if exp_type == "dol":
@@ -1182,7 +1187,7 @@ def render_experiment_config(
             )
             config["Tl_inicial"] = 0.0
             config["Tl_final"]   = Tl_nom * pct_fin / 100.0
-            config["t_carga"]    = st.number_input("Load application instant — $t_{carga}$ (s)", value=1.0, min_value=0.0, key=wk["t_carga"])
+            config["t_carga"]    = st.number_input("Load application instant — $t_{carga}$ (s)", value=1.0, min_value=0.0, key=wk.t_carga)
             _ibox(
                 f"<strong>t = 0 s</strong> — rated voltage ({mp.Vl:.0f} V) applied; motor accelerates unloaded (T<sub>l</sub> = 0).<br>"
                 f"<strong>t = {config['t_carga']:.2f} s</strong> — load of "
@@ -1191,7 +1196,7 @@ def render_experiment_config(
             )
         else:
             config["Tl_inicial"] = None
-            config["Tl_final"]   = st.number_input("Load torque — $T_l$ (N·m)", value=_Tl_ref, min_value=0.0, key=wk["Tl_final"])
+            config["Tl_final"]   = st.number_input("Load torque — $T_l$ (N·m)", value=_Tl_ref, min_value=0.0, key=wk.Tl_final)
             config["t_carga"]    = 0.0
             _ibox(
                 f"<strong>t = 0 s</strong> — rated voltage ({mp.Vl:.0f} V) and load of "
@@ -1201,9 +1206,9 @@ def render_experiment_config(
 
 
     elif exp_type == "yd":
-        config["Tl_final"] = st.number_input("Load torque — $T_l$ (N·m)", value=_Tl_ref, min_value=0.0, key=wk["Tl_final"])
+        config["Tl_final"] = st.number_input("Load torque — $T_l$ (N·m)", value=_Tl_ref, min_value=0.0, key=wk.Tl_final)
         config["t_2"]      = st.number_input("Y → D switching instant — $t_2$ (s)", value=0.5, min_value=0.0001, key="wi_yd_t2")
-        config["t_carga"]  = st.number_input("Load application instant — $t_{carga}$ (s)", value=1.0, min_value=0.0, key=wk["t_carga"])
+        config["t_carga"]  = st.number_input("Load application instant — $t_{carga}$ (s)", value=1.0, min_value=0.0, key=wk.t_carga)
         _ibox(
             f"<strong>t = 0 s</strong> — motor starts in star (Y) with reduced voltage of "
             f"{mp.Vl/np.sqrt(3):.1f} V ({100/np.sqrt(3):.0f}% of V<sub>l</sub>); starting current and torque reduced to ≈ 1/3.<br>"
@@ -1214,10 +1219,10 @@ def render_experiment_config(
         _aviso_partida_reduzida(mp, 1.0 / np.sqrt(3.0), config["Tl_final"])
 
     elif exp_type == "comp":
-        config["Tl_final"]      = st.number_input("Load torque — $T_l$ (N·m)", value=_Tl_ref, min_value=0.0, key=wk["Tl_final"])
+        config["Tl_final"]      = st.number_input("Load torque — $T_l$ (N·m)", value=_Tl_ref, min_value=0.0, key=wk.Tl_final)
         config["voltage_ratio"] = st.slider("Autotransformer tap — $k$ (%)", 10, 95, 50, key="wi_comp_tap") / 100.0
         config["t_2"]           = st.number_input("Switching instant — $t_2$ (s)", value=0.5, min_value=0.0001, key="wi_comp_t2")
-        config["t_carga"]       = st.number_input("Load application instant — $t_{carga}$ (s)", value=1.0, min_value=0.0, key=wk["t_carga"])
+        config["t_carga"]       = st.number_input("Load application instant — $t_{carga}$ (s)", value=1.0, min_value=0.0, key=wk.t_carga)
         _ibox(
             f"<strong>t = 0 s</strong> — motor starts with reduced voltage of "
             f"{config['voltage_ratio']*100:.0f}% of V<sub>l</sub> "
@@ -1233,8 +1238,8 @@ def render_experiment_config(
         config["voltage_ratio"] = st.slider("Soft-Starter initial voltage — $V_0$ (%)", 10, 90, 50, key="wi_soft_v0") / 100.0
         config["t_2"]           = st.number_input("Voltage ramp start — $t_2$ (s)", value=0.0, min_value=0.0, key="wi_soft_t2")
         config["t_pico"]        = st.number_input("Time to reach rated voltage — $t_{peak}$ (s)", value=5.0, min_value=0.0001, key="wi_soft_t_pico")
-        config["Tl_final"]      = st.number_input("Load torque — $T_l$ (N·m)", value=_Tl_ref, min_value=0.0, key=wk["Tl_final"])
-        config["t_carga"]       = st.number_input("Load application instant — $t_{carga}$ (s)", value=1.0, min_value=0.0, key=wk["t_carga"])
+        config["Tl_final"]      = st.number_input("Load torque — $T_l$ (N·m)", value=_Tl_ref, min_value=0.0, key=wk.Tl_final)
+        config["t_carga"]       = st.number_input("Load application instant — $t_{carga}$ (s)", value=1.0, min_value=0.0, key=wk.t_carga)
         _ibox(
             f"<strong>t = 0 s</strong> — motor starts with initial voltage of "
             f"{config['voltage_ratio']*100:.0f}% of V<sub>l</sub> "
@@ -1247,10 +1252,10 @@ def render_experiment_config(
         _aviso_partida_reduzida(mp, config["voltage_ratio"], config["Tl_final"])
 
     elif exp_type == "pulso_carga":
-        Tl_base = st.number_input("Base torque — $T_{base}$ (N·m)", value=_Tl_ref * 0.5, min_value=0.0, key=wk["Tl_pulso"])
+        Tl_base = st.number_input("Base torque — $T_{base}$ (N·m)", value=_Tl_ref * 0.5, min_value=0.0, key=wk.Tl_pulso)
         st.caption("Load present on the shaft before and after the pulse. Use 0 for unloaded starting.")
         if Tl_base == 0.0:
-            Tl_pulso = st.number_input("Torque during pulse — $T_{pulse}$ (N·m)", value=_Tl_ref, min_value=0.0001, key=wk["Tl_pulso_abs"])
+            Tl_pulso = st.number_input("Torque during pulse — $T_{pulse}$ (N·m)", value=_Tl_ref, min_value=0.0001, key=wk.Tl_pulso_abs)
             st.caption("Torque applied in the interval $[t_{on},\\, t_{off})$. Outside this interval the motor runs unloaded.")
         else:
             pct      = st.number_input("Variation during pulse (%)", value=50.0, key="wi_pct_pulso")
@@ -1258,8 +1263,8 @@ def render_experiment_config(
             Tl_pulso = Tl_base * (1.0 + pct / 100.0)
         config["Tl_base"]  = Tl_base
         config["Tl_final"] = Tl_pulso
-        t_on  = st.number_input("Pulse application instant — $t_{on}$ (s)",  value=1.0, min_value=0.0, step=0.1, format="%.2f", key=wk["t_pulso_on"])
-        t_off = st.number_input("Pulse removal instant — $t_{off}$ (s)",     value=1.5, min_value=0.0, step=0.1, format="%.2f", key=wk["t_pulso_off"])
+        t_on  = st.number_input("Pulse application instant — $t_{on}$ (s)",  value=1.0, min_value=0.0, step=0.1, format="%.2f", key=wk.t_pulso_on)
+        t_off = st.number_input("Pulse removal instant — $t_{off}$ (s)",     value=1.5, min_value=0.0, step=0.1, format="%.2f", key=wk.t_pulso_off)
         config["t_carga"]    = t_on
         config["t_retirada"] = t_off
         if t_off <= t_on:
@@ -1284,8 +1289,8 @@ def render_experiment_config(
                 )
 
     elif exp_type == "gerador":
-        config["Tl_mec"] = st.number_input("Prime mover torque — $T_{mec}$ (N·m)", value=_Tl_ref, min_value=1.0, key=wk["Tl_mec"])
-        config["t_2"]    = st.number_input("Torque application instant — $t_2$ (s)", value=1.0, min_value=0.0, key=wk["t_2_gerador"])
+        config["Tl_mec"] = st.number_input("Prime mover torque — $T_{mec}$ (N·m)", value=_Tl_ref, min_value=1.0, key=wk.Tl_mec)
+        config["t_2"]    = st.number_input("Torque application instant — $t_2$ (s)", value=1.0, min_value=0.0, key=wk.t_2_gerador)
         _ibox(
             f"<strong>t = 0 s</strong> — machine connected to the grid ({mp.Vl:.0f} V) and accelerated by inertia to near synchronous speed.<br>"
             f"<strong>t = {config['t_2']:.2f} s</strong> — mechanical torque of <strong>{config['Tl_mec']:.2f} N·m</strong> applied by prime mover; "
@@ -1293,8 +1298,8 @@ def render_experiment_config(
         )
 
     elif exp_type == "shutdown":
-        config["Tl_final"]  = st.number_input("Load torque — $T_l$ (N·m)", value=_Tl_ref, min_value=0.0, key=wk["Tl_final"])
-        config["t_carga"]   = st.number_input("Load application instant — $t_{carga}$ (s)", value=0.3, min_value=0.0, key=wk["t_carga"])
+        config["Tl_final"]  = st.number_input("Load torque — $T_l$ (N·m)", value=_Tl_ref, min_value=0.0, key=wk.Tl_final)
+        config["t_carga"]   = st.number_input("Load application instant — $t_{carga}$ (s)", value=0.3, min_value=0.0, key=wk.t_carga)
         config["t_cutoff"]  = st.number_input("Shutdown instant — $t_{off}$ (s)", value=1.5, min_value=0.0001, key="wi_sd_t_cutoff")
         if config["t_carga"] >= config["t_cutoff"]:
             st.error(f"t_carga ({config['t_carga']:.2f} s) must be less than t_off ({config['t_cutoff']:.2f} s). Apply load before shutdown.")
@@ -1327,19 +1332,19 @@ def render_experiment_config(
             sag_mag = st.slider(
                 "Voltage during sag — $V_{sag}$ (% of $V_l$)",
                 min_value=5, max_value=95, value=50, step=5,
-                key=wk["sag_magnitude"],
+                key=wk.sag_magnitude,
                 help="Percentage of rated voltage during the sag. 50% = 0.5 pu sag.",
             ) / 100.0
         with sg2:
             config["Tl_final"] = st.number_input(
                 "Load torque — $T_l$ (N·m)",
                 value=_Tl_ref, min_value=0.0,
-                key=wk["sag_Tl"],
+                key=wk.sag_Tl,
                 help="Mechanical load applied from the beginning of the simulation.",
             )
             config["t_carga"] = 0.0
-        t_start_sag    = st.number_input("Sag start — $t_{sag}$ (s)",            value=0.5, min_value=0.0, step=0.05, format="%.3f", key=wk["t_start_sag"])
-        t_duration_sag = st.number_input("Sag duration — $\\Delta t_{sag}$ (s)", value=0.1, min_value=0.0001, max_value=5.0, step=0.01, format="%.3f", key=wk["t_duration_sag"])
+        t_start_sag    = st.number_input("Sag start — $t_{sag}$ (s)",            value=0.5, min_value=0.0, step=0.05, format="%.3f", key=wk.t_start_sag)
+        t_duration_sag = st.number_input("Sag duration — $\\Delta t_{sag}$ (s)", value=0.1, min_value=0.0001, max_value=5.0, step=0.01, format="%.3f", key=wk.t_duration_sag)
         t_end_sag = t_start_sag + t_duration_sag
         config["sag_magnitude"]  = sag_mag
         config["t_start_sag"]    = t_start_sag
@@ -1388,10 +1393,10 @@ def render_experiment_config(
         st.info(_BRAKE_DESC_MIT[brake])
 
         config["Tl_final"] = st.number_input(
-            "Load torque — $T_l$ (N·m)", value=_Tl_ref, min_value=0.0, key=wk["Tl_final"],
+            "Load torque — $T_l$ (N·m)", value=_Tl_ref, min_value=0.0, key=wk.Tl_final,
         )
         config["t_carga"] = st.number_input(
-            "Load application instant — $t_{carga}$ (s)", value=0.3, min_value=0.0, key=wk["t_carga"],
+            "Load application instant — $t_{carga}$ (s)", value=0.3, min_value=0.0, key=wk.t_carga,
         )
         config["t_brake"] = st.number_input(
             "Braking instant — $t_{brake}$ (s)", value=1.5, min_value=0.001, key="wi_brake_t_freia",
@@ -1475,13 +1480,13 @@ def render_experiment_config(
             json.dumps([mp.J, mp.B, config.get("Tl_final"), config.get("t_cutoff")]).encode()
         ).hexdigest()
         if st.session_state.get("_sd_tmax_hash") != _sd_hash:
-            st.session_state[wk["tmax"]] = round(float(config["_t_end_shutdown"]), 1)
+            st.session_state[wk.tmax] = round(float(config["_t_end_shutdown"]), 1)
             st.session_state["_sd_tmax_hash"] = _sd_hash
 
     tc1, tc2 = st.columns(2)
     with tc1:
         _tmax_auto = st.checkbox("Calculate tmax automatically (motor inertia)", value=True, key="wi_tmax_auto")
-        tmax = st.number_input("Total time — $t_{max}$ (s)", min_value=0.001, max_value=3600.0, value=2.0, step=0.1, format="%.1f", key=wk["tmax"], disabled=_tmax_auto)
+        tmax = st.number_input("Total time — $t_{max}$ (s)", min_value=0.001, max_value=3600.0, value=2.0, step=0.1, format="%.1f", key=wk.tmax, disabled=_tmax_auto)
         if _tmax_auto:
             tmax = 0.0  # sentinel: runner will compute the actual value
 
@@ -1498,7 +1503,7 @@ def render_experiment_config(
             else:
                 st.caption(f"Suggestion: ≥ {round(_tmax_auto_val - _t_acomo_preview + 0.5, 1):.1f} s  (last event + 0.5 s to reach steady state)")
 
-        h = st.number_input("Integration step — $h$ (s)", min_value=0.000001, max_value=0.1, value=0.0001, step=0.000001, format="%.6f", key=wk["h"])
+        h = st.number_input("Integration step — $h$ (s)", min_value=0.000001, max_value=0.1, value=0.0001, step=0.000001, format="%.6f", key=wk.h)
         _tmax_display = _tmax_auto_val if (_tmax_auto and _tmax_auto_val is not None) else tmax
         n_steps = int(_tmax_display / h) if _tmax_display > 0 else 0
         st.caption(f"Total steps: {n_steps:,}")
