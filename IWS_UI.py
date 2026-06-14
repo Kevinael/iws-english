@@ -27,7 +27,8 @@ from __future__ import annotations
 
 import streamlit as st
 
-from ui.theme import apply_css, REF_COLORS, REF_DASHES
+from ui.theme import apply_css
+from ui_components.reference_manager import save_reference
 from core.constants import DC_SESSION_DEFAULTS, MIT_SESSION_DEFAULTS
 from ui.clean_view import render_clean_view
 from viz.tim_eqcircuit import render_circuit as _render_circuit_eqcircuit_plotter
@@ -197,12 +198,7 @@ def main() -> None:
                                           help="Removes all saved references")
 
             if save_ref_dc and _can_save_dc:
-                new_ref_dc = dict(st.session_state["sim_result"])
-                _idx_dc = len(st.session_state["ref_list"])
-                new_ref_dc["color"] = REF_COLORS[_idx_dc % len(REF_COLORS)]
-                new_ref_dc["dash"]  = REF_DASHES[_idx_dc % len(REF_DASHES)]
-                st.session_state["ref_list"].append(new_ref_dc)
-                st.rerun()
+                save_reference(st.session_state["sim_result"])
             if clear_ref_dc:
                 st.session_state["ref_list"] = []
                 st.rerun()
@@ -293,12 +289,7 @@ def main() -> None:
                 )
 
             if save_ref and _can_save:
-                new_ref = dict(st.session_state["sim_result"])
-                _idx    = len(st.session_state["ref_list"])
-                new_ref["color"] = REF_COLORS[_idx % len(REF_COLORS)]
-                new_ref["dash"]  = REF_DASHES[_idx % len(REF_DASHES)]
-                st.session_state["ref_list"].append(new_ref)
-                st.rerun()
+                save_reference(st.session_state["sim_result"])
             if clear_ref:
                 st.session_state["ref_list"] = []
                 st.rerun()
