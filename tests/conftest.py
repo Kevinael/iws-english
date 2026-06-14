@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 conftest.py
 ===========
@@ -12,47 +12,36 @@ Responsibilities:
 
 Relationships:
   Imported by : (pytest — auto-discovered)
-  Imports     : core.machine_model
+  Imports     : core.machine_model, data.machines_mit
 
 Extending:
-  - To add a new reference motor fixture, add a @pytest.fixture function
-    here following the existing pattern.
+  - To add a new reference motor fixture, add an entry to data/machines_mit.py
+    and expose it here following the existing pattern.
 """
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import pytest
 from core.machine_model import MachineParams
+from data.machines_mit import KRAUSE_3HP, KRAUSE_50HP, KRAUSE_2250HP
 
 
 @pytest.fixture
 def mp_3hp():
     """Krause 3 HP — parâmetros de referência do livro."""
-    return MachineParams(
-        Vl=220, f=60, Rs=0.435, Rr=0.816,
-        Xm=26.13, Xls=0.754, Xlr=0.754, Rfe=500,
-        p=4, J=0.089, B=0.005,
-    )
+    return MachineParams(**KRAUSE_3HP)
 
 
 @pytest.fixture
 def mp_50hp():
     """Krause 50 HP."""
-    return MachineParams(
-        Vl=460, f=60, Rs=0.087, Rr=0.228,
-        Xm=13.08, Xls=0.302, Xlr=0.302, Rfe=500,
-        p=4, J=1.662, B=0.0,
-    )
+    return MachineParams(**KRAUSE_50HP)
 
 
 @pytest.fixture
 def mp_2250hp():
     """Krause 2250 HP."""
-    return MachineParams(
-        Vl=2300, f=60, Rs=0.262, Rr=0.187,
-        Xm=13.08, Xls=1.206, Xlr=1.206, Rfe=500,
-        p=4, J=63.87, B=0.05,
-    )
+    return MachineParams(**KRAUSE_2250HP)
 
 
 @pytest.fixture

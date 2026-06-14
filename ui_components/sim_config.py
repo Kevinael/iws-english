@@ -15,7 +15,7 @@ Relationships:
   Imports     : core.IWS_PY, core.desequilibrio_falta, core.param_estimator, ui.theme
 
 Extending:
-  - To add a new preset motor, add an entry to _PRESETS with its MachineParams kwargs.
+  - To add a new preset motor, edit data/machines_mit.py — MIT_PRESETS dict.
 """
 
 from __future__ import annotations
@@ -28,6 +28,7 @@ import numpy as np
 import streamlit as st
 
 from core.IWS_PY import MachineParams
+from data.machines_mit import MIT_PRESETS
 from core.desequilibrio_falta import render_desequilibrio_ui, render_broken_bar_ui
 from core.param_estimator import estimate_params, estimate_params_ieee_tests
 from ui.theme import _palette
@@ -203,55 +204,7 @@ _IEEE_SPLIT_LABELS: dict[str, str] = {
     "custom": "Custom (define Xls/Xk fraction)",
 }
 
-_PRESETS: dict[str, dict[str, Any]] = {
-    "Default — Krause 3 HP (2.2 kW / 12 N·m) 220 V/60 Hz": {
-        # Krause (2002) — induction motor 220 V / 60 Hz / 4 poles / ~3 hp
-        # Rfe = 400 Ω: core losses ≈ 3×(127²/400) ≈ 121 W (~5.5% of rated power)
-        # T_nom = P_nom / ω_r = 2200 / (1746×π/30) ≈ 12 N·m
-        "Vl": 220.0, "f": 60.0, "Rs": 0.435, "Rr": 0.816,
-        "input_mode": "Reactances (Ω)  —  measured at $f_{ref}$",
-        "f_ref": 60.0, "Xm": 26.13, "Xls": 0.754, "Xlr": 0.754, "Rfe": 400.0,
-        "p": 4, "J": 0.089, "B": 0.005,
-        "exp_type": "Direct-On-Line Starting (DOL)",
-        "Tl_final": 12.0,
-    },
-    "Usta (2024) — 0.37 kW (2.4 N·m) 220 V/50 Hz": {
-        # Laboratory motor 220 V / 50 Hz / 4 poles / ~0.37 kW
-        # Rfe = 800 Ω: small motor with lower iron volume — relatively lower losses
-        # T_nom = 370 / (1455×π/30) ≈ 2.4 N·m
-        "Vl": 220.0, "f": 50.0, "Rs": 2.65, "Rr": 2.85,
-        "input_mode": "Reactances (Ω)  —  measured at $f_{ref}$",
-        "f_ref": 50.0, "Xm": 60.98, "Xls": 4.43, "Xlr": 5.69, "Rfe": 800.0,
-        "p": 4, "J": 0.025, "B": 0.001,
-        "exp_type": "Load Pulse (apply and remove)",
-        "Tl_pulso": 0.0, "Tl_pulso_abs": 2.4, "t_pulso_on": 0.6, "t_pulso_off": 0.8,
-        "tmax": 1.0,
-        "Tl_final": 2.4,
-    },
-    "Krause 50 HP (37 kW / 202 N·m) — 460 V/60 Hz": {
-        # Krause (2002) — medium-sized industrial motor, 460 V / 60 Hz / 4 poles / 50 hp
-        # Rfe = 150 Ω: larger core, higher absolute losses but lower Rfe
-        # T_nom = 37000 / (1746×π/30) ≈ 202 N·m
-        "Vl": 460.0, "f": 60.0, "Rs": 0.087, "Rr": 0.228,
-        "input_mode": "Reactances (Ω)  —  measured at $f_{ref}$",
-        "f_ref": 60.0, "Xm": 13.08, "Xls": 0.302, "Xlr": 0.302, "Rfe": 150.0,
-        "p": 4, "J": 1.662, "B": 0.0,
-        "exp_type": "Direct-On-Line Starting (DOL)",
-        "Tl_final": 202.0,
-    },
-    "Krause 2250 HP (1678 kW / 9180 N·m) — 2300 V/60 Hz": {
-        # Krause (2002) — large motor, medium voltage, 2300 V / 60 Hz / 4 poles
-        # Rfe = 80 Ω: large core volume, high excitation current
-        # T_nom = 1678000 / (1746×π/30) ≈ 9180 N·m
-        # t_carga = 8 s: J = 63.87 kg·m² requires ~6–8 s to reach 95% of n_s in DOL
-        "Vl": 2300.0, "f": 60.0, "Rs": 0.029, "Rr": 0.022,
-        "input_mode": "Reactances (Ω)  —  measured at $f_{ref}$",
-        "f_ref": 60.0, "Xm": 13.04, "Xls": 0.226, "Xlr": 0.226, "Rfe": 80.0,
-        "p": 4, "J": 63.87, "B": 0.05,
-        "exp_type": "Direct-On-Line Starting (DOL)",
-        "Tl_final": 9180.0, "t_carga": 8.0,
-    },
-}
+_PRESETS: dict[str, dict[str, Any]] = MIT_PRESETS
 
 # Available machines definition
 MACHINES: list[dict[str, Any]] = [
