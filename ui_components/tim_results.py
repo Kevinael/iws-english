@@ -48,6 +48,7 @@ from core.constants import (
 )
 from viz.plotly_config import MIT_PLOT_CFG as _PLOT_CFG
 from ui_components.chart_notes import emit_mit_note, MITNoteCtx
+from viz.zoom_helpers import ZoomCtx, compute_t_window, apply_zoom, apply_zoom_overlay
 
 
 @st.cache_data(show_spinner=False)
@@ -463,89 +464,26 @@ def _render_tab_dynamic(
     tmax_data = float(res["t"][-1])
     t_ss_idx  = int(res.get("_ss_start", 0))
     t_ss      = float(res["t"][t_ss_idx]) if t_ss_idx < len(res["t"]) else tmax_data
-    t_window  = None
-    if zoom_mode == "Steady State":
-        t_window = (max(0.0, t_ss - max(0.05 * tmax_data, 0.02)), tmax_data)
-    elif zoom_mode == "Starting":
-        _cfg  = exp_config or {}
-        _pad  = 0.1
-        if exp_type == "dol":
-            _ws_mec = 2.0 * np.pi * mp.f / (mp.p / 2.0)
-            _wr     = np.asarray(res["wr"], dtype=float)
-            _above  = np.where(_wr >= 0.95 * _ws_mec)[0]
-            _t_acc  = float(res["t"][int(_above[0])]) if len(_above) > 0 else t_ss
-            _tend   = _t_acc + _pad
-        elif exp_type in ("yd", "comp"):
-            _tc   = float(_cfg.get("t_carga", 0.0))
-            _t2   = float(_cfg.get("t_2", 0.0))
-            _tend = max(_tc, _t2) + _pad
-        elif exp_type == "soft":
-            _tp   = float(_cfg.get("t_pico", 0.0))
-            _tc   = float(_cfg.get("t_carga", 0.0))
-            _tend = max(_tp, _tc) + _pad
-        elif exp_type == "voltage_sag":
-            _ts   = float(_cfg.get("t_start_sag", 0.0))
-            _dur  = float(_cfg.get("t_duration_sag", 0.1))
-            _tend = _ts + _dur + _pad
-        else:
-            _tend = t_ss + _pad
-        t_window = (0.0, min(_tend, tmax_data))
-    elif zoom_mode == "Load Pulse":
-        _dur     = max(_t_pulso_off - _t_pulso_on, 0.1)
-        _pad     = max(0.2 * _dur, 0.1)
-        t_window = (max(0.0, _t_pulso_on - _pad), min(tmax_data, _t_pulso_off + _pad))
 
-    def _y_range(keys):
-        if t_window is None:
-            return {}
-        t_arr = np.asarray(res["t"], dtype=float)
-        mask  = (t_arr >= t_window[0]) & (t_arr <= t_window[1])
-        ranges = {}
-        for key in keys:
-            if key not in res:
-                continue
-            vals = np.asarray(res[key], dtype=float)[mask]
-            if tl_arr is not None and key == "Te":
-                vals = np.concatenate([vals, np.asarray(tl_arr, dtype=float)[mask]])
-            vals = vals[np.isfinite(vals)]
-            if len(vals) == 0:
-                continue
-            ymin, ymax = float(vals.min()), float(vals.max())
-            ymid     = (ymin + ymax) / 2.0
-            min_span = max(abs(ymid) * 0.01, 0.1)
-            if (ymax - ymin) < min_span:
-                ymin, ymax = ymid - min_span / 2, ymid + min_span / 2
-            pad = (ymax - ymin) * 0.12
-            ranges[key] = (ymin - pad, ymax + pad)
-        return ranges
+    _zoom_ctx = ZoomCtx(
+        res         = res,
+        exp_type    = exp_type,
+        exp_config  = exp_config or {},
+        mp_f        = mp.f,
+        mp_p        = mp.p,
+        t_ss        = t_ss,
+        tmax_data   = tmax_data,
+        t_pulso_on  = _t_pulso_on,
+        t_pulso_off = _t_pulso_off,
+        tl_arr      = tl_arr,
+    )
+    t_window = compute_t_window(zoom_mode, _zoom_ctx)
 
     def _apply_zoom(fig, keys):
-        if t_window is None:
-            return fig
-        x0, x1 = t_window
-        fig.update_xaxes(range=[x0, x1], autorange=False)
-        yr = _y_range(keys)
-        if yr:
-            ylo, yhi = next(iter(yr.values()))
-            fig.update_layout(yaxis=dict(range=[ylo, yhi], autorange=False))
-        return fig
+        return apply_zoom(fig, keys, t_window, res, tl_arr)
 
     def _apply_zoom_overlay(fig, keys):
-        if t_window is None:
-            return fig
-        x0, x1 = t_window
-        fig.update_xaxes(range=[x0, x1], autorange=False)
-        yr         = _y_range(keys)
-        right_units = {"n", "wr"}
-        left_keys  = [k for k in keys if k not in right_units]
-        right_keys = [k for k in keys if k in right_units]
-        if left_keys and any(k in yr for k in left_keys):
-            all_v = np.concatenate([np.array(yr[k]) for k in left_keys if k in yr])
-            fig.update_layout(yaxis=dict(range=[float(all_v.min()), float(all_v.max())], autorange=False))
-        if right_keys and any(k in yr for k in right_keys):
-            all_v = np.concatenate([np.array(yr[k]) for k in right_keys if k in yr])
-            fig.update_layout(yaxis2=dict(range=[float(all_v.min()), float(all_v.max())], autorange=False))
-        return fig
+        return apply_zoom_overlay(fig, keys, t_window, res, tl_arr)
 
     # ── contextual notes per variable ──────────────────────────────────
     _cfg = exp_config or {}
