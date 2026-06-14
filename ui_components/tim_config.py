@@ -1548,29 +1548,26 @@ def render_experiment_config(
             )
 
         # checks whether tmax covers all experiment events
-        _critical: list[tuple[str, str, float]] = []
+        _CRITICAL_EVENTS: dict[str, list[tuple[str, str, str]]] = {
+            "yd":         [("Y→D switching",                 r"t_2",       "t_2"),
+                           ("load application",              r"t_{carga}", "t_carga")],
+            "comp":       [("autotransformer switching",     r"t_2",       "t_2"),
+                           ("load application",              r"t_{carga}", "t_carga")],
+            "soft":       [("ramp start",                    r"t_2",       "t_2"),
+                           ("rated voltage reached",         r"t_{pico}",  "t_pico"),
+                           ("load application",              r"t_{carga}", "t_carga")],
+            "pulso_carga":[("load application",              r"t_{on}",    "t_carga"),
+                           ("load removal",                  r"t_{off}",   "t_retirada")],
+            "gerador":    [("prime mover torque application",r"t_2",       "t_2")],
+            "shutdown":   [("load application",              r"t_{carga}", "t_carga"),
+                           ("shutdown",                      r"t_{des}",   "t_cutoff")],
+        }
+        _critical_raw = _CRITICAL_EVENTS.get(_etype, [])
         if _etype == "dol":
             _tc_dol = config.get("t_carga", 0)
-            if _tc_dol > 0:
-                _critical = [("load application", r"t_{carga}", _tc_dol)]
-        elif _etype == "yd":
-            _critical = [("Y→D switching",        r"t_2",       config.get("t_2", 0)),
-                         ("load application",      r"t_{carga}", config.get("t_carga", 0))]
-        elif _etype == "comp":
-            _critical = [("autotransformer switching", r"t_2",       config.get("t_2", 0)),
-                         ("load application",          r"t_{carga}", config.get("t_carga", 0))]
-        elif _etype == "soft":
-            _critical = [("ramp start",            r"t_2",      config.get("t_2", 0)),
-                         ("rated voltage reached",  r"t_{pico}", config.get("t_pico", 0)),
-                         ("load application",       r"t_{carga}", config.get("t_carga", 0))]
-        elif _etype == "pulso_carga":
-            _critical = [("load application", r"t_{on}",  config.get("t_carga", 0)),
-                         ("load removal",      r"t_{off}", config.get("t_retirada", 0))]
-        elif _etype == "gerador":
-            _critical = [("prime mover torque application", r"t_2", config.get("t_2", 0))]
-        elif _etype == "shutdown":
-            _critical = [("load application", r"t_{carga}", config.get("t_carga", 0)),
-                         ("shutdown",          r"t_{des}",   config.get("t_cutoff", 0))]
+            _critical = [("load application", r"t_{carga}", _tc_dol)] if _tc_dol > 0 else []
+        else:
+            _critical = [(lbl, sym, float(config.get(key, 0))) for lbl, sym, key in _critical_raw]
         if not _tmax_auto:
             for _lbl, _sym, _t in _critical:
                 if _t >= tmax:
