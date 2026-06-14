@@ -29,20 +29,15 @@ from scipy.integrate import solve_ivp
 from core.machine_model import MachineParams
 from core.transforms import abc_voltages, clarke_park_transform, _SQRT3_2
 from core.desequilibrio_falta import abc_voltages_deseq
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# CONSTANTS
-# ═══════════════════════════════════════════════════════════════════════════
-
-SS_TOL          = 0.005   # relative wr tolerance to declare steady state (0.5%)
-MIN_SS_CYCLES   = 5       # minimum consecutive electrical cycles in steady state
-NYQUIST_LIMIT   = 0.05    # max h*f — below 20 samples/cycle RMS becomes imprecise
-F_ROTOR_FLOOR   = 0.01    # Hz — f_rotor floor to avoid astronomical LCM at s≈0
-
-RTOL            = 1e-6    # LSODA relative tolerance
-ATOL            = 1e-9    # absolute tolerance — physically meaningful in Wb and rad/s
-MAX_STEP_FACTOR = 20.0    # max_step = 1/(20*f) ensures >=20 samples/cycle for LSODA
+from core.constants import (
+    SOLVER_SS_TOL as SS_TOL,
+    SOLVER_MIN_SS_CYCLES as MIN_SS_CYCLES,
+    SOLVER_NYQUIST_LIMIT as NYQUIST_LIMIT,
+    SOLVER_F_ROTOR_FLOOR as F_ROTOR_FLOOR,
+    SOLVER_RTOL as RTOL,
+    SOLVER_ATOL as ATOL,
+    SOLVER_MAX_STEP_FACTOR as MAX_STEP_FACTOR,
+)
 
 
 # ═══════════════════════════════════════════════════════════════════════════

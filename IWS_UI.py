@@ -28,6 +28,7 @@ from __future__ import annotations
 import streamlit as st
 
 from ui.theme import apply_css, REF_COLORS, REF_DASHES
+from core.constants import DC_SESSION_DEFAULTS
 from ui.clean_view import render_clean_view
 from viz.eqcircuit_plotter import render_circuit as _render_circuit_eqcircuit_plotter
 
@@ -87,16 +88,7 @@ def main() -> None:
         if key not in st.session_state:
             st.session_state[key] = val
 
-    # Defaults DC
-    _DC_DEFAULTS = {
-        "wi_dc_Va": 24.0, "wi_dc_Ra": 0.013, "wi_dc_La": 0.01,
-        "wi_dc_Vf": 12.0, "wi_dc_Rf": 1.43,  "wi_dc_Lf": 0.167,
-        "wi_dc_Rl": 0.0,  "wi_dc_Ll": 0.0,
-        "wi_dc_kb": 0.004, "wi_dc_J": 0.21, "wi_dc_B": 1.074e-6,
-        "wi_dc_Tload": 2.493,
-        "wi_dc_excitation": "sep_motor",
-    }
-    for k, v in _DC_DEFAULTS.items():
+    for k, v in DC_SESSION_DEFAULTS.items():
         if k not in st.session_state:
             st.session_state[k] = v
 

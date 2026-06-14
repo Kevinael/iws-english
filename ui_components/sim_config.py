@@ -28,6 +28,7 @@ import numpy as np
 import streamlit as st
 
 from core.IWS_PY import MachineParams
+from core.constants import MIT_DEFAULTS
 from data.machines_mit import MIT_PRESETS
 from core.desequilibrio_falta import render_desequilibrio_ui, render_broken_bar_ui
 from core.param_estimator import estimate_params, estimate_params_ieee_tests
@@ -179,10 +180,7 @@ _WK: dict[str, str] = {
 # DEFAULTS AND PRESETS
 # ─────────────────────────────────────────────────────────────────────────────
 
-_DEFAULTS: dict[str, float | int] = dict(
-    Vl=220.0, f=60.0, Rs=0.435, Rr=0.816, Xm=26.13,
-    Xls=0.754, Xlr=0.754, Rfe=500.0, p=4, J=0.089, B=0.005,
-)
+_DEFAULTS: dict[str, float | int] = MIT_DEFAULTS
 
 _INPUT_MODE_LABELS: list[str] = [
     "Reactances (Ω)  —  measured at $f_{ref}$",
