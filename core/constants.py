@@ -43,6 +43,46 @@ RELAY_CLASS_10_S         = 10.0   # IEC 60947-4-1 Class 10 upper limit [s]
 RELAY_CLASS_20_S         = 20.0   # IEC 60947-4-1 Class 20 upper limit [s]
 INSULATION_CLASS_F_C     = 155    # IEC 60085 Class F max temperature [°C]
 INSULATION_CLASS_H_C     = 180    # IEC 60085 Class H max temperature [°C]
+INSULATION_CLASS_C_C     = 180    # IEC 60085 Class C min temperature (above H) [°C]
+
+# MIT PROTECTION SIZING (IEC)
+MPCB_THERMAL_LO_RATIO    = 0.80   # IEC 60947-2 MPCB thermal setting lower bound (× In)
+MPCB_THERMAL_HI_RATIO    = 1.00   # IEC 60947-2 MPCB thermal setting upper bound (× In)
+MPCB_ICU_MULTIPLIER      = 1.25   # IEC 60947-2 MPCB breaking capacity (× peak current)
+MPCB_RATIO_CLASS_8       = 8      # IEC 60947-2 peak/In boundary: ≤8 → satisfactory
+MPCB_RATIO_CLASS_12      = 12     # IEC 60947-2 peak/In boundary: ≤12 → warning
+FUSE_MULTIPLIER_MIN      = 2.0    # IEC 60269-1 gG/aM fuse minimum rating (× In)
+FUSE_MULTIPLIER_MAX      = 2.5    # IEC 60269-1 gG/aM fuse maximum rating (× In)
+CONTACTOR_RUPTURE_MULT   = 6.0    # IEC 60947-4-1 AC-3 contactor breaking capacity (× In)
+
+# SPD SIZING (IEC 61643-11)
+SPD_VN_LV                = 230    # line-to-neutral voltage upper boundary for LV SPD [V]
+SPD_UC_LV                = 275    # SPD maximum continuous voltage for Vn ≤ 230 V [V]
+SPD_UP_LV                = 1500   # SPD voltage protection level for Vn ≤ 230 V [V]
+SPD_VN_MV                = 400    # line-to-neutral voltage upper boundary for MV SPD [V]
+SPD_UC_MV                = 420    # SPD maximum continuous voltage for Vn ≤ 400 V [V]
+SPD_UP_MV                = 2500   # SPD voltage protection level for Vn ≤ 400 V [V]
+SPD_UC_HV_MULTIPLIER     = 1.1    # SPD Uc multiplier for Vn > 400 V (Uc = Vn × 1.1)
+SPD_UP_HV                = 4000   # SPD voltage protection level for Vn > 400 V [V]
+
+# POWER QUALITY (IEEE 519 / IEC 61000)
+THD_LIMIT_IEEE519        = 5.0    # IEEE 519 current THD limit [%]
+POWER_FACTOR_MIN         = 0.85   # IEC/IEEE recommended minimum power factor
+
+# ENERGY / ECONOMIC
+HOURS_PER_YEAR           = 8760   # hours per year (24 h × 365 d)
+
+# DC MACHINE PROTECTION & DIAGNOSTIC THRESHOLDS
+DC_OVERCURRENT_WARN_RATIO       = 10.0   # peak/steady-state ratio → warning
+DC_OVERCURRENT_CRIT_RATIO       = 15.0   # peak/steady-state ratio → critical alert
+DC_RELAY_CLASS_10_RATIO         = 6.0    # IEC 60947-4-1: Class 10 boundary (peak/In < 6)
+DC_RELAY_CLASS_20_RATIO         = 8.0    # IEC 60947-4-1: Class 20 boundary (peak/In < 8)
+DC_FUSE_MULTIPLIER              = 2.0    # IEC 60269-1 fuse minimum rating (× rated current)
+DC_BREAKER_LO_MULTIPLIER        = 1.0    # IEC 60947-2 breaker lower range (× rated current)
+DC_BREAKER_HI_MULTIPLIER        = 1.25   # IEC 60947-2 breaker upper range (× rated current)
+DC_ARMATURE_RIPPLE_WARN_PCT     = 5.0    # armature current ripple warning threshold [%]
+DC_FIELD_INSTABILITY_RATIO      = 0.05   # field ripple / steady-state → instability warning
+DC_STEADY_STATE_CONV_THRESHOLD  = 0.01   # speed fraction for steady-state convergence check
 
 
 # ═══════════════════════════════════════════════════════════════════════════

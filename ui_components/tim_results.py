@@ -46,6 +46,21 @@ from core.constants import (
     RELAY_CLASS_20_S,
     INSULATION_CLASS_F_C,
     INSULATION_CLASS_H_C,
+    INSULATION_CLASS_C_C,
+    MPCB_THERMAL_LO_RATIO,
+    MPCB_THERMAL_HI_RATIO,
+    MPCB_ICU_MULTIPLIER,
+    MPCB_RATIO_CLASS_8,
+    MPCB_RATIO_CLASS_12,
+    FUSE_MULTIPLIER_MIN,
+    FUSE_MULTIPLIER_MAX,
+    CONTACTOR_RUPTURE_MULT,
+    SPD_VN_LV, SPD_UC_LV, SPD_UP_LV,
+    SPD_VN_MV, SPD_UC_MV, SPD_UP_MV,
+    SPD_UC_HV_MULTIPLIER, SPD_UP_HV,
+    THD_LIMIT_IEEE519,
+    POWER_FACTOR_MIN,
+    HOURS_PER_YEAR,
 )
 from viz.plotly_config import MIT_PLOT_CFG as _PLOT_CFG
 from ui_components.chart_notes import emit_mit_note, MITNoteCtx
@@ -324,10 +339,10 @@ def _render_tab_overview(
 
                         if _In is not None and _ias_pk is not None:
                             _icp_ratio = _ias_pk / _In if _In > 0 else 0.0
-                            _mpcb_lo  = 0.80 * _In
-                            _mpcb_hi  = 1.00 * _In
-                            _mpcb_icu = _ias_pk * 1.25
-                            _mpcb_fn  = st.success if _icp_ratio <= 8 else (st.warning if _icp_ratio <= 12 else st.error)
+                            _mpcb_lo  = MPCB_THERMAL_LO_RATIO * _In
+                            _mpcb_hi  = MPCB_THERMAL_HI_RATIO * _In
+                            _mpcb_icu = _ias_pk * MPCB_ICU_MULTIPLIER
+                            _mpcb_fn  = st.success if _icp_ratio <= MPCB_RATIO_CLASS_8 else (st.warning if _icp_ratio <= MPCB_RATIO_CLASS_12 else st.error)
                             _mpcb_fn(
                                 f"**Motor Protection Circuit Breaker (MPCB)** — thermal setting: "
                                 f"{_mpcb_lo:.1f}–{_mpcb_hi:.1f} A; "
@@ -336,29 +351,29 @@ def _render_tab_overview(
                             )
 
                         if _In is not None:
-                            _fus_lo = 2.0 * _In
-                            _fus_hi = 2.5 * _In
+                            _fus_lo = FUSE_MULTIPLIER_MIN * _In
+                            _fus_hi = FUSE_MULTIPLIER_MAX * _In
                             st.info(
                                 f"**Protection Fuse (gG/aM)** — "
                                 f"recommended rated current: **{_fus_lo:.0f}–{_fus_hi:.0f} A** "
-                                f"(2.0–2.5 × In = {_In:.1f} A). "
+                                f"({FUSE_MULTIPLIER_MIN:.1f}–{FUSE_MULTIPLIER_MAX:.1f} × In = {_In:.1f} A). "
                                 f"Class aM if coordinated with MPCB. (IEC 60269-1)"
                             )
-                            _cont_rup = 6.0 * _In
+                            _cont_rup = CONTACTOR_RUPTURE_MULT * _In
                             st.info(
                                 f"**AC-3 Contactor** — utilization current: ≥ **{_In:.1f} A**; "
-                                f"breaking capacity: ≥ **{_cont_rup:.0f} A** (6 × In). "
+                                f"breaking capacity: ≥ **{_cont_rup:.0f} A** ({CONTACTOR_RUPTURE_MULT:.0f} × In). "
                                 f"(IEC 60947-4-1, cat. AC-3)"
                             )
 
                         if _Vn is not None:
                             _vn_ll = _Vn
-                            if _vn_ll <= 230:
-                                _uc, _up_max = 275, 1500
-                            elif _vn_ll <= 400:
-                                _uc, _up_max = 420, 2500
+                            if _vn_ll <= SPD_VN_LV:
+                                _uc, _up_max = SPD_UC_LV, SPD_UP_LV
+                            elif _vn_ll <= SPD_VN_MV:
+                                _uc, _up_max = SPD_UC_MV, SPD_UP_MV
                             else:
-                                _uc, _up_max = int(_vn_ll * 1.1), 4000
+                                _uc, _up_max = int(_vn_ll * SPD_UC_HV_MULTIPLIER), SPD_UP_HV
                             st.info(
                                 f"**Class II SPD (Surge)** — Uc ≥ **{_uc} V**; "
                                 f"protection level Up ≤ **{_up_max} V**. "
@@ -376,7 +391,7 @@ def _render_tab_overview(
                             elif _T_max < INSULATION_CLASS_H_C:
                                 _prot_fn, _prot_iso = st.warning, f"H ({INSULATION_CLASS_H_C} °C)"
                             else:
-                                _prot_fn, _prot_iso = st.error, "C (> 180 °C) — review insulation"
+                                _prot_fn, _prot_iso = st.error, f"C (> {INSULATION_CLASS_C_C} °C) — review insulation"
                             _prot_fn(
                                 f"**PTC Thermistor / RTD** — maximum simulated temperature: "
                                 f"**{_T_max:.1f} °C** → recommended insulation class: **{_prot_iso}**. "
@@ -611,7 +626,7 @@ def _render_tab_diagnosis(
                 _qe2.metric("Current THD $i_{{as}}$", f"{_thd:.2f} %")
 
                 _sat_active = float(res.get("_broken_bar_severity", 0.0)) > 0 or getattr(mp, "sat_enable", False)
-                if _thd > 5.0:
+                if _thd > THD_LIMIT_IEEE519:
                     if _sat_active:
                         st.warning(
                             f"High THD ({_thd:.1f}%) — likely contribution from **magnetic saturation**. "
@@ -623,9 +638,9 @@ def _render_tab_diagnosis(
                             f"Check for supply voltage distortion or non-linear load."
                         )
                 else:
-                    st.info("THD within the IEEE 519 recommended limit (< 5%).")
+                    st.info(f"THD within the IEEE 519 recommended limit (< {THD_LIMIT_IEEE519:.0f}%).")
 
-                if _fp < 0.85:
+                if _fp < POWER_FACTOR_MIN:
                     _Te_ss  = float(res.get("Te_ss",  res.get("Te",  [0])[-1]))
                     _T_nom  = float(getattr(mp, "T_nom", 0) or 0)
                     _fator_carga = (_Te_ss / _T_nom) if _T_nom > 0 else None

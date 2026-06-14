@@ -25,6 +25,19 @@ import streamlit as st
 import plotly.graph_objects as go
 
 from core.dc.machine_model import DCMachineParams
+from core.constants import (
+    DC_OVERCURRENT_WARN_RATIO,
+    DC_OVERCURRENT_CRIT_RATIO,
+    DC_RELAY_CLASS_10_RATIO,
+    DC_RELAY_CLASS_20_RATIO,
+    DC_FUSE_MULTIPLIER,
+    DC_BREAKER_LO_MULTIPLIER,
+    DC_BREAKER_HI_MULTIPLIER,
+    DC_ARMATURE_RIPPLE_WARN_PCT,
+    DC_FIELD_INSTABILITY_RATIO,
+    DC_STEADY_STATE_CONV_THRESHOLD,
+    HOURS_PER_YEAR,
+)
 from viz.plotly_config import DC_PLOT_CFG as _PLOT_CFG
 from viz.plotly_charts_dc import (
     build_fig_stacked_dc,
@@ -149,7 +162,7 @@ def _render_dc_tab_overview(
     # ── Health Panel ──────────────────────────────────────────────────
     ia_peak = float(np.max(np.abs(res["ia"])))
     Va_nom  = mp.Va if mp else 24.0
-    overcurrent = ia_peak > 10.0 * abs(ia_ss) if abs(ia_ss) > 1e-6 else False
+    overcurrent = ia_peak > DC_OVERCURRENT_WARN_RATIO * abs(ia_ss) if abs(ia_ss) > 1e-6 else False
 
     if not res.get("success", True):
         st.error("🔴 **Numerical Failure** — integrator did not converge. Reduce $h$ or review parameters.")
@@ -197,9 +210,9 @@ def _render_dc_tab_overview(
 
     with st.expander("Protection Recommendations (IEC)", expanded=False):
         _pk_ratio = ia_peak / max(Ia_nom, 1e-6)
-        _classe_rele = "Class 10" if _pk_ratio < 6 else ("Class 20" if _pk_ratio < 8 else "Class 30")
-        _fusivel    = Ia_nom * 2.0
-        _disjuntor  = f"{Ia_nom:.1f} – {Ia_nom * 1.25:.1f}"
+        _classe_rele = "Class 10" if _pk_ratio < DC_RELAY_CLASS_10_RATIO else ("Class 20" if _pk_ratio < DC_RELAY_CLASS_20_RATIO else "Class 30")
+        _fusivel    = Ia_nom * DC_FUSE_MULTIPLIER
+        _disjuntor  = f"{Ia_nom * DC_BREAKER_LO_MULTIPLIER:.1f} – {Ia_nom * DC_BREAKER_HI_MULTIPLIER:.1f}"
 
         pr1, pr2, pr3 = st.columns(3)
         pr1.metric("Overload Relay",           _classe_rele,
@@ -220,7 +233,7 @@ def _render_dc_tab_overview(
     if energy_tariff > 0 and _P_elec_ss > 1e-3 and not is_gen:
         st.write("")
         _eta_pct   = P_mec_out_nom / max(_P_elec_ss, 1e-9) * 100
-        _custo_ano = _P_elec_ss / 1000 * 8760 * energy_tariff
+        _custo_ano = _P_elec_ss / 1000 * HOURS_PER_YEAR * energy_tariff
         ec1, ec2, ec3 = st.columns(3)
         ec1.metric("Efficiency η (%)",         f"{_eta_pct:.1f}")
         ec2.metric("Annual Cost ($)",           f"{_custo_ano:,.2f}",
@@ -328,12 +341,12 @@ def _render_dc_tab_diagnostics(
     d3.metric("Ripple $\\sigma(i_a)$",       f"{ia_std:.{d}f}")
 
     _ripple_rel = ia_std / max(abs(ia_ss), 1e-6) * 100
-    if _ripple_rel > 5.0:
+    if _ripple_rel > DC_ARMATURE_RIPPLE_WARN_PCT:
         st.warning(f"Relative $i_a$ ripple = {_ripple_rel:.1f}% — check $L_a$ and switching frequency.")
 
     anomalias: list[tuple[str, str, str]] = []
 
-    if ia_max > 15.0 * max(abs(ia_ss), 1e-6):
+    if ia_max > DC_OVERCURRENT_CRIT_RATIO * max(abs(ia_ss), 1e-6):
         anomalias.append(("🔴 Critical", "Extreme overcurrent at starting",
                            f"Peak {ia_max:.1f} A = {ia_max/max(abs(ia_ss),1e-6):.0f}× steady state. "
                            "Use series resistance or reduce $V_a$."))
@@ -345,13 +358,13 @@ def _render_dc_tab_diagnostics(
     if exc not in ("series_motor",):
         ifd_arr = res["ifd"]
         ifd_std = float(np.std(ifd_arr[len(ifd_arr)//2:]))
-        if ifd_std > 0.05 * max(abs(ifd_ss), 1e-6):
+        if ifd_std > DC_FIELD_INSTABILITY_RATIO * max(abs(ifd_ss), 1e-6):
             anomalias.append(("🟡 Warning", "Field instability",
                                f"$\\sigma(i_{{fd}})$ = {ifd_std:.4f} A in steady state. "
                                "Check $R_f$ and $L_f$."))
 
     wm_arr = res["wm"]
-    if len(wm_arr) > 10 and float(np.mean(wm_arr[-10:])) < 0.01 * abs(wm_ss) and abs(wm_ss) > 1:
+    if len(wm_arr) > 10 and float(np.mean(wm_arr[-10:])) < DC_STEADY_STATE_CONV_THRESHOLD * abs(wm_ss) and abs(wm_ss) > 1:
         anomalias.append(("🟡 Warning", "Steady state not reached",
                            f"$\\omega_m$ still in transient at end of simulation. "
                            "Increase $t_{{max}}$."))
@@ -438,7 +451,7 @@ def _render_dc_tab_assets(
                 _E_kWh   = float(np.sum(_P_elec_arr) * _dt / 3600)
                 _custo_exp  = _E_kWh * energy_tariff
                 _tmax_sim   = float(_t_arr[-1])
-                _E_anual    = _E_kWh * (8760 * 3600 / max(_tmax_sim, 1e-6))
+                _E_anual    = _E_kWh * (HOURS_PER_YEAR * 3600 / max(_tmax_sim, 1e-6))
                 _custo_ano  = _E_anual * energy_tariff
 
                 ec1, ec2 = st.columns(2)
