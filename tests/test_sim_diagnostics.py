@@ -2,7 +2,7 @@
 """Testes para core/sim_diagnostics.py — Insight e generate_insights."""
 import numpy as np
 import pytest
-from core.tim_diagnostics import (
+from core.tim.diagnostics import (
     Insight,
     generate_insights,
     _is_steady_state_reached,

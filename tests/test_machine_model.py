@@ -2,7 +2,7 @@
 """Testes de core/machine_model.py — MachineParams e campos derivados."""
 import numpy as np
 import pytest
-from core.tim_machine_model import MachineParams
+from core.tim.machine_model import MachineParams
 
 
 def test_post_init_wb(mp_3hp):

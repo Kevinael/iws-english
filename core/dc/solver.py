@@ -26,7 +26,7 @@ from typing import Callable
 import numpy as np
 from scipy.integrate import solve_ivp
 
-from core.dc_machine_model import DCMachineParams, _make_rhs_dc, decode_shunt_gen
+from core.dc.machine_model import DCMachineParams, _make_rhs_dc, decode_shunt_gen
 
 
 def run_simulation_dc(

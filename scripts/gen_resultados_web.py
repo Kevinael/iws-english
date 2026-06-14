@@ -24,8 +24,8 @@ import matplotlib
 matplotlib.use('Agg')
 matplotlib.rcParams['text.usetex'] = False
 import matplotlib.pyplot as plt
-from core.tim_facade import MachineParams, run_simulation
-from core.tim_sources import build_fns
+from core.tim.facade import MachineParams, run_simulation
+from core.tim.sources import build_fns
 
 from pathlib import Path
 OUT = str(Path(__file__).parent.parent / "overleaf" / "imagens" / "resultados_web.png")

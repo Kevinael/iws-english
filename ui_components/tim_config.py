@@ -28,11 +28,11 @@ from typing import Any
 import numpy as np
 import streamlit as st
 
-from core.tim_facade import MachineParams
+from core.tim.facade import MachineParams
 from core.constants import MIT_DEFAULTS
 from data.machines_mit import MIT_PRESETS
-from core.tim_fault import render_desequilibrio_ui, render_broken_bar_ui
-from core.tim_param_estimator import estimate_params, estimate_params_ieee_tests
+from core.tim.fault import render_desequilibrio_ui, render_broken_bar_ui
+from core.tim.param_estimator import estimate_params, estimate_params_ieee_tests
 from ui.theme import _palette
 from ui_components.tim_runner import calc_tmax_auto
 

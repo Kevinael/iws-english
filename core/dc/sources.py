@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from typing import Callable
 
-from core.dc_machine_model import DCMachineParams
+from core.dc.machine_model import DCMachineParams
 
 
 def make_voltage_fn_dc(

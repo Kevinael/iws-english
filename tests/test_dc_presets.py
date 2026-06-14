@@ -15,9 +15,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import pytest
 
-from core.dc_machine_model import DCMachineParams
-from core.dc_solver import run_simulation_dc
-from core.dc_sources import make_voltage_fn_dc, make_torque_fn_dc
+from core.dc.machine_model import DCMachineParams
+from core.dc.solver import run_simulation_dc
+from core.dc.sources import make_voltage_fn_dc, make_torque_fn_dc
 from data.machines_dc import DC_PRESETS_BY_EXC
 
 

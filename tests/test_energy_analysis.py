@@ -2,7 +2,7 @@
 """Testes para core/energy_analysis.py — compute_energy_metrics."""
 import numpy as np
 import pytest
-from core.tim_energy_analysis import compute_energy_metrics
+from core.tim.energy_analysis import compute_energy_metrics
 
 
 # ── fixtures locais ───────────────────────────────────────────────────────────

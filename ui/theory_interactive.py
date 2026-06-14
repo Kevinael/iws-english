@@ -34,7 +34,7 @@ import matplotlib.pyplot as plt
 
 from viz.tim_charts import _plot_theme
 from viz.tim_eqcircuit import build_figure
-from core.tim_torque_speed import _extract_params, _torque_array, calc_fluxo_potencia
+from core.tim.torque_speed import _extract_params, _torque_array, calc_fluxo_potencia
 
 
 # ─────────────────────────────────────────────────────────────────────────────

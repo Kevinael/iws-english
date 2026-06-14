@@ -22,7 +22,7 @@ Extending:
 from __future__ import annotations
 import io
 import numpy as np
-from core.tim_facade import MachineParams
+from core.tim.facade import MachineParams
 from viz.tim_eqcircuit import build_figure as _build_circuit_figure
 from ui.theme import _palette
 

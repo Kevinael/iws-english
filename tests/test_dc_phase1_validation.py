@@ -30,7 +30,7 @@ pytestmark = pytest.mark.skip(
            "superseded; rewrite against run_simulation_dc to re-enable."
 )
 
-from core.dc_machine_model import DCMachineParams
+from core.dc.machine_model import DCMachineParams
 
 
 def test_sep_motor_dol():

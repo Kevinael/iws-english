@@ -26,7 +26,7 @@ import numpy as np
 import streamlit as st
 import plotly.graph_objects as go
 
-from core.dc_machine_model import DCMachineParams
+from core.dc.machine_model import DCMachineParams
 from viz.plotly_charts_dc import (
     build_fig_stacked_dc,
     build_fig_sidebyside_dc,

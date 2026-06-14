@@ -24,7 +24,7 @@ from typing import Any
 import numpy as np
 import streamlit as st
 
-from core.dc_machine_model import DCMachineParams
+from core.dc.machine_model import DCMachineParams
 from data.machines_dc import DC_PRESETS_BY_EXC, DC_PRESETS_FLAT
 
 
@@ -117,7 +117,7 @@ def render_dc_machine_params(dark: bool, experiment_mode: bool) -> tuple[DCMachi
     ref_code: integer hash for cache invalidation.
     energy_tariff: $/kWh tariff read from Advanced Parameters.
     """
-    from core.dc_estimator import estimate_dc_nameplate, estimate_dc_tests
+    from core.dc.estimator import estimate_dc_nameplate, estimate_dc_tests
 
     st.markdown('<p class="slabel">Machine Parameters</p>', unsafe_allow_html=True)
 

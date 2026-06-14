@@ -28,11 +28,11 @@ from __future__ import annotations
 import warnings
 import numpy as np
 
-from core.tim_machine_model import MachineParams, _make_rhs
-from core.tim_sources import build_fns
+from core.tim.machine_model import MachineParams, _make_rhs
+from core.tim.sources import build_fns
 from core.transforms import clarke_park_transform
-from core.tim_fault import make_broken_bar_rr_fn
-from core.tim_solver import (
+from core.tim.fault import make_broken_bar_rr_fn
+from core.tim.solver import (
     _solve, _voltages_vectorized, _reconstruct_currents, _compute_steady_state,
     SS_TOL, MIN_SS_CYCLES, NYQUIST_LIMIT, F_ROTOR_FLOOR,
     RTOL, ATOL, MAX_STEP_FACTOR,

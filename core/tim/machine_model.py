@@ -27,9 +27,9 @@ import math
 import numpy as np
 from dataclasses import dataclass, field
 
-from core.tim_thermal import estimate_rth_cth
+from core.tim.thermal import estimate_rth_cth
 from core.transforms import abc_voltages, clarke_park_transform
-from core.tim_fault import abc_voltages_deseq
+from core.tim.fault import abc_voltages_deseq
 
 
 # ═══════════════════════════════════════════════════════════════════════════

@@ -23,9 +23,9 @@ from typing import Any
 
 import streamlit as st
 
-from core.dc_machine_model import DCMachineParams
-from core.dc_solver import run_simulation_dc
-from core.dc_sources import make_voltage_fn_dc, make_torque_fn_dc
+from core.dc.machine_model import DCMachineParams
+from core.dc.solver import run_simulation_dc
+from core.dc.sources import make_voltage_fn_dc, make_torque_fn_dc
 
 
 def execute_simulation_flow_dc(

@@ -30,7 +30,7 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from scipy.integrate import solve_ivp
 
-from core.dc_machine_model import DCMachineParams, _make_rhs_dc
+from core.dc.machine_model import DCMachineParams, _make_rhs_dc
 
 OUT_DIR = pathlib.Path(__file__).parent.parent / "overleaf" / "imagens"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
