@@ -1,6 +1,6 @@
 ﻿# -*- coding: utf-8 -*-
 """
-sim_config.py
+tim_config.py
 =============
 Induction-machine selector, parameter inputs, presets, and experiment configuration widgets.
 
@@ -12,7 +12,9 @@ Responsibilities:
 
 Relationships:
   Imported by : IWS_UI
-  Imports     : core.IWS_PY, core.desequilibrio_falta, core.param_estimator, ui.theme
+  Imports     : core.tim.facade, core.tim.fault, core.tim.param_estimator,
+                core.constants, data.machines_mit, ui.theme,
+                ui_components.tim_runner
 
 Extending:
   - To add a new preset motor, edit data/machines_mit.py — MIT_PRESETS dict.

@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-sim_runner.py
+tim_runner.py
 =============
-Orchestrates induction-machine simulation execution — computes automatic time limits, calls core.IWS_PY, and persists results to session_state.
+Orchestrates induction-machine simulation execution — computes automatic time limits, calls core.tim.facade, and persists results to session_state.
 
 Responsibilities:
   - Compute tmax_auto based on experiment type and motor inertia (calc_tmax_auto).
@@ -10,8 +10,8 @@ Responsibilities:
   - Store the result dict in st.session_state["sim_result"] for downstream consumers.
 
 Relationships:
-  Imported by : IWS_UI
-  Imports     : core.IWS_PY
+  Imported by : IWS_UI, ui_components.tim_config
+  Imports     : core.tim.facade
 
 Extending:
   - To change the automatic time limit formula, modify calc_tmax_auto for the relevant experiment key.

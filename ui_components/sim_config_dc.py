@@ -2,7 +2,7 @@
 """
 sim_config_dc.py
 ================
-DC machine selector, parameter inputs, and experiment configuration widgets — mirrors sim_config.py for DCM.
+DC machine selector, parameter inputs, and experiment configuration widgets.
 
 Responsibilities:
   - Render DCM parameter selector by excitation type (render_dc_machine_params).
@@ -11,7 +11,7 @@ Responsibilities:
 
 Relationships:
   Imported by : IWS_UI
-  Imports     : core.dc_machine_model
+  Imports     : core.dc.machine_model, data.machines_dc
 
 Extending:
   - To add a new DCM preset, edit data/machines_dc.py — DC_PRESETS_BY_EXC dict.

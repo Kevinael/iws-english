@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-sim_results.py
+tim_results.py
 ==============
 Renders the four induction-machine result sub-tabs: Overview (KPIs), Dynamic Analysis (waveforms), Diagnostics, and Asset Management.
 
@@ -12,12 +12,13 @@ Responsibilities:
 
 Relationships:
   Imported by : IWS_UI
-  Imports     : core.IWS_PY, core.energy_analysis, core.harmonica_analysis,
-                core.sim_diagnostics, viz.plotly_charts, viz.pdf_academico,
-                viz.pdf_industrial, utils.text_utils, ui.theme
+  Imports     : core.tim.facade, core.tim.energy_analysis, core.tim.harmonic_analysis,
+                core.tim.diagnostics, core.constants, viz.tim_charts, viz.plotly_config,
+                viz.zoom_helpers, viz.pdf_academico, viz.pdf_industrial,
+                utils.text_utils, ui.theme, ui_components.chart_notes
 
 Extending:
-  - To add a new result sub-tab, create a render_<tab>() function and append it to the st.tabs call.
+  - To add a new result sub-tab, create a _render_tab_<name>() function and add it to render_results().
 """
 
 from __future__ import annotations

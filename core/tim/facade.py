@@ -1,26 +1,28 @@
 ﻿# -*- coding: utf-8 -*-
 """
-IWS_PY.py
+facade.py
 =========
 Public facade for the induction-machine simulator — exports MachineParams,
-run_simulation, and build_fns with a backwards-compatible interface.
+run_simulation, and build_fns.
 
 Responsibilities:
-  - Re-export MachineParams from core.machine_model
+  - Re-export MachineParams from core.tim.machine_model
   - Orchestrate run_simulation by calling the solver and post-processing
-  - Expose build_fns from core.sources for experiment construction
+  - Expose build_fns from core.tim.sources for experiment construction
 
 Relationships:
-  Imported by : ui_components.sim_config, ui_components.sim_runner,
-                ui_components.sim_results, viz.pdf_commons, viz.pdf_report_v2,
+  Imported by : ui_components.tim_config, ui_components.tim_runner,
+                ui_components.tim_results, ui_components.chart_notes,
+                viz.pdf_commons, viz.pdf_academico, viz.pdf_industrial,
+                viz.tim_pdf_report, viz.tim_pdf_dashboard,
                 scripts.gen_figures, scripts.gen_resultados_web,
                 scripts.demo_potencias, analysis.compare_dc_ac_dol,
-                tests.conftest, tests.test_physics
-  Imports     : core.machine_model, core.solver, core.sources,
-                core.transforms, core.thermal
+                tests.conftest, tests.test_physics, core.tim.__init__
+  Imports     : core.tim.machine_model, core.tim.solver, core.tim.sources,
+                core.tim.fault, core.transforms
 
 Extending:
-  - Add a new simulation mode in core.sources and core.solver; expose it via
+  - Add a new simulation mode in core.tim.sources and core.tim.solver; expose it via
     run_simulation without breaking the existing public interface.
 """
 
