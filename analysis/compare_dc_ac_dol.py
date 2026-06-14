@@ -30,7 +30,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from core.dc_machine_model import DCMachineParams, DCMachineODEs
 from core.dc_solver import DCSolver
-from core.IWS_PY import MachineParams, run_simulation, build_fns
+from core.mit_facade import MachineParams, run_simulation, build_fns
 from scipy.integrate import odeint
 
 

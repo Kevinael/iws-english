@@ -34,7 +34,7 @@ import matplotlib.pyplot as plt
 
 from viz.plotly_charts import _plot_theme
 from viz.eqcircuit_plotter import build_figure
-from core.curva_tn import _extract_params, _torque_array, calc_fluxo_potencia
+from core.mit_torque_speed import _extract_params, _torque_array, calc_fluxo_potencia
 
 
 # ─────────────────────────────────────────────────────────────────────────────

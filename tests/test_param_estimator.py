@@ -4,7 +4,7 @@ import math
 
 import pytest
 
-from core.param_estimator import estimate_params, estimate_params_ieee_tests
+from core.mit_param_estimator import estimate_params, estimate_params_ieee_tests
 
 
 BASE = dict(Vl=220, f=60, p=4, Pn_kW=2.24, N_nom=1746,

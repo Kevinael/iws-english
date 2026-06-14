@@ -28,11 +28,11 @@ from typing import Any
 import numpy as np
 import streamlit as st
 
-from core.IWS_PY import MachineParams
+from core.mit_facade import MachineParams
 from core.constants import MIT_DEFAULTS
 from data.machines_mit import MIT_PRESETS
-from core.desequilibrio_falta import render_desequilibrio_ui, render_broken_bar_ui
-from core.param_estimator import estimate_params, estimate_params_ieee_tests
+from core.mit_fault import render_desequilibrio_ui, render_broken_bar_ui
+from core.mit_param_estimator import estimate_params, estimate_params_ieee_tests
 from ui.theme import _palette
 from ui_components.sim_runner import calc_tmax_auto
 

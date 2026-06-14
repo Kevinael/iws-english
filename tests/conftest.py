@@ -22,7 +22,7 @@ import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import pytest
-from core.machine_model import MachineParams
+from core.mit_machine_model import MachineParams
 from data.machines_mit import KRAUSE_3HP, KRAUSE_50HP, KRAUSE_2250HP
 
 
@@ -47,7 +47,7 @@ def mp_2250hp():
 @pytest.fixture
 def dol_result(mp_3hp):
     """Simulação DOL completa do 3HP para reuso entre testes."""
-    from core.IWS_PY import run_simulation, build_fns
+    from core.mit_facade import run_simulation, build_fns
     config = {"exp_type": "dol", "Tl_final": 12.0, "t_carga": 1.5}
     vfn, tfn, _ = build_fns(config, mp_3hp)
     return run_simulation(mp_3hp, tmax=3.0, h=1e-4, voltage_fn=vfn, torque_fn=tfn)

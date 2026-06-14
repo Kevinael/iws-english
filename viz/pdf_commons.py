@@ -27,7 +27,7 @@ import os
 from contextlib import contextmanager
 
 import numpy as np
-from core.IWS_PY import MachineParams
+from core.mit_facade import MachineParams
 from viz.eqcircuit_plotter import build_figure as _build_circuit_figure
 from ui.theme import _palette
 

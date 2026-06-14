@@ -2,7 +2,7 @@
 """Testes de core/curva_tn.py — curva T×n e fluxo de potência."""
 import numpy as np
 import pytest
-from core.curva_tn import calc_curva_tn, calc_fluxo_potencia
+from core.mit_torque_speed import calc_curva_tn, calc_fluxo_potencia
 
 
 def test_curva_tn_keys(mp_3hp):

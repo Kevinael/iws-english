@@ -3,7 +3,7 @@
 import numpy as np
 import plotly.graph_objects as go
 import pytest
-from core.harmonica_analysis import build_fig_fft
+from core.mit_harmonic_analysis import build_fig_fft
 
 
 # ── helpers para construir resultado sintético ────────────────────────────────

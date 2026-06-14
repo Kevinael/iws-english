@@ -20,7 +20,7 @@ Extending:
 """
 
 import sys, os; sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from core.IWS_PY import MachineParams, run_simulation, build_fns
+from core.mit_facade import MachineParams, run_simulation, build_fns
 
 mp = MachineParams()
 config = {"exp_type": "dol", "Tl_final": 80.0, "t_carga": 1.5}

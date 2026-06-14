@@ -2,7 +2,7 @@
 """Testes de core/sources.py — fontes de tensão/torque e build_fns."""
 import numpy as np
 import pytest
-from core.sources import (
+from core.mit_sources import (
     voltage_reduced_start, voltage_soft_starter, voltage_sag,
     torque_step, torque_pulse, build_fns,
 )

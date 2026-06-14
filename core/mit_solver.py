@@ -26,9 +26,9 @@ import warnings
 import numpy as np
 from scipy.integrate import solve_ivp
 
-from core.machine_model import MachineParams
+from core.mit_machine_model import MachineParams
 from core.transforms import abc_voltages, clarke_park_transform, _SQRT3_2
-from core.desequilibrio_falta import abc_voltages_deseq
+from core.mit_fault import abc_voltages_deseq
 from core.constants import (
     SOLVER_SS_TOL as SS_TOL,
     SOLVER_MIN_SS_CYCLES as MIN_SS_CYCLES,

@@ -28,15 +28,15 @@ import numpy as np
 import streamlit as st
 import plotly.graph_objects as go
 
-from core.IWS_PY import MachineParams
-from core.energy_analysis import compute_energy_metrics
+from core.mit_facade import MachineParams
+from core.mit_energy_analysis import compute_energy_metrics
 from viz.plotly_charts import (
     build_fig_stacked, build_fig_sidebyside, build_fig_overlay, build_fig_torque_speed,
 )
 from viz.pdf_academico import generate_academico
 from viz.pdf_industrial import generate_industrial
-from core.harmonica_analysis import build_fig_fft
-from core.sim_diagnostics import generate_insights
+from core.mit_harmonic_analysis import build_fig_fft
+from core.mit_diagnostics import generate_insights
 from utils.text_utils import _strip_latex
 from ui.theme import REF_COLORS, REF_DASHES
 

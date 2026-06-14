@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import pytest
 import numpy as np
 
-from core.desequilibrio_falta import abc_voltages_deseq, make_broken_bar_rr_fn
+from core.mit_fault import abc_voltages_deseq, make_broken_bar_rr_fn
 
 
 VL  = 220.0

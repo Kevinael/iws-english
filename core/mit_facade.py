@@ -28,11 +28,11 @@ from __future__ import annotations
 import warnings
 import numpy as np
 
-from core.machine_model import MachineParams, _make_rhs
-from core.sources import build_fns
+from core.mit_machine_model import MachineParams, _make_rhs
+from core.mit_sources import build_fns
 from core.transforms import clarke_park_transform
-from core.desequilibrio_falta import make_broken_bar_rr_fn
-from core.solver import (
+from core.mit_fault import make_broken_bar_rr_fn
+from core.mit_solver import (
     _solve, _voltages_vectorized, _reconstruct_currents, _compute_steady_state,
     SS_TOL, MIN_SS_CYCLES, NYQUIST_LIMIT, F_ROTOR_FLOOR,
     RTOL, ATOL, MAX_STEP_FACTOR,
