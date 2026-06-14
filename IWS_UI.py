@@ -28,7 +28,7 @@ from __future__ import annotations
 import streamlit as st
 
 from ui.theme import apply_css, REF_COLORS, REF_DASHES
-from core.constants import DC_SESSION_DEFAULTS
+from core.constants import DC_SESSION_DEFAULTS, MIT_SESSION_DEFAULTS
 from ui.clean_view import render_clean_view
 from viz.tim_eqcircuit import render_circuit as _render_circuit_eqcircuit_plotter
 
@@ -75,16 +75,7 @@ def _render_circuit(mp, dark: bool) -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def main() -> None:
-    _defaults = {
-        "dark_mode":        False,
-        "experiment_mode":  False,
-        "selected_machine": None,
-        "sim_result":       None,
-        "ref_list":         [],
-        "decimals":         3,
-        "pdf_bytes":        None,
-    }
-    for key, val in _defaults.items():
+    for key, val in MIT_SESSION_DEFAULTS.items():
         if key not in st.session_state:
             st.session_state[key] = val
 

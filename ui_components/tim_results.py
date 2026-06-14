@@ -39,6 +39,13 @@ from core.tim.harmonic_analysis import build_fig_fft
 from core.tim.diagnostics import generate_insights
 from utils.text_utils import _strip_latex
 from ui.theme import REF_COLORS, REF_DASHES
+from core.constants import (
+    STARTING_SPEED_THRESHOLD,
+    RELAY_CLASS_10_S,
+    RELAY_CLASS_20_S,
+    INSULATION_CLASS_F_C,
+    INSULATION_CLASS_H_C,
+)
 
 
 @st.cache_data(show_spinner=False)
@@ -123,7 +130,7 @@ def _kpis_destaque(
         _n_arr  = np.asarray(res.get("n", []), dtype=float)
         _t_arr  = np.asarray(res.get("t", []), dtype=float)
         _n_sync = mp.f / mp.p * 60.0
-        _thresh = 0.95 * _n_sync
+        _thresh = STARTING_SPEED_THRESHOLD * _n_sync
         _above  = np.where(_n_arr >= _thresh)[0]
         if len(_above) > 0:
             _t_acc = float(_t_arr[int(_above[0])])
@@ -300,19 +307,19 @@ def _render_tab_overview(
                     _n_arr    = np.asarray(res["n"], dtype=float)
                     _t_arr    = np.asarray(res["t"], dtype=float)
                     _n_sync   = mp.f / mp.p * 60.0
-                    _thresh_n = 0.95 * _n_sync
+                    _thresh_n = STARTING_SPEED_THRESHOLD * _n_sync
                     _above    = np.where(_n_arr >= _thresh_n)[0]
                     if len(_above) > 0:
                         _t_accel = float(_t_arr[int(_above[0])])
-                        if _t_accel < 10.0:
+                        if _t_accel < RELAY_CLASS_10_S:
                             _trip_class, _trip_fn = 10, st.success
-                            _trip_msg = f"Class 10 — starting in **{_t_accel:.2f} s** (< 10 s)"
-                        elif _t_accel < 20.0:
+                            _trip_msg = f"Class 10 — starting in **{_t_accel:.2f} s** (< {RELAY_CLASS_10_S:.0f} s)"
+                        elif _t_accel < RELAY_CLASS_20_S:
                             _trip_class, _trip_fn = 20, st.warning
-                            _trip_msg = f"Class 20 — starting in **{_t_accel:.2f} s** (10–20 s)"
+                            _trip_msg = f"Class 20 — starting in **{_t_accel:.2f} s** ({RELAY_CLASS_10_S:.0f}–{RELAY_CLASS_20_S:.0f} s)"
                         else:
                             _trip_class, _trip_fn = 30, st.error
-                            _trip_msg = f"Class 30 — starting in **{_t_accel:.2f} s** (> 20 s)"
+                            _trip_msg = f"Class 30 — starting in **{_t_accel:.2f} s** (> {RELAY_CLASS_20_S:.0f} s)"
 
                         st.markdown('<p class="slabel">Protection Recommendations</p>', unsafe_allow_html=True)
                         _trip_fn(
@@ -373,11 +380,10 @@ def _render_tab_overview(
                                 _T_max = float(np.max(res[_k]))
                                 break
                         if _T_max is not None:
-                            _class_F, _class_H = 155, 180
-                            if _T_max < _class_F:
-                                _prot_fn, _prot_iso = st.success, "F (155 °C)"
-                            elif _T_max < _class_H:
-                                _prot_fn, _prot_iso = st.warning, "H (180 °C)"
+                            if _T_max < INSULATION_CLASS_F_C:
+                                _prot_fn, _prot_iso = st.success, f"F ({INSULATION_CLASS_F_C} °C)"
+                            elif _T_max < INSULATION_CLASS_H_C:
+                                _prot_fn, _prot_iso = st.warning, f"H ({INSULATION_CLASS_H_C} °C)"
                             else:
                                 _prot_fn, _prot_iso = st.error, "C (> 180 °C) — review insulation"
                             _prot_fn(

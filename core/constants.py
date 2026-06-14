@@ -35,6 +35,17 @@ SOLVER_MAX_STEP_FACTOR = 20.0    # max_step = 1 / (20·f) → ≥ 20 samples/cyc
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# PROTECTION & THERMAL THRESHOLDS
+# ═══════════════════════════════════════════════════════════════════════════
+
+STARTING_SPEED_THRESHOLD = 0.95   # fraction of synchronous speed (95 %) for starting-time KPI
+RELAY_CLASS_10_S         = 10.0   # IEC 60947-4-1 Class 10 upper limit [s]
+RELAY_CLASS_20_S         = 20.0   # IEC 60947-4-1 Class 20 upper limit [s]
+INSULATION_CLASS_F_C     = 155    # IEC 60085 Class F max temperature [°C]
+INSULATION_CLASS_H_C     = 180    # IEC 60085 Class H max temperature [°C]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # MIT DEFAULT PARAMETERS   (Krause 3 HP — 2.2 kW / 220 V / 60 Hz)
 # ═══════════════════════════════════════════════════════════════════════════
 # Units: Vl [V], f [Hz], resistances [Ω], reactances [Ω] at f,
@@ -47,6 +58,28 @@ MIT_DEFAULTS: dict[str, float | int] = dict(
     Rfe=500.0,
     p=4, J=0.089, B=0.005,
 )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# DC MACHINE DEFAULT SESSION-STATE VALUES
+# ═══════════════════════════════════════════════════════════════════════════
+# Keys match st.session_state widget keys used in sim_config_dc.py.
+# Units: voltages [V], resistances [Ω], inductances [H],
+#        J [kg·m²], B [N·m·s/rad], Tload [N·m]
+
+# ═══════════════════════════════════════════════════════════════════════════
+# MIT SESSION-STATE DEFAULTS
+# ═══════════════════════════════════════════════════════════════════════════
+
+MIT_SESSION_DEFAULTS: dict[str, object] = {
+    "dark_mode":        False,
+    "experiment_mode":  False,
+    "selected_machine": None,
+    "sim_result":       None,
+    "ref_list":         [],
+    "decimals":         3,
+    "pdf_bytes":        None,
+}
 
 
 # ═══════════════════════════════════════════════════════════════════════════
