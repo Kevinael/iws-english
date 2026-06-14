@@ -23,7 +23,7 @@ from __future__ import annotations
 import io
 import numpy as np
 from core.mit_facade import MachineParams
-from viz.eqcircuit_plotter import build_figure as _build_circuit_figure
+from viz.mit_eqcircuit import build_figure as _build_circuit_figure
 from ui.theme import _palette
 
 

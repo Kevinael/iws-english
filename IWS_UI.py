@@ -30,7 +30,7 @@ import streamlit as st
 from ui.theme import apply_css, REF_COLORS, REF_DASHES
 from core.constants import DC_SESSION_DEFAULTS
 from ui.clean_view import render_clean_view
-from viz.eqcircuit_plotter import render_circuit as _render_circuit_eqcircuit_plotter
+from viz.mit_eqcircuit import render_circuit as _render_circuit_eqcircuit_plotter
 
 from ui_components.theory_view import render_theory_tab
 from ui_components.sim_config import (

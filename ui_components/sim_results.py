@@ -30,7 +30,7 @@ import plotly.graph_objects as go
 
 from core.mit_facade import MachineParams
 from core.mit_energy_analysis import compute_energy_metrics
-from viz.plotly_charts import (
+from viz.mit_charts import (
     build_fig_stacked, build_fig_sidebyside, build_fig_overlay, build_fig_torque_speed,
 )
 from viz.pdf_academico import generate_academico

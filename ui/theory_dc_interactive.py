@@ -25,7 +25,7 @@ import numpy as np
 import streamlit as st
 import plotly.graph_objects as go
 
-from viz.plotly_charts import _plot_theme
+from viz.mit_charts import _plot_theme
 
 
 # ─────────────────────────────────────────────────────────────────────────────
