@@ -34,8 +34,8 @@ from ui.clean_view import render_clean_view
 from viz.tim_eqcircuit import render_circuit as _render_circuit_eqcircuit_plotter
 
 from ui_components.theory_view import render_theory_tab
+from data.ui_labels import MACHINES
 from ui_components.tim_config import (
-    MACHINES,
     _WK,
     _PRESETS,
     render_machine_selector,

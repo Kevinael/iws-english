@@ -33,6 +33,7 @@ import streamlit as st
 from core.tim.facade import MachineParams
 from core.constants import MIT_DEFAULTS
 from data.machines_mit import MIT_PRESETS
+from data.ui_labels import MIT_INPUT_MODE_LABELS, MIT_PARAM_SOURCE_LABELS, MIT_IEEE_SPLIT_LABELS, MACHINES
 from data.variable_labels import MIT_VAR_MECANICAS, MIT_VAR_ELETRICAS, MIT_VAR_CATALOG
 from core.tim.fault import render_desequilibrio_ui, render_broken_bar_ui
 from core.tim.param_estimator import estimate_params, estimate_params_ieee_tests
@@ -161,35 +162,7 @@ _WK = _WidgetKeys()
 
 _DEFAULTS: dict[str, float | int] = MIT_DEFAULTS
 
-_INPUT_MODE_LABELS: list[str] = [
-    "Reactances (Ω)  —  measured at $f_{ref}$",
-    "Inductances (H)  —  frequency-independent",
-]
-
-_PARAM_SOURCE_LABELS: list[str] = [
-    "Enter parameters manually",
-    "Estimate from nameplate data",
-    "Determine from IEEE 112 tests",
-]
-
-_IEEE_SPLIT_LABELS: dict[str, str] = {
-    "B":      "Class B — 40% / 60% (NEMA default)",
-    "A":      "Class A — 50% / 50%",
-    "C":      "Class C — 30% / 70%",
-    "D":      "Class D — 50% / 50%",
-    "WR":     "Wound Rotor — 50% / 50%",
-    "custom": "Custom (define Xls/Xk fraction)",
-}
-
 _PRESETS: dict[str, dict[str, Any]] = MIT_PRESETS
-
-# Available machines definition
-MACHINES: list[dict[str, Any]] = [
-    {"key": "tim",  "name": "Three-Phase Induction Motor", "icon": "TIM", "tag": "Available",       "disabled": False},
-    {"key": "dc",   "name": "DC Motor",                    "icon": "DCM", "tag": "Available",       "disabled": False},
-    {"key": "sync", "name": "Synchronous Generator",       "icon": "SG",  "tag": "Under development", "disabled": True},
-    {"key": "tr",   "name": "Transformer",                 "icon": "TR",  "tag": "Under development", "disabled": True},
-]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -675,12 +648,12 @@ Separation uses Table 1 of IEEE 112, according to the **NEMA class** selected be
     _pgroup("$X_{ls}$ / $X_{lr}$ Distribution")
     split_label = st.selectbox(
         "NEMA distribution class",
-        list(_IEEE_SPLIT_LABELS.values()),
+        list(MIT_IEEE_SPLIT_LABELS.values()),
         index=0,
         key=wk.ieee_split, disabled=dis,
         help="IEEE Std 112-2017, Table 1 — fraction of Xk assigned to Xls.",
     )
-    split_code = next(k for k, v in _IEEE_SPLIT_LABELS.items() if v == split_label)
+    split_code = next(k for k, v in MIT_IEEE_SPLIT_LABELS.items() if v == split_label)
     if split_code == "custom":
         Xls_frac = st.slider(
             "Fraction $X_{ls} / X_k$",
@@ -718,7 +691,7 @@ Separation uses Table 1 of IEEE 112, according to the **NEMA class** selected be
             st.markdown(
                 f"**Method:** IEEE Std 112-2017 — three physical tests. "
                 f"**Connection:** {ligacao}. "
-                f"**Distribution:** {_IEEE_SPLIT_LABELS[resultado['split_used']]} "
+                f"**Distribution:** {MIT_IEEE_SPLIT_LABELS[resultado['split_used']]} "
                 f"(fraction $X_{{ls}}/X_k$ = {resultado['Xls_frac']:.2f})."
             )
 
@@ -821,7 +794,7 @@ def _render_params_manual(wk: _WidgetKeys, dis: bool) -> _ElecParams:
 
     input_mode_label = st.radio(
         "Magnetic parameter format",
-        _INPUT_MODE_LABELS,
+        MIT_INPUT_MODE_LABELS,
         index=0,
         key=wk.input_mode,
         disabled=dis,
@@ -972,12 +945,12 @@ def _render_params_editable(wk: _WidgetKeys) -> tuple[MachineParams, int, float]
     _ps_idx = int(st.session_state.get("_param_source_idx", 0))
     param_source_label = st.radio(
         "Motor parameter source",
-        _PARAM_SOURCE_LABELS,
+        MIT_PARAM_SOURCE_LABELS,
         index=_ps_idx,
         disabled=dis,
         horizontal=True,
     )
-    st.session_state["_param_source_idx"] = _PARAM_SOURCE_LABELS.index(param_source_label)
+    st.session_state["_param_source_idx"] = MIT_PARAM_SOURCE_LABELS.index(param_source_label)
     use_placa = param_source_label.startswith("Estimate")
     use_ieee  = param_source_label.startswith("Determine")
     if use_placa:

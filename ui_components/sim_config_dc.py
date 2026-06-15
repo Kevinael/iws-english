@@ -27,6 +27,7 @@ import streamlit as st
 
 from core.dc.machine_model import DCMachineParams
 from data.machines_dc import DC_PRESETS_BY_EXC, DC_PRESETS_FLAT
+from data.ui_labels import DC_PARAM_SOURCE_LABELS
 from data.variable_labels import (
     DC_VAR_MECANICAS,
     DC_VAR_ELETRICAS,
@@ -213,16 +214,11 @@ def render_dc_machine_params(dark: bool, experiment_mode: bool) -> tuple[DCMachi
     st.session_state[_WK_DC.excitation] = exc
 
     # ── Data source: Manual / Nameplate / Tests ───────────────────────────────
-    _PARAM_SOURCE_LABELS_DC = [
-        "Enter parameters manually",
-        "Estimate from nameplate data",
-        "Determine from IEEE 113 tests",
-    ]
-    _wi(_WK_DC.input_mode, _PARAM_SOURCE_LABELS_DC[0])
+    _wi(_WK_DC.input_mode, DC_PARAM_SOURCE_LABELS[0])
     input_mode = st.radio(
-        "Data source", _PARAM_SOURCE_LABELS_DC,
-        index=_PARAM_SOURCE_LABELS_DC.index(
-            st.session_state.get(_WK_DC.input_mode, _PARAM_SOURCE_LABELS_DC[0])
+        "Data source", DC_PARAM_SOURCE_LABELS,
+        index=DC_PARAM_SOURCE_LABELS.index(
+            st.session_state.get(_WK_DC.input_mode, DC_PARAM_SOURCE_LABELS[0])
         ),
         horizontal=True, key=_WK_DC.input_mode,
         disabled=experiment_mode,
