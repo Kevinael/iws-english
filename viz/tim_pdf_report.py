@@ -20,6 +20,7 @@ from __future__ import annotations
 import io
 import numpy as np
 from core.tim.facade import MachineParams
+from core.constants import GEN_EFFICIENCY_FALLBACK
 from viz.tim_eqcircuit import build_figure as _build_circuit_figure
 from ui.theme import _palette
 
@@ -883,7 +884,7 @@ def generate_pdf_report(exp_label: str, mp: MachineParams, res: dict,
                 _wr_ss = float(b_res.get("wr_ss", 0.0))
                 _Te_ss = float(b_res.get("Te_ss", 0.0))
                 _P_mec = abs(_Te_ss) * abs(_wr_ss)
-                _P_ele = float(b_res.get("P_out_ss", _P_mec * 0.9))
+                _P_ele = float(b_res.get("P_out_ss", _P_mec * GEN_EFFICIENCY_FALLBACK))
                 _eta_g = _P_ele / _P_mec * 100 if _P_mec > 1e-3 else 0.0
                 _rows_g = [
                     ("Steady-state speed",           f"{_wr_ss * 60/(2*3.14159):.1f} RPM"),

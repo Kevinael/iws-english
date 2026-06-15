@@ -22,6 +22,7 @@ Extending:
 from __future__ import annotations
 import math
 import numpy as np
+from core.constants import SPEED_RECOVERY_THRESHOLD
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -473,7 +474,7 @@ def _check_voltage_sag(
         # considered recovered if wr returns to > 90% of pre-sag wr_ss
         wr_ss_pre = float(res.get("wr_ss", 0.0))
         if wr_ss_pre > 0:
-            recuperou = float(np.mean(wr_post[-max(1, len(wr_post)//5):])) > 0.9 * wr_ss_pre
+            recuperou = float(np.mean(wr_post[-max(1, len(wr_post)//5):])) > SPEED_RECOVERY_THRESHOLD * wr_ss_pre
 
     # Level: torque drops quadratically with voltage (Te ∝ V²)
     # 20% sag → Te drops ~36%; 50% sag → Te drops ~75%

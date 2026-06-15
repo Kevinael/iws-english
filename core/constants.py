@@ -38,7 +38,9 @@ SOLVER_MAX_STEP_FACTOR = 20.0    # max_step = 1 / (20·f) → ≥ 20 samples/cyc
 # PROTECTION & THERMAL THRESHOLDS
 # ═══════════════════════════════════════════════════════════════════════════
 
-STARTING_SPEED_THRESHOLD = 0.95   # fraction of synchronous speed (95 %) for starting-time KPI
+STARTING_SPEED_THRESHOLD    = 0.95   # fraction of synchronous speed (95 %) for starting-time KPI
+SPEED_RECOVERY_THRESHOLD    = 0.90   # fraction of pre-fault synchronous speed for recovery check
+GEN_EFFICIENCY_FALLBACK     = 0.90   # generator mechanical-to-electrical efficiency when unmeasured
 RELAY_CLASS_10_S         = 10.0   # IEC 60947-4-1 Class 10 upper limit [s]
 RELAY_CLASS_20_S         = 20.0   # IEC 60947-4-1 Class 20 upper limit [s]
 INSULATION_CLASS_F_C     = 155    # IEC 60085 Class F max temperature [°C]
