@@ -20,6 +20,7 @@ Extending:
 
 from __future__ import annotations
 import numpy as np
+from core.constants import J_PER_KWH, HOURS_PER_YEAR
 
 
 def compute_energy_metrics(res: dict, tarifa_brl_kwh: float) -> dict:
@@ -49,9 +50,8 @@ def compute_energy_metrics(res: dict, tarifa_brl_kwh: float) -> dict:
     # factor 3/2: amplitude-invariant convention (P = (3/2)*(Vqs*iqs + Vds*ids))
     P_in_inst   = (3.0 / 2.0) * (Vqs * iqs + Vds * ids)
     # np.trapezoid integrates numerically; NaN replaced by 0 (step with numerical failure)
-    # 3_600_000 = 3.6e6 J/kWh — thousands separator for readability
     E_total_j   = float(np.trapezoid(np.where(np.isfinite(P_in_inst), P_in_inst, 0.0), t))
-    E_total_kwh = E_total_j / 3_600_000.0
+    E_total_kwh = E_total_j / J_PER_KWH
     custo_exp_brl = E_total_kwh * tarifa_brl_kwh
 
     ss_start   = int(res.get("_ss_start", 0))
@@ -61,7 +61,7 @@ def compute_energy_metrics(res: dict, tarifa_brl_kwh: float) -> dict:
 
     # annual cost extrapolated from P_in_ss (steady state), not from E_total (transient)
     # represents continuous operation — relevant scenario for sizing
-    horas_op_ano  = 8_760.0
+    horas_op_ano  = float(HOURS_PER_YEAR)
     E_ano_kwh     = P_in_ss_kw * horas_op_ano
     custo_ano_brl = E_ano_kwh * tarifa_brl_kwh
 

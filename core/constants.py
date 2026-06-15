@@ -99,6 +99,14 @@ POWER_FACTOR_MIN         = 0.85   # IEC/IEEE recommended minimum power factor
 HOURS_PER_YEAR           = 8760   # hours per year (24 h × 365 d)
 W_TO_KW                  = 1000   # conversion factor W → kW
 P_NOM_MIN_KW             = 0.5    # minimum nominal power fallback [kW] — avoids zero-division in T×n KPI
+J_PER_KWH                = 3_600_000.0  # joules per kilowatt-hour
+
+# THERMAL
+THERMAL_DELTA_T_NOMINAL_K = 50.0    # nominal ΔT for well-sized TEFC motors [K]
+THERMAL_TAU_REF_S         = 1500.0  # τ_th reference for P_ref = 2.2 kW [s]
+THERMAL_TAU_P_REF_KW      = 2.2     # reference power for τ scaling [kW]
+THERMAL_TAU_EXPONENT      = 0.25    # τ ∝ P^0.25 sublinear exponent
+THERMAL_MIN_LOSSES_W      = 10.0    # minimum losses guard (avoids zero-division) [W]
 
 # DC MACHINE PROTECTION & DIAGNOSTIC THRESHOLDS
 DC_OVERCURRENT_WARN_RATIO       = 10.0   # peak/steady-state ratio → warning

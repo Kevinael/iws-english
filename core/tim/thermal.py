@@ -47,18 +47,14 @@ Detailed documentation for each implementation decision:
 
 from __future__ import annotations
 import math
-
-
-# Nominal operating ΔT for well-sized TEFC motors
-# (75°C at steady state with T_amb=25°C); 105 K (Class B) is the design limit.
-_DELTA_T_NOMINAL: float = 50.0   # K
-
-# Reference thermal time constant (s) for a 2.2 kW (3 HP) TEFC motor.
-# Calibrated against WEG/ABB/Siemens catalogues: τ_th ≈ 20–25 min for small motors.
-# Scaled by power via _TAU_EXPONENT to reproduce τ growing with motor size.
-_TAU_REF_S: float  = 1500.0   # s  — τ_th for P_ref = 2.2 kW
-_TAU_P_REF: float  =    2.2   # kW — reference power
-_TAU_EXPONENT: float = 0.25   # τ ∝ P^0.25 (sublinear — validated: 37 kW → ~2000 s, 1678 kW → ~3200 s)
+from core.constants import (
+    THERMAL_DELTA_T_NOMINAL_K,
+    THERMAL_TAU_REF_S,
+    THERMAL_TAU_P_REF_KW,
+    THERMAL_TAU_EXPONENT,
+    THERMAL_MIN_LOSSES_W,
+    P_NOM_MIN_KW,
+)
 
 
 def estimate_rth_cth(
@@ -94,18 +90,18 @@ def estimate_rth_cth(
     I_rotor   = I_estator * abs(Z_mag / (Z_rotor + Z_mag))
 
     # max(..., 10.0) and max(..., 0.5): guard against division by zero with extreme parameters
-    P_perdas  = max(3.0 * (Rs * I_estator**2 + Rr * I_rotor**2), 10.0)
+    P_perdas  = max(3.0 * (Rs * I_estator**2 + Rr * I_rotor**2), THERMAL_MIN_LOSSES_W)
     P_mec_kw  = max(
         (3.0 * I_rotor**2 * (Rr / s_nom) * (1.0 - s_nom)) / 1000.0,
-        0.5,
+        P_NOM_MIN_KW,
     )
 
     # Rth calibrated for ΔT=50 K — typical T_ss of a well-sized TEFC motor
-    Rth = _DELTA_T_NOMINAL / P_perdas
+    Rth = THERMAL_DELTA_T_NOMINAL_K / P_perdas
 
     # Cth derived from empirical τ_th (TEFC catalogues): τ = Rth · Cth
     # τ scales sublinearly with power — larger motors have larger τ but smaller Rth
-    tau_th = _TAU_REF_S * (P_mec_kw / _TAU_P_REF) ** _TAU_EXPONENT
+    tau_th = THERMAL_TAU_REF_S * (P_mec_kw / THERMAL_TAU_P_REF_KW) ** THERMAL_TAU_EXPONENT
     Cth = tau_th / Rth
 
     return Rth, Cth
