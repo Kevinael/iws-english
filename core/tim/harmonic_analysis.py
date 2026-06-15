@@ -24,6 +24,12 @@ import plotly.graph_objects as go
 import streamlit as st
 from viz.tim_charts import _plot_theme
 from utils.text_utils import _strip_latex
+from core.constants import (
+    FFT_HARMONIC_MAX_ORDER,
+    FFT_FREQ_CEIL_HZ,
+    FFT_AMPLITUDE_THRESHOLD,
+    FFT_HARMONIC_ORDERS,
+)
 
 
 def _fft_unit_for_key(key: str) -> str:
@@ -83,16 +89,16 @@ def build_fig_fft(res: dict, dark: bool, key: str = "ias", label: str = "ias") -
         A1     = float(yf[f1_idx])
 
     # window: up to the 11th harmonic or 1200 Hz
-    x_max = min(f1 * 11, 1200.0)
+    x_max = min(f1 * FFT_HARMONIC_MAX_ORDER, FFT_FREQ_CEIL_HZ)
     mask  = freq <= x_max
     freq, yf = freq[mask], yf[mask]
     y_max = float(yf.max()) if len(yf) else 1.0
 
     # threshold: only annotate harmonics with amplitude ≥ 1% of the fundamental
-    threshold = A1 * 0.01
+    threshold = A1 * FFT_AMPLITUDE_THRESHOLD
 
     # identifies odd harmonic peaks above threshold
-    harm_orders = [1, 3, 5, 7, 9, 11]
+    harm_orders = list(FFT_HARMONIC_ORDERS)
     labeled: list[tuple[float, float, int]] = []  # (real_freq, amplitude, order)
     for k in harm_orders:
         hf = f1 * k

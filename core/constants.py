@@ -95,6 +95,12 @@ SPD_UP_HV                = 4000   # SPD voltage protection level for Vn > 400 V 
 THD_LIMIT_IEEE519        = 5.0    # IEEE 519 current THD limit [%]
 POWER_FACTOR_MIN         = 0.85   # IEC/IEEE recommended minimum power factor
 
+# FFT / HARMONIC ANALYSIS
+FFT_HARMONIC_MAX_ORDER   = 11           # highest harmonic order plotted
+FFT_FREQ_CEIL_HZ         = 1200.0       # frequency axis upper bound [Hz]
+FFT_AMPLITUDE_THRESHOLD  = 0.01         # minimum amplitude fraction of fundamental for annotation
+FFT_HARMONIC_ORDERS      = (1, 3, 5, 7, 9, 11)  # odd harmonic orders to identify
+
 # ENERGY / ECONOMIC
 HOURS_PER_YEAR           = 8760   # hours per year (24 h × 365 d)
 W_TO_KW                  = 1000   # conversion factor W → kW
