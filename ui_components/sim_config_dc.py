@@ -27,6 +27,12 @@ import streamlit as st
 
 from core.dc.machine_model import DCMachineParams
 from data.machines_dc import DC_PRESETS_BY_EXC, DC_PRESETS_FLAT
+from data.experiment_modes import (
+    DC_MODES_BY_EXC,
+    DC_MODE_LABELS,
+    DC_BRAKE_LABELS,
+    DC_EXC_LABELS,
+)
 from data.ui_labels import DC_PARAM_SOURCE_LABELS
 from data.variable_labels import (
     DC_VAR_MECANICAS,
@@ -44,38 +50,6 @@ from data.variable_labels import (
 
 _PRESETS_BY_EXC: dict[str, dict[str, dict[str, Any]]] = DC_PRESETS_BY_EXC
 _PRESETS_DC: dict[str, dict[str, Any]] = DC_PRESETS_FLAT
-
-# Available operating modes by configuration
-_MODES_BY_EXC: dict[str, list[str]] = {
-    "sep_motor":    ["campo_fraco_dc", "frenagem_dc", "gerador_dc", "resistencia_dc", "dol_dc", "pulso_dc"],
-    "shunt_motor":  ["frenagem_dc", "resistencia_dc", "dol_dc", "pulso_dc"],
-    "series_motor": ["frenagem_dc", "resistencia_dc", "dol_dc", "pulso_dc"],
-    "sep_gen":      ["gerador_dc"],
-    "shunt_gen":    ["gerador_dc"],
-}
-
-_MODE_LABELS: dict[str, str] = {
-    "campo_fraco_dc": "Field Weakening",
-    "frenagem_dc":    "Electric Braking",
-    "gerador_dc":     "Generator — Resistive Load",
-    "resistencia_dc": "Series Resistance Starting",
-    "dol_dc":         "Direct-On-Line Starting (DOL)",
-    "pulso_dc":       "Load Pulse",
-}
-
-_BRAKE_LABELS: dict[str, str] = {
-    "plugging":    "Plugging (Polarity Reversal)",
-    "injecao_cc":  "DC Injection Braking",
-    "regenerativo":"Regenerative Braking",
-}
-
-_EXC_LABELS: dict[str, str] = {
-    "sep_motor":    "Separately Excited — Motor",
-    "shunt_motor":  "Shunt (Parallel) — Motor",
-    "series_motor": "Series — Motor",
-    "sep_gen":      "Separately Excited — Generator",
-    "shunt_gen":    "Shunt (Parallel) — Generator",
-}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -200,8 +174,8 @@ def render_dc_machine_params(dark: bool, experiment_mode: bool) -> tuple[DCMachi
 
     # ── Excitation configuration ──────────────────────────────────────────────
     _wi(_WK_DC.excitation, "sep_motor")
-    exc_options = list(_EXC_LABELS.keys())
-    exc_labels  = [_EXC_LABELS[k] for k in exc_options]
+    exc_options = list(DC_EXC_LABELS.keys())
+    exc_labels  = [DC_EXC_LABELS[k] for k in exc_options]
     exc_stored  = st.session_state.get(_WK_DC.excitation, "sep_motor")
     exc_idx     = exc_options.index(exc_stored) if exc_stored in exc_options else 0
 
@@ -251,7 +225,7 @@ def render_dc_machine_params(dark: bool, experiment_mode: bool) -> tuple[DCMachi
             _Ea_n = Vn_p - est["Ra"] * _In
             st.info(
                 f"**Method:** NEMA heuristic — estimation from nameplate data.  \n"
-                f"**Excitation:** {_EXC_LABELS.get(exc, exc)}  \n"
+                f"**Excitation:** {DC_EXC_LABELS.get(exc, exc)}  \n"
                 f"**Assumptions:** resistive drop ≈ 5–10% of $V_n$; "
                 f"τ_a = L_a/R_a ≈ 0.8 s; τ_f = L_f/R_f ≈ 0.1 s."
             )
@@ -925,8 +899,8 @@ def render_experiment_config_dc(
     st.markdown('<p class="slabel">Experiment</p>', unsafe_allow_html=True)
 
     exc = mp.excitation
-    available_modes = _MODES_BY_EXC.get(exc, ["dol_dc"])
-    mode_labels = [_MODE_LABELS[m] for m in available_modes]
+    available_modes = DC_MODES_BY_EXC.get(exc, ["dol_dc"])
+    mode_labels = [DC_MODE_LABELS[m] for m in available_modes]
 
     mode_sel_label = st.selectbox(
         "Experiment Type", mode_labels, index=0, key="_dc_mode_sel",
@@ -935,7 +909,7 @@ def render_experiment_config_dc(
     mode_sel_label = st.session_state.get("_dc_mode_sel", mode_labels[0])
     mode = available_modes[mode_labels.index(mode_sel_label)] if mode_sel_label in mode_labels else available_modes[0]
 
-    exp_config: dict[str, Any] = {"exp_type": mode, "exp_label": _MODE_LABELS[mode]}
+    exp_config: dict[str, Any] = {"exp_type": mode, "exp_label": DC_MODE_LABELS[mode]}
 
     _pgroup("Load and Voltage Parameters")
 
@@ -996,8 +970,8 @@ def render_experiment_config_dc(
         )
 
     elif mode == "frenagem_dc":
-        brake_labels = list(_BRAKE_LABELS.values())
-        brake_keys   = list(_BRAKE_LABELS.keys())
+        brake_labels = list(DC_BRAKE_LABELS.values())
+        brake_keys   = list(DC_BRAKE_LABELS.keys())
         _wi(_WK_DC.brake_method, brake_labels[0])
         brake_sel = st.selectbox(
             "Braking Method", brake_labels,
@@ -1222,7 +1196,7 @@ def render_experiment_config_dc(
 
     exp_config["_tmax_auto_val"] = _tmax_auto_val
 
-    _ibox(f"<strong>Mode:</strong> {_MODE_LABELS[mode]} &nbsp;|&nbsp; "
-          f"<strong>Excitation:</strong> {_EXC_LABELS.get(exc, exc)}")
+    _ibox(f"<strong>Mode:</strong> {DC_MODE_LABELS[mode]} &nbsp;|&nbsp; "
+          f"<strong>Excitation:</strong> {DC_EXC_LABELS.get(exc, exc)}")
 
     return exp_config, var_keys, var_labels, float(tmax), float(h)

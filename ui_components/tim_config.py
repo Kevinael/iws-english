@@ -32,6 +32,7 @@ import streamlit as st
 
 from core.tim.facade import MachineParams
 from core.constants import MIT_DEFAULTS
+from data.experiment_modes import MIT_EXP_OPTIONS, MIT_CRITICAL_EVENTS
 from data.machines_mit import MIT_PRESETS
 from data.ui_labels import MIT_INPUT_MODE_LABELS, MIT_PARAM_SOURCE_LABELS, MIT_IEEE_SPLIT_LABELS, MACHINES
 from data.variable_labels import MIT_VAR_MECANICAS, MIT_VAR_ELETRICAS, MIT_VAR_CATALOG
@@ -1453,17 +1454,7 @@ def render_experiment_config(
     """
     st.markdown('<p class="slabel">Experiment</p>', unsafe_allow_html=True)
 
-    exp_options: dict[str, str] = {
-        "Voltage Sag":                              "voltage_sag",
-        "Shutdown (Power Cut)":                     "shutdown",
-        "Electric Braking":                         "frenagem",
-        "Generator Operation":                      "gerador",
-        "Autotransformer Starting":                 "comp",
-        "Direct-On-Line Starting (DOL)":            "dol",
-        "Star-Delta Starting (Y-D)":                "yd",
-        "Load Pulse (apply and remove)":            "pulso_carga",
-        "Soft-Starter (Voltage Ramp)":              "soft",
-    }
+    exp_options = MIT_EXP_OPTIONS
 
     exp_label = st.selectbox("Experiment Type", list(exp_options.keys()), key=wk.exp_type)
     exp_type  = exp_options[exp_label]
@@ -1564,21 +1555,7 @@ def render_experiment_config(
             )
 
         # checks whether tmax covers all experiment events
-        _CRITICAL_EVENTS: dict[str, list[tuple[str, str, str]]] = {
-            "yd":         [("Y→D switching",                 r"t_2",       "t_2"),
-                           ("load application",              r"t_{carga}", "t_carga")],
-            "comp":       [("autotransformer switching",     r"t_2",       "t_2"),
-                           ("load application",              r"t_{carga}", "t_carga")],
-            "soft":       [("ramp start",                    r"t_2",       "t_2"),
-                           ("rated voltage reached",         r"t_{pico}",  "t_pico"),
-                           ("load application",              r"t_{carga}", "t_carga")],
-            "pulso_carga":[("load application",              r"t_{on}",    "t_carga"),
-                           ("load removal",                  r"t_{off}",   "t_retirada")],
-            "gerador":    [("prime mover torque application",r"t_2",       "t_2")],
-            "shutdown":   [("load application",              r"t_{carga}", "t_carga"),
-                           ("shutdown",                      r"t_{des}",   "t_cutoff")],
-        }
-        _critical_raw = _CRITICAL_EVENTS.get(_etype, [])
+        _critical_raw = MIT_CRITICAL_EVENTS.get(_etype, [])
         if _etype == "dol":
             _tc_dol = config.get("t_carga", 0)
             _critical = [("load application", r"t_{carga}", _tc_dol)] if _tc_dol > 0 else []
