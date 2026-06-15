@@ -892,87 +892,73 @@ def _render_params_manual(wk: _WidgetKeys, dis: bool) -> _ElecParams:
                        f_ref=f_ref, input_mode=input_mode)
 
 
-def render_machine_params(
-    dark: bool,
-    experiment_mode: bool,
-    wk: _WidgetKeys = _WK,
-) -> tuple[MachineParams, int]:
-    """Left column: all parameter fields. Returns (mp, ref_code).
+def _render_params_locked(wk: _WidgetKeys) -> tuple[MachineParams, int, float]:
+    # Read current values from session_state (filled by presets or prior edits)
+    Vl  = float(st.session_state.get(wk.Vl,  _DEFAULTS["Vl"]))
+    f   = float(st.session_state.get(wk.f,   _DEFAULTS["f"]))
+    Rs  = float(st.session_state.get(wk.Rs,  _DEFAULTS["Rs"]))
+    Rr  = float(st.session_state.get(wk.Rr,  _DEFAULTS["Rr"]))
+    Xm  = float(st.session_state.get(wk.Xm,  _DEFAULTS["Xm"]))
+    Xls = float(st.session_state.get(wk.Xls, _DEFAULTS["Xls"]))
+    Xlr = float(st.session_state.get(wk.Xlr, _DEFAULTS["Xlr"]))
+    Rfe = float(st.session_state.get(wk.Rfe, _DEFAULTS["Rfe"]))
+    p   = int(st.session_state.get(wk.p,     _DEFAULTS["p"]))
+    J   = float(st.session_state.get(wk.J,   _DEFAULTS["J"]))
+    B   = float(st.session_state.get(wk.B,   _DEFAULTS["B"]))
+    Rgrid = float(st.session_state.get(wk.Rgrid, 0.0))
+    Lgrid = float(st.session_state.get(wk.Lgrid, 0.0))
+    energy_tariff = float(st.session_state.get(wk.energy_tariff, 0.75))
 
-    Args:
-        dark: dark theme active.
-        experiment_mode: when True, locks all inputs.
-        wk: widget key mapping (uses _WK singleton by default).
-    """
-    st.markdown('<p class="slabel">Machine Physical Parameters</p>', unsafe_allow_html=True)
+    # Park reference frame — persisted via key added to selectbox
+    ref_label = st.session_state.get(wk.ref_park, "Synchronous  (ω = ωₑ)")
+    ref_code = {"Synchronous  (ω = ωₑ)": 1,
+                "Rotor  (ω = ωᵣ)": 2,
+                "Stationary  (ω = 0)": 3}.get(ref_label, 1)
 
-    # ── Locked mode: replace editable UI with compact summary ─────────
-    if experiment_mode:
-        # Read current values from session_state (filled by presets or prior edits)
-        Vl  = float(st.session_state.get(wk.Vl,  _DEFAULTS["Vl"]))
-        f   = float(st.session_state.get(wk.f,   _DEFAULTS["f"]))
-        Rs  = float(st.session_state.get(wk.Rs,  _DEFAULTS["Rs"]))
-        Rr  = float(st.session_state.get(wk.Rr,  _DEFAULTS["Rr"]))
-        Xm  = float(st.session_state.get(wk.Xm,  _DEFAULTS["Xm"]))
-        Xls = float(st.session_state.get(wk.Xls, _DEFAULTS["Xls"]))
-        Xlr = float(st.session_state.get(wk.Xlr, _DEFAULTS["Xlr"]))
-        Rfe = float(st.session_state.get(wk.Rfe, _DEFAULTS["Rfe"]))
-        p   = int(st.session_state.get(wk.p,     _DEFAULTS["p"]))
-        J   = float(st.session_state.get(wk.J,   _DEFAULTS["J"]))
-        B   = float(st.session_state.get(wk.B,   _DEFAULTS["B"]))
-        Rgrid = float(st.session_state.get(wk.Rgrid, 0.0))
-        Lgrid = float(st.session_state.get(wk.Lgrid, 0.0))
-        energy_tariff = float(st.session_state.get(wk.energy_tariff, 0.75))
+    input_mode = "X"
+    f_ref = float(st.session_state.get(wk.f_ref, f))
 
-        # Park reference frame — persisted via key added to selectbox
-        ref_label = st.session_state.get(wk.ref_park, "Synchronous  (ω = ωₑ)")
-        ref_code = {"Synchronous  (ω = ωₑ)": 1,
-                    "Rotor  (ω = ωᵣ)": 2,
-                    "Stationary  (ω = 0)": 3}.get(ref_label, 1)
+    st.info(
+        "**Parameters locked** — disable the toggle at the top of the page to edit.  "
+        "Experiment variations (load, voltage, fault) will not affect the machine."
+    )
 
-        input_mode = "X"
-        f_ref = float(st.session_state.get(wk.f_ref, f))
+    st.markdown('<p class="slabel">Electrical Parameters</p>', unsafe_allow_html=True)
+    e1, e2, e3, e4 = st.columns(4)
+    e1.metric("Vₗ (V)",   f"{Vl:.1f}")
+    e2.metric("f (Hz)",   f"{f:.1f}")
+    e3.metric("Rₛ (Ω)",   f"{Rs:.4f}")
+    e4.metric("Rᵣ (Ω)",   f"{Rr:.4f}")
 
-        st.info(
-            "**Parameters locked** — disable the toggle at the top of the page to edit.  "
-            "Experiment variations (load, voltage, fault) will not affect the machine."
-        )
+    e5, e6, e7, e8 = st.columns(4)
+    e5.metric("Xₘ (Ω)",   f"{Xm:.3f}")
+    e6.metric("Xₗₛ (Ω)",  f"{Xls:.4f}")
+    e7.metric("Xₗᵣ (Ω)",  f"{Xlr:.4f}")
+    e8.metric("Rfe (Ω)",  f"{Rfe:.1f}")
 
-        st.markdown('<p class="slabel">Electrical Parameters</p>', unsafe_allow_html=True)
-        e1, e2, e3, e4 = st.columns(4)
-        e1.metric("Vₗ (V)",   f"{Vl:.1f}")
-        e2.metric("f (Hz)",   f"{f:.1f}")
-        e3.metric("Rₛ (Ω)",   f"{Rs:.4f}")
-        e4.metric("Rᵣ (Ω)",   f"{Rr:.4f}")
+    st.markdown('<p class="slabel">Mechanical Parameters and Reference Frame</p>', unsafe_allow_html=True)
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("p (poles)",     f"{p}")
+    m2.metric("J (kg·m²)",     f"{J:.4f}")
+    m3.metric("B (N·m·s/rad)", f"{B:.4f}")
+    m4.metric("Reference",     ref_label.split("(")[0].strip())
 
-        e5, e6, e7, e8 = st.columns(4)
-        e5.metric("Xₘ (Ω)",   f"{Xm:.3f}")
-        e6.metric("Xₗₛ (Ω)",  f"{Xls:.4f}")
-        e7.metric("Xₗᵣ (Ω)",  f"{Xlr:.4f}")
-        e8.metric("Rfe (Ω)",  f"{Rfe:.1f}")
+    mp = MachineParams(Vl=Vl, f=f, Rs=Rs, Rr=Rr, Xm=Xm, Xls=Xls, Xlr=Xlr, Rfe=Rfe,
+                       p=p, J=J, B=B,
+                       input_mode=input_mode, f_ref=f_ref,
+                       Rgrid=Rgrid, Lgrid=Lgrid)
+    _validate_params(mp)
 
-        st.markdown('<p class="slabel">Mechanical Parameters and Reference Frame</p>', unsafe_allow_html=True)
-        m1, m2, m3, m4 = st.columns(4)
-        m1.metric("p (poles)",     f"{p}")
-        m2.metric("J (kg·m²)",     f"{J:.4f}")
-        m3.metric("B (N·m·s/rad)", f"{B:.4f}")
-        m4.metric("Reference",     ref_label.split("(")[0].strip())
+    st.write("")
+    mc1, mc2, mc3 = st.columns(3)
+    mc1.metric("Synchronous Speed $n_s$", f"{mp.n_sync:.1f} RPM")
+    mc2.metric("Base Angular Velocity $\\omega_b$", f"{mp.wb/(mp.p/2):.2f} rad/s")
+    mc3.metric("Mutual Reactance $X_{ml}$", f"{mp.Xml:.4f} Ω")
 
-        mp = MachineParams(Vl=Vl, f=f, Rs=Rs, Rr=Rr, Xm=Xm, Xls=Xls, Xlr=Xlr, Rfe=Rfe,
-                           p=p, J=J, B=B,
-                           input_mode=input_mode, f_ref=f_ref,
-                           Rgrid=Rgrid, Lgrid=Lgrid)
-        _validate_params(mp)
+    return mp, ref_code, energy_tariff
 
-        st.write("")
-        mc1, mc2, mc3 = st.columns(3)
-        mc1.metric("Synchronous Speed $n_s$", f"{mp.n_sync:.1f} RPM")
-        mc2.metric("Base Angular Velocity $\\omega_b$", f"{mp.wb/(mp.p/2):.2f} rad/s")
-        mc3.metric("Mutual Reactance $X_{ml}$", f"{mp.Xml:.4f} Ω")
 
-        return mp, ref_code, energy_tariff
-    # ── End of locked mode; editable UI follows below ────────
-
+def _render_params_editable(wk: _WidgetKeys) -> tuple[MachineParams, int, float]:
     # Preset selectbox reset must occur BEFORE instantiating the widget
     if st.session_state.pop("_reset_preset_select", False):
         st.session_state["preset_select"] = "— Select preset —"
@@ -1010,10 +996,7 @@ def render_machine_params(
             st.session_state["_reset_preset_select"] = True
             st.rerun()
 
-    # Note: in locked mode, the early branch at the start of the function already returned.
-    # From here, experiment_mode is always False — we keep `dis` for compatibility
-    # with widgets that still reference `disabled=dis` (all will be False).
-    dis = experiment_mode
+    dis = False
 
     # ── Parameter source selection ────────────────────────────────────
     _ps_idx = int(st.session_state.get("_param_source_idx", 0))
@@ -1148,6 +1131,24 @@ def render_machine_params(
         st.caption(f"Inductances calculated at {f_ref:.0f} Hz → $L_m$ = {mp.Lm*1000:.4f} mH  |  $L_{{ls}}$ = {mp.Lls*1000:.4f} mH  |  $L_{{lr}}$ = {mp.Llr*1000:.4f} mH")
 
     return mp, ref_code, energy_tariff
+
+
+def render_machine_params(
+    dark: bool,
+    experiment_mode: bool,
+    wk: _WidgetKeys = _WK,
+) -> tuple[MachineParams, int]:
+    """Left column: all parameter fields. Returns (mp, ref_code).
+
+    Args:
+        dark: dark theme active.
+        experiment_mode: when True, locks all inputs.
+        wk: widget key mapping (uses _WK singleton by default).
+    """
+    st.markdown('<p class="slabel">Machine Physical Parameters</p>', unsafe_allow_html=True)
+    if experiment_mode:
+        return _render_params_locked(wk)
+    return _render_params_editable(wk)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
