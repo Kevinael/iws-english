@@ -882,10 +882,6 @@ def render_dc_machine_params(dark: bool, experiment_mode: bool) -> tuple[DCMachi
     return mp, ref_code, energy_tariff
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# RENDER — EXPERIMENT (lower col_circuit)
-# ─────────────────────────────────────────────────────────────────────────────
-
 def _tl_sugerido_dc(mp: DCMachineParams) -> float:
     """Estimated rated torque: kb·ia_nominal, where ia_nominal = (Va-kb·wm_nom)/Ra."""
     try:
@@ -896,225 +892,220 @@ def _tl_sugerido_dc(mp: DCMachineParams) -> float:
         return float(abs(mp.Tload)) if mp.Tload else 1.0
 
 
-def render_experiment_config_dc(
-    mp: DCMachineParams,
-    _wk: Any = None,
-) -> tuple[dict[str, Any], list[str], list[str], float, float]:
-    """Renders DC machine mode selector and experiment parameters.
+# ─────────────────────────────────────────────────────────────────────────────
+# EXPERIMENT SUB-RENDERERS (private)
+# ─────────────────────────────────────────────────────────────────────────────
 
-    Returns (exp_config, var_keys, var_labels, tmax, h).
-    """
-    st.markdown('<p class="slabel">Experiment</p>', unsafe_allow_html=True)
-
-    exc = mp.excitation
-    available_modes = DC_MODES_BY_EXC.get(exc, ["dol_dc"])
-    mode_labels = [DC_MODE_LABELS[m] for m in available_modes]
-
-    mode_sel_label = st.selectbox(
-        "Experiment Type", mode_labels, index=0, key="_dc_mode_sel",
-        label_visibility="visible",
+def _render_exp_dc_dol(mp: DCMachineParams, config: dict) -> tuple[float, float]:
+    tmax_def = 12.0
+    h_def    = 1e-3
+    _Tl_ref  = config["_Tl_ref"]
+    partir_em_vazio = st.checkbox(
+        "Start unloaded (apply load after starting)",
+        value=True, key=_WK_DC.dol_vazio,
+        help="When active, the motor starts unloaded and receives torque at t_carga. "
+             "When inactive, the load is present from time zero.",
     )
-    mode_sel_label = st.session_state.get("_dc_mode_sel", mode_labels[0])
-    mode = available_modes[mode_labels.index(mode_sel_label)] if mode_sel_label in mode_labels else available_modes[0]
-
-    exp_config: dict[str, Any] = {"exp_type": mode, "exp_label": DC_MODE_LABELS[mode]}
-
-    _pgroup("Load and Voltage Parameters")
-
-    _Tl_ref = float(st.session_state.get(_WK_DC.Tload, mp.Tload))
-    _tl_sug = _tl_sugerido_dc(mp)
-    st.caption(f"Configured load torque: **{_Tl_ref:.3f} N·m** | τ_a = L_a/R_a = {mp.La/mp.Ra:.4f} s")
-
-    if mode == "dol_dc":
-        tmax_def = 12.0
-        h_def    = 1e-3
-        partir_em_vazio = st.checkbox(
-            "Start unloaded (apply load after starting)",
-            value=True, key=_WK_DC.dol_vazio,
-            help="When active, the motor starts unloaded and receives torque at t_carga. "
-                 "When inactive, the load is present from time zero.",
+    config["partir_em_vazio"] = partir_em_vazio
+    if partir_em_vazio:
+        _wi(_WK_DC.dol_t_carga, 2.0)
+        config["t_carga"] = st.number_input(
+            "Load application instant — $t_{carga}$ (s)",
+            min_value=0.0, key=_WK_DC.dol_t_carga, format="%.2f",
         )
-        exp_config["partir_em_vazio"] = partir_em_vazio
-        if partir_em_vazio:
-            _wi(_WK_DC.dol_t_carga, 2.0)
-            exp_config["t_carga"] = st.number_input(
-                "Load application instant — $t_{carga}$ (s)",
-                min_value=0.0, key=_WK_DC.dol_t_carga, format="%.2f",
-            )
-            exp_config["Tl_inicial"] = 0.0
-            exp_config["Tl_final"]   = _Tl_ref
-            tmax_def = max(exp_config["t_carga"] + 8.0, 12.0)
-            _ibox(
-                f"<strong>t = 0 s</strong> — rated voltage ({mp.Va:.1f} V) applied; "
-                f"motor accelerates unloaded (T<sub>l</sub> = 0).<br>"
-                f"<strong>t = {exp_config['t_carga']:.2f} s</strong> — load of "
-                f"<strong>{_Tl_ref:.3f} N·m</strong> applied to shaft; "
-                f"motor settles to new steady-state operating point."
-            )
-        else:
-            exp_config["Tl_inicial"] = None
-            exp_config["Tl_final"]   = _Tl_ref
-            exp_config["t_carga"]    = 0.0
-            _ibox(
-                f"<strong>t = 0 s</strong> — rated voltage ({mp.Va:.1f} V) and load of "
-                f"<strong>{_Tl_ref:.3f} N·m</strong> applied simultaneously; "
-                f"motor starts against full load and accelerates to steady state."
-            )
-
-    elif mode == "resistencia_dc":
-        c1, c2 = st.columns(2)
-        _wi(_WK_DC.R_ini, 5.0)
-        _wi(_WK_DC.t_ramp, 2.0)
-        exp_config["R_ini"]  = c1.number_input("$R_{ini}$ (Ω)", min_value=0.0, key=_WK_DC.R_ini,  format="%.2f")
-        exp_config["t_ramp"] = c2.number_input("$t_{ramp}$ (s)", min_value=0.1, key=_WK_DC.t_ramp, format="%.2f")
-        exp_config["Tl_final"] = _Tl_ref
-        tmax_def = exp_config["t_ramp"] + 8.0
-        h_def    = 1e-3
+        config["Tl_inicial"] = 0.0
+        config["Tl_final"]   = _Tl_ref
+        tmax_def = max(config["t_carga"] + 8.0, 12.0)
         _ibox(
-            f"<strong>t = 0 s</strong> — motor starts with series resistance of "
-            f"<strong>{exp_config['R_ini']:.2f} Ω</strong> limiting starting current.<br>"
-            f"<strong>t = {exp_config['t_ramp']:.2f} s</strong> — resistance removed (short-circuited); "
-            f"motor accelerates to steady state with load of {_Tl_ref:.3f} N·m."
-        )
-
-    elif mode == "frenagem_dc":
-        brake_labels = list(DC_BRAKE_LABELS.values())
-        brake_keys   = list(DC_BRAKE_LABELS.keys())
-        _wi(_WK_DC.brake_method, brake_labels[0])
-        brake_sel = st.selectbox(
-            "Braking Method", brake_labels,
-            index=brake_labels.index(st.session_state.get(_WK_DC.brake_method, brake_labels[0])),
-            key=_WK_DC.brake_method,
-        )
-        brake = brake_keys[brake_labels.index(brake_sel)]
-        exp_config["brake_method"] = brake
-        exp_config["Tl_final"]     = _Tl_ref
-
-        _BRAKE_DESC_DC = {
-            "plugging":    "Reverses the armature voltage polarity while the motor is still rotating. "
-                           "Produces torque opposing motion — very fast braking, but with high "
-                           "armature current and possible direction reversal if no stopping switch is provided.",
-            "injecao_cc":  "Cuts the operating supply and injects a reduced DC voltage into the armature. "
-                           "The maintained field flux produces braking torque without reversing direction. "
-                           "Smooth and controlled braking — current limited by armature resistance.",
-            "regenerativo":"Reduces armature voltage below the motor back-EMF. Armature current "
-                           "reverses — the motor operates as a generator, returning energy to the source. "
-                           "Gentle braking; effective only for high-inertia or high-speed loads.",
-        }
-        st.info(_BRAKE_DESC_DC[brake])
-
-        if brake == "plugging":
-            _wi(_WK_DC.t_freia, 3.0)
-            exp_config["t_freia"] = st.number_input(
-                "Reversal instant — $t_{brake}$ (s)", min_value=0.1,
-                key=_WK_DC.t_freia, format="%.2f",
-            )
-            tmax_def = exp_config["t_freia"] * 2.5
-            h_def    = 1e-3
-            _ibox(
-                f"<strong>t = 0 s</strong> — motor starts in positive direction with load {_Tl_ref:.3f} N·m.<br>"
-                f"<strong>t = {exp_config['t_freia']:.2f} s</strong> — armature polarity reversed; "
-                f"braking torque opposes motion; rotor decelerates and reverses direction."
-            )
-
-        elif brake == "injecao_cc":
-            c1, c2 = st.columns(2)
-            _wi(_WK_DC.t_freia,   3.0)
-            _wi(_WK_DC.Vdc_inj,   mp.Va * 0.1)
-            exp_config["t_freia"]  = c1.number_input(
-                "Cut-off instant — $t_{brake}$ (s)", min_value=0.1,
-                key=_WK_DC.t_freia, format="%.2f",
-            )
-            exp_config["Vdc_inj"]  = c2.number_input(
-                "Injected DC voltage — $V_{inj}$ (V)", min_value=0.0,
-                key=_WK_DC.Vdc_inj, format="%.2f",
-                help="DC voltage applied to the armature after supply cut. Typically 5–15% of Va.",
-            )
-            tmax_def = exp_config["t_freia"] * 2.5
-            h_def    = 1e-3
-            _ibox(
-                f"<strong>t = 0 s</strong> — motor operates in steady state with load {_Tl_ref:.3f} N·m.<br>"
-                f"<strong>t = {exp_config['t_freia']:.2f} s</strong> — supply cut; "
-                f"DC voltage of <strong>{exp_config['Vdc_inj']:.2f} V</strong> injected into armature; "
-                f"current produces torque opposing motion — controlled braking without reversal."
-            )
-
-        elif brake == "regenerativo":
-            c1, c2 = st.columns(2)
-            _wi(_WK_DC.t_freia,  3.0)
-            _wi(_WK_DC.Va_regen, mp.Va * 0.5)
-            exp_config["t_freia"]   = c1.number_input(
-                "Braking instant — $t_{brake}$ (s)", min_value=0.1,
-                key=_WK_DC.t_freia, format="%.2f",
-            )
-            exp_config["Va_regen"]  = c2.number_input(
-                "Reduced armature voltage — $V_{a,regen}$ (V)", min_value=0.0,
-                key=_WK_DC.Va_regen, format="%.2f",
-                help="Voltage below back-EMF — motor operates as generator returning energy.",
-            )
-            tmax_def = exp_config["t_freia"] * 2.5
-            h_def    = 1e-3
-            _ibox(
-                f"<strong>t = 0 s</strong> — motor operates in steady state with load {_Tl_ref:.3f} N·m.<br>"
-                f"<strong>t = {exp_config['t_freia']:.2f} s</strong> — armature voltage reduced to "
-                f"<strong>{exp_config['Va_regen']:.2f} V</strong> (below back-EMF); "
-                f"current reverses — motor operates as generator, returning energy to source."
-            )
-
-    elif mode == "campo_fraco_dc":
-        c1, c2, c3 = st.columns(3)
-        _wi(_WK_DC.Vf_fraco,  mp.Vf * 0.5 if mp.Vf > 0 else mp.Va * 0.5)
-        _wi(_WK_DC.t_campo,   3.0)
-        _wi(_WK_DC.t_trans,   0.5)
-        exp_config["Vf_fraco"] = c1.number_input("$V_f$ weakened (V)", min_value=0.0,
-                                                   key=_WK_DC.Vf_fraco, format="%.2f")
-        exp_config["t_campo"]  = c2.number_input("$t_{field}$ (s)", min_value=0.1,
-                                                   key=_WK_DC.t_campo, format="%.2f")
-        exp_config["t_trans"]  = c3.number_input("$t_{trans}$ (s)", min_value=0.05,
-                                                   key=_WK_DC.t_trans, format="%.2f")
-        exp_config["Tl_final"] = _Tl_ref
-        tmax_def = exp_config["t_campo"] + 10.0
-        h_def    = 1e-3
-        _ibox(
-            f"<strong>t = 0 s</strong> — motor operates at rated field; load {_Tl_ref:.3f} N·m.<br>"
-            f"<strong>t = {exp_config['t_campo']:.2f} s</strong> — field voltage reduced to "
-            f"<strong>{exp_config['Vf_fraco']:.2f} V</strong> (field weakening); "
-            f"flux drops, speed increases to maintain power — {exp_config['t_trans']:.2f} s transient."
-        )
-
-    elif mode == "pulso_dc":
-        c1, c2 = st.columns(2)
-        _wi(_WK_DC.t_pulso,  4.0)
-        _wi(_WK_DC.Tl_extra, _Tl_ref * 0.5)
-        exp_config["t_pulso"]  = c1.number_input("Pulse instant — $t_{pulse}$ (s)", min_value=0.1, key=_WK_DC.t_pulso,  format="%.2f")
-        exp_config["Tl_extra"] = c2.number_input("Additional $\\Delta T_l$ (N·m)", min_value=0.0, key=_WK_DC.Tl_extra, format="%.3f")
-        exp_config["Tl_final"] = _Tl_ref
-        tmax_def = exp_config["t_pulso"] + 8.0
-        h_def    = 1e-3
-        _ibox(
-            f"<strong>t = 0 s</strong> — motor operates in steady state with load {_Tl_ref:.3f} N·m.<br>"
-            f"<strong>t = {exp_config['t_pulso']:.2f} s</strong> — additional load pulse of "
-            f"<strong>{exp_config['Tl_extra']:.3f} N·m</strong> applied; motor decelerates and settles.<br>"
-            f"<strong>t = {exp_config['t_pulso']*2:.2f} s</strong> — pulse removed; motor recovers steady-state speed."
-        )
-
-    elif mode == "gerador_dc":
-        _wi(_WK_DC.Tl_gen, abs(mp.Tload))
-        exp_config["Tl_gen"] = st.number_input("Prime mover torque — $T_{mec}$ (N·m)", min_value=0.0, key=_WK_DC.Tl_gen, format="%.3f")
-        tmax_def = 15.0
-        h_def    = 1e-3
-        _ibox(
-            f"<strong>t = 0 s</strong> — machine accelerated by prime mover with torque of "
-            f"<strong>{exp_config['Tl_gen']:.3f} N·m</strong>; field excited.<br>"
-            f"<strong>Steady state</strong> — terminal voltage $V_t$ stabilizes; resistive load $R_L$ receives generated power."
+            f"<strong>t = 0 s</strong> — rated voltage ({mp.Va:.1f} V) applied; "
+            f"motor accelerates unloaded (T<sub>l</sub> = 0).<br>"
+            f"<strong>t = {config['t_carga']:.2f} s</strong> — load of "
+            f"<strong>{_Tl_ref:.3f} N·m</strong> applied to shaft; "
+            f"motor settles to new steady-state operating point."
         )
     else:
+        config["Tl_inicial"] = None
+        config["Tl_final"]   = _Tl_ref
+        config["t_carga"]    = 0.0
+        _ibox(
+            f"<strong>t = 0 s</strong> — rated voltage ({mp.Va:.1f} V) and load of "
+            f"<strong>{_Tl_ref:.3f} N·m</strong> applied simultaneously; "
+            f"motor starts against full load and accelerates to steady state."
+        )
+    return tmax_def, h_def
+
+
+def _render_exp_dc_resistencia(mp: DCMachineParams, config: dict) -> tuple[float, float]:
+    _Tl_ref = config["_Tl_ref"]
+    c1, c2  = st.columns(2)
+    _wi(_WK_DC.R_ini, 5.0)
+    _wi(_WK_DC.t_ramp, 2.0)
+    config["R_ini"]    = c1.number_input("$R_{ini}$ (Ω)", min_value=0.0, key=_WK_DC.R_ini,  format="%.2f")
+    config["t_ramp"]   = c2.number_input("$t_{ramp}$ (s)", min_value=0.1, key=_WK_DC.t_ramp, format="%.2f")
+    config["Tl_final"] = _Tl_ref
+    tmax_def = config["t_ramp"] + 8.0
+    h_def    = 1e-3
+    _ibox(
+        f"<strong>t = 0 s</strong> — motor starts with series resistance of "
+        f"<strong>{config['R_ini']:.2f} Ω</strong> limiting starting current.<br>"
+        f"<strong>t = {config['t_ramp']:.2f} s</strong> — resistance removed (short-circuited); "
+        f"motor accelerates to steady state with load of {_Tl_ref:.3f} N·m."
+    )
+    return tmax_def, h_def
+
+
+_BRAKE_DESC_DC: dict[str, str] = {
+    "plugging":    "Reverses the armature voltage polarity while the motor is still rotating. "
+                   "Produces torque opposing motion — very fast braking, but with high "
+                   "armature current and possible direction reversal if no stopping switch is provided.",
+    "injecao_cc":  "Cuts the operating supply and injects a reduced DC voltage into the armature. "
+                   "The maintained field flux produces braking torque without reversing direction. "
+                   "Smooth and controlled braking — current limited by armature resistance.",
+    "regenerativo":"Reduces armature voltage below the motor back-EMF. Armature current "
+                   "reverses — the motor operates as a generator, returning energy to the source. "
+                   "Gentle braking; effective only for high-inertia or high-speed loads.",
+}
+
+
+def _render_exp_dc_frenagem(mp: DCMachineParams, config: dict) -> tuple[float, float]:
+    _Tl_ref      = config["_Tl_ref"]
+    brake_labels = list(DC_BRAKE_LABELS.values())
+    brake_keys   = list(DC_BRAKE_LABELS.keys())
+    _wi(_WK_DC.brake_method, brake_labels[0])
+    brake_sel = st.selectbox(
+        "Braking Method", brake_labels,
+        index=brake_labels.index(st.session_state.get(_WK_DC.brake_method, brake_labels[0])),
+        key=_WK_DC.brake_method,
+    )
+    brake = brake_keys[brake_labels.index(brake_sel)]
+    config["brake_method"] = brake
+    config["Tl_final"]     = _Tl_ref
+    st.info(_BRAKE_DESC_DC[brake])
+
+    if brake == "plugging":
+        _wi(_WK_DC.t_freia, 3.0)
+        config["t_freia"] = st.number_input(
+            "Reversal instant — $t_{brake}$ (s)", min_value=0.1,
+            key=_WK_DC.t_freia, format="%.2f",
+        )
+        tmax_def = config["t_freia"] * 2.5
+        _ibox(
+            f"<strong>t = 0 s</strong> — motor starts in positive direction with load {_Tl_ref:.3f} N·m.<br>"
+            f"<strong>t = {config['t_freia']:.2f} s</strong> — armature polarity reversed; "
+            f"braking torque opposes motion; rotor decelerates and reverses direction."
+        )
+
+    elif brake == "injecao_cc":
+        c1, c2 = st.columns(2)
+        _wi(_WK_DC.t_freia,  3.0)
+        _wi(_WK_DC.Vdc_inj,  mp.Va * 0.1)
+        config["t_freia"] = c1.number_input(
+            "Cut-off instant — $t_{brake}$ (s)", min_value=0.1,
+            key=_WK_DC.t_freia, format="%.2f",
+        )
+        config["Vdc_inj"] = c2.number_input(
+            "Injected DC voltage — $V_{inj}$ (V)", min_value=0.0,
+            key=_WK_DC.Vdc_inj, format="%.2f",
+            help="DC voltage applied to the armature after supply cut. Typically 5–15% of Va.",
+        )
+        tmax_def = config["t_freia"] * 2.5
+        _ibox(
+            f"<strong>t = 0 s</strong> — motor operates in steady state with load {_Tl_ref:.3f} N·m.<br>"
+            f"<strong>t = {config['t_freia']:.2f} s</strong> — supply cut; "
+            f"DC voltage of <strong>{config['Vdc_inj']:.2f} V</strong> injected into armature; "
+            f"current produces torque opposing motion — controlled braking without reversal."
+        )
+
+    elif brake == "regenerativo":
+        c1, c2 = st.columns(2)
+        _wi(_WK_DC.t_freia,  3.0)
+        _wi(_WK_DC.Va_regen, mp.Va * 0.5)
+        config["t_freia"]  = c1.number_input(
+            "Braking instant — $t_{brake}$ (s)", min_value=0.1,
+            key=_WK_DC.t_freia, format="%.2f",
+        )
+        config["Va_regen"] = c2.number_input(
+            "Reduced armature voltage — $V_{a,regen}$ (V)", min_value=0.0,
+            key=_WK_DC.Va_regen, format="%.2f",
+            help="Voltage below back-EMF — motor operates as generator returning energy.",
+        )
+        tmax_def = config["t_freia"] * 2.5
+        _ibox(
+            f"<strong>t = 0 s</strong> — motor operates in steady state with load {_Tl_ref:.3f} N·m.<br>"
+            f"<strong>t = {config['t_freia']:.2f} s</strong> — armature voltage reduced to "
+            f"<strong>{config['Va_regen']:.2f} V</strong> (below back-EMF); "
+            f"current reverses — motor operates as generator, returning energy to source."
+        )
+
+    else:
         tmax_def = 12.0
-        h_def    = 1e-3
 
-    st.markdown('</div>', unsafe_allow_html=True)
+    return tmax_def, 1e-3
 
-    # Variables for visualization — separated into Mechanical / Electrical (same as MIT)
+
+def _render_exp_dc_campo_fraco(mp: DCMachineParams, config: dict) -> tuple[float, float]:
+    _Tl_ref    = config["_Tl_ref"]
+    c1, c2, c3 = st.columns(3)
+    _wi(_WK_DC.Vf_fraco, mp.Vf * 0.5 if mp.Vf > 0 else mp.Va * 0.5)
+    _wi(_WK_DC.t_campo,  3.0)
+    _wi(_WK_DC.t_trans,  0.5)
+    config["Vf_fraco"] = c1.number_input("$V_f$ weakened (V)", min_value=0.0,
+                                          key=_WK_DC.Vf_fraco, format="%.2f")
+    config["t_campo"]  = c2.number_input("$t_{field}$ (s)", min_value=0.1,
+                                          key=_WK_DC.t_campo, format="%.2f")
+    config["t_trans"]  = c3.number_input("$t_{trans}$ (s)", min_value=0.05,
+                                          key=_WK_DC.t_trans, format="%.2f")
+    config["Tl_final"] = _Tl_ref
+    tmax_def = config["t_campo"] + 10.0
+    _ibox(
+        f"<strong>t = 0 s</strong> — motor operates at rated field; load {_Tl_ref:.3f} N·m.<br>"
+        f"<strong>t = {config['t_campo']:.2f} s</strong> — field voltage reduced to "
+        f"<strong>{config['Vf_fraco']:.2f} V</strong> (field weakening); "
+        f"flux drops, speed increases to maintain power — {config['t_trans']:.2f} s transient."
+    )
+    return tmax_def, 1e-3
+
+
+def _render_exp_dc_pulso(mp: DCMachineParams, config: dict) -> tuple[float, float]:
+    _Tl_ref = config["_Tl_ref"]
+    c1, c2  = st.columns(2)
+    _wi(_WK_DC.t_pulso,  4.0)
+    _wi(_WK_DC.Tl_extra, _Tl_ref * 0.5)
+    config["t_pulso"]  = c1.number_input("Pulse instant — $t_{pulse}$ (s)", min_value=0.1, key=_WK_DC.t_pulso,  format="%.2f")
+    config["Tl_extra"] = c2.number_input("Additional $\\Delta T_l$ (N·m)", min_value=0.0, key=_WK_DC.Tl_extra, format="%.3f")
+    config["Tl_final"] = _Tl_ref
+    tmax_def = config["t_pulso"] + 8.0
+    _ibox(
+        f"<strong>t = 0 s</strong> — motor operates in steady state with load {_Tl_ref:.3f} N·m.<br>"
+        f"<strong>t = {config['t_pulso']:.2f} s</strong> — additional load pulse of "
+        f"<strong>{config['Tl_extra']:.3f} N·m</strong> applied; motor decelerates and settles.<br>"
+        f"<strong>t = {config['t_pulso']*2:.2f} s</strong> — pulse removed; motor recovers steady-state speed."
+    )
+    return tmax_def, 1e-3
+
+
+def _render_exp_dc_gerador(mp: DCMachineParams, config: dict) -> tuple[float, float]:
+    _wi(_WK_DC.Tl_gen, abs(mp.Tload))
+    config["Tl_gen"] = st.number_input("Prime mover torque — $T_{mec}$ (N·m)", min_value=0.0, key=_WK_DC.Tl_gen, format="%.3f")
+    _ibox(
+        f"<strong>t = 0 s</strong> — machine accelerated by prime mover with torque of "
+        f"<strong>{config['Tl_gen']:.3f} N·m</strong>; field excited.<br>"
+        f"<strong>Steady state</strong> — terminal voltage $V_t$ stabilizes; resistive load $R_L$ receives generated power."
+    )
+    return 15.0, 1e-3
+
+
+_EXP_RENDERERS_DC: dict[str, Any] = {
+    "dol_dc":          _render_exp_dc_dol,
+    "resistencia_dc":  _render_exp_dc_resistencia,
+    "frenagem_dc":     _render_exp_dc_frenagem,
+    "campo_fraco_dc":  _render_exp_dc_campo_fraco,
+    "pulso_dc":        _render_exp_dc_pulso,
+    "gerador_dc":      _render_exp_dc_gerador,
+}
+
+
+def _render_dc_var_selectors(config: dict) -> tuple[list[str], list[str]]:
     st.write("")
     st.markdown('<p class="slabel">Variables for Visualization</p>', unsafe_allow_html=True)
     _pgroup("Mechanical Quantities")
@@ -1141,13 +1132,17 @@ def render_experiment_config_dc(
     if not var_keys:
         var_keys   = DC_DEFAULT_VARS
         var_labels = [k for k, v in DC_VAR_OPTIONS.items() if v in DC_DEFAULT_VARS]
+    return var_keys, var_labels
 
-    # Simulation numerical parameters
+
+def _render_dc_numerical_params(
+    config: dict, mode: str, mp: DCMachineParams, tmax_def: float, h_def: float
+) -> tuple[float, float]:
     st.write("")
     st.markdown('<p class="slabel">Simulation Numerical Parameters</p>', unsafe_allow_html=True)
     _pgroup("Total Time and Integration Step")
 
-    _t_acomo = float(min(max(15.0 * mp.J, 2.0), 30.0))
+    _t_acomo       = float(min(max(15.0 * mp.J, 2.0), 30.0))
     _tmax_auto_val = round(tmax_def + _t_acomo, 1)
 
     tc1, tc2 = st.columns(2)
@@ -1173,20 +1168,19 @@ def render_experiment_config_dc(
         if n_steps > 500_000:
             st.warning("High number of steps. The simulation may take several seconds.")
 
-        # Validation: critical event not covered by tmax
         if not _tmax_auto:
-            _tmax_check = tmax
+            _tmax_check   = tmax
             _critical_dc: list[tuple[str, str, float]] = []
-            if mode == "dol_dc" and exp_config.get("partir_em_vazio"):
-                _critical_dc = [("load application", "t_{carga}", exp_config.get("t_carga", 0))]
+            if mode == "dol_dc" and config.get("partir_em_vazio"):
+                _critical_dc = [("load application", "t_{carga}", config.get("t_carga", 0))]
             elif mode == "resistencia_dc":
-                _critical_dc = [("resistance removal", "t_{ramp}", exp_config.get("t_ramp", 0))]
+                _critical_dc = [("resistance removal", "t_{ramp}", config.get("t_ramp", 0))]
             elif mode == "frenagem_dc":
-                _critical_dc = [("braking", "t_{brake}", exp_config.get("t_freia", 0))]
+                _critical_dc = [("braking", "t_{brake}", config.get("t_freia", 0))]
             elif mode == "campo_fraco_dc":
-                _critical_dc = [("field weakening", "t_{field}", exp_config.get("t_campo", 0))]
+                _critical_dc = [("field weakening", "t_{field}", config.get("t_campo", 0))]
             elif mode == "pulso_dc":
-                _critical_dc = [("load pulse", "t_{pulse}", exp_config.get("t_pulso", 0))]
+                _critical_dc = [("load pulse", "t_{pulse}", config.get("t_pulso", 0))]
             for _lbl, _sym, _t in _critical_dc:
                 if _t >= _tmax_check:
                     st.warning(
@@ -1202,9 +1196,54 @@ def render_experiment_config_dc(
             "where τ<sub>a</sub> = L<sub>a</sub>/R<sub>a</sub> is the armature electrical time constant."
         )
 
-    exp_config["_tmax_auto_val"] = _tmax_auto_val
+    config["_tmax_auto_val"] = _tmax_auto_val
+    return float(tmax), float(h)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# RENDER — EXPERIMENT (lower col_circuit) — public orchestrator
+# ─────────────────────────────────────────────────────────────────────────────
+
+def render_experiment_config_dc(
+    mp: DCMachineParams,
+    _wk: Any = None,
+) -> tuple[dict[str, Any], list[str], list[str], float, float]:
+    """Renders DC machine mode selector and experiment parameters.
+
+    Returns (exp_config, var_keys, var_labels, tmax, h).
+    """
+    st.markdown('<p class="slabel">Experiment</p>', unsafe_allow_html=True)
+
+    exc            = mp.excitation
+    available_modes = DC_MODES_BY_EXC.get(exc, ["dol_dc"])
+    mode_labels    = [DC_MODE_LABELS[m] for m in available_modes]
+
+    mode_sel_label = st.selectbox(
+        "Experiment Type", mode_labels, index=0, key="_dc_mode_sel",
+        label_visibility="visible",
+    )
+    mode_sel_label = st.session_state.get("_dc_mode_sel", mode_labels[0])
+    mode = available_modes[mode_labels.index(mode_sel_label)] if mode_sel_label in mode_labels else available_modes[0]
+
+    exp_config: dict[str, Any] = {"exp_type": mode, "exp_label": DC_MODE_LABELS[mode]}
+
+    _pgroup("Load and Voltage Parameters")
+    _Tl_ref = float(st.session_state.get(_WK_DC.Tload, mp.Tload))
+    exp_config["_Tl_ref"] = _Tl_ref
+    st.caption(f"Configured load torque: **{_Tl_ref:.3f} N·m** | τ_a = L_a/R_a = {mp.La/mp.Ra:.4f} s")
+
+    renderer = _EXP_RENDERERS_DC.get(mode)
+    if renderer is not None:
+        tmax_def, h_def = renderer(mp, exp_config)
+    else:
+        tmax_def, h_def = 12.0, 1e-3
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    var_keys, var_labels = _render_dc_var_selectors(exp_config)
+    tmax, h = _render_dc_numerical_params(exp_config, mode, mp, tmax_def, h_def)
 
     _ibox(f"<strong>Mode:</strong> {DC_MODE_LABELS[mode]} &nbsp;|&nbsp; "
           f"<strong>Excitation:</strong> {DC_EXC_LABELS.get(exc, exc)}")
 
-    return exp_config, var_keys, var_labels, float(tmax), float(h)
+    return exp_config, var_keys, var_labels, tmax, h
