@@ -424,15 +424,15 @@ def _render_params_nameplate(wk: _WidgetKeys, dis: bool) -> _ElecParams:
                        f_ref=f, input_mode="X")
 
 
-def _render_params_ieee(wk: _WidgetKeys, dis: bool) -> _ElecParams:
-    """IEEE 112 MODE — three physical tests (DC + No-Load + Locked Rotor)."""
+def _render_ieee_grid_inputs(wk: _WidgetKeys, dis: bool) -> tuple[float, float, bool]:
+    """Grid Data block: Vl, f, is_delta."""
     _pgroup("Grid Data")
     Vl = st.number_input(
         "Line RMS voltage — $V_l$ (V)",
         min_value=50.0, max_value=15000.0, value=_DEFAULTS["Vl"], step=1.0,
         key=wk.Vl, disabled=dis,
     )
-    f  = st.number_input(
+    f = st.number_input(
         "Grid frequency — $f$ (Hz)",
         min_value=1.0, max_value=400.0, value=_DEFAULTS["f"], step=1.0,
         key=wk.f, disabled=dis,
@@ -443,8 +443,11 @@ def _render_params_ieee(wk: _WidgetKeys, dis: bool) -> _ElecParams:
         help="Defines the DC test factor: Y → Rs = (V_dc/I_dc)/2; Δ → Rs = (V_dc/I_dc)·1.5.",
     )
     st.markdown('</div>', unsafe_allow_html=True)
+    return Vl, f, is_delta
 
-    # ── Didactic guide for the three tests (collapsed by default) ───────────
+
+def _render_ieee_guide(_wk: _WidgetKeys) -> None:
+    """Didactic guide expander for the three IEEE 112 tests."""
     with st.expander("How to perform the IEEE 112 tests (procedure, formulas, and tips)", expanded=False):
         st.markdown("""
 **Overview.** The IEEE Std 112-2017 (Cl. 6) method determines the T-equivalent circuit
@@ -564,6 +567,11 @@ Separation uses Table 1 of IEEE 112, according to the **NEMA class** selected be
 - Fitzgerald/Umans — *Electric Machinery*, 7th ed., §6.5 ("Tests to Determine Equivalent Circuit Parameters").
         """)
 
+
+def _render_ieee_test_inputs(
+    wk: _WidgetKeys, dis: bool, Vl: float, f: float, is_delta: bool,
+) -> tuple[float, float, float, float, float, float, float, float, float, float, str, float]:
+    """Three test input sections + Xls/Xlr distribution. Returns all test values."""
     _pgroup("[1] DC Test — Stator Resistance")
     c_dc1, c_dc2 = st.columns(2)
     V_dc = c_dc1.number_input(
@@ -665,6 +673,95 @@ Separation uses Table 1 of IEEE 112, according to the **NEMA class** selected be
         Xls_frac = 0.4
     st.markdown('</div>', unsafe_allow_html=True)
 
+    return V_dc, I_dc, Vl_nl, I_nl, P_nl, f_nl, Pfw, Vl_lr, I_lr, P_lr, f_lr, split_code, Xls_frac
+
+
+def _render_ieee_results(
+    resultado: dict,
+    f_nl: float, f_lr: float,
+    V_dc: float, I_dc: float,
+    Pfw: float,
+    Rs: float, Rr: float, Xm: float, Xls: float, Xlr: float, Rfe: float,
+    is_delta: bool,
+) -> None:
+    """Calculation Details expander + sanity warnings (only called on success)."""
+    ligacao = "Delta (Δ)" if is_delta else "Star (Y)"
+    with st.expander("Calculation Details (IEEE Std 112-2017)", expanded=True):
+        st.markdown(
+            f"**Method:** IEEE Std 112-2017 — three physical tests. "
+            f"**Connection:** {ligacao}. "
+            f"**Distribution:** {MIT_IEEE_SPLIT_LABELS[resultado['split_used']]} "
+            f"(fraction $X_{{ls}}/X_k$ = {resultado['Xls_frac']:.2f})."
+        )
+
+        st.markdown("##### Physical tests")
+        t1, t2, t3 = st.columns(3)
+        with t1:
+            st.markdown("**DC Test**")
+            st.markdown(f"$R_s$ = **{Rs:.4f} Ω**")
+            st.caption(f"via $V_{{dc}}/I_{{dc}}$ = {(V_dc/I_dc):.4f} Ω")
+        with t2:
+            st.markdown("**No-Load Test**")
+            st.markdown(
+                f"$E_{{1,NL}}$ = **{resultado['E1_nl']:.2f} V**  \n"
+                f"$P_{{fe,3φ}}$ = **{resultado['Pfe_3ph']:.2f} W**  \n"
+                f"$P_{{fw}}$ = **{resultado['Pfw_used']:.2f} W**"
+            )
+            st.caption(
+                "Pfw measured" if Pfw > 0
+                else "Pfw via heuristic (0.8% · P_NL)"
+            )
+        with t3:
+            st.markdown("**Locked Rotor Test**")
+            st.markdown(
+                f"$Z_k$ = **{resultado['Zk']:.4f} Ω**  \n"
+                f"$R_k$ = **{resultado['Rk']:.4f} Ω**  \n"
+                f"$X_k$ @ {f_nl:.0f} Hz = **{resultado['Xk']:.4f} Ω**"
+            )
+            st.caption(
+                f"$X_{{k,LR}}$ = {resultado['Xk_lr']:.4f} Ω · "
+                f"correction $f_{{NL}}/f_{{LR}}$ = {(f_nl/f_lr):.2f}"
+            )
+
+        st.divider()
+
+        st.markdown("##### Intermediate indicators")
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("E₁ (no-load)",          f"{resultado['E1_nl']:.2f} V")
+        c2.metric("Iμ magnetizing current", f"{resultado['I_mu']:.3f} A")
+        c3.metric("Pfe three-phase",        f"{resultado['Pfe_3ph']:.1f} W")
+        c4.metric("Pfw used",               f"{resultado['Pfw_used']:.1f} W")
+
+        st.markdown("##### Estimated parameters (equivalent circuit)")
+        r1 = st.columns(3)
+        r1[0].metric("Rₛ",  f"{Rs:.4f} Ω")
+        r1[1].metric("Rᵣ",  f"{Rr:.4f} Ω")
+        r1[2].metric("Xₘ",  f"{Xm:.4f} Ω")
+        r2 = st.columns(3)
+        r2[0].metric("Xₗₛ", f"{Xls:.4f} Ω")
+        r2[1].metric("Xₗᵣ", f"{Xlr:.4f} Ω")
+        r2[2].metric("Rfe", f"{Rfe:.1f} Ω")
+
+    if Xm < 5.0 * Xls:
+        st.warning(
+            f"$X_m / X_{{ls}}$ = {Xm/Xls:.2f} < 5 — atypical ratio. "
+            "Check the no-load test data."
+        )
+    if Rfe < 50.0:
+        st.warning(
+            f"$R_{{fe}}$ = {Rfe:.1f} Ω very low — check $P_{{NL}}$ "
+            "and the mechanical loss separation (Pfw)."
+        )
+
+
+def _render_params_ieee(wk: _WidgetKeys, dis: bool) -> _ElecParams:
+    """IEEE 112 MODE — three physical tests (DC + No-Load + Locked Rotor)."""
+    Vl, f, is_delta = _render_ieee_grid_inputs(wk, dis)
+    _render_ieee_guide(wk)
+    V_dc, I_dc, Vl_nl, I_nl, P_nl, f_nl, Pfw, Vl_lr, I_lr, P_lr, f_lr, split_code, Xls_frac = (
+        _render_ieee_test_inputs(wk, dis, Vl, f, is_delta)
+    )
+
     resultado = _cached_estimate_ieee(
         V_dc, I_dc, is_delta,
         Vl_nl, I_nl, P_nl, f_nl,
@@ -680,84 +777,13 @@ Separation uses Table 1 of IEEE 112, according to the **NEMA class** selected be
         Rs, Rr, Xm, Xls, Xlr = 0.435, 0.816, 26.13, 0.754, 0.754
         Rfe = _DEFAULTS["Rfe"]
     else:
-        Rs    = resultado["Rs"]
-        Rr    = resultado["Rr"]
-        Xm    = resultado["Xm"]
-        Xls   = resultado["Xls"]
-        Xlr   = resultado["Xlr"]
-        Rfe   = resultado["Rfe"]
-        ligacao = "Delta (Δ)" if is_delta else "Star (Y)"
-        with st.expander("Calculation Details (IEEE Std 112-2017)", expanded=True):
-            # Header — estimation method and configuration
-            st.markdown(
-                f"**Method:** IEEE Std 112-2017 — three physical tests. "
-                f"**Connection:** {ligacao}. "
-                f"**Distribution:** {MIT_IEEE_SPLIT_LABELS[resultado['split_used']]} "
-                f"(fraction $X_{{ls}}/X_k$ = {resultado['Xls_frac']:.2f})."
-            )
-
-            # ── Physical tests: three side-by-side columns ────────────
-            st.markdown("##### Physical tests")
-            t1, t2, t3 = st.columns(3)
-            with t1:
-                st.markdown("**DC Test**")
-                st.markdown(f"$R_s$ = **{Rs:.4f} Ω**")
-                st.caption(f"via $V_{{dc}}/I_{{dc}}$ = {(V_dc/I_dc):.4f} Ω")
-            with t2:
-                st.markdown("**No-Load Test**")
-                st.markdown(
-                    f"$E_{{1,NL}}$ = **{resultado['E1_nl']:.2f} V**  \n"
-                    f"$P_{{fe,3φ}}$ = **{resultado['Pfe_3ph']:.2f} W**  \n"
-                    f"$P_{{fw}}$ = **{resultado['Pfw_used']:.2f} W**"
-                )
-                st.caption(
-                    "Pfw measured" if Pfw > 0
-                    else "Pfw via heuristic (0.8% · P_NL)"
-                )
-            with t3:
-                st.markdown("**Locked Rotor Test**")
-                st.markdown(
-                    f"$Z_k$ = **{resultado['Zk']:.4f} Ω**  \n"
-                    f"$R_k$ = **{resultado['Rk']:.4f} Ω**  \n"
-                    f"$X_k$ @ {f_nl:.0f} Hz = **{resultado['Xk']:.4f} Ω**"
-                )
-                st.caption(
-                    f"$X_{{k,LR}}$ = {resultado['Xk_lr']:.4f} Ω · "
-                    f"correction $f_{{NL}}/f_{{LR}}$ = {(f_nl/f_lr):.2f}"
-                )
-
-            st.divider()
-
-            # ── Intermediate indicators ───────────────────────────
-            st.markdown("##### Intermediate indicators")
-            c1, c2, c3, c4 = st.columns(4)
-            c1.metric("E₁ (no-load)",         f"{resultado['E1_nl']:.2f} V")
-            c2.metric("Iμ magnetizing current", f"{resultado['I_mu']:.3f} A")
-            c3.metric("Pfe three-phase",       f"{resultado['Pfe_3ph']:.1f} W")
-            c4.metric("Pfw used",              f"{resultado['Pfw_used']:.1f} W")
-
-            # ── Final parameters: 3 columns × 2 rows ──────────────
-            st.markdown("##### Estimated parameters (equivalent circuit)")
-            r1 = st.columns(3)
-            r1[0].metric("Rₛ",  f"{Rs:.4f} Ω")
-            r1[1].metric("Rᵣ",  f"{Rr:.4f} Ω")
-            r1[2].metric("Xₘ",  f"{Xm:.4f} Ω")
-            r2 = st.columns(3)
-            r2[0].metric("Xₗₛ", f"{Xls:.4f} Ω")
-            r2[1].metric("Xₗᵣ", f"{Xlr:.4f} Ω")
-            r2[2].metric("Rfe", f"{Rfe:.1f} Ω")
-
-        # Sanity warnings (only on success)
-        if Xm < 5.0 * Xls:
-            st.warning(
-                f"$X_m / X_{{ls}}$ = {Xm/Xls:.2f} < 5 — atypical ratio. "
-                "Check the no-load test data."
-            )
-        if Rfe < 50.0:
-            st.warning(
-                f"$R_{{fe}}$ = {Rfe:.1f} Ω very low — check $P_{{NL}}$ "
-                "and the mechanical loss separation (Pfw)."
-            )
+        Rs  = resultado["Rs"]
+        Rr  = resultado["Rr"]
+        Xm  = resultado["Xm"]
+        Xls = resultado["Xls"]
+        Xlr = resultado["Xlr"]
+        Rfe = resultado["Rfe"]
+        _render_ieee_results(resultado, f_nl, f_lr, V_dc, I_dc, Pfw, Rs, Rr, Xm, Xls, Xlr, Rfe, is_delta)
 
         st.divider()
         if st.button(
