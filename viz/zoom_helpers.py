@@ -21,7 +21,17 @@ from typing import Any
 import numpy as np
 import plotly.graph_objects as go
 
-from core.constants import STARTING_SPEED_THRESHOLD
+from core.constants import (
+    STARTING_SPEED_THRESHOLD,
+    ZOOM_SS_LOOKBACK_FRAC,
+    ZOOM_SS_MIN_PAD_S,
+    ZOOM_START_PAD_S,
+    ZOOM_PULSE_PAD_FRAC,
+    ZOOM_PULSE_MIN_PAD_S,
+    ZOOM_YAXIS_REL_FLOOR,
+    ZOOM_YAXIS_ABS_FLOOR,
+    ZOOM_YAXIS_PAD_FRAC,
+)
 
 
 @dataclass(frozen=True)
@@ -51,10 +61,10 @@ def compute_t_window(
     t_ss      = ctx.t_ss
 
     if zoom_mode == "Steady State":
-        return (max(0.0, t_ss - max(0.05 * tmax_data, 0.02)), tmax_data)
+        return (max(0.0, t_ss - max(ZOOM_SS_LOOKBACK_FRAC * tmax_data, ZOOM_SS_MIN_PAD_S)), tmax_data)
 
     if zoom_mode == "Starting":
-        _pad = 0.1
+        _pad = ZOOM_START_PAD_S
         if exp_type == "dol":
             _ws_mec = 2.0 * np.pi * ctx.mp_f / (ctx.mp_p / 2.0)
             _wr     = np.asarray(res["wr"], dtype=float)
@@ -72,8 +82,8 @@ def compute_t_window(
         return (0.0, min(_tend, tmax_data))
 
     if zoom_mode == "Load Pulse":
-        _dur = max(ctx.t_pulso_off - ctx.t_pulso_on, 0.1)
-        _pad = max(0.2 * _dur, 0.1)
+        _dur = max(ctx.t_pulso_off - ctx.t_pulso_on, ZOOM_PULSE_MIN_PAD_S)
+        _pad = max(ZOOM_PULSE_PAD_FRAC * _dur, ZOOM_PULSE_MIN_PAD_S)
         return (
             max(0.0, ctx.t_pulso_on - _pad),
             min(tmax_data, ctx.t_pulso_off + _pad),
@@ -105,10 +115,10 @@ def y_ranges(
             continue
         ymin, ymax = float(vals.min()), float(vals.max())
         ymid     = (ymin + ymax) / 2.0
-        min_span = max(abs(ymid) * 0.01, 0.1)
+        min_span = max(abs(ymid) * ZOOM_YAXIS_REL_FLOOR, ZOOM_YAXIS_ABS_FLOOR)
         if (ymax - ymin) < min_span:
             ymin, ymax = ymid - min_span / 2, ymid + min_span / 2
-        pad = (ymax - ymin) * 0.12
+        pad = (ymax - ymin) * ZOOM_YAXIS_PAD_FRAC
         ranges[key] = (ymin - pad, ymax + pad)
     return ranges
 

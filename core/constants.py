@@ -128,6 +128,20 @@ DC_STEADY_STATE_CONV_THRESHOLD  = 0.01   # speed fraction for steady-state conve
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# VISUALIZATION ZOOM
+# ═══════════════════════════════════════════════════════════════════════════
+
+ZOOM_SS_LOOKBACK_FRAC  = 0.05   # fraction of tmax to look back from end for steady-state window
+ZOOM_SS_MIN_PAD_S      = 0.02   # minimum lookback padding [s]
+ZOOM_START_PAD_S       = 0.1    # padding after acceleration end for Starting zoom [s]
+ZOOM_PULSE_PAD_FRAC    = 0.2    # fraction of pulse duration used as pad for Load Pulse zoom
+ZOOM_PULSE_MIN_PAD_S   = 0.1    # minimum pad for Load Pulse zoom [s]
+ZOOM_YAXIS_REL_FLOOR   = 0.01   # relative floor for y-axis minimum span (1 % of |ymid|)
+ZOOM_YAXIS_ABS_FLOOR   = 0.1    # absolute floor for y-axis minimum span [engineering units]
+ZOOM_YAXIS_PAD_FRAC    = 0.12   # fractional padding added above/below y-axis range
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # MIT DEFAULT PARAMETERS   (Krause 3 HP — 2.2 kW / 220 V / 60 Hz)
 # ═══════════════════════════════════════════════════════════════════════════
 # Units: Vl [V], f [Hz], resistances [Ω], reactances [Ω] at f,
