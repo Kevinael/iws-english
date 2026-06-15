@@ -23,64 +23,7 @@ from core.tim.facade import MachineParams
 from core.constants import GEN_EFFICIENCY_FALLBACK
 from viz.tim_eqcircuit import build_figure as _build_circuit_figure
 from ui.theme import _palette
-
-
-def _compute_trip_class(res: dict, mp) -> dict | None:
-    """Computes Trip Class per IEC 60947-4-1 / NEMA ICS 2 from acceleration time."""
-    try:
-        import math
-        n_arr   = np.asarray(res.get("n",  []), dtype=float)
-        t_arr   = np.asarray(res.get("t",  []), dtype=float)
-        n_sync  = mp.f / mp.p * 60.0
-        thresh  = 0.95 * n_sync
-        above   = np.where(n_arr >= thresh)[0]
-        if len(above) == 0:
-            return None
-        t_accel = float(t_arr[int(above[0])])
-        if t_accel < 10.0:
-            cls, status = 10, "OK"
-        elif t_accel < 20.0:
-            cls, status = 20, "WARNING"
-        else:
-            cls, status = 30, "CRITICAL"
-        return {"class": cls, "t_accel": t_accel, "status": status, "n_sync": n_sync}
-    except Exception:
-        return None
-
-
-def _compute_thd_harmonics(res: dict, mp) -> list[tuple]:
-    """Returns list of (order, frequency, amplitude_rel%) for the first 9 harmonics."""
-    rows = []
-    try:
-        ss_start = int(res.get("_ss_start", 0))
-        ias_ss   = np.asarray(res["ias"][ss_start:], dtype=float)
-        t_ss     = np.asarray(res["t"][ss_start:], dtype=float)
-        if len(ias_ss) < 16:
-            return rows
-        dt   = float(t_ss[1] - t_ss[0]) if len(t_ss) > 1 else 1e-4
-        N    = len(ias_ss)
-        spec = np.abs(np.fft.rfft(ias_ss)) * 2.0 / N
-        freq = np.fft.rfftfreq(N, d=dt)
-
-        # fundamental
-        mask_f1 = (freq > 0.5 * mp.f) & (freq < 1.5 * mp.f)
-        if not mask_f1.any():
-            return rows
-        A1 = float(spec[mask_f1].max())
-        if A1 <= 0:
-            return rows
-
-        for k in range(1, 10):
-            f_k   = mp.f * k
-            mask  = (freq > f_k * 0.85) & (freq < f_k * 1.15)
-            if not mask.any():
-                continue
-            Ak    = float(spec[mask].max())
-            pct   = Ak / A1 * 100.0
-            rows.append((k, f_k, Ak, pct))
-    except Exception:
-        pass
-    return rows
+from viz.pdf_commons import compute_trip_class, compute_thd_harmonics
 
 
 def _compute_energy_pdf(res: dict, tarifa: float) -> dict:
@@ -635,7 +578,7 @@ def generate_pdf_report(exp_label: str, mp: MachineParams, res: dict,
 
         # ── Trip Class (IEC 60947-4-1 / NEMA ICS 2) ───────────────────────
         if b_exp_type in ("dol", "yd", "comp", "soft", "voltage_sag"):
-            _tc = _compute_trip_class(b_res, b_mp)
+            _tc = compute_trip_class(b_res, b_mp)
             if _tc is not None:
                 TC_MIN = 35
                 if (pdf.h - pdf.b_margin) - pdf.get_y() < TC_MIN:
@@ -747,7 +690,7 @@ def generate_pdf_report(exp_label: str, mp: MachineParams, res: dict,
                 pdf.ln(4)
 
                 # ── Harmonic Spectrum ──────────────────────────────────────
-                _harm_rows = _compute_thd_harmonics(b_res, b_mp)
+                _harm_rows = compute_thd_harmonics(b_res, b_mp)
                 if _harm_rows:
                     HARM_MIN = 40
                     if (pdf.h - pdf.b_margin) - pdf.get_y() < HARM_MIN:

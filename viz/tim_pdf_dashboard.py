@@ -25,6 +25,13 @@ import numpy as np
 from core.tim.facade import MachineParams
 from viz.tim_eqcircuit import build_figure as _build_circuit_figure
 from ui.theme import _palette
+from viz.pdf_commons import (
+    compute_trip_class,
+    compute_thd_harmonics,
+    compute_energy_metrics,
+    tempfile_ctx,
+    embed_fig,
+)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -117,24 +124,6 @@ def _fmt_power(val: float) -> tuple[str, str]:
     return f"{val:.2f}", "W"
 
 
-def _tempfile_ctx():
-    import tempfile, os
-    from contextlib import contextmanager
-
-    @contextmanager
-    def _ctx():
-        fd, path = tempfile.mkstemp(suffix=".png")
-        os.close(fd)
-        try:
-            yield path
-        finally:
-            try:
-                os.remove(path)
-            except OSError:
-                pass
-    return _ctx()
-
-
 def _fig_to_pdf_bytes(mpl_fig) -> bytes:
     import matplotlib
     matplotlib.use("Agg")
@@ -144,13 +133,6 @@ def _fig_to_pdf_bytes(mpl_fig) -> bytes:
     plt.close(mpl_fig)
     buf.seek(0)
     return buf.read()
-
-
-def _embed_fig(pdf, png_bytes: bytes, width_mm: float = 165) -> None:
-    with _tempfile_ctx() as tmp:
-        with open(tmp, "wb") as f:
-            f.write(png_bytes)
-        pdf.image(tmp, x=(210 - width_mm) / 2, w=width_mm)
 
 
 def _build_circuit_bytes(mp: MachineParams) -> bytes:
@@ -242,102 +224,6 @@ def _cell_rich(pdf, text: str, w: float, h: float, main_size: int = 9,
 # ─────────────────────────────────────────────────────────────────────────────
 # Extra-section computations
 # ─────────────────────────────────────────────────────────────────────────────
-
-def _compute_trip_class(res: dict, mp: MachineParams) -> dict | None:
-    """Computes Trip Class per IEC 60947-4-1 / NEMA ICS 2."""
-    try:
-        n_arr  = np.asarray(res.get("n", []), dtype=float)
-        t_arr  = np.asarray(res.get("t", []), dtype=float)
-        n_sync = mp.f / mp.p * 60.0
-        thresh = 0.95 * n_sync
-        above  = np.where(n_arr >= thresh)[0]
-        if len(above) == 0:
-            return None
-        t_accel = float(t_arr[int(above[0])])
-        if t_accel < 10.0:
-            cls, status = 10, "OK"
-        elif t_accel < 20.0:
-            cls, status = 20, "WARNING"
-        else:
-            cls, status = 30, "CRITICAL"
-        return {"class": cls, "t_accel": t_accel, "status": status, "n_sync": n_sync}
-    except Exception:
-        return None
-
-
-def _compute_thd_harmonics(res: dict, mp: MachineParams) -> list[tuple]:
-    """Returns list of (order, frequency, amplitude, relative%) up to the 9th harmonic."""
-    rows = []
-    try:
-        ss   = int(res.get("_ss_start", 0))
-        ias  = np.asarray(res["ias"][ss:], dtype=float)
-        t_ss = np.asarray(res["t"][ss:], dtype=float)
-        if len(ias) < 16:
-            return rows
-        dt   = float(t_ss[1] - t_ss[0]) if len(t_ss) > 1 else 1e-4
-        N    = len(ias)
-        spec = np.abs(np.fft.rfft(ias)) * 2.0 / N
-        freq = np.fft.rfftfreq(N, d=dt)
-        mask_f1 = (freq > 0.5 * mp.f) & (freq < 1.5 * mp.f)
-        if not mask_f1.any():
-            return rows
-        A1 = float(spec[mask_f1].max())
-        if A1 <= 0:
-            return rows
-        for k in range(1, 10):
-            f_k  = mp.f * k
-            mask = (freq > f_k * 0.85) & (freq < f_k * 1.15)
-            if not mask.any():
-                continue
-            Ak  = float(spec[mask].max())
-            rows.append((k, f_k, Ak, Ak / A1 * 100.0))
-    except Exception:
-        pass
-    return rows
-
-
-def _compute_energy_v2(res: dict, mp: MachineParams, tarifa: float) -> dict:
-    """Computes total THD, PF and economic metrics for PDF v2."""
-    t   = np.asarray(res.get("t",   []), dtype=float)
-    Vqs = np.asarray(res.get("Vqs", []), dtype=float)
-    Vds = np.asarray(res.get("Vds", []), dtype=float)
-    iqs = np.asarray(res.get("iqs", []), dtype=float)
-    ids = np.asarray(res.get("ids", []), dtype=float)
-    P_in_inst = (3.0 / 2.0) * (Vqs * iqs + Vds * ids)
-    E_j    = float(np.trapezoid(np.where(np.isfinite(P_in_inst), P_in_inst, 0.0), t)) if len(t) > 1 else 0.0
-    E_kwh  = E_j / 3_600_000.0
-    P_in   = float(res.get("P_in", 0.0))
-    thd    = 0.0
-    fp     = 0.0
-    try:
-        ss   = int(res.get("_ss_start", 0))
-        ias  = np.asarray(res["ias"][ss:], dtype=float)
-        t_ss = t[ss:]
-        if len(ias) >= 16:
-            dt   = float(t_ss[1] - t_ss[0]) if len(t_ss) > 1 else 1e-4
-            N    = len(ias)
-            spec = np.abs(np.fft.rfft(ias)) / N
-            frq  = np.fft.rfftfreq(N, d=dt)
-            mf1  = (frq > 0.5 * mp.f) & (frq < 1.5 * mp.f)
-            if mf1.any():
-                A1     = float(spec[mf1].max())
-                A_harm = spec[frq > 1.5 * mp.f]
-                if A1 > 0 and len(A_harm) > 0:
-                    thd = float(np.sqrt(np.sum(A_harm**2)) / A1 * 100.0)
-        Vqs_ss = Vqs[ss:]; Vds_ss = Vds[ss:]
-        Va_rms = float(np.sqrt(np.mean(Vqs_ss**2 + Vds_ss**2))) / np.sqrt(2.0) if len(Vqs_ss) > 0 else 0.0
-        ias_rms = float(res.get("ias_rms", 0.0))
-        S_ap = 3.0 * Va_rms * ias_rms
-        if S_ap > 0 and np.isfinite(P_in):
-            fp = float(np.clip(abs(P_in) / S_ap, 0.0, 1.0))
-    except Exception:
-        pass
-    custo_exp = E_kwh * tarifa
-    custo_ano = (P_in / 1000.0) * 8_760.0 * tarifa
-    return {"E_kwh": E_kwh, "custo_exp": custo_exp,
-            "P_in_kw": P_in / 1000.0, "custo_ano": custo_ano,
-            "eta": float(res.get("eta", 0.0)), "thd": thd, "fp": fp}
-
 
 def _compute_losses(res: dict, mp: MachineParams) -> dict:
     P_in   = float(res.get("P_in",    0.0))
@@ -741,7 +627,7 @@ def _generate_academico(
         pdf.add_page()
     subsec("2.1  Single-Phase T Equivalent Circuit")
     pdf.ln(1)
-    _embed_fig(pdf, _build_circuit_bytes(mp), width_mm=160)
+    embed_fig(pdf, _build_circuit_bytes(mp), width_mm=160)
     caption(
         "Figure 2.1 — Single-phase T equivalent circuit of the Three-Phase Induction Motor. "
         "R[sub]s[/sub]: stator resistance; X[sub]ls[/sub]: stator leakage reactance; "
@@ -806,7 +692,7 @@ def _generate_academico(
     ], [100, 38, 18, 24], ["L", "R", "L", "R"])
     pdf.ln(2)
     loss_fig = _build_losses_bar_fig(losses)
-    _embed_fig(pdf, _fig_to_pdf_bytes(loss_fig), width_mm=155)
+    embed_fig(pdf, _fig_to_pdf_bytes(loss_fig), width_mm=155)
     caption(
         "Figure 4.1 — Percentage distribution of steady-state losses "
         "relative to input power Pin."
@@ -866,7 +752,7 @@ def _generate_academico(
 
     # ── Power Quality (THD + PF + Economic) ───────────────────────────────
     if exp_type != "shutdown":
-        _em = _compute_energy_v2(res, mp, energy_tariff)
+        _em = compute_energy_metrics(res, mp, energy_tariff)
         QE_MIN = 60
         if (pdf.h - pdf.b_margin) - pdf.get_y() < QE_MIN:
             pdf.add_page()
@@ -890,7 +776,7 @@ def _generate_academico(
         pdf.ln(2)
 
         # harmonic spectrum by order
-        _harm_rows = _compute_thd_harmonics(res, mp)
+        _harm_rows = compute_thd_harmonics(res, mp)
         if _harm_rows:
             HARM_MIN = 40
             if (pdf.h - pdf.b_margin) - pdf.get_y() < HARM_MIN:
@@ -907,7 +793,7 @@ def _generate_academico(
 
     # ── Trip Class ────────────────────────────────────────────────────────
     if exp_type in ("dol", "yd", "comp", "soft", "voltage_sag"):
-        _tc = _compute_trip_class(res, mp)
+        _tc = compute_trip_class(res, mp)
         if _tc is not None:
             TC_MIN = 40
             if (pdf.h - pdf.b_margin) - pdf.get_y() < TC_MIN:
@@ -956,7 +842,7 @@ def _generate_academico(
             pdf.add_page()
         sec("ABC Phase Currents — Steady State", sec_num)
         abc_fig = _build_abc_currents_fig(res)
-        _embed_fig(pdf, _fig_to_pdf_bytes(abc_fig), width_mm=165)
+        embed_fig(pdf, _fig_to_pdf_bytes(abc_fig), width_mm=165)
         ias_rms = float(res.get("ias_rms", 0.0))
         caption(
             f"Figure {sec_num[:-1]}.1 - Phase currents ias, ibs, ics in steady state. "
@@ -976,7 +862,7 @@ def _generate_academico(
         sec(f"Characteristic Curves{sfx}",
             f"{sec_num_curves[:-1]}." if pg == 0 else "")
         curves_fig = _build_curves_fig(res, ck, cl, t_events, color_offset=pg * 4)
-        _embed_fig(pdf, _fig_to_pdf_bytes(curves_fig), width_mm=165)
+        embed_fig(pdf, _fig_to_pdf_bytes(curves_fig), width_mm=165)
         caption(", ".join(cl))
 
 
@@ -1112,7 +998,7 @@ def _generate_dashboard(
     # ── Loss Balance ──────────────────────────────────────────────────────
     sec_bar("LOSS BALANCE")
     loss_fig = _build_losses_bar_fig(losses)
-    _embed_fig(pdf, _fig_to_pdf_bytes(loss_fig), width_mm=160)
+    embed_fig(pdf, _fig_to_pdf_bytes(loss_fig), width_mm=160)
     pdf.set_font("Helvetica", "I", 8)
     pdf.set_text_color(*TEXT_LGT)
     vcs, ucs   = _fmt_power(losses["P_cu_s"])
@@ -1165,7 +1051,7 @@ def _generate_dashboard(
 
     # ── Power Quality ─────────────────────────────────────────────────────
     if exp_type != "shutdown":
-        _em = _compute_energy_v2(res, mp, energy_tariff)
+        _em = compute_energy_metrics(res, mp, energy_tariff)
         QE_MIN = 55
         if (pdf.h - pdf.b_margin) - pdf.get_y() < QE_MIN:
             pdf.add_page()
@@ -1190,7 +1076,7 @@ def _generate_dashboard(
 
     # ── Trip Class ────────────────────────────────────────────────────────
     if exp_type in ("dol", "yd", "comp", "soft", "voltage_sag"):
-        _tc = _compute_trip_class(res, mp)
+        _tc = compute_trip_class(res, mp)
         if _tc is not None:
             TC_MIN = 45
             if (pdf.h - pdf.b_margin) - pdf.get_y() < TC_MIN:
@@ -1237,7 +1123,7 @@ def _generate_dashboard(
             pdf.add_page()
         sec_bar("ABC PHASE CURRENTS — STEADY STATE")
         abc_fig = _build_abc_currents_fig(res)
-        _embed_fig(pdf, _fig_to_pdf_bytes(abc_fig), width_mm=165)
+        embed_fig(pdf, _fig_to_pdf_bytes(abc_fig), width_mm=165)
         pdf.ln(2)
 
     # ── Machine Parameters (compact) + Equivalent Circuit ────────────────
@@ -1254,7 +1140,7 @@ def _generate_dashboard(
          "J",              f"{mp.J:.4f} kg.m2"),
     ], [30, 45, 30, 45])
     pdf.ln(3)
-    _embed_fig(pdf, _build_circuit_bytes(mp), width_mm=155)
+    embed_fig(pdf, _build_circuit_bytes(mp), width_mm=155)
     pdf.set_font("Helvetica", "I", 8)
     pdf.set_text_color(*TEXT_LGT)
     pdf.cell(0, 5, "  Single-phase T equivalent circuit of the Three-Phase Induction Motor.",
@@ -1268,7 +1154,7 @@ def _generate_dashboard(
         sfx = f" ({pg+1}/{len(chunks)})" if len(chunks) > 1 else ""
         dash_title(f"CHARACTERISTIC CURVES{sfx}", ", ".join(cl))
         curves_fig = _build_curves_fig(res, ck, cl, t_events, color_offset=pg * 4)
-        _embed_fig(pdf, _fig_to_pdf_bytes(curves_fig), width_mm=165)
+        embed_fig(pdf, _fig_to_pdf_bytes(curves_fig), width_mm=165)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
