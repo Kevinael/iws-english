@@ -41,8 +41,32 @@ SOLVER_MAX_STEP_FACTOR = 20.0    # max_step = 1 / (20·f) → ≥ 20 samples/cyc
 STARTING_SPEED_THRESHOLD    = 0.95   # fraction of synchronous speed (95 %) for starting-time KPI
 SPEED_RECOVERY_THRESHOLD    = 0.90   # fraction of pre-fault synchronous speed for recovery check
 GEN_EFFICIENCY_FALLBACK     = 0.90   # generator mechanical-to-electrical efficiency when unmeasured
-RELAY_CLASS_10_S         = 10.0   # IEC 60947-4-1 Class 10 upper limit [s]
-RELAY_CLASS_20_S         = 20.0   # IEC 60947-4-1 Class 20 upper limit [s]
+
+# Slip thresholds (motor overload / underload / generator — NEMA B reference)
+SLIP_OVERLOAD_ERROR         = 0.08   # > 8 %: severe overload
+SLIP_OVERLOAD_WARN          = 0.05   # > 5 %: moderate overload
+SLIP_UNDERLOAD              = 0.005  # < 0.5 %: severe underload
+SLIP_GEN_WARN               = 0.05   # negative slip > 5 %: generator warning
+SLIP_GEN_ERROR              = 0.10   # negative slip > 10 %: generator error (unstable)
+
+# Voltage Unbalance Factor thresholds (NEMA MG-1 §14.35)
+VUF_DETECTABLE_MIN_PCT      = 0.3    # below this VUF: no diagnostic issued [%]
+VUF_ERROR_PCT               = 5.0    # VUF ≥ 5 %: severe imbalance / error [%]
+VUF_WARN_HIGH_PCT           = 2.0    # VUF ≥ 2 %: warning — efficiency loss [%]
+VUF_WARN_LOW_PCT            = 1.0    # VUF ≥ 1 %: alert zone (NEMA MG-1 limit) [%]
+
+# Broken bar severity index thresholds (α = sideband / fundamental ratio)
+BBAR_ALPHA_ERROR            = 0.5    # α ≥ 0.5: severe fault
+BBAR_ALPHA_WARN             = 0.2    # α ≥ 0.2: moderate fault
+
+# Voltage sag severity thresholds [%]
+SAG_ERROR_PCT               = 50.0   # sag ≥ 50 %: critical voltage sag
+SAG_WARN_PCT                = 20.0   # sag ≥ 20 %: warning voltage sag
+
+# Starting time relay class limits [s] (IEC 60947-4-1 / NEMA)
+RELAY_CLASS_30_S            = 30.0   # Class 30 upper limit [s]
+RELAY_CLASS_10_S            = 10.0   # IEC 60947-4-1 Class 10 upper limit [s]
+RELAY_CLASS_20_S            = 20.0   # IEC 60947-4-1 Class 20 upper limit [s]
 INSULATION_CLASS_F_C     = 155    # IEC 60085 Class F max temperature [°C]
 INSULATION_CLASS_H_C     = 180    # IEC 60085 Class H max temperature [°C]
 INSULATION_CLASS_C_C     = 180    # IEC 60085 Class C min temperature (above H) [°C]

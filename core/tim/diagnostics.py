@@ -22,7 +22,15 @@ Extending:
 from __future__ import annotations
 import math
 import numpy as np
-from core.constants import SPEED_RECOVERY_THRESHOLD
+from core.constants import (
+    SPEED_RECOVERY_THRESHOLD,
+    SLIP_OVERLOAD_ERROR, SLIP_OVERLOAD_WARN, SLIP_UNDERLOAD,
+    SLIP_GEN_WARN, SLIP_GEN_ERROR,
+    VUF_DETECTABLE_MIN_PCT, VUF_ERROR_PCT, VUF_WARN_HIGH_PCT, VUF_WARN_LOW_PCT,
+    BBAR_ALPHA_ERROR, BBAR_ALPHA_WARN,
+    SAG_ERROR_PCT, SAG_WARN_PCT,
+    RELAY_CLASS_10_S, RELAY_CLASS_20_S, RELAY_CLASS_30_S,
+)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -267,10 +275,7 @@ def _check_slip_overload(
     mp,
 ) -> None:
     """Rule 3 — Extreme slip as an overload indicator."""
-    S_CRITICO  = 0.08   # > 8%: severe overload
-    S_ALERTA   = 0.05   # > 5%: moderate overload
-
-    if s_ss > S_CRITICO:
+    if s_ss > SLIP_OVERLOAD_ERROR:
         insights.append(Insight(
             level="error",
             title="SEVERE OVERLOAD — Critical Slip",
@@ -287,7 +292,7 @@ def _check_slip_overload(
                 f"Review the motor sizing for this load."
             ),
         ))
-    elif s_ss > S_ALERTA:
+    elif s_ss > SLIP_OVERLOAD_WARN:
         insights.append(Insight(
             level="warning",
             title="High Slip — Operation Outside Nominal Zone",
@@ -323,9 +328,7 @@ def _check_underload(
     mp,
 ) -> None:
     """Rule 4 — Underload operation (low load factor)."""
-    S_SUBCARGA = 0.005  # < 0.5%: severe underload
-
-    if 0 < s_ss < S_SUBCARGA:
+    if 0 < s_ss < SLIP_UNDERLOAD:
         insights.append(Insight(
             level="warning",
             title="Motor Underloaded — Degraded Power Factor",
@@ -356,10 +359,10 @@ def _check_broken_bar(
     sb_lo  = f_fund * (1.0 - 2.0 * abs(s_ss))
     sb_hi  = f_fund * (1.0 + 2.0 * abs(s_ss))
 
-    if alpha >= 0.5:
+    if alpha >= BBAR_ALPHA_ERROR:
         level = "error"
         severidade_txt = f"severe (α = {alpha:.2f})"
-    elif alpha >= 0.2:
+    elif alpha >= BBAR_ALPHA_WARN:
         level = "warning"
         severidade_txt = f"moderate (α = {alpha:.2f})"
     else:
@@ -403,17 +406,17 @@ def _check_voltage_imbalance(
         return
     vuf = max(abs(Va_rms - v_mean), abs(Vb_rms - v_mean), abs(Vc_rms - v_mean)) / v_mean * 100.0
 
-    # Diagnostic is only issued if imbalance is detectable (> 0.3%)
-    if vuf < 0.3:
+    # Diagnostic is only issued if imbalance is detectable (> VUF_DETECTABLE_MIN_PCT)
+    if vuf < VUF_DETECTABLE_MIN_PCT:
         return
 
-    if vuf > 5.0:
+    if vuf > VUF_ERROR_PCT:
         level = "error"
         impacto = "imbalance current increase above 25% of nominal and severe overheating"
-    elif vuf > 2.0:
+    elif vuf > VUF_WARN_HIGH_PCT:
         level = "warning"
         impacto = "efficiency reduction and winding temperature increase (NEMA MG-1 §14.35)"
-    elif vuf > 1.0:
+    elif vuf > VUF_WARN_LOW_PCT:
         level = "warning"
         impacto = "operation in alert zone; monitoring recommended"
     else:
@@ -480,9 +483,9 @@ def _check_voltage_sag(
     # 20% sag → Te drops ~36%; 50% sag → Te drops ~75%
     te_reducao_teorica = (1.0 - sag_mag**2) * 100.0
 
-    if sag_depth_pct >= 50.0 or Te_sag_min < 0:
+    if sag_depth_pct >= SAG_ERROR_PCT or Te_sag_min < 0:
         level = "error"
-    elif sag_depth_pct >= 20.0:
+    elif sag_depth_pct >= SAG_WARN_PCT:
         level = "warning"
     else:
         level = "info"
@@ -550,11 +553,11 @@ def _check_startup_time(
         t_esperado = None
 
     # NEMA limits: Trip Class 10 ≤ 10s, Class 20 ≤ 20s, Class 30 ≤ 30s
-    if t_start_pt > 30.0:
+    if t_start_pt > RELAY_CLASS_30_S:
         level, trip_class = "error",   "Class 30 exceeded (> 30 s)"
-    elif t_start_pt > 20.0:
+    elif t_start_pt > RELAY_CLASS_20_S:
         level, trip_class = "warning", "Class 30 (20–30 s)"
-    elif t_start_pt > 10.0:
+    elif t_start_pt > RELAY_CLASS_10_S:
         level, trip_class = "warning", "Class 20 (10–20 s)"
     else:
         level, trip_class = "info",    "Class 10 (< 10 s)"
@@ -610,13 +613,10 @@ def _check_generator_mode(
 
     # ── Rule 10: Stability margin — excessive negative slip ───────────────
     # Practical limit: |s| > 10% → unstable operation / high currents
-    S_GEN_ALERTA  = 0.05   # 5%: warning
-    S_GEN_CRITICO = 0.10   # 10%: error
-
     abs_s = abs(s_ss)
     n_wr  = n_ss  # already in RPM
 
-    if abs_s > S_GEN_CRITICO:
+    if abs_s > SLIP_GEN_ERROR:
         insights.append(Insight(
             level="error",
             title=f"Generator: Critical Negative Slip — s = {s_ss*100:.2f}%",
@@ -630,7 +630,7 @@ def _check_generator_mode(
                 f"Reduce the prime mover torque or verify the machine sizing."
             ),
         ))
-    elif abs_s > S_GEN_ALERTA:
+    elif abs_s > SLIP_GEN_WARN:
         insights.append(Insight(
             level="warning",
             title=f"Generator: High Negative Slip — s = {s_ss*100:.2f}%",
