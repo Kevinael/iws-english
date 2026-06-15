@@ -32,6 +32,7 @@ from viz.pdf_commons import (
     compute_losses, compute_integrator_params, compute_broken_bar,
     make_chunks, build_abc_currents_fig, build_losses_bar_fig,
     build_curves_fig, fig_to_png_bytes, make_pdf_class,
+    _ensure_space, _banner,
 )
 
 
@@ -117,21 +118,6 @@ def _badge(pdf, ok: bool, msg: str, warn: bool = False) -> None:
     pdf.cell(0, 7, f"  {msg}", border=0, fill=True,
              new_x="LMARGIN", new_y="NEXT")
     pdf.ln(2)
-
-
-def _ensure_space(pdf, mm: float) -> None:
-    if (pdf.h - pdf.b_margin) - pdf.get_y() < mm:
-        pdf.add_page()
-
-
-def _banner(pdf, text: str) -> None:
-    _ensure_space(pdf, 20)
-    pdf.set_fill_color(*_BG_DARK)
-    pdf.set_text_color(255, 255, 255)
-    pdf.set_font("Helvetica", "B", 12)
-    pdf.cell(0, 10, f"  {text}", border=0, fill=True,
-             new_x="LMARGIN", new_y="NEXT")
-    pdf.ln(3)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -432,7 +418,7 @@ def _write_kpi_comparison(pdf, current_sim: dict, ref_list: list) -> None:
         return
 
     pdf.add_page()
-    _banner(pdf, "Comparative History — KPIs of All Simulations")
+    _banner(pdf, "Comparative History — KPIs of All Simulations", bg_color=_BG_DARK)
     _sec_bar(pdf, "PERFORMANCE AND POWER QUALITY COMPARISON")
 
     # Header
@@ -535,7 +521,7 @@ def generate_industrial(
     }
 
     # ── Block: current simulation ─────────────────────────────────────────
-    _banner(pdf, "Current Simulation")
+    _banner(pdf, "Current Simulation", bg_color=_BG_DARK)
     _write_sim_block(
         pdf, res, mp, exp_label, exp_type, t_events,
         var_keys, var_labels, energy_tariff, tmax_eff, h, insights,
@@ -556,7 +542,7 @@ def generate_industrial(
         ref_tariff    = ref.get("energy_tariff", energy_tariff)
         ref_tmax      = ref.get("tmax", tmax_eff)
         ref_h         = ref.get("h", h)
-        _banner(pdf, f"Reference {ref_i+1} — {ref_label}")
+        _banner(pdf, f"Reference {ref_i+1} — {ref_label}", bg_color=_BG_DARK)
         _write_sim_block(
             pdf, ref_res, ref_mp, ref_label, ref_exp_type, ref_t_events,
             ref_var_keys, ref_var_labels, ref_tariff, ref_tmax, ref_h,

@@ -27,6 +27,7 @@ from viz.pdf_commons import (
     safe_text, embed_fig,
     cell_rich, render_rich,
     build_curves_fig, fig_to_png_bytes, make_pdf_class,
+    _sec, _subsec, _body, _caption, _th, _tr, _banner, _ensure_space,
 )
 
 
@@ -37,79 +38,6 @@ _EXC_LABELS: dict[str, str] = {
     "sep_gen":      "Separately Excited — Generator",
     "shunt_gen":    "Shunt (Parallel) — Generator",
 }
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Layout primitives (mirror pdf_academico.py)
-# ─────────────────────────────────────────────────────────────────────────────
-
-def _sec(pdf, title: str, num: str = "") -> None:
-    pdf.set_fill_color(22, 54, 120)
-    pdf.set_text_color(255, 255, 255)
-    pdf.set_font("Helvetica", "B", 11)
-    label = f"  {num}  {title}" if num else f"  {title}"
-    pdf.cell(0, 8, label, border=0, fill=True, new_x="LMARGIN", new_y="NEXT")
-    pdf.ln(2)
-
-
-def _subsec(pdf, title: str) -> None:
-    pdf.set_fill_color(220, 228, 248)
-    pdf.set_text_color(20, 30, 80)
-    pdf.set_font("Helvetica", "B", 10)
-    pdf.cell(0, 6, f"   {title}", border=0, fill=True,
-             new_x="LMARGIN", new_y="NEXT")
-    pdf.ln(1)
-
-
-def _body(pdf, text: str) -> None:
-    pdf.set_font("Helvetica", "", 10)
-    pdf.set_text_color(40, 40, 40)
-    pdf.multi_cell(0, 5, text)
-    pdf.ln(1)
-
-
-def _caption(pdf, text: str) -> None:
-    pdf.set_font("Helvetica", "I", 8)
-    pdf.set_text_color(100, 100, 100)
-    pdf.multi_cell(0, 5, text, border=0, align="C")
-    pdf.ln(2)
-
-
-def _th(pdf, cols: list[tuple[str, float]]) -> None:
-    pdf.set_fill_color(200, 210, 245)
-    pdf.set_text_color(20, 20, 80)
-    x0, y0 = pdf.get_x(), pdf.get_y()
-    for lbl, w in cols:
-        cell_rich(pdf, f"  {lbl}", w, 6, main_size=9,
-                  fill_rgb=(200, 210, 245), text_rgb=(20, 20, 80))
-    pdf.set_xy(x0, y0 + 6)
-    pdf.ln(0)
-
-
-def _tr(pdf, rows: list[tuple], widths: list[float], aligns: list[str]) -> None:
-    for idx, row in enumerate(rows):
-        fill = (242, 245, 255) if idx % 2 == 0 else (255, 255, 255)
-        x0, y0 = pdf.get_x(), pdf.get_y()
-        for cell, w in zip(row, widths):
-            cell_rich(pdf, f"  {str(cell)}", w, 6, main_size=9,
-                      fill_rgb=fill, text_rgb=(40, 40, 40))
-        pdf.set_xy(x0, y0 + 6)
-        pdf.ln(0)
-
-
-def _banner(pdf, text: str) -> None:
-    _ensure_space(pdf, 20)
-    pdf.set_fill_color(15, 40, 100)
-    pdf.set_text_color(255, 255, 255)
-    pdf.set_font("Helvetica", "B", 12)
-    pdf.cell(0, 10, f"  {text}", border=0, fill=True,
-             new_x="LMARGIN", new_y="NEXT")
-    pdf.ln(3)
-
-
-def _ensure_space(pdf, mm: float) -> None:
-    if (pdf.h - pdf.b_margin) - pdf.get_y() < mm:
-        pdf.add_page()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
