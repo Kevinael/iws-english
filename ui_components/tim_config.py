@@ -8,7 +8,7 @@ Responsibilities:
   - Render machine selector screen (render_machine_selector).
   - Render physical parameter inputs with lock/unlock experiment mode (render_machine_params).
   - Render experiment type and variable selection widgets (render_experiment_config).
-  - Expose MACHINES, _WK, _PRESETS, and VARIABLE_CATALOG for downstream consumers.
+  - Expose MACHINES, _WK, _PRESETS, and MIT_VAR_CATALOG for downstream consumers.
 
 Relationships:
   Imported by : IWS_UI
@@ -33,6 +33,7 @@ import streamlit as st
 from core.tim.facade import MachineParams
 from core.constants import MIT_DEFAULTS
 from data.machines_mit import MIT_PRESETS
+from data.variable_labels import MIT_VAR_MECANICAS, MIT_VAR_ELETRICAS, MIT_VAR_CATALOG
 from core.tim.fault import render_desequilibrio_ui, render_broken_bar_ui
 from core.tim.param_estimator import estimate_params, estimate_params_ieee_tests
 from ui.theme import _palette
@@ -74,37 +75,6 @@ def _tl_sugerido(mp: "MachineParams") -> float:
     Pmec = 3.0 * (mp.Rr / s - mp.Rr) * Ir ** 2
     return max(round(Pmec / ws, 2), 0.1)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# VARIABLE CATALOGS
-# ─────────────────────────────────────────────────────────────────────────────
-
-VARIABLE_CATALOG_MECANICAS: dict[str, str] = {
-    "Electromagnetic Torque  Tₑ  (N·m)":  "Te",
-    "Rotor Speed  n  (RPM)":              "n",
-    "Angular Velocity  ωᵣ  (rad/s)":      "wr",
-}
-
-VARIABLE_CATALOG_ELETRICAS: dict[str, str] = {
-    "Phase A Current — Stator  iₐₛ  (A)":  "ias",
-    "Phase B Current — Stator  ibₛ  (A)":  "ibs",
-    "Phase C Current — Stator  icₛ  (A)":  "ics",
-    "Phase A Current — Rotor  iₐᵣ  (A)":   "iar",
-    "Phase B Current — Rotor  ibᵣ  (A)":   "ibr",
-    "Phase C Current — Rotor  icᵣ  (A)":   "icr",
-    "d-Component — Stator  idₛ  (A)":       "ids",
-    "q-Component — Stator  iqₛ  (A)":       "iqs",
-    "d-Component — Rotor  idᵣ  (A)":        "idr",
-    "q-Component — Rotor  iqᵣ  (A)":        "iqr",
-    "Phase Voltage  Vₐ  (V)":               "Va",
-    "Phase Voltage  Vb  (V)":               "Vb",
-    "Phase Voltage  Vc  (V)":               "Vc",
-}
-
-VARIABLE_CATALOG: dict[str, str] = {
-    **VARIABLE_CATALOG_MECANICAS,
-    **VARIABLE_CATALOG_ELETRICAS,
-}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1554,19 +1524,19 @@ def render_experiment_config(
     _pgroup("Mechanical Quantities")
     sel_mec = st.multiselect(
         "Mechanical quantities",
-        options=list(VARIABLE_CATALOG_MECANICAS.keys()),
+        options=list(MIT_VAR_MECANICAS.keys()),
         default=["Electromagnetic Torque  Tₑ  (N·m)", "Rotor Speed  n  (RPM)"],
         label_visibility="collapsed",
     )
     _pgroup("Electrical Quantities")
     sel_ele = st.multiselect(
         "Electrical quantities",
-        options=list(VARIABLE_CATALOG_ELETRICAS.keys()),
+        options=list(MIT_VAR_ELETRICAS.keys()),
         default=["Phase A Current — Stator  iₐₛ  (A)"],
         label_visibility="collapsed",
     )
     selected_labels = sel_mec + sel_ele
-    var_keys   = [VARIABLE_CATALOG[v] for v in selected_labels]
+    var_keys   = [MIT_VAR_CATALOG[v] for v in selected_labels]
     var_labels = list(selected_labels)
     st.markdown('</div>', unsafe_allow_html=True)
 

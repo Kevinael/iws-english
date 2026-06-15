@@ -27,6 +27,14 @@ import streamlit as st
 
 from core.dc.machine_model import DCMachineParams
 from data.machines_dc import DC_PRESETS_BY_EXC, DC_PRESETS_FLAT
+from data.variable_labels import (
+    DC_VAR_MECANICAS,
+    DC_VAR_ELETRICAS,
+    DC_VAR_OPTIONS,
+    DC_DEFAULT_VARS_MEC,
+    DC_DEFAULT_VARS_ELE,
+    DC_DEFAULT_VARS,
+)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -35,26 +43,6 @@ from data.machines_dc import DC_PRESETS_BY_EXC, DC_PRESETS_FLAT
 
 _PRESETS_BY_EXC: dict[str, dict[str, dict[str, Any]]] = DC_PRESETS_BY_EXC
 _PRESETS_DC: dict[str, dict[str, Any]] = DC_PRESETS_FLAT
-
-# Available variables to plot by quantity type
-_VAR_MECANICAS: dict[str, str] = {
-    "Angular Velocity  ωm  (rad/s)":          "wm",
-    "Speed  n  (RPM)":                        "n",
-    "Electromagnetic Torque  Tₑ  (N·m)":      "Te",
-}
-
-_VAR_ELETRICAS: dict[str, str] = {
-    "Armature Current  iₐ  (A)":              "ia",
-    "Field Current  i_fd  (A)":               "ifd",
-    "Back-EMF  Eₐ  (V)":                      "Ea",
-    "Terminal Voltage  Vt  (V)":              "Vt",
-}
-
-_VAR_OPTIONS: dict[str, str] = {**_VAR_MECANICAS, **_VAR_ELETRICAS}
-
-_DEFAULT_VARS_MEC: list[str] = ["Electromagnetic Torque  Tₑ  (N·m)", "Speed  n  (RPM)"]
-_DEFAULT_VARS_ELE: list[str] = ["Armature Current  iₐ  (A)"]
-_DEFAULT_VARS: list[str] = ["ia", "wm", "Te"]
 
 # Available operating modes by configuration
 _MODES_BY_EXC: dict[str, list[str]] = {
@@ -1154,27 +1142,27 @@ def render_experiment_config_dc(
     _pgroup("Mechanical Quantities")
     sel_mec = st.multiselect(
         "Mechanical quantities",
-        options=list(_VAR_MECANICAS.keys()),
-        default=_DEFAULT_VARS_MEC,
+        options=list(DC_VAR_MECANICAS.keys()),
+        default=DC_DEFAULT_VARS_MEC,
         label_visibility="collapsed",
         key=_WK_DC.vars_mec,
     )
     _pgroup("Electrical Quantities")
     sel_ele = st.multiselect(
         "Electrical quantities",
-        options=list(_VAR_ELETRICAS.keys()),
-        default=_DEFAULT_VARS_ELE,
+        options=list(DC_VAR_ELETRICAS.keys()),
+        default=DC_DEFAULT_VARS_ELE,
         label_visibility="collapsed",
         key=_WK_DC.vars_ele,
     )
     st.markdown('</div>', unsafe_allow_html=True)
 
     selected_labels = sel_mec + sel_ele
-    var_keys   = [_VAR_OPTIONS[v] for v in selected_labels if v in _VAR_OPTIONS]
-    var_labels = [v for v in selected_labels if v in _VAR_OPTIONS]
+    var_keys   = [DC_VAR_OPTIONS[v] for v in selected_labels if v in DC_VAR_OPTIONS]
+    var_labels = [v for v in selected_labels if v in DC_VAR_OPTIONS]
     if not var_keys:
-        var_keys   = _DEFAULT_VARS
-        var_labels = [k for k, v in _VAR_OPTIONS.items() if v in _DEFAULT_VARS]
+        var_keys   = DC_DEFAULT_VARS
+        var_labels = [k for k, v in DC_VAR_OPTIONS.items() if v in DC_DEFAULT_VARS]
 
     # Simulation numerical parameters
     st.write("")
