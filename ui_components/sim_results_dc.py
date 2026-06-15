@@ -25,6 +25,7 @@ import streamlit as st
 import plotly.graph_objects as go
 
 from core.dc.machine_model import DCMachineParams
+from data.experiment_modes import DC_EXC_LABELS
 from core.constants import (
     DC_OVERCURRENT_WARN_RATIO,
     DC_OVERCURRENT_CRIT_RATIO,
@@ -76,13 +77,6 @@ def _cached_fig_torque_speed_dc(
 
 
 
-_EXC_LABELS: dict[str, str] = {
-    "sep_motor":    "Separately Excited — Motor",
-    "shunt_motor":  "Shunt (Parallel) — Motor",
-    "series_motor": "Series — Motor",
-    "sep_gen":      "Separately Excited — Generator",
-    "shunt_gen":    "Shunt (Parallel) — Generator",
-}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -193,7 +187,7 @@ def _render_dc_tab_overview(
     if exc not in ("series_motor",):
         k7, k8, _ = st.columns(3)
         k7.metric("$i_{fd}$ (A)",       f"{ifd_ss:.{d}f}")
-        k8.metric("Excitation",         _EXC_LABELS.get(exc, exc))
+        k8.metric("Excitation",         DC_EXC_LABELS.get(exc, exc))
 
     # ── Starting Transient ────────────────────────────────────────────
     with st.expander("Starting Transient", expanded=False):
