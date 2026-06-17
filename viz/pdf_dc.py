@@ -173,29 +173,10 @@ def _compute_anomalias_dc(res: dict, mp: DCMachineParams) -> list[tuple[str, str
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Main simulation block
+# Section sub-renderers
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _write_sim_block_dc(
-    pdf,
-    res: dict,
-    mp: DCMachineParams,
-    exp_label: str,
-    exp_type: str,
-    t_events: list,
-    var_keys: list,
-    var_labels: list,
-    tmax: float,
-    h: float,
-    exp_config: dict | None = None,
-    input_mode: str | None = None,
-) -> None:
-    exc    = mp.excitation if mp else "sep_motor"
-    is_gen = exc in ("sep_gen", "shunt_gen")
-    losses = _compute_losses_dc(res, mp)
-    sec_n  = 1
-
-    # ── Cover ─────────────────────────────────────────────────────────────
+def _pdf_dc_cover(pdf, exp_label: str, exc: str) -> None:
     pdf.add_page()
     pdf.set_fill_color(15, 40, 100)
     pdf.rect(0, 0, 210, 65, style="F")
@@ -221,7 +202,12 @@ def _write_sim_block_dc(
     pdf.cell(0, 6, f"Generated: {ts}", border=0, new_x="LMARGIN", new_y="NEXT")
     pdf.ln(10)
 
-    # ── 1. Identification ──────────────────────────────────────────────────
+
+def _pdf_dc_section_identification(
+    pdf, res: dict, mp: DCMachineParams,
+    exp_label: str, exp_type: str, tmax: float,
+    exc: str, sec_n: int,
+) -> int:
     _sec(pdf, "Experiment Identification", f"{sec_n}.")
     _th(pdf, [("Attribute", 90), ("Value", 80)])
     _tr(pdf, [
@@ -232,9 +218,10 @@ def _write_sim_block_dc(
         ("Total simulated time",              f"{tmax:.3f} s"),
     ], [90, 80], ["L", "L"])
     pdf.ln(4)
-    sec_n += 1
+    return sec_n + 1
 
-    # ── 2. Machine Parameters ──────────────────────────────────────────────
+
+def _pdf_dc_section_machine_params(pdf, mp: DCMachineParams, exc: str, sec_n: int) -> int:
     _sec(pdf, "Machine Parameters", f"{sec_n}.")
     rows_params = [
         ("Armature resistance (R[sub]a[/sub])",         f"{mp.Ra:.4f}", "Ohm"),
@@ -275,7 +262,6 @@ def _write_sim_block_dc(
     _tr(pdf, rows_params, [100, 45, 25], ["L", "R", "L"])
     pdf.ln(4)
 
-    # ── 2.1 Equivalent Circuit ─────────────────────────────────────────────
     try:
         from viz.eqcircuit_plotter_dc_v2 import build_circuit_png_dc
         _ensure_space(pdf, 90)
@@ -291,9 +277,12 @@ def _write_sim_block_dc(
     except Exception:
         pass
 
-    sec_n += 1
+    return sec_n + 1
 
-    # ── 3. Steady-State Indicators ────────────────────────────────────────
+
+def _pdf_dc_section_steady_state(
+    pdf, res: dict, mp: DCMachineParams, losses: dict, exc: str, sec_n: int,
+) -> int:
     pdf.add_page()
     _sec(pdf, "Steady-State Indicators", f"{sec_n}.")
     n_ss   = float(res.get("n_ss",   0.0))
@@ -304,6 +293,7 @@ def _write_sim_block_dc(
     Ea_ss  = float(res.get("Ea_ss",  0.0))
     Vt_ss  = float(res.get("Vt_ss",  0.0))
 
+    is_gen    = exc in ("sep_gen", "shunt_gen")
     P_elec    = losses["P_elec"]
     P_mec_out = losses["P_mec_out"]
     eta = (P_mec_out / max(P_elec, 1e-9) * 100) if not is_gen \
@@ -330,9 +320,10 @@ def _write_sim_block_dc(
     _th(pdf, [("Quantity", 105), ("Value", 45), ("Unit", 20)])
     _tr(pdf, rows_ss, [105, 45, 20], ["L", "R", "L"])
     pdf.ln(4)
-    sec_n += 1
+    return sec_n + 1
 
-    # ── 4. Loss Balance ────────────────────────────────────────────────────
+
+def _pdf_dc_section_loss_balance(pdf, losses: dict, sec_n: int) -> int:
     _ensure_space(pdf, 100)
     _sec(pdf, "Loss Balance (Steady State)", f"{sec_n}.")
     rows_loss = [
@@ -358,9 +349,13 @@ def _write_sim_block_dc(
         "Percentage distribution of steady-state losses "
         "relative to input electrical power.")
     pdf.ln(2)
-    sec_n += 1
+    return sec_n + 1
 
-    # ── 5. Transient Curves ───────────────────────────────────────────────
+
+def _pdf_dc_section_curves(
+    pdf, res: dict, t_events: list, var_keys: list, var_labels: list,
+    exc: str, sec_n: int,
+) -> int:
     dc_curve_keys   = ["ia", "wm", "Te"]
     dc_curve_labels = ["i_a (A)", "omega_m (rad/s)", "T_e (N.m)"]
     if exc not in ("series_motor",) and "ifd" in res:
@@ -385,9 +380,12 @@ def _write_sim_block_dc(
             "Time evolution of electromechanical quantities during the simulation.")
         import matplotlib.pyplot as plt
         plt.close(curves_fig)
-    sec_n += 1
+    return sec_n + 1
 
-    # ── 6. Diagnostics and Observations ───────────────────────────────────
+
+def _pdf_dc_section_diagnostics(
+    pdf, res: dict, mp: DCMachineParams, sec_n: int,
+) -> int:
     _ensure_space(pdf, 40)
     _sec(pdf, "Diagnostics and Observations", f"{sec_n}.")
     anomalias = _compute_anomalias_dc(res, mp)
@@ -413,112 +411,124 @@ def _write_sim_block_dc(
             pdf.ln(0)
             x0 = pdf.get_x()
             pdf.set_xy(x0, pdf.get_y() + 6)
-    sec_n += 1
+    return sec_n + 1
 
-    # ── 7. Operating Mode Analysis ────────────────────────────────────────
-    if exp_config:
-        _ensure_space(pdf, 40)
-        _sec(pdf, "Operating Mode Analysis", f"{sec_n}.")
-        mode = exp_config.get("exp_type", exp_type)
 
-        if mode == "frenagem_dc":
-            brake = exp_config.get("brake_method", "plugging")
-            _BRAKE_NAMES = {
-                "plugging":    "Polarity Reversal (Plugging)",
-                "injecao_cc":  "DC Injection Braking",
-                "regenerativo":"Regenerative Braking",
-            }
-            _subsec(pdf, f"Electric Braking — {_BRAKE_NAMES.get(brake, brake)}")
-            t_freia = exp_config.get("t_freia", 0.0)
-            wm_arr  = np.asarray(res.get("wm", [0.0]))
-            t_arr_m = np.asarray(res.get("t",  [0.0]))
-            ia_arr  = np.asarray(res.get("ia",  [0.0]))
-            idx_f   = int(np.searchsorted(t_arr_m, t_freia))
-            wm_before = float(wm_arr[max(idx_f - 1, 0)]) if len(wm_arr) > 0 else 0.0
-            ia_pk_brake = float(np.max(np.abs(ia_arr[idx_f:]))) if idx_f < len(ia_arr) else 0.0
-            idx_stop = next((i for i in range(idx_f, len(wm_arr)) if abs(wm_arr[i]) < 1.0), len(wm_arr) - 1)
-            t_stop = float(t_arr_m[idx_stop]) - t_freia if idx_stop < len(t_arr_m) else None
-            rows_b = [
-                ("Braking instant (t_brake)",       f"{t_freia:.3f} s"),
-                ("Speed before braking",            f"{wm_before * 60 / (2*3.14159):.1f} RPM"),
-                ("Post-braking peak current",       f"{ia_pk_brake:.3f} A"),
-            ]
-            if t_stop is not None:
-                rows_b.append(("Estimated time to stop", f"{t_stop:.3f} s"))
-            if brake == "injecao_cc":
-                rows_b.append(("Injected DC voltage (V_inj)", f"{exp_config.get('Vdc_inj', 0.0):.2f} V"))
-            elif brake == "regenerativo":
-                rows_b.append(("Reduced voltage (V_a,regen)", f"{exp_config.get('Va_regen', 0.0):.2f} V"))
-            _th(pdf, [("Indicator", 115), ("Value", 55)])
-            _tr(pdf, rows_b, [115, 55], ["L", "L"])
+def _pdf_dc_section_mode_analysis(
+    pdf, res: dict, exp_type: str, exp_config: dict | None, sec_n: int,
+) -> int:
+    if not exp_config:
+        return sec_n
+    _ensure_space(pdf, 40)
+    _sec(pdf, "Operating Mode Analysis", f"{sec_n}.")
+    mode = exp_config.get("exp_type", exp_type)
 
-        elif mode == "campo_fraco_dc":
-            _subsec(pdf, "Field Weakening")
-            t_campo = exp_config.get("t_campo", 0.0)
-            Vf_fraco = exp_config.get("Vf_fraco", 0.0)
-            wm_arr = np.asarray(res.get("wm", [0.0]))
-            t_arr_m = np.asarray(res.get("t", [0.0]))
-            idx_c = int(np.searchsorted(t_arr_m, t_campo))
-            wm_before = float(wm_arr[max(idx_c - 1, 0)]) * 60 / (2*3.14159) if len(wm_arr) > 0 else 0.0
-            wm_after  = float(wm_arr[-1]) * 60 / (2*3.14159) if len(wm_arr) > 0 else 0.0
-            _th(pdf, [("Indicator", 115), ("Value", 55)])
-            _tr(pdf, [
-                ("Field weakening instant (t_campo)",      f"{t_campo:.3f} s"),
-                ("Reduced field voltage (V_f,weak)",       f"{Vf_fraco:.2f} V"),
-                ("Speed before field weakening",           f"{wm_before:.1f} RPM"),
-                ("Speed after field weakening (steady)",   f"{wm_after:.1f} RPM"),
-                ("Speed gain",                             f"{wm_after - wm_before:+.1f} RPM"),
-            ], [115, 55], ["L", "L"])
+    if mode == "frenagem_dc":
+        brake = exp_config.get("brake_method", "plugging")
+        _BRAKE_NAMES = {
+            "plugging":    "Polarity Reversal (Plugging)",
+            "injecao_cc":  "DC Injection Braking",
+            "regenerativo":"Regenerative Braking",
+        }
+        _subsec(pdf, f"Electric Braking — {_BRAKE_NAMES.get(brake, brake)}")
+        t_freia = exp_config.get("t_freia", 0.0)
+        wm_arr  = np.asarray(res.get("wm", [0.0]))
+        t_arr_m = np.asarray(res.get("t",  [0.0]))
+        ia_arr  = np.asarray(res.get("ia",  [0.0]))
+        idx_f   = int(np.searchsorted(t_arr_m, t_freia))
+        wm_before = float(wm_arr[max(idx_f - 1, 0)]) if len(wm_arr) > 0 else 0.0
+        ia_pk_brake = float(np.max(np.abs(ia_arr[idx_f:]))) if idx_f < len(ia_arr) else 0.0
+        idx_stop = next((i for i in range(idx_f, len(wm_arr)) if abs(wm_arr[i]) < 1.0), len(wm_arr) - 1)
+        t_stop = float(t_arr_m[idx_stop]) - t_freia if idx_stop < len(t_arr_m) else None
+        rows_b = [
+            ("Braking instant (t_brake)",       f"{t_freia:.3f} s"),
+            ("Speed before braking",            f"{wm_before * 60 / (2*3.14159):.1f} RPM"),
+            ("Post-braking peak current",       f"{ia_pk_brake:.3f} A"),
+        ]
+        if t_stop is not None:
+            rows_b.append(("Estimated time to stop", f"{t_stop:.3f} s"))
+        if brake == "injecao_cc":
+            rows_b.append(("Injected DC voltage (V_inj)", f"{exp_config.get('Vdc_inj', 0.0):.2f} V"))
+        elif brake == "regenerativo":
+            rows_b.append(("Reduced voltage (V_a,regen)", f"{exp_config.get('Va_regen', 0.0):.2f} V"))
+        _th(pdf, [("Indicator", 115), ("Value", 55)])
+        _tr(pdf, rows_b, [115, 55], ["L", "L"])
 
-        elif mode == "gerador_dc":
-            _subsec(pdf, "Generator Mode — Power Analysis")
-            ia_ss  = float(res.get("ia_ss",  0.0))
-            wm_ss  = float(res.get("wm_ss",  0.0))
-            Te_ss  = float(res.get("Te_ss",  0.0))
-            Rl     = mp.Rl if hasattr(mp, "Rl") else 0.0
-            Ea_ss  = float(res.get("Ea_ss",  0.0))
-            Vt_ss  = float(res.get("Vt_ss",  0.0))
-            P_mec_in  = abs(Te_ss) * abs(wm_ss)
-            P_elec_out = Vt_ss ** 2 / Rl if Rl > 1e-6 else abs(ia_ss) * abs(Vt_ss)
-            eta_gen = P_elec_out / P_mec_in * 100 if P_mec_in > 1e-3 else 0.0
-            _th(pdf, [("Indicator", 115), ("Value", 55)])
-            _tr(pdf, [
-                ("Steady-state speed (n_ss)",            f"{wm_ss * 60 / (2*3.14159):.1f} RPM"),
-                ("Terminal voltage (V_t,ss)",            f"{Vt_ss:.3f} V"),
-                ("Armature current (I_a,ss)",            f"{ia_ss:.4f} A"),
-                ("Back-EMF (E_a,ss)",                    f"{Ea_ss:.3f} V"),
-                ("Input mechanical power",               f"{P_mec_in:.2f} W"),
-                ("Generated electrical power",           f"{P_elec_out:.2f} W"),
-                ("Estimated efficiency",                 f"{eta_gen:.1f} %"),
-            ], [115, 55], ["L", "L"])
-        sec_n += 1
-
-    # ── 8. Parameter Estimation ────────────────────────────────────────────
-    if input_mode and input_mode != "Enter parameters manually":
-        _ensure_space(pdf, 50)
-        _sec(pdf, "Parameter Estimation", f"{sec_n}.")
-        if "Nameplate" in input_mode:
-            _subsec(pdf, "Nameplate Method (NEMA — Heuristic)")
-            _body(pdf, "  Parameters estimated from the machine nameplate data "
-                  "using NEMA heuristics. The values below were used in the simulation.")
-        else:
-            _subsec(pdf, "Test Method (IEEE Std 113-1985)")
-            _body(pdf, "  Parameters determined from laboratory tests per "
-                  "IEEE Std 113-1985: armature DC test, field DC test, "
-                  "AC inductance test (Sec. 7.5.1) and no-load test (Sec. 5.6).")
-        _th(pdf, [("Parameter", 85), ("Symbol", 30), ("Value", 55)])
+    elif mode == "campo_fraco_dc":
+        _subsec(pdf, "Field Weakening")
+        t_campo = exp_config.get("t_campo", 0.0)
+        Vf_fraco = exp_config.get("Vf_fraco", 0.0)
+        wm_arr = np.asarray(res.get("wm", [0.0]))
+        t_arr_m = np.asarray(res.get("t", [0.0]))
+        idx_c = int(np.searchsorted(t_arr_m, t_campo))
+        wm_before = float(wm_arr[max(idx_c - 1, 0)]) * 60 / (2*3.14159) if len(wm_arr) > 0 else 0.0
+        wm_after  = float(wm_arr[-1]) * 60 / (2*3.14159) if len(wm_arr) > 0 else 0.0
+        _th(pdf, [("Indicator", 115), ("Value", 55)])
         _tr(pdf, [
-            ("Armature resistance",     "R_a",  f"{mp.Ra:.5f} Ohm"),
-            ("Armature inductance",     "L_a",  f"{mp.La:.5f} H"),
-            ("Back-EMF constant",       "k_b",  f"{mp.kb:.6f} V.s/rad"),
-            ("Field resistance",        "R_f",  f"{mp.Rf:.4f} Ohm"),
-            ("Field inductance",        "L_f",  f"{mp.Lf:.5f} H"),
-            ("Moment of inertia",       "J",    f"{mp.J:.4f} kg.m2"),
-            ("Viscous friction coeff.", "B",    f"{mp.B:.2e} N.m.s/rad"),
-        ], [85, 30, 55], ["L", "C", "L"])
-        sec_n += 1
+            ("Field weakening instant (t_campo)",      f"{t_campo:.3f} s"),
+            ("Reduced field voltage (V_f,weak)",       f"{Vf_fraco:.2f} V"),
+            ("Speed before field weakening",           f"{wm_before:.1f} RPM"),
+            ("Speed after field weakening (steady)",   f"{wm_after:.1f} RPM"),
+            ("Speed gain",                             f"{wm_after - wm_before:+.1f} RPM"),
+        ], [115, 55], ["L", "L"])
 
-    # ── 9. Integrator Parameters ───────────────────────────────────────────
+    elif mode == "gerador_dc":
+        _subsec(pdf, "Generator Mode — Power Analysis")
+        ia_ss  = float(res.get("ia_ss",  0.0))
+        wm_ss  = float(res.get("wm_ss",  0.0))
+        Te_ss  = float(res.get("Te_ss",  0.0))
+        Rl     = mp.Rl if hasattr(mp, "Rl") else 0.0
+        Ea_ss  = float(res.get("Ea_ss",  0.0))
+        Vt_ss  = float(res.get("Vt_ss",  0.0))
+        P_mec_in  = abs(Te_ss) * abs(wm_ss)
+        P_elec_out = Vt_ss ** 2 / Rl if Rl > 1e-6 else abs(ia_ss) * abs(Vt_ss)
+        eta_gen = P_elec_out / P_mec_in * 100 if P_mec_in > 1e-3 else 0.0
+        _th(pdf, [("Indicator", 115), ("Value", 55)])
+        _tr(pdf, [
+            ("Steady-state speed (n_ss)",            f"{wm_ss * 60 / (2*3.14159):.1f} RPM"),
+            ("Terminal voltage (V_t,ss)",            f"{Vt_ss:.3f} V"),
+            ("Armature current (I_a,ss)",            f"{ia_ss:.4f} A"),
+            ("Back-EMF (E_a,ss)",                    f"{Ea_ss:.3f} V"),
+            ("Input mechanical power",               f"{P_mec_in:.2f} W"),
+            ("Generated electrical power",           f"{P_elec_out:.2f} W"),
+            ("Estimated efficiency",                 f"{eta_gen:.1f} %"),
+        ], [115, 55], ["L", "L"])
+
+    return sec_n + 1
+
+
+def _pdf_dc_section_param_estimation(
+    pdf, mp: DCMachineParams, input_mode: str | None, sec_n: int,
+) -> int:
+    if not input_mode or input_mode == "Enter parameters manually":
+        return sec_n
+    _ensure_space(pdf, 50)
+    _sec(pdf, "Parameter Estimation", f"{sec_n}.")
+    if "Nameplate" in input_mode:
+        _subsec(pdf, "Nameplate Method (NEMA — Heuristic)")
+        _body(pdf, "  Parameters estimated from the machine nameplate data "
+              "using NEMA heuristics. The values below were used in the simulation.")
+    else:
+        _subsec(pdf, "Test Method (IEEE Std 113-1985)")
+        _body(pdf, "  Parameters determined from laboratory tests per "
+              "IEEE Std 113-1985: armature DC test, field DC test, "
+              "AC inductance test (Sec. 7.5.1) and no-load test (Sec. 5.6).")
+    _th(pdf, [("Parameter", 85), ("Symbol", 30), ("Value", 55)])
+    _tr(pdf, [
+        ("Armature resistance",     "R_a",  f"{mp.Ra:.5f} Ohm"),
+        ("Armature inductance",     "L_a",  f"{mp.La:.5f} H"),
+        ("Back-EMF constant",       "k_b",  f"{mp.kb:.6f} V.s/rad"),
+        ("Field resistance",        "R_f",  f"{mp.Rf:.4f} Ohm"),
+        ("Field inductance",        "L_f",  f"{mp.Lf:.5f} H"),
+        ("Moment of inertia",       "J",    f"{mp.J:.4f} kg.m2"),
+        ("Viscous friction coeff.", "B",    f"{mp.B:.2e} N.m.s/rad"),
+    ], [85, 30, 55], ["L", "C", "L"])
+    return sec_n + 1
+
+
+def _pdf_dc_section_integrator(
+    pdf, res: dict, tmax: float, h: float, sec_n: int,
+) -> int:
     _ensure_space(pdf, 55)
     _sec(pdf, "Numerical Integrator Parameters (LSODA)", f"{sec_n}.")
     t_arr  = np.asarray(res.get("t", [0.0, 1.0]))
@@ -536,6 +546,42 @@ def _write_sim_block_dc(
           "  Integrator: LSODA (scipy.integrate.solve_ivp), adaptive step control, "
           "RTOL = 1e-5, ATOL = 1e-7.")
     pdf.ln(3)
+    return sec_n + 1
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Main simulation block — orchestrator
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _write_sim_block_dc(
+    pdf,
+    res: dict,
+    mp: DCMachineParams,
+    exp_label: str,
+    exp_type: str,
+    t_events: list,
+    var_keys: list,
+    var_labels: list,
+    tmax: float,
+    h: float,
+    exp_config: dict | None = None,
+    input_mode: str | None = None,
+) -> None:
+    exc    = mp.excitation if mp else "sep_motor"
+    losses = _compute_losses_dc(res, mp)
+
+    _pdf_dc_cover(pdf, exp_label, exc)
+
+    sec_n = 1
+    sec_n = _pdf_dc_section_identification(pdf, res, mp, exp_label, exp_type, tmax, exc, sec_n)
+    sec_n = _pdf_dc_section_machine_params(pdf, mp, exc, sec_n)
+    sec_n = _pdf_dc_section_steady_state(pdf, res, mp, losses, exc, sec_n)
+    sec_n = _pdf_dc_section_loss_balance(pdf, losses, sec_n)
+    sec_n = _pdf_dc_section_curves(pdf, res, t_events, var_keys, var_labels, exc, sec_n)
+    sec_n = _pdf_dc_section_diagnostics(pdf, res, mp, sec_n)
+    sec_n = _pdf_dc_section_mode_analysis(pdf, res, exp_type, exp_config, sec_n)
+    sec_n = _pdf_dc_section_param_estimation(pdf, mp, input_mode, sec_n)
+    _pdf_dc_section_integrator(pdf, res, tmax, h, sec_n)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
