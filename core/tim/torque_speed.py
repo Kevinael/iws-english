@@ -21,7 +21,6 @@ Extending:
 from __future__ import annotations
 import numpy as np
 import plotly.graph_objects as go
-import streamlit as st
 from viz.tim_charts import _plot_theme
 
 
@@ -339,19 +338,3 @@ def _op_on_curve(tn: dict, res: dict):
     return Te_ss, n_op
 
 
-def render_curva_tn(mp, res: dict, dark: bool, decimals: int, render_plotly_fn) -> None:
-    """Renders the T×n curve and power flow section in the UI."""
-    st.divider()
-    st.markdown('<p class="slabel">Characteristic Curve</p>', unsafe_allow_html=True)
-
-    with st.expander("View T×n Curve (Torque × Speed)", expanded=False):
-        tn    = calc_curva_tn(mp)
-        Te_op, n_op = _op_on_curve(tn, res)
-
-        fig_tn = build_fig_tn(tn, dark, Te_op=Te_op, n_op=n_op)
-        render_plotly_fn(fig_tn, div_id="ems-tn")
-
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Maximum Torque $T_{e,max}$ (pull-out)", f"{tn['Te_max']:.{decimals}f} N·m")
-        c2.metric("Starting Torque $T_{e,s}$ (s=1)",       f"{tn['Te_part']:.{decimals}f} N·m")
-        c3.metric("Slip at $T_{e,max}$",                   f"{tn['s_max']*100:.{decimals}f} %")

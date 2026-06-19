@@ -21,9 +21,7 @@ Extending:
 from __future__ import annotations
 import numpy as np
 import plotly.graph_objects as go
-import streamlit as st
 from viz.tim_charts import _plot_theme
-from utils.text_utils import _strip_latex
 from core.constants import (
     FFT_HARMONIC_MAX_ORDER,
     FFT_FREQ_CEIL_HZ,
@@ -75,8 +73,8 @@ def build_fig_fft(res: dict, dark: bool, key: str = "ias", label: str = "ias") -
 
     dt   = float(t[1] - t[0]) if len(t) > 1 else 1e-3
     N    = len(y)
-    yf   = np.abs(np.fft.rfft(y)) * 2.0 / N
-    freq = np.fft.rfftfreq(N, d=dt)
+    from core.tim.fft_utils import compute_fft
+    freq, yf = compute_fft(y, dt, scale="rms")
 
     # detects fundamental (largest peak above 1 Hz)
     f1_mask  = freq > 1.0
@@ -162,26 +160,3 @@ def build_fig_fft(res: dict, dark: bool, key: str = "ias", label: str = "ias") -
         showlegend=False,
     )
     return fig
-
-
-def render_harmonicas(res: dict, var_keys: list, var_labels: list,
-                      dark: bool, render_plotly_fn) -> None:
-    """Renders the spectral analysis (FFT) section in the UI."""
-    ac_keys = [k for k in var_keys if k in ("ias", "ibs", "ics", "iar", "ibr", "icr", "Va", "Vb", "Vc")]
-    if not ac_keys:
-        return
-
-    st.divider()
-    st.markdown('<p class="slabel">Spectral Analysis</p>', unsafe_allow_html=True)
-    with st.expander("View Harmonic Spectrum (FFT)", expanded=False):
-        fft_var = st.selectbox(
-            "Variable for analysis",
-            options=ac_keys,
-            format_func=lambda k: next((lbl for kk, lbl in zip(var_keys, var_labels) if kk == k), k),
-            key="fft_var_select",
-        )
-        fft_lbl      = next((lbl for kk, lbl in zip(var_keys, var_labels) if kk == fft_var), fft_var)
-        fft_lbl_plot = _strip_latex(fft_lbl)
-        fig_fft = build_fig_fft(res, dark, key=fft_var, label=fft_lbl_plot)
-        render_plotly_fn(fig_fft, div_id="ems-fft")
-        st.caption("Red diamonds indicate odd harmonics (1st, 3rd, 5th, 7th, 9th, 11th). X-axis limited to the 11th harmonic or 1200 Hz.")
