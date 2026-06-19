@@ -33,12 +33,13 @@ import numpy as np
 from core.tim.machine_model import MachineParams, _make_rhs
 from core.tim.sources import build_fns
 from core.transforms import clarke_park_transform
-from core.tim.fault import make_broken_bar_rr_fn
+from core.tim.fault_model import make_broken_bar_rr_fn
 from core.tim.solver import (
     _solve, _voltages_vectorized, _reconstruct_currents, _compute_steady_state,
     SS_TOL, MIN_SS_CYCLES, NYQUIST_LIMIT, F_ROTOR_FLOOR,
     RTOL, ATOL, MAX_STEP_FACTOR,
 )
+from core.constants import AMPLITUDE_INVARIANT
 
 
 def run_simulation(
@@ -105,7 +106,7 @@ def run_simulation(
         PSIqs, PSIds, PSIqr, PSIdr, tetae, tetar, mp
     )
 
-    Te     = (3.0 / 2.0) * (mp.p / 2.0) * (1.0 / mp.wb) * (PSIds * iqs - PSIqs * ids)
+    Te     = AMPLITUDE_INVARIANT * (mp.p / 2.0) * (1.0 / mp.wb) * (PSIds * iqs - PSIqs * ids)
     wr_mec = np.maximum(wr_e / (mp.p / 2.0), 0.0)
     n_rpm  = np.maximum(wr_e * 60.0 / (np.pi * mp.p), 0.0)
 

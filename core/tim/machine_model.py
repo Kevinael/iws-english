@@ -14,7 +14,7 @@ Relationships:
   Imported by : core.IWS_PY, core.solver, core.sources, core.curva_tn,
                 ui_components.sim_config, viz.pdf_commons,
                 tests.conftest, tests.test_machine_model
-  Imports     : core.thermal, core.transforms, core.desequilibrio_falta
+  Imports     : core.thermal, core.transforms, core.tim.fault_model
 
 Extending:
   - For magnetic saturation, modify _lm_saturado and _xml_from_lm; for
@@ -29,7 +29,8 @@ from dataclasses import dataclass, field
 
 from core.tim.thermal import estimate_rth_cth
 from core.transforms import abc_voltages, clarke_park_transform
-from core.tim.fault import abc_voltages_deseq
+from core.tim.fault_model import abc_voltages_deseq
+from core.constants import N_SYNC_FACTOR
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -136,7 +137,7 @@ class MachineParams:
 
     @property
     def n_sync(self) -> float:
-        return 120.0 * self.f / self.p
+        return N_SYNC_FACTOR * self.f / self.p
 
 
 # ═══════════════════════════════════════════════════════════════════════════

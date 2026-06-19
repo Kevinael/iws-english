@@ -13,7 +13,7 @@ Responsibilities:
 
 Relationships:
   Imported by : core.IWS_PY
-  Imports     : core.machine_model, core.transforms, core.desequilibrio_falta
+  Imports     : core.tim.machine_model, core.transforms, core.tim.fault_model
 
 Extending:
   - For a new starting mode, add logic in _solve; for new post-processing
@@ -28,7 +28,7 @@ from scipy.integrate import solve_ivp
 
 from core.tim.machine_model import MachineParams
 from core.transforms import abc_voltages, clarke_park_transform, _SQRT3_2
-from core.tim.fault import abc_voltages_deseq
+from core.tim.fault_model import abc_voltages_deseq
 from core.constants import (
     SOLVER_SS_TOL as SS_TOL,
     SOLVER_MIN_SS_CYCLES as MIN_SS_CYCLES,
