@@ -15,7 +15,7 @@ Responsibilities:
 Relationships:
   Imported by : ui_components.sim_runner_dc, ui_components.sim_config_dc,
                 ui_components.sim_results_dc, ui.theory_dc_interactive,
-                viz.pdf_dc, scripts.gen_dc_imgs, analysis.compare_dc_ac_dol,
+                viz.pdf_dc, scripts.gen_dc_imgs,
                 utils.gen_okoro_comparison, tests.*, core.dc.__init__
   Imports     : core.dc.machine_model, core.dc.solver, core.dc.sources,
                 core.dc.estimator
