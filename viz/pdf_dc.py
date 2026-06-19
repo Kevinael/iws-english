@@ -22,7 +22,7 @@ from __future__ import annotations
 import datetime
 import numpy as np
 
-from core.dc.machine_model import DCMachineParams
+from core.dc.facade import DCMachineParams
 from viz.pdf_commons import (
     safe_text, embed_fig,
     cell_rich, render_rich,

@@ -37,8 +37,11 @@ def _save(fig, name: str) -> None:
 
 
 def _circuit_png(excitation: str) -> None:
-    from viz.eqcircuit_plotter_dc import _build_circuit_png_dc
-    png_bytes = _build_circuit_png_dc(excitation, dark=False)
+    from viz.eqcircuit_plotter_dc_v2 import build_circuit_png_dc
+    from core.dc.facade import DCMachineParams
+    mp = DCMachineParams(Va=24.0, Ra=0.013, La=0.001, Rf=1.43, Lf=0.05,
+                         excitation=excitation)
+    png_bytes = build_circuit_png_dc(mp, dark=False)
     dest = OUT / {
         "sep_motor":    "separate_motor.png",
         "shunt_motor":  "shunt_motor.png",

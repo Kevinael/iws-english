@@ -24,7 +24,7 @@ import numpy as np
 import streamlit as st
 import plotly.graph_objects as go
 
-from core.dc.machine_model import DCMachineParams
+from core.dc.facade import DCMachineParams
 from data.experiment_modes import DC_EXC_LABELS
 from core.constants import (
     DC_OVERCURRENT_WARN_RATIO,

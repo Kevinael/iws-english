@@ -25,7 +25,7 @@ from typing import Any
 import numpy as np
 import streamlit as st
 
-from core.dc.machine_model import DCMachineParams
+from core.dc.facade import DCMachineParams
 from data.machines_dc import DC_PRESETS_BY_EXC, DC_PRESETS_FLAT
 from data.experiment_modes import (
     DC_MODES_BY_EXC,
@@ -42,6 +42,7 @@ from data.variable_labels import (
     DC_DEFAULT_VARS_ELE,
     DC_DEFAULT_VARS,
 )
+from ui_components._shared_widgets import _pgroup, _ibox
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -134,14 +135,6 @@ _WK_DC = _WidgetKeysDC()
 # HELPERS
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _pgroup(title: str) -> None:
-    st.markdown(f'<div class="pgroup-title">{title}</div>', unsafe_allow_html=True)
-
-
-def _ibox(html: str) -> None:
-    st.markdown(f'<div class="ibox">{html}</div>', unsafe_allow_html=True)
-
-
 def _wi(key: str, default: Any) -> None:
     """Initializes session_state if absent."""
     if key not in st.session_state:
@@ -154,7 +147,7 @@ def _wi(key: str, default: Any) -> None:
 
 def _render_dc_nameplate(exc: str) -> None:
     """Renders nameplate estimator widgets and writes estimated values to session_state."""
-    from core.dc.estimator import estimate_dc_nameplate
+    from core.dc.facade import estimate_dc_nameplate
 
     _pgroup("Nameplate Data (NEMA)")
     p1, p2, p3, p4 = st.columns(4)
@@ -207,7 +200,7 @@ def _render_dc_nameplate(exc: str) -> None:
 
 def _render_dc_ieee(exc: str) -> None:
     """Renders IEEE 113 test widgets and writes estimated values to session_state."""
-    from core.dc.estimator import estimate_dc_tests
+    from core.dc.facade import estimate_dc_tests
 
     with st.expander("How to perform the IEEE 113 tests (procedure, formulas, and tips)", expanded=False):
         st.markdown("""

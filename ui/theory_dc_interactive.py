@@ -160,9 +160,10 @@ def render_padrao_corrente_dc() -> None:
                        horizontal=True, key="theory_dc_exc_radio")
 
     if st.button("Simulate", key="theory_dc_simular"):
-        from core.dc.machine_model import DCMachineParams
-        from core.dc.solver import run_simulation_dc
-        from core.dc.sources import make_voltage_fn_dc, make_torque_fn_dc
+        from core.dc.facade import (
+            DCMachineParams, run_simulation_dc,
+            make_voltage_fn_dc, make_torque_fn_dc,
+        )
 
         presets = {
             "sep_motor":    dict(Va=24, Ra=0.013, La=0.01, Vf=12, Rf=1.43, Lf=0.167,
