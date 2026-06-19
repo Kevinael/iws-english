@@ -19,12 +19,16 @@ Extending:
 """
 
 import os
+import sys
 import schemdraw
 import schemdraw.elements as elm
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+from core.tim.torque_speed import _torque_array
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "imgs")
 
@@ -319,23 +323,14 @@ R1 = 0.5; X1 = 1.0; R2 = 0.4; X2 = 1.0; Xm = 50
 ns = 120 * f / p
 
 
-def _torque(s, V1, R1, X1, R2, X2, Xm, ns):
-    if abs(s) < 1e-4:
-        s = 1e-4
-    Z2  = R2 / s + 1j * X2
-    Zeq = (1j * Xm * Z2) / (1j * Xm + Z2)
-    Zt  = R1 + 1j * X1 + Zeq
-    I1  = V1 / Zt
-    Veq = I1 * Zeq
-    I2  = Veq / Z2
-    P2  = 3 * abs(I2) ** 2 * (R2 / s)
-    return P2 / (2 * np.pi * ns / 60)
+# Mechanical synchronous angular velocity (rad/s) for _torque_array.
+ws_mec = 2 * np.pi * ns / 60
 
 
 # ── Full T×s curve (black and white) ────────────────────────────────────
 s_all  = np.linspace(-2, 2, 2000)
 s_all  = s_all[s_all != 0]
-T_all  = [_torque(s, V1, R1, X1, R2, X2, Xm, ns) for s in s_all]
+T_all  = _torque_array(s_all, V1, R1, X1, R2, X2, Xm, ws_mec)
 n_all  = ns * (1 - s_all)
 
 fig, ax1 = plt.subplots(figsize=(8, 5))
@@ -378,7 +373,7 @@ fig, ax1 = plt.subplots(figsize=(10, 6))
 Tmaxs, Ncriticos = [], []
 
 for i, r2 in enumerate(R2_vals):
-    Tv = [_torque(s, V1, R1, X1, r2, X2, Xm, ns) for s in s_motor]
+    Tv = _torque_array(s_motor, V1, R1, X1, r2, X2, Xm, ws_mec)
     nv = ns * (1 - s_motor)
     idx = int(np.argmax(Tv))
     Tmaxs.append(Tv[idx]); Ncriticos.append(nv[idx])
