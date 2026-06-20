@@ -14,7 +14,6 @@ Relationships:
   Imported by : ui_components.tim_config, ui_components.tim_runner,
                 ui_components.tim_results, ui_components.chart_notes,
                 viz.pdf_commons, viz.pdf_academico, viz.pdf_industrial,
-                viz.tim_pdf_report, viz.tim_pdf_dashboard,
                 scripts.gen_figures, scripts.gen_resultados_web,
                 scripts.demo_potencias,
                 tests.conftest, tests.test_physics, core.tim.__init__
