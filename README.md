@@ -1,12 +1,13 @@
 # IWS — Interactive Web Simulator for Electrical Machines
 
-**IWS** is an interactive web-based simulator for three-phase induction machines (TIM) and DC machines (DCM), built as academic research infrastructure. It covers dynamic modelling, parameter estimation, fault analysis, and PDF report generation.
+**IWS** is an interactive web-based simulator for three-phase induction machines (TIM/MIT) and DC machines (DCM/MCC), built as academic research infrastructure. It covers dynamic modelling, parameter estimation, fault analysis, and PDF report generation.
 
 | | |
 |---|---|
-| **Stack** | Python 3.9+ · Streamlit · Plotly · NumPy / SciPy · ReportLab · schemdraw |
-| **Repository** | https://github.com/Kevinael/iws-english (branch `master`) |
-| **Run** | `streamlit run IWS_UI.py` |
+| **Stack** | Python 3.9+ · Streamlit · Plotly · NumPy / SciPy · fpdf2 · schemdraw |
+| **Repository** | https://github.com/Kevinael/iws-english |
+| **Run (web app)** | `streamlit run IWS_UI.py` |
+| **Run (headless)** | `from core.tim.facade import run_simulation` — see [ARCHITECTURE_HEADLESS.md](ARCHITECTURE_HEADLESS.md) |
 
 ---
 
@@ -14,25 +15,17 @@
 
 1. [Overview](#overview)
 2. [Installation](#installation)
-3. [Project Structure](#project-structure)
-4. [Module Reference](#module-reference)
-   - [core/](#core--physics-engine)
-   - [ui/](#ui--views-and-theme)
-   - [ui_components/](#ui_components--streamlit-widgets)
-   - [viz/](#viz--charts-and-reports)
-   - [utils/](#utils--utilities)
-   - [scripts/](#scripts--figure-generation)
-   - [analysis/](#analysis--comparative-studies)
-   - [tests/](#tests--test-suite)
-   - [data/](#data--reference-data)
-5. [Session State Contract](#session-state-contract)
-6. [Simulation Flow](#simulation-flow)
-7. [Simulation Modes](#simulation-modes)
-8. [Parameter Estimation](#parameter-estimation)
-9. [How to Extend](#how-to-extend)
-10. [Running Tests](#running-tests)
-11. [Commit Conventions](#commit-conventions)
-12. [Technical References](#technical-references)
+3. [Architecture](#architecture)
+4. [Project Structure](#project-structure)
+5. [Module Reference](#module-reference)
+6. [Session State Contract](#session-state-contract)
+7. [Simulation Flow](#simulation-flow)
+8. [Simulation Modes](#simulation-modes)
+9. [Parameter Estimation](#parameter-estimation)
+10. [How to Extend](#how-to-extend)
+11. [Running Tests](#running-tests)
+12. [Commit Conventions](#commit-conventions)
+13. [Technical References](#technical-references)
 
 ---
 
@@ -43,15 +36,18 @@ IWS provides a browser-based interface (via Streamlit) for:
 - **Dynamic simulation** — 8-state Krause dq0 model (TIM) and 4-state model (DCM), integrated via LSODA.
 - **Eight TIM operating modes** — four starting methods, steady-state regimes, generator, shutdown, and voltage sag.
 - **Six DCM configurations** — separately excited, shunt, and series, in motor and generator variants, with multiple starting modes.
-- **Parameter estimation** — Nameplate (NEMA MG-1) and IEEE Std 112-2017 with phasor iteration for TIM; nameplate and lab-test estimation for DCM.
+- **Parameter estimation** — Nameplate (NEMA MG-1) and IEEE Std 112-2017 with phasor iteration for TIM; nameplate and lab-test (IEEE 113) estimation for DCM.
 - **Fault analysis** — voltage unbalance, phase loss, and broken rotor bar.
 - **Motor Current Signature Analysis (MCSA)** — FFT-based broken-bar diagnostics.
-- **Thermal analysis** — first-order stator and rotor temperature evolution.
 - **Energy analysis** — Sankey power flow, efficiency, THD, and annual cost estimation.
 - **Automated diagnostics** — post-simulation anomaly detection with severity classification.
-- **Theory tab** — 8 interactive sub-tabs for TIM theory + 7 sub-tabs for DCM theory.
+- **Theory tab** — 8 interactive sub-tabs for TIM theory + sub-tabs for DCM theory.
 - **PDF reports** — academic (equations + full curves) and industrial (KPIs + diagnostics) styles.
 - **Interactive charts** — Plotly with pre-computed frames for zero-latency rendering.
+
+### Headless / library mode
+
+The physics engine (`core/`) is **fully decoupled from Streamlit**: it can be imported and run without the web framework, for use in notebooks, CI, batch scripts, or an alternative UI. See [ARCHITECTURE_HEADLESS.md](ARCHITECTURE_HEADLESS.md) for the full explanation and verified examples.
 
 ---
 
@@ -78,11 +74,36 @@ streamlit run IWS_UI.py
 
 The app opens at `http://localhost:8501`.
 
-To clear bytecode cache and restart with file polling (Windows):
+To clear bytecode cache and restart with file polling (Windows): `rodar.bat`.
 
-```bat
-rodar.bat
+**Dependencies** (`requirements.txt`): numpy, scipy, matplotlib, streamlit, plotly, schemdraw, fpdf2, kaleido, jinja2.
+
+---
+
+## Architecture
+
+IWS is organised in **two layers** with a single-direction dependency: the UI depends on the core, never the reverse.
+
 ```
+┌──────────────────────────────────────────────────────────┐
+│  UI LAYER  (depends on Streamlit)                          │
+│  IWS_UI.py · ui/ · ui_components/ · viz/                    │
+└───────────────────────────┬──────────────────────────────┘
+                            │ imports and calls (single arrow)
+                            ▼
+┌──────────────────────────────────────────────────────────┐
+│  CORE LAYER  (ZERO Streamlit)                              │
+│  core/tim/ · core/dc/ · core/transforms · core/constants   │
+│  params in  →  NumPy arrays out                            │
+└──────────────────────────────────────────────────────────┘
+```
+
+Each machine type exposes a **stable public facade**:
+
+- `core.tim.facade` — `MachineParams`, `run_simulation`, `build_fns`
+- `core.dc.facade` — `DCMachineParams`, `run_simulation_dc`, `make_voltage_fn_dc`, `make_torque_fn_dc`, `estimate_dc_nameplate`, `estimate_dc_tests`
+
+Machine routing in `IWS_UI.py` is driven by a **`_MACHINE_REGISTRY`** (`dict[str, _MachineSpec]`) — adding a new machine means registering a spec, not editing if/elif branches.
 
 ---
 
@@ -91,103 +112,109 @@ rodar.bat
 ```
 IWS - English/
 │
-├── IWS_UI.py                    Entry point — Streamlit orchestrator
+├── IWS_UI.py                    Entry point — Streamlit orchestrator + _MACHINE_REGISTRY
 │
-├── core/                        Physics engine (TIM and DCM models)
-│   ├── IWS_PY.py                Public facade (MachineParams, run_simulation, build_fns)
-│   ├── machine_model.py         Krause dq0 model — MachineParams + ODE RHS
-│   ├── solver.py                LSODA integrator + post-processing
-│   ├── sources.py               Voltage/torque excitation factories
-│   ├── transforms.py            Clarke-Park transforms (abc -> dq)
-│   ├── thermal.py               First-order thermal model (Rth, Cth)
-│   ├── energy_analysis.py       Steady-state energy metrics (efficiency, THD, cost)
-│   ├── harmonica_analysis.py    FFT spectra + MCSA
-│   ├── sim_diagnostics.py       Automatic anomaly detection
-│   ├── desequilibrio_falta.py   Voltage unbalance / phase loss [UNDER DEVELOPMENT]
-│   ├── param_estimator.py       TIM parameter estimator (Nameplate + IEEE Std 112)
-│   ├── curva_tn.py              Torque-speed curve + power flow
-│   ├── dc_machine_model.py      DCM model — DCMachineParams + ODE RHS
-│   ├── dc_solver.py             LSODA integrator for DCM
-│   ├── dc_sources.py            DCM excitation factories
-│   └── dc_estimator.py          DCM parameter estimator
+├── core/                        Physics engine — ZERO Streamlit
+│   ├── transforms.py            Clarke-Park transforms (abc <-> dq)
+│   ├── constants.py             Physical constants + session defaults
+│   ├── session_schema.py        TypedDicts for session_state keys
+│   │
+│   ├── tim/                     Three-phase induction machine (MIT)
+│   │   ├── facade.py            Public API: MachineParams, run_simulation, build_fns
+│   │   ├── machine_model.py     Krause dq0 model — MachineParams + ODE RHS
+│   │   ├── solver.py            LSODA integrator + post-processing
+│   │   ├── sources.py           Voltage/torque excitation factories (build_fns)
+│   │   ├── fault_model.py       PURE fault physics (unbalance, broken bar)
+│   │   ├── thermal.py           First-order thermal model (Rth, Cth)
+│   │   ├── energy_analysis.py   Steady-state energy metrics (efficiency, THD, cost)
+│   │   ├── harmonic_analysis.py FFT spectra + MCSA (build_fig_fft)
+│   │   ├── diagnostics.py       Automatic anomaly detection (generate_insights)
+│   │   ├── param_estimator.py   Nameplate (NEMA) + IEEE Std 112 estimators
+│   │   ├── torque_speed.py      Torque-speed curve + power flow
+│   │   └── fft_utils.py         Shared FFT helper
+│   │
+│   └── dc/                      DC machine (MCC)
+│       ├── facade.py            Public API: DCMachineParams, run_simulation_dc, ...
+│       ├── machine_model.py     DCM model — DCMachineParams + ODE RHS (6 configs)
+│       ├── solver.py            LSODA integrator for DCM
+│       ├── sources.py           DCM excitation factories
+│       └── estimator.py         DCM nameplate + IEEE 113 estimators
 │
-├── ui/                          Views and theme system
+├── ui/                          Views and theme system (Streamlit)
 │   ├── theme.py                 Dark/light colour palette + global CSS
-│   ├── clean_view.py            Article screenshot view (HTML tables)
-│   ├── theory.py                TIM Theory tab orchestrator (8 sub-tabs)
-│   ├── theory_interactive.py    TIM Theory interactive Plotly components
-│   ├── theory_dc.py             DCM Theory tab (7 sub-tabs)
-│   └── theory_dc_interactive.py DCM Theory interactive Plotly components
+│   ├── clean_view.py            Article screenshot view
+│   ├── theory/                  TIM Theory tab (package)
+│   │   ├── __init__.py          Orchestrator — render_theory_tab (8 sub-tabs)
+│   │   ├── tabs/                Sub-tab renderers (circuitos, dinamica, potencia, ...)
+│   │   └── *.py                 Interactive components (park_dinamico, boucherot, mcsa, ...)
+│   ├── theory_interactive.py    Shared TIM Theory interactive helpers
+│   ├── theory_dc.py             DCM Theory tab
+│   └── theory_dc_interactive.py DCM Theory interactive components
 │
 ├── ui_components/               Streamlit widget modules
-│   ├── sim_config.py            TIM machine selector + experiment config
-│   ├── sim_config_dc.py         DCM machine selector + experiment config
-│   ├── sim_results.py           TIM result tabs (KPIs, waveforms, diagnostics, PDF)
-│   ├── sim_results_dc.py        DCM result tabs
-│   ├── sim_runner.py            TIM simulation orchestrator + cache
+│   ├── _shared_widgets.py       Shared widget helpers (_pgroup, _ibox)
+│   ├── tim_config.py            TIM machine selector + experiment config (orchestrator)
+│   ├── tim_config_params.py     TIM parameter sub-renderers (Nameplate, IEEE, Manual)
+│   ├── exp_renderers_tim.py     TIM experiment sub-renderers (one per mode)
+│   ├── tim_fault_ui.py          TIM fault UI panels (unbalance, broken bar)
+│   ├── tim_runner.py            TIM simulation orchestrator + cache
+│   ├── tim_results.py           TIM results (orchestrator of 4 sub-tabs)
+│   ├── tim_results_overview.py  Results sub-tab: KPIs + health
+│   ├── tim_results_dynamics.py  Results sub-tab: waveforms
+│   ├── tim_results_diagnostics.py Results sub-tab: diagnostics + MCSA
+│   ├── tim_results_asset.py     Results sub-tab: asset management
+│   ├── sim_config_dc.py         DCM machine selector + experiment config (orchestrator)
+│   ├── sim_config_dc_keys.py    DCM widget-key registry (cycle-free)
+│   ├── sim_config_dc_params.py  DCM parameter sub-renderers (Nameplate, IEEE 113, Manual)
+│   ├── exp_renderers_dc.py      DCM experiment sub-renderers (one per mode)
 │   ├── sim_runner_dc.py         DCM simulation orchestrator + cache
-│   └── theory_view.py           Re-export wrapper for Theory tab
+│   ├── sim_results_dc.py        DCM result tabs
+│   ├── chart_notes.py           Chart annotation helpers
+│   ├── reference_manager.py     Save/clear simulation references
+│   └── theory_view.py           Re-export wrapper for the Theory tab
 │
 ├── viz/                         Visualisation and report generation
-│   ├── plotly_charts.py         TIM interactive Plotly charts
-│   ├── plotly_charts_dc.py      DCM interactive Plotly charts
-│   ├── eqcircuit_plotter.py     TIM equivalent circuit (schemdraw)
-│   ├── eqcircuit_plotter_dc.py  DCM equivalent circuits (schemdraw)
-│   ├── eqcircuit_plotter_dc_v2.py  DCM circuit variant [EXPERIMENTAL]
-│   ├── pdf_commons.py           Shared PDF utilities (SimBlock, helpers)
+│   ├── _chart_base.py           Parametric chart base (shared TIM/DC)
+│   ├── plotly_config.py         Shared Plotly configs (MIT/DC)
+│   ├── tim_charts.py            TIM Plotly charts + theme helpers (_plot_theme)
+│   ├── plotly_charts_dc.py      DCM Plotly charts
+│   ├── tim_eqcircuit.py         TIM equivalent circuit (schemdraw)
+│   ├── eqcircuit_plotter_dc_v2.py DCM equivalent circuits (schemdraw)
+│   ├── zoom_helpers.py          Zoom-window context for charts
+│   ├── pdf_commons.py           Shared PDF utilities
 │   ├── pdf_academico.py         Academic PDF report (TIM)
 │   ├── pdf_industrial.py        Industrial PDF report (TIM)
-│   ├── pdf_report.py            Legacy PDF generator [DEPRECATED]
-│   ├── pdf_report_v2.py         PDF v2 — IEEE-formal + dashboard [TRANSITIONAL]
+│   ├── tim_pdf_report.py        TIM PDF report builder
+│   ├── tim_pdf_dashboard.py     TIM PDF dashboard
 │   └── pdf_dc.py                DCM PDF report
+│
+├── data/                        Reference data and labels
+│   ├── machines_mit.py          TIM presets
+│   ├── machines_dc.py           DCM presets
+│   ├── experiment_modes.py      Mode/excitation label maps
+│   ├── variable_labels.py       Plottable-variable catalogue
+│   └── ui_labels.py             UI label maps (MACHINES, ...)
 │
 ├── utils/                       Utility scripts
 │   ├── text_utils.py            LaTeX to Unicode converter (_strip_latex)
 │   ├── gen_okoro_comparison.py  Okoro (2008) DCM validation figures
-│   └── _gen_theory_imgs.py      Theory tab PNG generator (schemdraw)
+│   └── _gen_theory_imgs.py      Theory tab PNG generator (uses core.tim torque)
 │
-├── scripts/                     Article figure generation
+├── scripts/                     Article / asset figure generation (standalone)
 │   ├── gen_figures.py           Overleaf figures — TIM 60 Hz DOL
 │   ├── gen_resultados_web.py    Overleaf figures — TIM 50 Hz
+│   ├── gen_dc_imgs.py           DCM circuit PNGs
 │   └── demo_potencias.py        Steady-state power metrics demo
 │
-├── analysis/                    Comparative studies
-│   └── compare_dc_ac_dol.py     TIM vs. DCM DOL transient overlay
-│
-├── tests/                       pytest test suite
+├── tests/                       pytest test suite (235 tests, Streamlit-free)
 │   ├── conftest.py              Shared fixtures (mp_3hp, mp_50hp, mp_2250hp)
-│   ├── test_curva_tn.py         Torque-speed curve tests
-│   ├── test_energy_analysis.py  Energy metrics tests
-│   ├── test_harmonica_analysis.py  FFT / MCSA tests
-│   ├── test_machine_model.py    MachineParams init and derived fields
-│   ├── test_param_estimator.py  TIM parameter estimator tests
-│   ├── test_physics.py          Physical invariants (torque balance, energy)
-│   ├── test_sim_diagnostics.py  Automated diagnostics tests
-│   ├── test_sources.py          Excitation source tests
-│   ├── test_thermal.py          Thermal model tests
-│   ├── test_transforms.py       Clarke-Park transform tests
-│   ├── test_dc_phase1_validation.py  DCM solver validation vs. dcmei.sce
-│   └── debug/
-│       ├── test_deseq_ui.py     Manual Streamlit test for unbalance UI
-│       └── debug_rms.py         RMS value inspection for debugging
-│
-├── data/
-│   └── examples/
-│       └── sep_motor_DOL.csv    Reference DCM (sep. exc.) DOL simulation output
-│
-├── assets/
-│   └── circuits_dc/             DCM circuit diagram PNGs (sep, shunt, series)
-│
-├── overleaf/
-│   └── imagens/                 Generated figures for the associated article
-│
-├── imgs/                        Static images for the Theory tab
+│   ├── test_*.py                Physics, sources, transforms, thermal, estimators, ...
+│   └── debug/                   Manual Streamlit debug pages (not run by pytest)
 │
 ├── requirements.txt             Python package dependencies
 ├── rodar.bat                    Windows launcher (clears __pycache__, starts app)
-├── SME - IAS.code-workspace     VS Code workspace
-├── iws-english.code-workspace   VS Code workspace (alternative root)
-├── iws-mcc-integration.code-workspace  VS Code workspace (DCM integration)
+├── README.md                    This file
+├── ARCHITECTURE_HEADLESS.md     How IWS works with and without Streamlit
 └── CLAUDE.md                    Claude Code project instructions
 ```
 
@@ -195,64 +222,59 @@ IWS - English/
 
 ## Module Reference
 
-### `core/` — Physics Engine
+### `core/` — Physics Engine (zero Streamlit)
 
-#### `core/IWS_PY.py` — Public Facade
-The single import point for all simulation code. Downstream modules (`ui_components`, `scripts`, `tests`) should import from here rather than from the internal modules directly.
+#### Public facades
 
 ```python
-from core.IWS_PY import MachineParams, run_simulation, build_fns
+# TIM (three-phase induction)
+from core.tim.facade import MachineParams, run_simulation, build_fns
+
+# DCM (DC machine)
+from core.dc.facade import (
+    DCMachineParams, run_simulation_dc,
+    make_voltage_fn_dc, make_torque_fn_dc,
+    estimate_dc_nameplate, estimate_dc_tests,
+)
 ```
+
+The facades are the single import point for downstream code (`ui_components`, `scripts`, `tests`). Import from them rather than from the internal submodules. `core.tim` (the package `__init__`) also re-exports the calculation symbols (`estimate_params`, `compute_energy_metrics`, `generate_insights`, `calc_curva_tn`, `_torque_array`, ...) as an aggregated entry point.
 
 | Symbol | Type | Description |
 |---|---|---|
-| `MachineParams` | dataclass | All TIM parameters (electrical, mechanical, thermal) |
-| `run_simulation(mp, tmax, h, voltage_fn, torque_fn, **kwargs)` | function | Runs the ODE and returns a result dict |
+| `MachineParams` | dataclass | TIM parameters (electrical, mechanical, thermal) — sensible defaults on every field |
+| `run_simulation(mp, tmax, h, voltage_fn, torque_fn, **kwargs)` | function | Integrates the Krause model, returns a result dict (~53 arrays) |
 | `build_fns(cfg, mp)` | function | Returns `(voltage_fn, torque_fn, t_events)` for an experiment config |
+| `DCMachineParams` | dataclass | DCM parameters (armature, field, mechanical, load) |
+| `run_simulation_dc(mp, tmax, h, voltage_fn, torque_fn)` | function | Integrates the DCM model, returns a result dict |
 
-#### `core/machine_model.py` — Krause dq0 Model
-Implements the standard Krause (1986) qd0 formulation in the arbitrary reference frame. `MachineParams` has 30+ fields; `__post_init__` computes derived inductances (`Lm`, `Lls`, `Llr`) and reactances (`Xls_a`, `Xlr_a`, `Xm_a`).
+#### `core/tim/machine_model.py` — Krause dq0 Model
 
-Key fields:
+`MachineParams` key fields:
 
 | Field | Unit | Description |
 |---|---|---|
 | `Vl` | V | Line-to-line RMS voltage |
 | `f` | Hz | Supply frequency |
 | `p` | — | Number of poles |
-| `Rs`, `Rr` | Ohm | Stator/rotor resistance |
-| `Xls`, `Xlr`, `Xm` | Ohm | Leakage and magnetising reactances |
-| `Rfe` | Ohm | Core loss resistance |
+| `Rs`, `Rr` | Ω | Stator/rotor resistance |
+| `Xls`, `Xlr`, `Xm` | Ω | Leakage and magnetising reactances |
+| `Rfe` | Ω | Core loss resistance |
 | `J` | kg·m² | Moment of inertia |
 | `B` | N·m·s | Viscous friction |
-| `Rth_e`, `Cth_e` | K/W, J/K | Stator thermal resistance/capacitance |
+| `Rth`, `Cth`, `T_amb` | K/W, J/K, °C | Thermal model parameters |
 
-#### `core/solver.py` — LSODA Integrator
-Wraps `scipy.integrate.solve_ivp` with `method='LSODA'` and a maximum step constraint `h <= 1/(20f)` for numerical stability. Post-processing reconstructs:
+#### `core/tim/solver.py` — LSODA Integrator
 
-- Phase currents `ias`, `ibs`, `ics` (abc frame)
-- Voltages `Va`, `Vb`, `Vc`
-- Steady-state RMS values, active/reactive/apparent power
-- Efficiency, power factor, THD
+Wraps `scipy.integrate.solve_ivp` with `method='LSODA'` and `h ≤ 1/(20f)` for stability. Post-processing reconstructs phase currents (`ias`, `ibs`, `ics`), voltages, steady-state RMS values, power, efficiency, power factor, and THD.
 
-Steady-state detection uses a sliding-window torque variance criterion (`SS_TOL`, `MIN_SS_CYCLES`).
+#### `core/tim/fault_model.py` — Pure Fault Physics
 
-#### `core/sources.py` — Excitation Factories
-`build_fns(cfg, mp)` reads `cfg['exp_type']` and returns callables:
+`abc_voltages_deseq(...)` (unbalanced voltages / phase loss) and `make_broken_bar_rr_fn(...)` (Rr modulation for broken-bar MCSA). No Streamlit — imported by `solver`, `machine_model`, and `facade`. The interactive panels for these faults live in `ui_components/tim_fault_ui.py`.
 
-| Mode key | Voltage profile | Torque profile |
-|---|---|---|
-| `dol` | Full voltage from t=0 | Constant or step |
-| `estrela_triangulo` | Reduced (Y) then full (delta) | Constant |
-| `autotransformador` | Reduced then full | Constant |
-| `soft_starter` | Linear ramp | Constant |
-| `pulso_carga` | Full | Pulse at `t_carga` |
-| `gerador` | Full | Drive torque (negative load) |
-| `desligamento` | Full then zero | Constant |
-| `sag` | Full with rectangular sag | Constant |
+#### `core/dc/machine_model.py` — DCM Model
 
-#### `core/dc_machine_model.py` — DCM Model
-`DCMachineParams` stores armature (`Ra`, `La`), field (`Rf`, `Lf` or `Lse`), mechanical (`J`, `B`), and load parameters. `_make_rhs_dc` returns the 4-state ODE RHS switching equations by `params.config`:
+`_make_rhs_dc` returns the 4-state ODE RHS, switching equations by excitation:
 
 | Config | States | Field equation |
 |---|---|---|
@@ -260,182 +282,29 @@ Steady-state detection uses a sliding-window torque variance criterion (`SS_TOL`
 | `shunt_motor` / `shunt_gen` | wr, ia | Parallel field (Vf = Va) |
 | `series_motor` | wr, ia | Series field (if = ia) |
 
----
-
 ### `ui/` — Views and Theme
 
-#### `ui/theme.py`
-Central theming module. Call `_palette(dark=True/False)` to get a colour dict with keys `surface`, `border`, `text`, `muted`, `accent`, etc. Call `apply_css(dark)` once per page load.
-
-```python
-from ui.theme import _palette, apply_css, REF_COLORS, REF_DASHES
-palette = _palette(dark=st.session_state["dark_mode"])
-apply_css(dark=st.session_state["dark_mode"])
-```
-
-#### `ui/theory.py` + `ui/theory_interactive.py`
-`theory.py` lays out the 8 TIM sub-tabs and delegates to `render_*` functions in `theory_interactive.py`. Interactive components use Plotly with real-time slider updates via `st.session_state`.
-
-Sub-tab routing:
-
-| Sub-tab | Function in theory_interactive.py |
-|---|---|
-| dq0 model | `render_park_dinamico` |
-| Steady state | `render_boucherot`, `render_zonas_operacao` |
-| Unbalance | `render_fasorial_desequilibrio` |
-| MCSA | `render_mcsa` |
-| Braking | `render_comparador_frenagem` |
-| Krause | `render_blocos_krause` |
-| Estimator | inline in theory.py |
-| Manual | inline in theory.py |
-
----
+- `theme.py` — `_palette(dark)` colour dict + `apply_css(dark)`.
+- `theory/` — package; `render_theory_tab()` (in `__init__.py`) lays out 8 sub-tabs, delegating to `theory/tabs/*` renderers.
+- `theory_dc.py` — DCM Theory tab.
 
 ### `ui_components/` — Streamlit Widgets
 
-#### `ui_components/sim_config.py`
-Key exports:
+Config and results are split into orchestrators + sub-renderers (mirrored for TIM and DCM):
 
-| Symbol | Description |
-|---|---|
-| `MACHINES` | Dict of named motor presets |
-| `_WK` | Logical field to widget key mapping |
-| `_PRESETS` | Named preset configurations |
-| `VARIABLE_CATALOG` | Full catalogue of plottable variables |
-| `render_machine_selector()` | Machine selection UI |
-| `render_machine_params()` | Physical parameter inputs |
-| `render_experiment_config()` | Experiment type + variable selection |
-
-#### `ui_components/sim_runner.py`
-`execute_simulation_flow()` flow:
-1. Read `MachineParams` from `session_state`
-2. Call `calc_tmax_auto(cfg, mp)` for automatic time limit
-3. Call `run_simulation(mp, tmax, h, voltage_fn, torque_fn)`
-4. Write result dict to `session_state["sim_result"]`
-
-`calc_tmax_auto` uses motor inertia J and nominal speed to estimate the time to reach 95% synchronous speed, with mode-specific overrides.
-
-#### `ui_components/sim_results.py`
-Four sub-tabs rendered by `render_results(res, mp, cfg, ...)`:
-
-| Sub-tab | Content |
-|---|---|
-| **Overview** | KPI cards, health panel, synoptic charts |
-| **Dynamic Analysis** | Waveform selector (currents, voltages, torque, speed, temperature) |
-| **Diagnostics** | Automated anomaly table, MCSA FFT, signature recommendations |
-| **Asset Management** | Lifecycle analysis, efficiency, losses, annual cost |
-
-PDF download buttons call `generate_academico()` or `generate_industrial()` from `viz/`.
-
----
+| Concern | TIM | DCM |
+|---|---|---|
+| Config orchestrator | `tim_config.py` | `sim_config_dc.py` |
+| Parameter sub-renderers | `tim_config_params.py` | `sim_config_dc_params.py` |
+| Experiment sub-renderers | `exp_renderers_tim.py` | `exp_renderers_dc.py` |
+| Runner | `tim_runner.py` | `sim_runner_dc.py` |
+| Results | `tim_results*.py` (4 sub-tabs) | `sim_results_dc.py` |
 
 ### `viz/` — Charts and Reports
 
-#### `viz/plotly_charts.py`
-All chart builders return a `go.Figure`. Pre-computed frames (`fig.frames`) enable zero-latency animation in Streamlit.
-
-| Function | Description |
-|---|---|
-| `build_fig_stacked(res, var_keys, dark, ...)` | Vertically stacked traces |
-| `build_fig_sidebyside(res, var_keys, dark, ...)` | Two-column layout |
-| `build_fig_overlay(res, var_keys, dark, ...)` | All traces on one axis |
-
-Theme helpers `_plot_theme(dark)` and `_colors(dark)` are imported by `plotly_charts_dc.py` and `harmonica_analysis.py`.
-
-#### `viz/pdf_commons.py`
-`SimBlock` is an fpdf2 base class. Helper functions:
-
-| Function | Description |
-|---|---|
-| `safe_text(s)` | Strips non-latin-1 characters |
-| `fmt_power(W)` | Formats W/kW/MW intelligently |
-| `embed_fig(pdf, fig, w, h)` | Inserts a matplotlib figure |
-| `build_circuit_bytes(mp, dark)` | Renders circuit to PNG bytes |
-| `cell_rich(pdf, text, **kwargs)` | Rich-formatted table cell |
-
-#### PDF Report Variants
-
-| Module | Style | Status |
-|---|---|---|
-| `pdf_academico.py` | Academic (equations + full curves) | **Active** |
-| `pdf_industrial.py` | Industrial (KPIs + diagnostics + economics) | **Active** |
-| `pdf_dc.py` | DCM technical report | **Active** |
-| `pdf_report_v2.py` | IEEE-formal + dashboard dual mode | Transitional |
-| `pdf_report.py` | Original single-style | Legacy |
-
----
-
-### `utils/` — Utilities
-
-| File | Purpose |
-|---|---|
-| `text_utils.py` | `_strip_latex(s)` converts `$\omega_r$` to plain Unicode for axis labels |
-| `gen_okoro_comparison.py` | Validation figures vs. Okoro et al. (2008) |
-| `_gen_theory_imgs.py` | Regenerates circuit PNG images for the Theory tab |
-
----
-
-### `scripts/` — Figure Generation
-
-Standalone scripts — not imported by the app. Run from the project root:
-
-```bash
-python scripts/gen_figures.py          # TIM 60 Hz figures -> overleaf/imagens/
-python scripts/gen_resultados_web.py   # TIM 50 Hz figures -> overleaf/imagens/
-python scripts/demo_potencias.py       # Print steady-state power metrics
-```
-
-Output path is resolved relative to the project root via `pathlib` — no hardcoded user paths.
-
----
-
-### `analysis/` — Comparative Studies
-
-| File | Purpose |
-|---|---|
-| `compare_dc_ac_dol.py` | Overlays TIM vs. DCM DOL transients (ia, Te, wm) with matched mechanical parameters |
-| `dc_ac_comparative.csv` | Reference output from above comparison |
-
----
-
-### `tests/` — Test Suite
-
-```bash
-pytest tests/ -v                                    # full suite
-pytest tests/test_physics.py -v                     # single file
-pytest tests/ --cov=core --cov-report=term-missing  # with coverage
-```
-
-| File | What it tests |
-|---|---|
-| `conftest.py` | Fixtures: 3 HP, 50 HP, 2250 HP motors (Krause 1986) |
-| `test_machine_model.py` | MachineParams init, derived inductances, reactances |
-| `test_sources.py` | Voltage/torque callables for each experiment mode |
-| `test_transforms.py` | Clarke-Park roundtrip accuracy |
-| `test_thermal.py` | Rth/Cth estimation, dTemp_dt correctness |
-| `test_energy_analysis.py` | Metrics with synthetic sinusoidal results |
-| `test_harmonica_analysis.py` | FFT peak detection |
-| `test_curva_tn.py` | Torque-speed curve keys and length |
-| `test_param_estimator.py` | Nameplate and IEEE parameter estimates |
-| `test_physics.py` | Torque balance invariant at multiple load points |
-| `test_sim_diagnostics.py` | Diagnostic rule triggering |
-| `test_dc_phase1_validation.py` | DCM LSODA solver vs. Scilab dcmei.sce reference |
-
-#### `tests/debug/` — Manual Debug Tools
-Not run by pytest automatically.
-
-| File | Purpose |
-|---|---|
-| `test_deseq_ui.py` | Streamlit page to test the unbalance/fault module UI |
-| `debug_rms.py` | Displays RMS values of all state variables at steady state |
-
----
-
-### `data/` — Reference Data
-
-| File | Description |
-|---|---|
-| `data/examples/sep_motor_DOL.csv` | Reference DCM (separately excited) DOL transient — columns: t, ia, ifd, wm, Te, Ea |
+- `_chart_base.py` — parametric Plotly base shared by TIM/DC chart builders.
+- `tim_charts.py` / `plotly_charts_dc.py` — machine-specific chart builders (zero-latency via pre-computed frames).
+- PDF: `pdf_commons.py` (shared) + `pdf_academico.py`, `pdf_industrial.py`, `tim_pdf_report.py`, `tim_pdf_dashboard.py` (TIM), `pdf_dc.py` (DCM).
 
 ---
 
@@ -445,26 +314,12 @@ Not run by pytest automatically.
 |---|---|---|---|
 | `selected_machine` | `"mit"` or `"dc"` | `IWS_UI.py` | All ui_components |
 | `dark_mode` | `bool` | `IWS_UI.py` | `ui.theme`, chart builders |
-| `experiment_mode` | `bool` | `sim_config.py` | `sim_config.py` (locks inputs) |
-| `sim_result` | `dict` | `sim_runner.py` | `sim_results.py`, `clean_view.py` |
-| `dc_sim_result` | `dict` | `sim_runner_dc.py` | `sim_results_dc.py` |
-| `ref_list` | `list[str]` | `sim_results.py` | `viz/pdf_*.py` |
-| `decimals` | `int` | `IWS_UI.py` | `sim_results.py` |
+| `experiment_mode` | `bool` | config modules | config modules (locks inputs) |
+| `sim_result` | `dict` | runner modules | results modules, `clean_view.py` |
+| `ref_list` | `list` | results modules | `viz/pdf_*.py` |
+| `decimals` | `int` | `IWS_UI.py` | results modules |
 
-`sim_result` dict keys (TIM):
-
-| Key | Shape | Description |
-|---|---|---|
-| `t` | `(N,)` | Time vector (s) |
-| `ias`, `ibs`, `ics` | `(N,)` | Stator phase currents (A) |
-| `ids`, `iqs` | `(N,)` | d/q stator currents (A) |
-| `idr`, `iqr` | `(N,)` | d/q rotor currents (A) |
-| `wr` | `(N,)` | Rotor angular speed (rad/s) |
-| `Te` | `(N,)` | Electromagnetic torque (N·m) |
-| `Va`, `Vb`, `Vc` | `(N,)` | Phase voltages (V) |
-| `Ts` | `(N,)` | Stator temperature (°C) — if thermal enabled |
-| `ss_idx` | `int` | Index of steady-state onset |
-| `ss` | `dict` | Steady-state scalar metrics |
+`sim_result` dict keys (TIM): `t`, `ias`/`ibs`/`ics`, `ids`/`iqs`, `idr`/`iqr`, `wr`, `n`, `Te`, `Va`/`Vb`/`Vc`, plus steady-state scalars. TypedDicts for all session keys are defined in `core/session_schema.py`.
 
 ---
 
@@ -473,61 +328,39 @@ Not run by pytest automatically.
 ### TIM
 
 ```
-User inputs (sim_config.py)
-         |
-         v
+User inputs (tim_config.py)
+         │
+         ▼
 MachineParams + cfg dict
-         |
-         v
-sim_runner.py: execute_simulation_flow()
-  +-- calc_tmax_auto(cfg, mp)
-  +-- build_fns(cfg, mp)  ->  (voltage_fn, torque_fn, t_events)
-  +-- run_simulation(mp, ...)  ->  result dict
-              |
-              v
-          solver.py: _solve()
-            +-- scipy solve_ivp LSODA
-            +-- _reconstruct_currents()
-            +-- _voltages_vectorized()
-            +-- _detect_steady_state()
-            +-- _compute_steady_state()
-            +-- _compute_thermal()
-         |
-         v
+         │
+         ▼
+tim_runner.py: execute_simulation_flow()
+  ├─ calc_tmax_auto(cfg, mp)
+  ├─ build_fns(cfg, mp)        ── core.tim.facade ──▶ (voltage_fn, torque_fn, t_events)
+  └─ run_simulation(mp, ...)   ── core.tim.facade ──▶ result dict
+              │
+              ▼
+          core/tim/solver.py: scipy LSODA + reconstruct currents/voltages/steady-state
+         │
+         ▼
 session_state["sim_result"]
-         |
-         v
-sim_results.py: render_results()
-  +-- Overview     <- energy_analysis.py
-  +-- Dynamic      <- plotly_charts.py
-  +-- Diagnostics  <- sim_diagnostics.py, harmonica_analysis.py
-  +-- Assets       <- energy_analysis.py
+         │
+         ▼
+tim_results.py: render_results()  ──▶  Overview / Dynamics / Diagnostics / Asset sub-tabs
 ```
 
 ### DCM
 
 ```
-User inputs (sim_config_dc.py)
-         |
-         v
-DCMachineParams + cfg dict
-         |
-         v
+User inputs (sim_config_dc.py) ──▶ DCMachineParams + cfg
+         │
+         ▼
 sim_runner_dc.py: execute_simulation_flow_dc()
-  +-- make_voltage_fn_dc(mode, params, cfg)
-  +-- make_torque_fn_dc(mode, params, cfg)
-  +-- run_simulation_dc(params, tmax, h, ...)  ->  result dict
-              |
-              v
-          dc_solver.py
-            +-- scipy solve_ivp LSODA
-            +-- reconstruct Ea, Pem, efficiency
-         |
-         v
-session_state["dc_sim_result"]
-         |
-         v
-sim_results_dc.py: render_results_dc()
+  ├─ make_voltage_fn_dc(...) / make_torque_fn_dc(...)   ── core.dc.facade
+  └─ run_simulation_dc(...)                             ── core.dc.facade ──▶ result dict
+         │
+         ▼
+session_state["sim_result"] ──▶ sim_results_dc.py: render_results_dc()
 ```
 
 ---
@@ -536,35 +369,27 @@ sim_results_dc.py: render_results_dc()
 
 ### TIM
 
-| Group | Mode key | Description |
+| Group | Mode | Description |
 |---|---|---|
-| Starting | `dol` | Direct-on-line |
-| Starting | `estrela_triangulo` | Star-delta |
-| Starting | `autotransformador` | Auto-transformer reduced voltage |
-| Starting | `soft_starter` | Linear voltage ramp |
-| Steady state | `pulso_carga` | Load torque pulse |
-| Steady state | `gerador` | Generator operation |
-| Transient | `desligamento` | Power-off coast-down |
-| Transient | `sag` | Voltage sag (rectangular) |
+| Starting | DOL | Direct-on-line |
+| Starting | Star-delta | Y → Δ switching |
+| Starting | Autotransformer | Reduced-voltage tap |
+| Starting | Soft-starter | Linear voltage ramp |
+| Regime | Load pulse | Load torque pulse |
+| Regime | Generator | Generator operation |
+| Transient | Shutdown | Power-off coast-down |
+| Transient | Voltage sag | Rectangular sag |
 
-Optional perturbations (toggle independently):
-
-| Perturbation | Parameter |
-|---|---|
-| Phase asymmetry | `deseq_a`, `t_deseq` |
-| Phase loss | `falta_fase`, `t_falta` |
-| Broken rotor bar | `broken_bar_severity`, `t_broken_bar` |
+Optional perturbations (toggle independently): phase asymmetry, phase loss, broken rotor bar.
 
 ### DCM
 
-| Config | Mode | Description |
-|---|---|---|
-| sep_motor | `dol_dc` | Direct-on-line (sep. excited) |
-| sep_motor | `resistencia_dc` | Armature resistance starting |
-| sep_motor | `pulso_dc` | Load torque pulse |
-| shunt_motor | `dol_dc` | Direct-on-line (shunt) |
-| series_motor | `dol_dc` | Direct-on-line (series) |
-| sep_gen | `gerador_dc` | Generator operation |
+| Config | Modes |
+|---|---|
+| Separately excited (motor) | DOL, armature resistance, braking, field weakening, load pulse |
+| Shunt (motor) | DOL |
+| Series (motor) | DOL |
+| Separately excited (generator) | Generator operation |
 
 ---
 
@@ -573,112 +398,65 @@ Optional perturbations (toggle independently):
 ### TIM — Nameplate (NEMA MG-1)
 
 ```python
-from core.param_estimator import estimate_params
+from core.tim import estimate_params  # aggregated entry point (also in core.tim.param_estimator)
 
 params = estimate_params(
-    Vl=220,      # V line-to-line
-    f=60,        # Hz
-    p=4,         # poles
-    Pn=5500,     # W rated power
-    N_nom=1750,  # rpm rated speed
-    rend=0.88,   # efficiency at rated load
-    fp=0.85,     # power factor at rated load
-    Ip_In=6.5,   # locked-rotor to rated current ratio
-    Tp_Tn=1.5,   # locked-rotor to rated torque ratio
-    is_delta=False
-)
-# Returns dict: Rs, Rr, Xls, Xlr, Xm
+    Vl=220, f=60, p=4,
+    Pn=5500, N_nom=1750, rend=0.88, fp=0.85,
+    Ip_In=6.5, Tp_Tn=1.5, is_delta=False,
+)   # -> dict: Rs, Rr, Xls, Xlr, Xm
 ```
 
 ### TIM — IEEE Std 112-2017
 
 ```python
-from core.param_estimator import estimate_params_ieee_tests
+from core.tim import estimate_params_ieee_tests
 
 params = estimate_params_ieee_tests(
-    V_dc, I_dc,                    # DC resistance test
-    is_delta,                      # winding connection
-    Vl_nl, I_nl, P_nl, f_nl,      # no-load test
-    Vl_lr, I_lr, P_lr, f_lr,      # locked-rotor test
-    Pfw,                           # friction + windage losses
-    split=0.5,                     # stator/rotor leakage split
-    Xls_frac=0.5
+    V_dc, I_dc, is_delta,
+    Vl_nl, I_nl, P_nl, f_nl,        # no-load test
+    Vl_lr, I_lr, P_lr, f_lr,        # locked-rotor test
+    Pfw, split=0.5, Xls_frac=0.5,
 )
 ```
 
-### DCM — Nameplate
+### DCM — Nameplate and IEEE 113
 
 ```python
-from core.dc_estimator import estimate_dc_nameplate
-
-params = estimate_dc_nameplate(
-    Pn_W=5000, Vn=220, nn_rpm=1750, eta=0.88, excitation="sep"
-)
-# Returns dict: Ra, La, Rf, Lf, Ke, J
+from core.dc.facade import estimate_dc_nameplate, estimate_dc_tests
 ```
 
 ---
 
 ## How to Extend
 
-### Add a New TIM Simulation Mode
+### Add a new machine type (e.g. PMSM) — the registry pattern
 
-1. **`core/sources.py`** — add a `voltage_<mode>(t, mp, cfg)` function and register it in the `build_fns` dispatch dict.
-2. **`core/solver.py`** — if the mode requires special integration logic (e.g. mid-simulation parameter change), add a branch in `_solve`.
-3. **`ui_components/sim_config.py`** — add the mode key to the `exp_type` selectbox options.
-4. **`ui_components/sim_runner.py`** — add a `tmax` heuristic in `calc_tmax_auto` for the new mode.
-5. **`tests/test_sources.py`** — add a test case for the new source callable.
-
-### Add a New DCM Simulation Mode
-
-1. **`core/dc_sources.py`** — add a voltage/torque factory for the new mode.
-2. **`ui_components/sim_config_dc.py`** — add the mode to the selectbox.
-3. **`ui_components/sim_runner_dc.py`** — add the dispatch case.
-
-### Add a New Theory Sub-tab (TIM)
-
-1. **`ui/theory_interactive.py`** — create `render_<name>(mp, dark)`.
-2. **`ui/theory.py`** — add a `st.tab` entry and call `render_<name>`.
-
-### Add a New Theory Sub-tab (DCM)
-
-1. **`ui/theory_dc_interactive.py`** — create `render_<name>(dark)`.
-2. **`ui/theory_dc.py`** — add a `st.tab` entry and call `render_<name>`.
-
-### Add a New PDF Report Style
-
-1. **`viz/`** — create `pdf_<style>.py`, import helpers from `pdf_commons.py`.
-2. Define `generate_<style>(exp_label, mp, res, ...) -> bytes`.
-3. **`ui_components/sim_results.py`** — add a download button calling the new generator.
-
-### Add a New Plotly Chart
-
-1. **`viz/plotly_charts.py`** — add `build_fig_<layout>(res, var_keys, dark, ...)`.
-2. **`ui_components/sim_results.py`** — call the new builder in the appropriate sub-tab.
-
-### Add a New Machine Type (e.g. PMSM)
-
-1. **`core/`** — create `pmsm_model.py`, `pmsm_solver.py`, `pmsm_sources.py`.
-2. **`ui_components/`** — create `sim_config_pmsm.py`, `sim_results_pmsm.py`, `sim_runner_pmsm.py`.
-3. **`viz/`** — create `plotly_charts_pmsm.py`, `pdf_pmsm.py`.
-4. **`IWS_UI.py`** — add a new tab and route `selected_machine == "pmsm"`.
+1. **`core/pmsm/`** — `machine_model.py`, `solver.py`, `sources.py`, `facade.py` (mirror `core/dc/`).
+2. **`ui_components/`** — config orchestrator + param/experiment sub-renderers + runner + results (mirror the `*_dc` set).
+3. **`viz/`** — `plotly_charts_pmsm.py`, `pdf_pmsm.py` (reuse `_chart_base.py` / `pdf_commons.py`).
+4. **`IWS_UI.py`** — write `_render_sim_tab_pmsm` / `_render_theory_pmsm` and register a `_MachineSpec` in `_MACHINE_REGISTRY`. **No if/elif branches change.**
 5. **`tests/`** — add fixtures and test files.
 
-### Activate Voltage Unbalance / Phase Loss
+### Add a new TIM simulation mode
 
-`core/desequilibrio_falta.py` is implemented but disabled. To activate:
+1. **`core/tim/sources.py`** — add the voltage/torque profile in `build_fns`.
+2. **`ui_components/exp_renderers_tim.py`** — add the experiment sub-renderer.
+3. **`ui_components/tim_config.py`** — register the mode in the dispatch.
+4. **`tests/test_sources.py`** — add a test case.
 
-1. Integrate `render_desequilibrio_ui()` in `ui_components/sim_config.py`.
-2. Pass unbalance parameters through `MachineParams` or directly to `run_simulation`.
-3. Remove the `UNDER DEVELOPMENT` note from the module docstring.
+### Add a new Theory sub-tab (TIM)
+
+1. **`ui/theory/tabs/<name>.py`** — create `render_tab_<name>()`.
+2. **`ui/theory/__init__.py`** — add the `st.tabs` entry and call it.
 
 ---
 
 ## Running Tests
 
 ```bash
-# Full suite
-pytest tests/ -v
+# Full suite (Streamlit-free)
+pytest tests/ -q
 
 # Single module
 pytest tests/test_physics.py -v
@@ -687,19 +465,13 @@ pytest tests/test_physics.py -v
 pytest tests/ --cov=core --cov-report=term-missing
 ```
 
-### Adding a Test
-
-1. Add `test_<behaviour>()` to the appropriate `tests/test_*.py` file.
-2. Use fixtures from `conftest.py` (`mp_3hp`, `mp_50hp`, `mp_2250hp`) for TIM parameter sets.
-3. For DCM tests, instantiate `DCMachineParams` directly or add a new fixture to `conftest.py`.
-
-Do **not** place automated tests in `tests/debug/` — that folder is for manual inspection only.
+The suite imports only `core/` — it does **not** require a running Streamlit server. Use fixtures from `conftest.py` (`mp_3hp`, `mp_50hp`, `mp_2250hp`). Do not place automated tests in `tests/debug/` (manual Streamlit pages only).
 
 ---
 
 ## Commit Conventions
 
-Format: `type: short description` (under 72 characters).
+Format: `type: short description` (under 72 characters). Language: formal technical Portuguese.
 
 | Type | When to use |
 |---|---|
@@ -710,17 +482,8 @@ Format: `type: short description` (under 72 characters).
 | `docs:` | Documentation only |
 | `test:` | Tests only |
 
-Examples:
-```
-feat: add compound DCM configuration to dc_machine_model
-fix: clamp LSODA max step to 1/20f for high-frequency stability
-refactor: extract _compute_steady_state from solver._solve
-docs: update README with PMSM extension guide
-```
-
-- Identity: Kevin
+- Identity: Kevin · k.g.pinheiro.castro@gmail.com
 - No `Co-Authored-By` lines.
-- For high-impact changes (50+ lines, tab restructuring): commit before the change.
 
 ---
 
@@ -728,8 +491,9 @@ docs: update README with PMSM extension guide
 
 | Reference | Used in |
 |---|---|
-| Krause, P.C. (1986). *Analysis of Electric Machinery*. McGraw-Hill. | `core/machine_model.py`, `core/solver.py` |
-| IEEE Std 112-2017. *IEEE Standard Test Procedure for Polyphase Induction Motors and Generators*. | `core/param_estimator.py` |
-| NEMA MG-1. *Motors and Generators*. | `core/param_estimator.py` |
+| Krause, P.C. (1986). *Analysis of Electric Machinery*. McGraw-Hill. | `core/tim/machine_model.py`, `core/tim/solver.py` |
+| IEEE Std 112-2017. *Test Procedure for Polyphase Induction Motors and Generators*. | `core/tim/param_estimator.py` |
+| IEEE Std 113-1985. *Guide on Test Procedures for DC Machines*. | `core/dc/estimator.py` |
+| NEMA MG-1. *Motors and Generators*. | `core/tim/param_estimator.py`, `core/dc/estimator.py` |
 | Okoro, O.I. (2008). *Steady and Transient States Thermal Analysis*. | `utils/gen_okoro_comparison.py` |
-| Fitzgerald, A.E., Kingsley, C., Umans, S.D. (2003). *Electric Machinery*. 6th ed. McGraw-Hill. | `core/curva_tn.py` |
+| Fitzgerald, Kingsley, Umans (2003). *Electric Machinery*, 6th ed. McGraw-Hill. | `core/tim/torque_speed.py` |
