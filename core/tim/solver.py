@@ -28,6 +28,7 @@ from scipy.integrate import solve_ivp
 
 from core.tim.machine_model import MachineParams
 from core.transforms import abc_voltages, clarke_park_transform, _SQRT3_2
+from core.tim.power import compute_power_flow
 from core.tim.fault_model import abc_voltages_imbalance
 from core.constants import (
     SOLVER_SS_TOL as SS_TOL,
@@ -367,31 +368,19 @@ def _compute_steady_state(arr: dict, mp: MachineParams) -> dict:
         vals = np.where(np.isfinite(arr[k][sl]), arr[k][sl], 0.0)
         out[f"{k}_rms"] = float(np.sqrt(np.mean(vals ** 2)))
 
-    P_cu_s = mp.Rs * (out["ias_rms"]**2 + out["ibs_rms"]**2 + out["ics_rms"]**2)
-
-    V_phase_avg = (out["Va_rms"] + out["Vb_rms"] + out["Vc_rms"]) / 3.0
-    P_fe = 3.0 * V_phase_avg**2 / mp.Rfe if mp.Rfe > 0 else 0.0
-
-    if s >= 0:
-        # motor mode: electrical input, mechanical output
-        P_in  = P_gap + P_cu_s + P_fe
-        P_out = P_mec
-    else:
-        # generator mode (s<0): mechanical input, electrical output
-        P_in  = abs(P_mec)
-        P_out = max(0.0, abs(P_gap) - P_cu_s - P_fe)
-    eta = (P_out / P_in * 100.0) if P_in > 0 else 0.0
+    # Power balance via the canonical power layer (ABC formulas — single
+    # source of truth shared with viz.pdf_commons).
+    out.update({"P_gap": P_gap, "P_cu_r": P_cu_r, "P_mec": P_mec, "s": s})
+    pf = compute_power_flow(out, mp)
 
     ias_pk  = float(np.max(np.abs(arr["ias"])))
     Te_max  = float(np.max(arr["Te"]))
     ias_rms = out.get("ias_rms", 1.0)
     fator_pk = ias_pk / ias_rms if ias_rms > 0 else 0.0
 
+    out.update(pf)
     out.update({
-        "P_gap": P_gap,   "P_cu_r": P_cu_r, "P_mec": P_mec,
-        "P_cu_s": P_cu_s, "P_fe": P_fe,
-        "P_in":  P_in,    "P_out": P_out,   "eta": eta,
-        "s": s,  "n_ss": n_med,  "wr_ss": wr_med,  "Te_ss": Te_med,
+        "n_ss": n_med,  "wr_ss": wr_med,  "Te_ss": Te_med,
         "_ss_start": ss_start,
         "ias_pk": ias_pk, "Te_max": Te_max, "fator_pk": fator_pk,
     })
