@@ -83,11 +83,11 @@ class _WidgetKeys:
     # experiment
     exp_type:     str = "exp_select"
     Tl_final:     str = "wi_Tl_final"
-    t_carga:      str = "wi_t_carga"
-    Tl_pulso:     str = "wi_Tl_pulso"
-    Tl_pulso_abs: str = "wi_Tl_pulso_abs"
-    t_pulso_on:   str = "wi_t_pulso_on"
-    t_pulso_off:  str = "wi_t_pulso_off"
+    t_load:      str = "wi_t_carga"
+    Tl_pulse:     str = "wi_Tl_pulso"
+    Tl_pulse_abs: str = "wi_Tl_pulso_abs"
+    t_pulse_on:   str = "wi_t_pulso_on"
+    t_pulse_off:  str = "wi_t_pulso_off"
     Tl_mec:       str = "wi_Tl_mec"
     t_2_gerador:  str = "wi_t_2_gerador"
     tmax:         str = "wi_tmax"
@@ -261,11 +261,11 @@ def render_experiment_config(
         "yd":           _render_exp_yd,
         "comp":         _render_exp_comp,
         "soft":         _render_exp_soft,
-        "pulso_carga":  _render_exp_pulso_carga,
-        "gerador":      _render_exp_gerador,
+        "load_pulse":  _render_exp_pulso_carga,
+        "generator":      _render_exp_gerador,
         "shutdown":     _render_exp_shutdown,
         "voltage_sag":  _render_exp_voltage_sag,
-        "frenagem":     _render_exp_frenagem,
+        "braking":     _render_exp_frenagem,
     }
     h_def = _EXP_RENDERERS[exp_type](mp, config, _Tl_ref, wk)
 
@@ -343,7 +343,7 @@ def render_experiment_config(
 
         _critical_raw = MIT_CRITICAL_EVENTS.get(_etype, [])
         if _etype == "dol":
-            _tc_dol = config.get("t_carga", 0)
+            _tc_dol = config.get("t_load", 0)
             _critical = [("load application", r"t_{carga}", _tc_dol)] if _tc_dol > 0 else []
         else:
             _critical = [(lbl, sym, float(config.get(key, 0))) for lbl, sym, key in _critical_raw]

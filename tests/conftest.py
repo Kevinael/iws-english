@@ -48,6 +48,6 @@ def mp_2250hp():
 def dol_result(mp_3hp):
     """Simulação DOL completa do 3HP para reuso entre testes."""
     from core.tim.facade import run_simulation, build_fns
-    config = {"exp_type": "dol", "Tl_final": 12.0, "t_carga": 1.5}
+    config = {"exp_type": "dol", "Tl_final": 12.0, "t_load": 1.5}
     vfn, tfn, _ = build_fns(config, mp_3hp)
     return run_simulation(mp_3hp, tmax=3.0, h=1e-4, voltage_fn=vfn, torque_fn=tfn)

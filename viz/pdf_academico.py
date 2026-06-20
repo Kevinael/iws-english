@@ -321,14 +321,14 @@ def _pdf_section_mode_analysis(
         return sec_n
     import numpy as _np
     _mode = exp_config.get("exp_type", exp_type)
-    if _mode == "frenagem":
+    if _mode == "braking":
         _ensure_space(pdf, 50)
         _sec(pdf, "Electric Braking Analysis", f"{sec_n}.")
         _brake = exp_config.get("brake_method", "plugging")
         _BRAKE_NAMES = {
             "plugging":    "Polarity Reversal (Plugging)",
-            "injecao_cc":  "DC Injection Braking",
-            "regenerativo":"Regenerative Braking",
+            "dc_injection":  "DC Injection Braking",
+            "regenerative":"Regenerative Braking",
         }
         _body(pdf, f"  Method: {_BRAKE_NAMES.get(_brake, _brake)}")
         t_freia = exp_config.get("t_brake", exp_config.get("t_freia", 0.0))
@@ -351,7 +351,7 @@ def _pdf_section_mode_analysis(
         _tr(pdf, _rows_b, [115, 55], ["L", "L"])
         return sec_n + 1
 
-    elif _mode == "gerador":
+    elif _mode == "generator":
         _ensure_space(pdf, 50)
         _sec(pdf, "Generator Mode Analysis", f"{sec_n}.")
         _wr_ss = float(res.get("wr_ss", 0.0))

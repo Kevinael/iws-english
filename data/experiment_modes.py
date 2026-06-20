@@ -19,26 +19,26 @@ from __future__ import annotations
 # ── DC ───────────────────────────────────────────────────────────────────────
 
 DC_MODES_BY_EXC: dict[str, list[str]] = {
-    "sep_motor":    ["campo_fraco_dc", "frenagem_dc", "gerador_dc", "resistencia_dc", "dol_dc", "pulso_dc"],
-    "shunt_motor":  ["frenagem_dc", "resistencia_dc", "dol_dc", "pulso_dc"],
-    "series_motor": ["frenagem_dc", "resistencia_dc", "dol_dc", "pulso_dc"],
-    "sep_gen":      ["gerador_dc"],
-    "shunt_gen":    ["gerador_dc"],
+    "sep_motor":    ["field_weakening_dc", "braking_dc", "generator_dc", "resistance_dc", "dol_dc", "pulse_dc"],
+    "shunt_motor":  ["braking_dc", "resistance_dc", "dol_dc", "pulse_dc"],
+    "series_motor": ["braking_dc", "resistance_dc", "dol_dc", "pulse_dc"],
+    "sep_gen":      ["generator_dc"],
+    "shunt_gen":    ["generator_dc"],
 }
 
 DC_MODE_LABELS: dict[str, str] = {
-    "campo_fraco_dc": "Field Weakening",
-    "frenagem_dc":    "Electric Braking",
-    "gerador_dc":     "Generator — Resistive Load",
-    "resistencia_dc": "Series Resistance Starting",
+    "field_weakening_dc": "Field Weakening",
+    "braking_dc":    "Electric Braking",
+    "generator_dc":     "Generator — Resistive Load",
+    "resistance_dc": "Series Resistance Starting",
     "dol_dc":         "Direct-On-Line Starting (DOL)",
-    "pulso_dc":       "Load Pulse",
+    "pulse_dc":       "Load Pulse",
 }
 
 DC_BRAKE_LABELS: dict[str, str] = {
     "plugging":     "Plugging (Polarity Reversal)",
-    "injecao_cc":   "DC Injection Braking",
-    "regenerativo": "Regenerative Braking",
+    "dc_injection":   "DC Injection Braking",
+    "regenerative": "Regenerative Braking",
 }
 
 DC_EXC_LABELS: dict[str, str] = {
@@ -54,26 +54,26 @@ DC_EXC_LABELS: dict[str, str] = {
 MIT_EXP_OPTIONS: dict[str, str] = {
     "Voltage Sag":                           "voltage_sag",
     "Shutdown (Power Cut)":                  "shutdown",
-    "Electric Braking":                      "frenagem",
-    "Generator Operation":                   "gerador",
+    "Electric Braking":                      "braking",
+    "Generator Operation":                   "generator",
     "Autotransformer Starting":              "comp",
     "Direct-On-Line Starting (DOL)":         "dol",
     "Star-Delta Starting (Y-D)":             "yd",
-    "Load Pulse (apply and remove)":         "pulso_carga",
+    "Load Pulse (apply and remove)":         "load_pulse",
     "Soft-Starter (Voltage Ramp)":           "soft",
 }
 
 MIT_CRITICAL_EVENTS: dict[str, list[tuple[str, str, str]]] = {
     "yd":         [("Y→D switching",                  r"t_2",       "t_2"),
-                   ("load application",               r"t_{carga}", "t_carga")],
+                   ("load application",               r"t_{carga}", "t_load")],
     "comp":       [("autotransformer switching",      r"t_2",       "t_2"),
-                   ("load application",               r"t_{carga}", "t_carga")],
+                   ("load application",               r"t_{carga}", "t_load")],
     "soft":       [("ramp start",                     r"t_2",       "t_2"),
-                   ("rated voltage reached",          r"t_{pico}",  "t_pico"),
-                   ("load application",               r"t_{carga}", "t_carga")],
-    "pulso_carga":[("load application",               r"t_{on}",    "t_carga"),
-                   ("load removal",                   r"t_{off}",   "t_retirada")],
-    "gerador":    [("prime mover torque application", r"t_2",       "t_2")],
-    "shutdown":   [("load application",               r"t_{carga}", "t_carga"),
+                   ("rated voltage reached",          r"t_{pico}",  "t_peak"),
+                   ("load application",               r"t_{carga}", "t_load")],
+    "load_pulse":[("load application",               r"t_{on}",    "t_load"),
+                   ("load removal",                   r"t_{off}",   "t_removal")],
+    "generator":    [("prime mover torque application", r"t_2",       "t_2")],
+    "shutdown":   [("load application",               r"t_{carga}", "t_load"),
                    ("shutdown",                       r"t_{des}",   "t_cutoff")],
 }

@@ -33,14 +33,14 @@ def calc_tmax_auto(exp_config: dict, mp: MachineParams) -> float:
     """
     exp_type = exp_config.get("exp_type", "")
     if exp_type == "dol":
-        t_last = exp_config.get("t_carga", 0.0) or 1.0
+        t_last = exp_config.get("t_load", 0.0) or 1.0
     elif exp_type in ("yd", "comp"):
-        t_last = max(exp_config.get("t_2", 0.5), exp_config.get("t_carga", 1.0))
+        t_last = max(exp_config.get("t_2", 0.5), exp_config.get("t_load", 1.0))
     elif exp_type == "soft":
-        t_last = max(exp_config.get("t_pico", 5.0), exp_config.get("t_carga", 1.0))
-    elif exp_type == "pulso_carga":
-        t_last = exp_config.get("t_retirada", exp_config.get("t_carga", 1.0))
-    elif exp_type == "gerador":
+        t_last = max(exp_config.get("t_peak", 5.0), exp_config.get("t_load", 1.0))
+    elif exp_type == "load_pulse":
+        t_last = exp_config.get("t_removal", exp_config.get("t_load", 1.0))
+    elif exp_type == "generator":
         t_last = exp_config.get("t_2", 1.0)
     elif exp_type == "voltage_sag":
         t_last = exp_config.get("t_start_sag", 0.5) + exp_config.get("t_duration_sag", 0.1)
@@ -85,13 +85,13 @@ def execute_simulation_flow(
     else:
         _tmax_run = tmax
 
-    _deseq_a      = exp_config.get("deseq_a",      0.0)
-    _deseq_b      = exp_config.get("deseq_b",      0.0)
-    _deseq_c      = exp_config.get("deseq_c",      0.0)
-    _falta_fase_a = exp_config.get("falta_fase_a", False)
-    _falta_fase_b = exp_config.get("falta_fase_b", False)
-    _falta_fase_c = exp_config.get("falta_fase_c", False)
-    _t_deseq      = exp_config.get("t_deseq",      0.0)
+    _deseq_a      = exp_config.get("imbalance_a",      0.0)
+    _deseq_b      = exp_config.get("imbalance_b",      0.0)
+    _deseq_c      = exp_config.get("imbalance_c",      0.0)
+    _falta_fase_a = exp_config.get("phase_loss_a", False)
+    _falta_fase_b = exp_config.get("phase_loss_b", False)
+    _falta_fase_c = exp_config.get("phase_loss_c", False)
+    _t_deseq      = exp_config.get("t_imbalance",      0.0)
     _df_a         = exp_config.get("df_a",          0.0)
     _df_b         = exp_config.get("df_b",          0.0)
     _df_c         = exp_config.get("df_c",          0.0)
@@ -114,9 +114,9 @@ def execute_simulation_flow(
                 mp=mp, tmax=_tmax_run, h=h,
                 voltage_fn=vfn, torque_fn=tfn,
                 ref_code=ref_code,
-                deseq_a=_deseq_a, deseq_b=_deseq_b, deseq_c=_deseq_c,
-                falta_fase_a=_falta_fase_a, falta_fase_b=_falta_fase_b,
-                falta_fase_c=_falta_fase_c, t_deseq=_t_deseq,
+                imbalance_a=_deseq_a, imbalance_b=_deseq_b, imbalance_c=_deseq_c,
+                phase_loss_a=_falta_fase_a, phase_loss_b=_falta_fase_b,
+                phase_loss_c=_falta_fase_c, t_imbalance=_t_deseq,
                 df_a=_df_a, df_b=_df_b, df_c=_df_c,
                 clamp_wr_at_zero=(exp_config.get("exp_type") == "shutdown"),
                 t_cutoff=exp_config.get("t_cutoff") if exp_config.get("exp_type") == "shutdown" else None,

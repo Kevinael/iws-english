@@ -36,7 +36,7 @@ mp = MachineParams(
     Xls=0.754, Xlr=0.754,
     Rfe=400.0, J=0.089, B=0.005,
 )
-cfg = {'exp_type': 'dol', 'Tl_final': 12.0, 'Tl_inicial': 0.0, 't_carga': 0.0}
+cfg = {'exp_type': 'dol', 'Tl_final': 12.0, 'Tl_inicial': 0.0, 't_load': 0.0}
 vfn, tfn, _ = build_fns(cfg, mp)
 
 GRAY = '0.2'
@@ -45,10 +45,10 @@ GRAY = '0.2'
 res_bb = run_simulation(mp, tmax=3.0, h=5e-4, voltage_fn=vfn, torque_fn=tfn,
                         broken_bar_severity=0.7, t_broken_bar=1.5)
 res_as = run_simulation(mp, tmax=3.0, h=5e-4, voltage_fn=vfn, torque_fn=tfn,
-                        deseq_a=0.20, t_deseq=1.5)
+                        imbalance_a=0.20, t_imbalance=1.5)
 res_fft = run_simulation(mp, tmax=3.0, h=5e-4, voltage_fn=vfn, torque_fn=tfn,
                          broken_bar_severity=0.9, t_broken_bar=0.5,
-                         deseq_a=0.30, t_deseq=0.5)
+                         imbalance_a=0.30, t_imbalance=0.5)
 
 # ── Figure 1: side-by-side 3-row panels (broken bar | phase asym) ─────────
 fig, axes = plt.subplots(3, 2, figsize=(3.5, 3.2), sharex=True)

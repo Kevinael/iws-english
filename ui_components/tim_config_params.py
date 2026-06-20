@@ -804,11 +804,11 @@ def _render_params_editable(wk: object) -> tuple[MachineParams, int, float]:
                 "Rfe": wk.Rfe, "p": wk.p, "J": wk.J, "B": wk.B,
                 "exp_type": wk.exp_type,
                 "Tl_final": wk.Tl_final,
-                "Tl_pulso": wk.Tl_pulso,
-                "Tl_pulso_abs": wk.Tl_pulso_abs,
-                "t_pulso_on": wk.t_pulso_on,
-                "t_pulso_off": wk.t_pulso_off,
-                "t_carga": wk.t_carga,
+                "Tl_pulse": wk.Tl_pulse,
+                "Tl_pulse_abs": wk.Tl_pulse_abs,
+                "t_pulse_on": wk.t_pulse_on,
+                "t_pulse_off": wk.t_pulse_off,
+                "t_load": wk.t_load,
                 "tmax": wk.tmax,
             }
             for key, widget_key in _wk_preset.items():

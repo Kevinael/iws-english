@@ -48,13 +48,13 @@ def run_simulation(
     voltage_fn,
     torque_fn,
     ref_code: int = 1,
-    deseq_a: float = 0.0,
-    deseq_b: float = 0.0,
-    deseq_c: float = 0.0,
-    falta_fase_a: bool = False,
-    falta_fase_b: bool = False,
-    falta_fase_c: bool = False,
-    t_deseq: float = 0.0,
+    imbalance_a: float = 0.0,
+    imbalance_b: float = 0.0,
+    imbalance_c: float = 0.0,
+    phase_loss_a: bool = False,
+    phase_loss_b: bool = False,
+    phase_loss_c: bool = False,
+    t_imbalance: float = 0.0,
     df_a: float = 0.0,
     df_b: float = 0.0,
     df_c: float = 0.0,
@@ -81,14 +81,14 @@ def run_simulation(
         )
 
     t_values     = np.arange(0.0, tmax, h)
-    deseq        = (deseq_a, deseq_b, deseq_c, falta_fase_a, falta_fase_b, falta_fase_c,
+    imbalance        = (imbalance_a, imbalance_b, imbalance_c, phase_loss_a, phase_loss_b, phase_loss_c,
                     df_a, df_b, df_c)
-    deseq_active = (deseq_a != 0.0 or deseq_b != 0.0 or deseq_c != 0.0
-                    or falta_fase_a or falta_fase_b or falta_fase_c
+    imbalance_active = (imbalance_a != 0.0 or imbalance_b != 0.0 or imbalance_c != 0.0
+                    or phase_loss_a or phase_loss_b or phase_loss_c
                     or df_a != 0.0 or df_b != 0.0 or df_c != 0.0)
 
     rr_fn     = make_broken_bar_rr_fn(mp.Rr, broken_bar_severity, mp.wb, t_start=t_broken_bar)
-    rhs       = _make_rhs(mp, voltage_fn, torque_fn, ref_code, deseq, t_deseq, deseq_active, rr_fn)
+    rhs       = _make_rhs(mp, voltage_fn, torque_fn, ref_code, imbalance, t_imbalance, imbalance_active, rr_fn)
     y0        = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, mp.T_amb, 0.0]
     y_history = _solve(rhs, t_values, y0, mp, clamp_wr_at_zero, t_cutoff=t_cutoff)
 
@@ -99,7 +99,7 @@ def run_simulation(
     Vl_arr = np.fromiter(
         (voltage_fn(tv) for tv in t_values), dtype=float, count=len(t_values)
     )
-    Va, Vb, Vc = _voltages_vectorized(t_values, Vl_arr, mp, deseq, t_deseq, deseq_active)
+    Va, Vb, Vc = _voltages_vectorized(t_values, Vl_arr, mp, imbalance, t_imbalance, imbalance_active)
     Vds, Vqs   = clarke_park_transform(Va, Vb, Vc, tetae)
     ids, iqs, idr, iqr, ias, ibs, ics, iar, ibr, icr = _reconstruct_currents(
         PSIqs, PSIds, PSIqr, PSIdr, tetae, tetar, mp

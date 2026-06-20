@@ -57,11 +57,11 @@ HOW TO ADD A NEW PRESET
 OPTIONAL FIELDS (include only when relevant to the experiment type)
 -------------------------------------------------------------------
    "tmax":          float  — simulation end time [s]          (default: auto)
-   "t_carga":       float  — load-ramp start time [s]         (DOL with slow J)
-   "Tl_pulso":      float  — load before pulse [N·m]          (Load Pulse mode)
-   "Tl_pulso_abs":  float  — load during pulse [N·m]          (Load Pulse mode)
-   "t_pulso_on":    float  — pulse start time [s]             (Load Pulse mode)
-   "t_pulso_off":   float  — pulse end time [s]               (Load Pulse mode)
+   "t_load":       float  — load-ramp start time [s]         (DOL with slow J)
+   "Tl_pulse":      float  — load before pulse [N·m]          (Load Pulse mode)
+   "Tl_pulse_abs":  float  — load during pulse [N·m]          (Load Pulse mode)
+   "t_pulse_on":    float  — pulse start time [s]             (Load Pulse mode)
+   "t_pulse_off":   float  — pulse end time [s]               (Load Pulse mode)
 """
 from __future__ import annotations
 from typing import Any
@@ -92,7 +92,7 @@ MIT_PRESETS: dict[str, dict[str, Any]] = {
         "f_ref": 50.0, "Xm": 60.98, "Xls": 4.43, "Xlr": 5.69, "Rfe": 800.0,
         "p": 4, "J": 0.025, "B": 0.001,
         "exp_type": "Load Pulse (apply and remove)",
-        "Tl_pulso": 0.0, "Tl_pulso_abs": 2.4, "t_pulso_on": 0.6, "t_pulso_off": 0.8,
+        "Tl_pulse": 0.0, "Tl_pulse_abs": 2.4, "t_pulse_on": 0.6, "t_pulse_off": 0.8,
         "tmax": 1.0,
         "Tl_final": 2.4,
     },
@@ -114,7 +114,7 @@ MIT_PRESETS: dict[str, dict[str, Any]] = {
         "f_ref": 60.0, "Xm": 13.04, "Xls": 0.226, "Xlr": 0.226, "Rfe": 80.0,
         "p": 4, "J": 63.87, "B": 0.05,
         "exp_type": "Direct-On-Line Starting (DOL)",
-        "Tl_final": 9180.0, "t_carga": 8.0,
+        "Tl_final": 9180.0, "t_load": 8.0,
     },
 }
 

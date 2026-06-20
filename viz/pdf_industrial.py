@@ -329,14 +329,14 @@ def _write_sim_block(
     if exp_config and is_main:
         import numpy as _np
         _mode = exp_config.get("exp_type", exp_type)
-        if _mode == "frenagem":
+        if _mode == "braking":
             _ensure_space(pdf, 50)
             _sec_bar(pdf, "ELECTRIC BRAKING ANALYSIS")
             _brake = exp_config.get("brake_method", "plugging")
             _BRAKE_NAMES = {
                 "plugging":    "Polarity Reversal (Plugging)",
-                "injecao_cc":  "DC Injection Braking",
-                "regenerativo":"Regenerative Braking",
+                "dc_injection":  "DC Injection Braking",
+                "regenerative":"Regenerative Braking",
             }
             pdf.set_font("Helvetica", "", 9)
             pdf.set_text_color(*_TEXT_MID)
@@ -360,7 +360,7 @@ def _write_sim_block(
                 _rows_b.append(("Estimated time to stop", f"{_t_stop:.3f} s"))
             _mini_table(pdf, _rows_b, [115, 55])
 
-        elif _mode == "gerador":
+        elif _mode == "generator":
             _ensure_space(pdf, 50)
             _sec_bar(pdf, "GENERATOR MODE ANALYSIS")
             _wr_ss = float(res.get("wr_ss", 0.0))

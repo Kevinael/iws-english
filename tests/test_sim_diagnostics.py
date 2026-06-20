@@ -188,7 +188,7 @@ def test_shutdown_sem_balanco(mp):
 
 def test_gerador_sem_sobrecarga(mp):
     res = _make_res(s_ss=-0.02, Te_ss=-10.0)
-    ins = generate_insights(res, mp, load_torque=0.0, tmax=3.0, exp_type="gerador")
+    ins = generate_insights(res, mp, load_torque=0.0, tmax=3.0, exp_type="generator")
     assert not any("OVERLOAD" in i.title.upper() for i in ins)
 
 

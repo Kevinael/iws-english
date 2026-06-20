@@ -38,11 +38,11 @@ mp = MachineParams(
 )
 
 cfg = {
-    'exp_type': 'pulso_carga',
+    'exp_type': 'load_pulse',
     'Tl_base': 0.0,
     'Tl_final': 10.0,
-    't_carga': 0.6,
-    't_retirada': 0.8,
+    't_load': 0.6,
+    't_removal': 0.8,
 }
 vfn, tfn, _ = build_fns(cfg, mp)
 res = run_simulation(mp, tmax=1.2, h=2e-4, voltage_fn=vfn, torque_fn=tfn)

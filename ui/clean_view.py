@@ -64,20 +64,20 @@ def _exp_rows(cfg: dict) -> list[str]:
         "yd":         "Star-Delta (Y-D)",
         "comp":       "Autotransformer",
         "soft":       "Soft-Starter (Voltage Ramp)",
-        "pulso_carga":"Load Pulse",
-        "gerador":    "Generator Operation",
+        "load_pulse":"Load Pulse",
+        "generator":    "Generator Operation",
     }
     rows.append(_row("Experiment type", "", labels.get(et, et), "", shade=False))
 
     if et in ("dol", "yd", "comp", "soft"):
         rows.append(_row("Load torque", "T<sub>L</sub>",
                          _fmt(cfg.get("Tl_final", 0.0), 2), "N·m", shade=True))
-        _tc = cfg.get("t_carga", 0.0)
+        _tc = cfg.get("t_load", 0.0)
         if _tc > 0:
             rows.append(_row("Load application instant", "t<sub>c</sub>",
                              _fmt(_tc, 3), "s", shade=False))
 
-    if et in ("yd", "comp", "soft", "gerador"):
+    if et in ("yd", "comp", "soft", "generator"):
         rows.append(_row("Switching / application instant", "t<sub>2</sub>",
                          _fmt(cfg.get("t_2", 0.0), 3), "s", shade=True))
 
@@ -88,17 +88,17 @@ def _exp_rows(cfg: dict) -> list[str]:
 
     if et == "soft":
         rows.append(_row("Time to rated voltage", "t<sub>p</sub>",
-                         _fmt(cfg.get("t_pico", 0.0), 2), "s", shade=True))
+                         _fmt(cfg.get("t_peak", 0.0), 2), "s", shade=True))
 
-    if et == "pulso_carga":
+    if et == "load_pulse":
         rows.append(_row("Pulse torque", "T<sub>L</sub>",
                          _fmt(cfg.get("Tl_final", 0.0), 2), "N·m", shade=True))
         rows.append(_row("Pulse start", "t<sub>on</sub>",
-                         _fmt(cfg.get("t_carga", 0.0), 3), "s", shade=False))
+                         _fmt(cfg.get("t_load", 0.0), 3), "s", shade=False))
         rows.append(_row("Pulse end", "t<sub>off</sub>",
-                         _fmt(cfg.get("t_retirada", 0.0), 3), "s", shade=True))
+                         _fmt(cfg.get("t_removal", 0.0), 3), "s", shade=True))
 
-    if et == "gerador":
+    if et == "generator":
         rows.append(_row("Mechanical torque (prime mover)", "T<sub>mec</sub>",
                          _fmt(cfg.get("Tl_mec", 0.0), 2), "N·m", shade=False))
 

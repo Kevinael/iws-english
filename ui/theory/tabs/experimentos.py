@@ -297,7 +297,7 @@ def render_tab_experimentos() -> None:
     _eq(r"P_{cu,2}^{\,\text{bif}} \approx 2\, P_{cu,2}^{\,\text{nom}}")
     st.markdown(
         "In the simulator, the phase-loss toggle forces $V_x = 0$ from "
-        "$t_{deseq}$ onward. It is recommended to limit $t_{max}$ to a few cycles after the event, "
+        "$t_{imbalance}$ onward. It is recommended to limit $t_{max}$ to a few cycles after the event, "
         "as the model does not include thermal protection."
     )
     _div_warn(
@@ -307,22 +307,22 @@ def render_tab_experimentos() -> None:
     )
 
     st.write("")
-    _h4("Unbalance Onset Instant — $t_{deseq}$")
+    _h4("Unbalance Onset Instant — $t_{imbalance}$")
     st.markdown(
-        "The parameter $t_{deseq}$ separates two regimes in the simulation:"
+        "The parameter $t_{imbalance}$ separates two regimes in the simulation:"
     )
     st.markdown(
-        "- $0 \\leq t < t_{deseq}$: balanced grid — motor starts and accelerates normally.\n"
-        "- $t \\geq t_{deseq}$: unbalance and/or phase loss takes effect."
+        "- $0 \\leq t < t_{imbalance}$: balanced grid — motor starts and accelerates normally.\n"
+        "- $t \\geq t_{imbalance}$: unbalance and/or phase loss takes effect."
     )
     st.markdown(
         "This allows studying the **transient response to fault onset**: "
         "observe the speed disturbance, current peak, and new steady-state operating point "
-        "(or divergence) immediately after $t_{deseq}$."
+        "(or divergence) immediately after $t_{imbalance}$."
     )
-    _eq(r"V_x(t) = \begin{cases} V_{x,\,nom}(t) & t < t_{deseq} \\ V_{x,\,deseq}(t) & t \geq t_{deseq} \end{cases}")
+    _eq(r"V_x(t) = \begin{cases} V_{x,\,nom}(t) & t < t_{imbalance} \\ V_{x,\,imbalance}(t) & t \geq t_{imbalance} \end{cases}")
     st.markdown(
-        "Setting $t_{deseq} = 0$ places the asymmetry from the very start — "
+        "Setting $t_{imbalance} = 0$ places the asymmetry from the very start — "
         "useful for studying **starting under a pre-existing unbalanced grid**."
     )
 

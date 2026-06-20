@@ -67,8 +67,8 @@ def test_preset_simulation_completes(exc, name, vals):
     """All presets must simulate 2 s without raising or returning success=False."""
     p = DCMachineParams(**_clean(vals))
 
-    # generators use gerador_dc mode; motors use dol_dc
-    mode = "gerador_dc" if "gen" in exc else "dol_dc"
+    # generators use generator_dc mode; motors use dol_dc
+    mode = "generator_dc" if "gen" in exc else "dol_dc"
     exp_config = {"Tl_nom": abs(p.Tload)}
 
     vfn = make_voltage_fn_dc(mode, p, exp_config)

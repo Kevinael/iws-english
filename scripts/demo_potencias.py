@@ -23,7 +23,7 @@ import sys, os; sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..")
 from core.tim.facade import MachineParams, run_simulation, build_fns
 
 mp = MachineParams()
-config = {"exp_type": "dol", "Tl_final": 80.0, "t_carga": 1.5}
+config = {"exp_type": "dol", "Tl_final": 80.0, "t_load": 1.5}
 vfn, tfn, t_ev = build_fns(config, mp)
 
 print("Running simulation...")

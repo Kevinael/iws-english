@@ -29,7 +29,7 @@ from dataclasses import dataclass, field
 
 from core.tim.thermal import estimate_rth_cth
 from core.transforms import abc_voltages, clarke_park_transform
-from core.tim.fault_model import abc_voltages_deseq
+from core.tim.fault_model import abc_voltages_imbalance
 from core.constants import N_SYNC_FACTOR
 
 
@@ -181,7 +181,7 @@ def _xml_from_lm(Lm: float, wb: float, Xls_a: float, Xlr_a: float) -> float:
 #   0 = stationary (w_ref=0), 1 = synchronous (w_ref=wb), 2 = rotor (w_ref=wr)
 
 def _make_rhs(mp: MachineParams, voltage_fn, torque_fn, ref_code: int,
-              deseq: tuple, t_deseq: float, deseq_active: bool,
+              imbalance: tuple, t_imbalance: float, imbalance_active: bool,
               rr_fn=None):
     """Closes the RHS over parameters — returns rhs(t, y) ready for solve_ivp.
 
@@ -209,10 +209,10 @@ def _make_rhs(mp: MachineParams, voltage_fn, torque_fn, ref_code: int,
         # in synchronous reference — only integrated for post-processing
         PSIqs, PSIds, PSIqr, PSIdr, wr, _tetar, Temp, theta_slip = y
 
-        # voltage source: unbalance activated conditionally by t_deseq
+        # voltage source: unbalance activated conditionally by t_imbalance
         Vl_a = voltage_fn(t)
-        if deseq_active and t >= t_deseq:
-            Va, Vb, Vc = abc_voltages_deseq(t, Vl_a, mp.f, *deseq)
+        if imbalance_active and t >= t_imbalance:
+            Va, Vb, Vc = abc_voltages_imbalance(t, Vl_a, mp.f, *imbalance)
         else:
             Va, Vb, Vc = abc_voltages(t, Vl_a, mp.f)
         tetae            = wb * t   # synchronous reference angle (exact, no integration)

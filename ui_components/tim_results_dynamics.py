@@ -68,9 +68,9 @@ def render_tab_dynamic(
     if _cur_modo not in _viz_opts:
         st.session_state["plot_mode"] = _viz_opts[0]
 
-    _is_pulso    = (exp_type == "pulso_carga")
-    _t_pulso_on  = float((exp_config or {}).get("t_carga",    0.0))
-    _t_pulso_off = float((exp_config or {}).get("t_retirada", 0.0))
+    _is_pulso    = (exp_type == "load_pulse")
+    _t_pulso_on  = float((exp_config or {}).get("t_load",    0.0))
+    _t_pulso_off = float((exp_config or {}).get("t_removal", 0.0))
     _zoom_opts   = ["Full"]
     if _is_pulso:
         _zoom_opts.append("Load Pulse")
@@ -106,8 +106,8 @@ def render_tab_dynamic(
         mp_p        = mp.p,
         t_ss        = t_ss,
         tmax_data   = tmax_data,
-        t_pulso_on  = _t_pulso_on,
-        t_pulso_off = _t_pulso_off,
+        t_pulse_on  = _t_pulso_on,
+        t_pulse_off = _t_pulso_off,
         tl_arr      = tl_arr,
     )
     t_window = compute_t_window(zoom_mode, _zoom_ctx)
@@ -125,9 +125,9 @@ def render_tab_dynamic(
         bb_sev    = float(res.get("_broken_bar_severity", 0.0)),
         s_val     = float(res.get("s", 0.0)),
         deseq_on  = any(_cfg.get(k, 0) for k in
-                        ("deseq_a", "deseq_b", "deseq_c", "falta_fase_a", "falta_fase_b", "falta_fase_c")),
+                        ("imbalance_a", "imbalance_b", "imbalance_c", "phase_loss_a", "phase_loss_b", "phase_loss_c")),
         is_yd     = (exp_type == "yd"),
-        is_gen    = (exp_type == "gerador"),
+        is_gen    = (exp_type == "generator"),
         is_sd     = (exp_type == "shutdown"),
         is_soft   = (exp_type == "soft"),
         Tl_cfg    = float(_cfg.get("Tl_final", 0.0)),

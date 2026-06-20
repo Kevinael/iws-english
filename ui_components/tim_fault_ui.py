@@ -23,9 +23,9 @@ def render_desequilibrio_ui(config: dict, tmax: float = 2.0) -> None:
     """Renders the voltage unbalance / phase-loss expander.
 
     Fills config with keys:
-      deseq_a, deseq_b, deseq_c,
-      falta_fase_a, falta_fase_b, falta_fase_c,
-      t_deseq.
+      imbalance_a, imbalance_b, imbalance_c,
+      phase_loss_a, phase_loss_b, phase_loss_c,
+      t_imbalance.
     Must be called within the experiment configuration block in IWS_UI.py.
     """
     st.write("")
@@ -93,9 +93,9 @@ $$\\text{VUF}_{\\%} = \\frac{\\text{maximum deviation of }V_l\\text{ from the me
 
         with col_a:
             st.markdown("**Phase A**")
-            deseq_a = st.slider(
+            imbalance_a = st.slider(
                 "Amplitude deviation A (%)", min_value=-30, max_value=30, value=0, step=1,
-                help="E.g.: +10 → Va = 1.1 × Vnominal", key="deseq_a"
+                help="E.g.: +10 → Va = 1.1 × Vnominal", key="imbalance_a"
             ) / 100.0
             df_a = float(st.slider(
                 "Frequency deviation A (Hz)", min_value=-10, max_value=10, value=0, step=1,
@@ -107,9 +107,9 @@ $$\\text{VUF}_{\\%} = \\frac{\\text{maximum deviation of }V_l\\text{ from the me
 
         with col_b:
             st.markdown("**Phase B**")
-            deseq_b = st.slider(
+            imbalance_b = st.slider(
                 "Amplitude deviation B (%)", min_value=-30, max_value=30, value=0, step=1,
-                help="E.g.: +10 → Vb = 1.1 × Vnominal", key="deseq_b"
+                help="E.g.: +10 → Vb = 1.1 × Vnominal", key="imbalance_b"
             ) / 100.0
             df_b = float(st.slider(
                 "Frequency deviation B (Hz)", min_value=-10, max_value=10, value=0, step=1,
@@ -121,9 +121,9 @@ $$\\text{VUF}_{\\%} = \\frac{\\text{maximum deviation of }V_l\\text{ from the me
 
         with col_c:
             st.markdown("**Phase C**")
-            deseq_c = st.slider(
+            imbalance_c = st.slider(
                 "Amplitude deviation C (%)", min_value=-30, max_value=30, value=0, step=1,
-                help="E.g.: -10 → Vc = 0.9 × Vnominal", key="deseq_c"
+                help="E.g.: -10 → Vc = 0.9 × Vnominal", key="imbalance_c"
             ) / 100.0
             df_c = float(st.slider(
                 "Frequency deviation C (Hz)", min_value=-10, max_value=10, value=0, step=1,
@@ -143,23 +143,23 @@ $$\\text{VUF}_{\\%} = \\frac{\\text{maximum deviation of }V_l\\text{ from the me
 
         _tmax_deseq = float(tmax) if tmax > 0.0 else None
         _val_deseq  = min(1.0, float(tmax) - 0.1) if (tmax > 0.0 and tmax <= 1.0) else 1.0
-        t_deseq = st.number_input(
+        t_imbalance = st.number_input(
             "Unbalance onset instant (s)",
             min_value=0.0, max_value=_tmax_deseq, value=_val_deseq, step=0.1, format="%.2f",
             help="The unbalance begins to act at this instant. Use 0 to apply from the start.",
         )
 
-        any_active = any([deseq_a, deseq_b, deseq_c, falta_a, falta_b, falta_c])
-        if any_active and t_deseq > 0.0:
-            st.caption(f"Balanced supply until {t_deseq:.2f} s — unbalance/fault applied from that instant.")
+        any_active = any([imbalance_a, imbalance_b, imbalance_c, falta_a, falta_b, falta_c])
+        if any_active and t_imbalance > 0.0:
+            st.caption(f"Balanced supply until {t_imbalance:.2f} s — unbalance/fault applied from that instant.")
 
-        config["deseq_a"]      = deseq_a
-        config["deseq_b"]      = deseq_b
-        config["deseq_c"]      = deseq_c
-        config["falta_fase_a"] = falta_a
-        config["falta_fase_b"] = falta_b
-        config["falta_fase_c"] = falta_c
-        config["t_deseq"]      = t_deseq
+        config["imbalance_a"]      = imbalance_a
+        config["imbalance_b"]      = imbalance_b
+        config["imbalance_c"]      = imbalance_c
+        config["phase_loss_a"] = falta_a
+        config["phase_loss_b"] = falta_b
+        config["phase_loss_c"] = falta_c
+        config["t_imbalance"]      = t_imbalance
         config["df_a"]         = df_a
         config["df_b"]         = df_b
         config["df_c"]         = df_c
@@ -173,7 +173,7 @@ def render_broken_bar_ui(config: dict, tmax: float = 2.0, wk: dict | None = None
       broken_bar_severity, t_broken_bar.
     """
     _wk_key   = wk.broken_bar_severity if wk is not None else "wi_broken_bar_severity"
-    _t_ref    = float(config.get("t_carga", 0.0))
+    _t_ref    = float(config.get("t_load", 0.0))
 
     # reads values from session_state BEFORE the expander — ensures config is filled
     # even when the expander has never been opened by the user.

@@ -39,7 +39,7 @@ def make_voltage_fn_dc(
             return Va_nom, Vf_nom
         return fn
 
-    if mode == "resistencia_dc":
+    if mode == "resistance_dc":
         R_ini  = float(exp_config.get("R_ini", 5.0))
         t_ramp = float(exp_config.get("t_ramp", 2.0))
         Ra     = params.Ra
@@ -62,7 +62,7 @@ def make_voltage_fn_dc(
             return Va, Vf_nom
         return fn
 
-    if mode == "frenagem_dc":
+    if mode == "braking_dc":
         brake  = exp_config.get("brake_method", "plugging")
         t_freia = float(exp_config.get("t_freia", 3.0))
 
@@ -71,14 +71,14 @@ def make_voltage_fn_dc(
                 return (-Va_nom if t >= t_freia else Va_nom), Vf_nom
             return fn
 
-        if brake == "injecao_cc":
+        if brake == "dc_injection":
             Vdc_inj = float(exp_config.get("Vdc_inj", Va_nom * 0.1))
             def fn(t: float) -> tuple[float, float]:
                 Va = Vdc_inj if t >= t_freia else Va_nom
                 return Va, Vf_nom
             return fn
 
-        if brake == "regenerativo":
+        if brake == "regenerative":
             Va_regen = float(exp_config.get("Va_regen", Va_nom * 0.5))
             def fn(t: float) -> tuple[float, float]:
                 Va = Va_regen if t >= t_freia else Va_nom
@@ -90,7 +90,7 @@ def make_voltage_fn_dc(
             return Va_nom, Vf_nom
         return fn
 
-    if mode == "campo_fraco_dc":
+    if mode == "field_weakening_dc":
         Vf_fraco = float(exp_config.get("Vf_fraco", Vf_nom * 0.5))
         t_campo  = float(exp_config.get("t_campo", 3.0))
         t_trans  = float(exp_config.get("t_trans", 0.5))
@@ -106,7 +106,7 @@ def make_voltage_fn_dc(
             return Va_nom, Vf
         return fn
 
-    if mode in ("pulso_dc", "gerador_dc"):
+    if mode in ("pulse_dc", "generator_dc"):
         def fn(t: float) -> tuple[float, float]:
             return Va_nom, Vf_nom
         return fn
@@ -122,7 +122,7 @@ def make_torque_fn_dc(
     """Returns torque function Tl(t)."""
     Tl_nom = params.Tload
 
-    if mode == "pulso_dc":
+    if mode == "pulse_dc":
         t_pulso  = float(exp_config.get("t_pulso", 4.0))
         Tl_extra = float(exp_config.get("Tl_extra", Tl_nom * 0.5))
 
@@ -130,7 +130,7 @@ def make_torque_fn_dc(
             return Tl_nom + Tl_extra if t >= t_pulso else Tl_nom
         return fn
 
-    if mode == "gerador_dc":
+    if mode == "generator_dc":
         Tl_gen = float(exp_config.get("Tl_gen", abs(Tl_nom)))
 
         def fn(t: float) -> float:

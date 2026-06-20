@@ -250,15 +250,15 @@ def _render_dc_numerical_params(
         if not _tmax_auto:
             _tmax_check   = tmax
             _critical_dc: list[tuple[str, str, float]] = []
-            if mode == "dol_dc" and config.get("partir_em_vazio"):
-                _critical_dc = [("load application", "t_{carga}", config.get("t_carga", 0))]
-            elif mode == "resistencia_dc":
+            if mode == "dol_dc" and config.get("start_no_load"):
+                _critical_dc = [("load application", "t_{carga}", config.get("t_load", 0))]
+            elif mode == "resistance_dc":
                 _critical_dc = [("resistance removal", "t_{ramp}", config.get("t_ramp", 0))]
-            elif mode == "frenagem_dc":
+            elif mode == "braking_dc":
                 _critical_dc = [("braking", "t_{brake}", config.get("t_freia", 0))]
-            elif mode == "campo_fraco_dc":
+            elif mode == "field_weakening_dc":
                 _critical_dc = [("field weakening", "t_{field}", config.get("t_campo", 0))]
-            elif mode == "pulso_dc":
+            elif mode == "pulse_dc":
                 _critical_dc = [("load pulse", "t_{pulse}", config.get("t_pulso", 0))]
             for _lbl, _sym, _t in _critical_dc:
                 if _t >= _tmax_check:

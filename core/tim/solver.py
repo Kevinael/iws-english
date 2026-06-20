@@ -28,7 +28,7 @@ from scipy.integrate import solve_ivp
 
 from core.tim.machine_model import MachineParams
 from core.transforms import abc_voltages, clarke_park_transform, _SQRT3_2
-from core.tim.fault_model import abc_voltages_deseq
+from core.tim.fault_model import abc_voltages_imbalance
 from core.constants import (
     SOLVER_SS_TOL as SS_TOL,
     SOLVER_MIN_SS_CYCLES as MIN_SS_CYCLES,
@@ -182,13 +182,13 @@ def _solve(rhs, t_values, y0, mp: MachineParams, clamp_wr_at_zero: bool, t_cutof
 # POST-PROCESSING
 # ═══════════════════════════════════════════════════════════════════════════
 
-def _voltages_vectorized(t_arr, Vl_arr, mp: MachineParams, deseq, t_deseq, deseq_active):
-    """Reconstructs Va/Vb/Vc for the full t vector (supports switch at t_deseq)."""
-    if not deseq_active:
+def _voltages_vectorized(t_arr, Vl_arr, mp: MachineParams, imbalance, t_imbalance, imbalance_active):
+    """Reconstructs Va/Vb/Vc for the full t vector (supports switch at t_imbalance)."""
+    if not imbalance_active:
         return abc_voltages(t_arr, Vl_arr, mp.f)
     Va_b, Vb_b, Vc_b = abc_voltages(t_arr, Vl_arr, mp.f)
-    Va_u, Vb_u, Vc_u = abc_voltages_deseq(t_arr, Vl_arr, mp.f, *deseq)
-    mask = t_arr >= t_deseq
+    Va_u, Vb_u, Vc_u = abc_voltages_imbalance(t_arr, Vl_arr, mp.f, *imbalance)
+    mask = t_arr >= t_imbalance
     return (np.where(mask, Va_u, Va_b),
             np.where(mask, Vb_u, Vb_b),
             np.where(mask, Vc_u, Vc_b))

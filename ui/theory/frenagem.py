@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-frenagem.py
+braking.py
 ===========
 Interactive comparator of three braking methods: Regenerative, Plugging, DC injection.
 

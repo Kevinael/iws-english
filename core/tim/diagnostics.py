@@ -148,7 +148,7 @@ def generate_insights(
         return _sort_insights(insights)
 
     # ── Rule 1: Torque balance — friction and ventilation ─────────────────
-    if exp_type not in ("shutdown", "gerador") and load_torque >= 0:
+    if exp_type not in ("shutdown", "generator") and load_torque >= 0:
         T_atrito = mp.B * wr_ss                      # N·m — viscous torque at steady state
         T_balanco = Te_ss - load_torque              # should ≈ T_atrito (equilibrium)
         erro_rel  = abs(T_balanco - T_atrito) / max(abs(Te_ss), 1e-3)
@@ -175,11 +175,11 @@ def generate_insights(
     _check_acceleration_margin(insights, Te_arr, load_torque, n_sync, mp)
 
     # ── Rule 3: Overload and extreme slip diagnostics ──────────────────────
-    if exp_type not in ("shutdown", "gerador") and steady:
+    if exp_type not in ("shutdown", "generator") and steady:
         _check_slip_overload(insights, s_ss, n_ss, n_sync, Te_ss, mp)
 
     # ── Rule 4: Underload diagnostics ─────────────────────────────────────
-    if exp_type not in ("shutdown", "gerador") and load_torque > 0 and steady:
+    if exp_type not in ("shutdown", "generator") and load_torque > 0 and steady:
         _check_underload(insights, s_ss, mp)
 
     # ── Rule 5: Broken bar ────────────────────────────────────────────────
@@ -198,7 +198,7 @@ def generate_insights(
         _check_startup_time(insights, t_arr, wr_arr, Te_arr, load_torque, ws_mec, mp, cfg)
 
     # ── Rules 9–11: Generator-mode specific diagnostics ───────────────────
-    if exp_type == "gerador" and steady:
+    if exp_type == "generator" and steady:
         _check_generator_mode(insights, res, s_ss, n_ss, n_sync, Te_ss, ws_mec, mp, cfg)
 
     return _sort_insights(insights)
@@ -531,13 +531,13 @@ def _check_startup_time(
     t_start_pt = float(t_arr[idx_reach])
 
     # Expected minimum start-up time: J·ωs / (Te_mean − T_L)
-    # Uses only the no-load acceleration segment (before t_carga, if defined),
-    # since load_torque is applied after t_carga — including it before distorts Te_mean_accel.
+    # Uses only the no-load acceleration segment (before t_load, if defined),
+    # since load_torque is applied after t_load — including it before distorts Te_mean_accel.
     J = getattr(mp, "J", None)
-    t_carga = float((cfg or {}).get("t_carga", 0.0))
-    if t_carga > 0 and t_carga < t_start_pt:
-        # no-load start: acceleration occurs without load up to t_carga
-        idx_tc = int(np.searchsorted(t_arr, t_carga))
+    t_load = float((cfg or {}).get("t_load", 0.0))
+    if t_load > 0 and t_load < t_start_pt:
+        # no-load start: acceleration occurs without load up to t_load
+        idx_tc = int(np.searchsorted(t_arr, t_load))
         Te_accel_slice = Te_arr[:idx_tc] if idx_tc > 0 else Te_arr[:idx_reach]
         tl_accel = 0.0  # load not yet applied in this segment
     else:

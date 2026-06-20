@@ -10,7 +10,7 @@ from ui.theory.transitorios import render_transitorios_sincronizados
 from ui.theory.fasorial import render_fasorial_desequilibrio
 from ui.theory.circuito_alternavel import render_circuito_alternavel
 from ui.theory.mcsa import render_mcsa
-from ui.theory.frenagem import render_comparador_frenagem
+from ui.theory.braking import render_comparador_frenagem
 from ui.theory.blocos_krause import render_blocos_krause
 
 __all__ = [

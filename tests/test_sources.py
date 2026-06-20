@@ -75,15 +75,15 @@ def test_torque_pulse_at_end():
 # ── build_fns ──────────────────────────────────────────────────────────────
 
 @pytest.mark.parametrize("exp_type,config", [
-    ("dol",         {"exp_type": "dol",         "Tl_final": 12.0, "t_carga": 1.5}),
-    ("yd",          {"exp_type": "yd",           "Tl_final": 12.0, "t_carga": 2.0, "t_2": 1.0}),
-    ("comp",        {"exp_type": "comp",         "Tl_final": 12.0, "t_carga": 2.0, "t_2": 1.0, "voltage_ratio": 0.65}),
-    ("soft",        {"exp_type": "soft",         "Tl_final": 12.0, "t_carga": 3.0, "t_2": 0.5, "t_pico": 2.0, "voltage_ratio": 0.3}),
-    ("dol_vazio",   {"exp_type": "dol",          "Tl_final": 12.0, "Tl_inicial": 0.0, "t_carga": 1.0}),
-    ("pulso_carga", {"exp_type": "pulso_carga",  "Tl_final": 12.0, "t_carga": 1.0, "t_retirada": 2.0}),
-    ("gerador",     {"exp_type": "gerador",      "Tl_mec": 10.0,   "t_2": 1.0}),
-    ("shutdown",    {"exp_type": "shutdown",     "Tl_final": 12.0, "t_carga": 1.0, "t_cutoff": 2.0}),
-    ("voltage_sag", {"exp_type": "voltage_sag",  "Tl_final": 12.0, "t_carga": 0.5,
+    ("dol",         {"exp_type": "dol",         "Tl_final": 12.0, "t_load": 1.5}),
+    ("yd",          {"exp_type": "yd",           "Tl_final": 12.0, "t_load": 2.0, "t_2": 1.0}),
+    ("comp",        {"exp_type": "comp",         "Tl_final": 12.0, "t_load": 2.0, "t_2": 1.0, "voltage_ratio": 0.65}),
+    ("soft",        {"exp_type": "soft",         "Tl_final": 12.0, "t_load": 3.0, "t_2": 0.5, "t_peak": 2.0, "voltage_ratio": 0.3}),
+    ("dol_vazio",   {"exp_type": "dol",          "Tl_final": 12.0, "Tl_inicial": 0.0, "t_load": 1.0}),
+    ("load_pulse", {"exp_type": "load_pulse",  "Tl_final": 12.0, "t_load": 1.0, "t_removal": 2.0}),
+    ("generator",     {"exp_type": "generator",      "Tl_mec": 10.0,   "t_2": 1.0}),
+    ("shutdown",    {"exp_type": "shutdown",     "Tl_final": 12.0, "t_load": 1.0, "t_cutoff": 2.0}),
+    ("voltage_sag", {"exp_type": "voltage_sag",  "Tl_final": 12.0, "t_load": 0.5,
                      "sag_magnitude": 0.7, "t_start_sag": 1.0, "t_duration_sag": 0.3}),
 ])
 def test_build_fns_returns_callables(exp_type, config, mp_3hp):
@@ -106,14 +106,14 @@ def test_build_fns_unknown_returns_defaults(mp_3hp):
 
 def test_build_fns_dol_vl_constant(mp_3hp):
     """DOL: tensão deve ser constante igual a Vl."""
-    vfn, _, _ = build_fns({"exp_type": "dol", "Tl_final": 12.0, "t_carga": 1.5}, mp_3hp)
+    vfn, _, _ = build_fns({"exp_type": "dol", "Tl_final": 12.0, "t_load": 1.5}, mp_3hp)
     t_arr = [0.0, 0.5, 1.0, 2.0]
     assert all(vfn(t) == mp_3hp.Vl for t in t_arr)
 
 
 def test_build_fns_yd_voltage_step(mp_3hp):
     """YD: tensão reduzida antes de t_2, nominal depois."""
-    config = {"exp_type": "yd", "Tl_final": 12.0, "t_carga": 2.0, "t_2": 1.0}
+    config = {"exp_type": "yd", "Tl_final": 12.0, "t_load": 2.0, "t_2": 1.0}
     vfn, _, _ = build_fns(config, mp_3hp)
     import math
     Vy = mp_3hp.Vl / math.sqrt(3.0)

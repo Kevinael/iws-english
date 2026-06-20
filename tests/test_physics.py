@@ -10,7 +10,7 @@ from core.tim.facade import run_simulation, build_fns
 @pytest.mark.parametrize("Tl", [6.0, 12.0, 18.0])
 def test_torque_balance_3hp(mp_3hp, Tl):
     """Te_ss = TL + B*wr_ss — erro menor que 2%."""
-    config = {"exp_type": "dol", "Tl_final": Tl, "t_carga": 1.5}
+    config = {"exp_type": "dol", "Tl_final": Tl, "t_load": 1.5}
     vfn, tfn, _ = build_fns(config, mp_3hp)
     res = run_simulation(mp_3hp, tmax=3.0, h=1e-4, voltage_fn=vfn, torque_fn=tfn)
     Te_expected = Tl + mp_3hp.B * res["wr_ss"]
@@ -21,7 +21,7 @@ def test_torque_balance_3hp(mp_3hp, Tl):
 def test_torque_balance_50hp(mp_50hp):
     """50 HP com B=0: Te_ss deve ser exatamente TL (tolerância 1%)."""
     Tl = 197.0
-    config = {"exp_type": "dol", "Tl_final": Tl, "t_carga": 2.0}
+    config = {"exp_type": "dol", "Tl_final": Tl, "t_load": 2.0}
     vfn, tfn, _ = build_fns(config, mp_50hp)
     res = run_simulation(mp_50hp, tmax=5.0, h=1e-4, voltage_fn=vfn, torque_fn=tfn)
     err = abs(res["Te_ss"] - Tl) / Tl
@@ -77,7 +77,7 @@ def test_temp_above_ambient(dol_result, mp_3hp):
 
 
 def test_wr_monotone_during_startup(dol_result):
-    """wr deve ser monotonamente crescente durante a aceleração (antes de t_carga)."""
+    """wr deve ser monotonamente crescente durante a aceleração (antes de t_load)."""
     res = dol_result
     t = res["t"]
     wr = res["wr"]
@@ -98,7 +98,7 @@ def test_temp_increases_under_load(dol_result, mp_3hp):
 
 def test_temp_converges_direction(mp_3hp):
     """Em simulação longa, temperatura deve se aproximar de T_amb + Rth*P (sentido correto)."""
-    config = {"exp_type": "dol", "Tl_final": 12.0, "t_carga": 1.0}
+    config = {"exp_type": "dol", "Tl_final": 12.0, "t_load": 1.0}
     vfn, tfn, _ = build_fns(config, mp_3hp)
     res = run_simulation(mp_3hp, tmax=5.0, h=5e-4, voltage_fn=vfn, torque_fn=tfn)
     # Temperatura ao final deve ser maior do que no início
@@ -129,8 +129,8 @@ def test_speed_below_sync(dol_result, mp_3hp):
 
 def test_yd_lower_startup_current(mp_3hp):
     """YD deve ter corrente de pico menor que DOL."""
-    config_dol = {"exp_type": "dol",  "Tl_final": 0.0, "t_carga": 99.0}
-    config_yd  = {"exp_type": "yd",   "Tl_final": 0.0, "t_carga": 99.0, "t_2": 1.0}
+    config_dol = {"exp_type": "dol",  "Tl_final": 0.0, "t_load": 99.0}
+    config_yd  = {"exp_type": "yd",   "Tl_final": 0.0, "t_load": 99.0, "t_2": 1.0}
     vfn_d, tfn_d, _ = build_fns(config_dol, mp_3hp)
     vfn_y, tfn_y, _ = build_fns(config_yd,  mp_3hp)
     res_d = run_simulation(mp_3hp, tmax=0.5, h=1e-4, voltage_fn=vfn_d, torque_fn=tfn_d)
@@ -140,7 +140,7 @@ def test_yd_lower_startup_current(mp_3hp):
 
 def test_shutdown_wr_reaches_zero(mp_3hp):
     """Após desligamento, wr deve chegar a zero."""
-    config = {"exp_type": "shutdown", "Tl_final": 12.0, "t_carga": 0.5, "t_cutoff": 1.5}
+    config = {"exp_type": "shutdown", "Tl_final": 12.0, "t_load": 0.5, "t_cutoff": 1.5}
     vfn, tfn, _ = build_fns(config, mp_3hp)
     res = run_simulation(mp_3hp, tmax=5.0, h=1e-4,
                          voltage_fn=vfn, torque_fn=tfn,
@@ -152,7 +152,7 @@ def test_voltage_sag_wr_recovers(mp_3hp):
     """Após afundamento de tensão, velocidade deve se recuperar."""
     config = {
         "exp_type": "voltage_sag",
-        "Tl_final": 8.0, "t_carga": 0.5,
+        "Tl_final": 8.0, "t_load": 0.5,
         "sag_magnitude": 0.7,
         "t_start_sag": 1.5, "t_duration_sag": 0.2,
     }
@@ -164,8 +164,8 @@ def test_voltage_sag_wr_recovers(mp_3hp):
 
 
 def test_gerador_negative_slip(mp_3hp):
-    """Operação como gerador deve resultar em escorregamento negativo."""
-    config = {"exp_type": "gerador", "Tl_mec": 15.0, "t_2": 1.0}
+    """Operação como generator deve resultar em escorregamento negativo."""
+    config = {"exp_type": "generator", "Tl_mec": 15.0, "t_2": 1.0}
     vfn, tfn, _ = build_fns(config, mp_3hp)
     res = run_simulation(mp_3hp, tmax=3.0, h=1e-4, voltage_fn=vfn, torque_fn=tfn)
     assert res["s"] < 0.0

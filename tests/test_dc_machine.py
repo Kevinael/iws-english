@@ -90,8 +90,8 @@ class TestDCSteadyState:
 
     def test_speed_positive_sep_motors(self):
         # Sep_motor topology reaches positive steady-state speed under full nominal load in DOL.
-        # Shunt/series presets are designed for their own starting modes (resistencia_dc,
-        # campo_fraco_dc) — DOL with full Tload does not guarantee convergence for them.
+        # Shunt/series presets are designed for their own starting modes (resistance_dc,
+        # field_weakening_dc) — DOL with full Tload does not guarantee convergence for them.
         for name, vals in DC_PRESETS_BY_EXC["sep_motor"].items():
             res = _run(vals, tmax=5.0)
             assert res["wm_ss"] > 0, f"{name}: speed must be positive at steady state"

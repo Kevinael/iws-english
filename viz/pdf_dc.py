@@ -423,12 +423,12 @@ def _pdf_dc_section_mode_analysis(
     _sec(pdf, "Operating Mode Analysis", f"{sec_n}.")
     mode = exp_config.get("exp_type", exp_type)
 
-    if mode == "frenagem_dc":
+    if mode == "braking_dc":
         brake = exp_config.get("brake_method", "plugging")
         _BRAKE_NAMES = {
             "plugging":    "Polarity Reversal (Plugging)",
-            "injecao_cc":  "DC Injection Braking",
-            "regenerativo":"Regenerative Braking",
+            "dc_injection":  "DC Injection Braking",
+            "regenerative":"Regenerative Braking",
         }
         _subsec(pdf, f"Electric Braking — {_BRAKE_NAMES.get(brake, brake)}")
         t_freia = exp_config.get("t_freia", 0.0)
@@ -447,14 +447,14 @@ def _pdf_dc_section_mode_analysis(
         ]
         if t_stop is not None:
             rows_b.append(("Estimated time to stop", f"{t_stop:.3f} s"))
-        if brake == "injecao_cc":
+        if brake == "dc_injection":
             rows_b.append(("Injected DC voltage (V_inj)", f"{exp_config.get('Vdc_inj', 0.0):.2f} V"))
-        elif brake == "regenerativo":
+        elif brake == "regenerative":
             rows_b.append(("Reduced voltage (V_a,regen)", f"{exp_config.get('Va_regen', 0.0):.2f} V"))
         _th(pdf, [("Indicator", 115), ("Value", 55)])
         _tr(pdf, rows_b, [115, 55], ["L", "L"])
 
-    elif mode == "campo_fraco_dc":
+    elif mode == "field_weakening_dc":
         _subsec(pdf, "Field Weakening")
         t_campo = exp_config.get("t_campo", 0.0)
         Vf_fraco = exp_config.get("Vf_fraco", 0.0)
@@ -472,7 +472,7 @@ def _pdf_dc_section_mode_analysis(
             ("Speed gain",                             f"{wm_after - wm_before:+.1f} RPM"),
         ], [115, 55], ["L", "L"])
 
-    elif mode == "gerador_dc":
+    elif mode == "generator_dc":
         _subsec(pdf, "Generator Mode — Power Analysis")
         ia_ss  = float(res.get("ia_ss",  0.0))
         wm_ss  = float(res.get("wm_ss",  0.0))

@@ -33,33 +33,33 @@ def _render_exp_dc_dol(mp: DCMachineParams, config: dict) -> tuple[float, float]
     tmax_def = 12.0
     h_def    = 1e-3
     _Tl_ref  = config["_Tl_ref"]
-    partir_em_vazio = st.checkbox(
+    start_no_load = st.checkbox(
         "Start unloaded (apply load after starting)",
         value=True, key=_WK_DC.dol_vazio,
-        help="When active, the motor starts unloaded and receives torque at t_carga. "
+        help="When active, the motor starts unloaded and receives torque at t_load. "
              "When inactive, the load is present from time zero.",
     )
-    config["partir_em_vazio"] = partir_em_vazio
-    if partir_em_vazio:
+    config["start_no_load"] = start_no_load
+    if start_no_load:
         _wi(_WK_DC.dol_t_carga, 2.0)
-        config["t_carga"] = st.number_input(
+        config["t_load"] = st.number_input(
             "Load application instant — $t_{carga}$ (s)",
             min_value=0.0, key=_WK_DC.dol_t_carga, format="%.2f",
         )
         config["Tl_inicial"] = 0.0
         config["Tl_final"]   = _Tl_ref
-        tmax_def = max(config["t_carga"] + 8.0, 12.0)
+        tmax_def = max(config["t_load"] + 8.0, 12.0)
         _ibox(
             f"<strong>t = 0 s</strong> — rated voltage ({mp.Va:.1f} V) applied; "
             f"motor accelerates unloaded (T<sub>l</sub> = 0).<br>"
-            f"<strong>t = {config['t_carga']:.2f} s</strong> — load of "
+            f"<strong>t = {config['t_load']:.2f} s</strong> — load of "
             f"<strong>{_Tl_ref:.3f} N·m</strong> applied to shaft; "
             f"motor settles to new steady-state operating point."
         )
     else:
         config["Tl_inicial"] = None
         config["Tl_final"]   = _Tl_ref
-        config["t_carga"]    = 0.0
+        config["t_load"]    = 0.0
         _ibox(
             f"<strong>t = 0 s</strong> — rated voltage ({mp.Va:.1f} V) and load of "
             f"<strong>{_Tl_ref:.3f} N·m</strong> applied simultaneously; "
@@ -91,10 +91,10 @@ _BRAKE_DESC_DC: dict[str, str] = {
     "plugging":    "Reverses the armature voltage polarity while the motor is still rotating. "
                    "Produces torque opposing motion — very fast braking, but with high "
                    "armature current and possible direction reversal if no stopping switch is provided.",
-    "injecao_cc":  "Cuts the operating supply and injects a reduced DC voltage into the armature. "
+    "dc_injection":  "Cuts the operating supply and injects a reduced DC voltage into the armature. "
                    "The maintained field flux produces braking torque without reversing direction. "
                    "Smooth and controlled braking — current limited by armature resistance.",
-    "regenerativo":"Reduces armature voltage below the motor back-EMF. Armature current "
+    "regenerative":"Reduces armature voltage below the motor back-EMF. Armature current "
                    "reverses — the motor operates as a generator, returning energy to the source. "
                    "Gentle braking; effective only for high-inertia or high-speed loads.",
 }
@@ -128,7 +128,7 @@ def _render_exp_dc_frenagem(mp: DCMachineParams, config: dict) -> tuple[float, f
             f"braking torque opposes motion; rotor decelerates and reverses direction."
         )
 
-    elif brake == "injecao_cc":
+    elif brake == "dc_injection":
         c1, c2 = st.columns(2)
         _wi(_WK_DC.t_freia,  3.0)
         _wi(_WK_DC.Vdc_inj,  mp.Va * 0.1)
@@ -149,7 +149,7 @@ def _render_exp_dc_frenagem(mp: DCMachineParams, config: dict) -> tuple[float, f
             f"current produces torque opposing motion — controlled braking without reversal."
         )
 
-    elif brake == "regenerativo":
+    elif brake == "regenerative":
         c1, c2 = st.columns(2)
         _wi(_WK_DC.t_freia,  3.0)
         _wi(_WK_DC.Va_regen, mp.Va * 0.5)
@@ -230,9 +230,9 @@ def _render_exp_dc_gerador(mp: DCMachineParams, config: dict) -> tuple[float, fl
 
 _EXP_RENDERERS_DC: dict[str, Any] = {
     "dol_dc":          _render_exp_dc_dol,
-    "resistencia_dc":  _render_exp_dc_resistencia,
-    "frenagem_dc":     _render_exp_dc_frenagem,
-    "campo_fraco_dc":  _render_exp_dc_campo_fraco,
-    "pulso_dc":        _render_exp_dc_pulso,
-    "gerador_dc":      _render_exp_dc_gerador,
+    "resistance_dc":  _render_exp_dc_resistencia,
+    "braking_dc":     _render_exp_dc_frenagem,
+    "field_weakening_dc":  _render_exp_dc_campo_fraco,
+    "pulse_dc":        _render_exp_dc_pulso,
+    "generator_dc":      _render_exp_dc_gerador,
 }

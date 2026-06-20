@@ -71,7 +71,7 @@ def _note_te_sd(ctx: MITNoteCtx) -> str:
 
 def _note_va_deseq(ctx: MITNoteCtx) -> str:
     cfg = ctx.exp_config
-    _falta = any(cfg.get(k, 0) for k in ("falta_fase_a", "falta_fase_b", "falta_fase_c"))
+    _falta = any(cfg.get(k, 0) for k in ("phase_loss_a", "phase_loss_b", "phase_loss_c"))
     if _falta:
         return (
             "**Phase fault** — the open-phase voltage drops to zero at the terminals; "
@@ -95,7 +95,7 @@ def _deseq(ctx: MITNoteCtx)    -> bool: return ctx.deseq_on
 def _yd(ctx: MITNoteCtx)       -> bool: return ctx.is_yd
 def _autotrafo(ctx: MITNoteCtx)-> bool: return ctx.exp_type == "autotrafo"
 def _soft(ctx: MITNoteCtx)     -> bool: return ctx.is_soft
-def _pulso(ctx: MITNoteCtx)    -> bool: return ctx.exp_type == "pulso_carga"
+def _pulso(ctx: MITNoteCtx)    -> bool: return ctx.exp_type == "load_pulse"
 def _gen(ctx: MITNoteCtx)      -> bool: return ctx.is_gen
 def _sd(ctx: MITNoteCtx)       -> bool: return ctx.is_sd
 def _vsag(ctx: MITNoteCtx)     -> bool: return ctx.exp_type == "voltage_sag"

@@ -8,7 +8,7 @@ modulation. No Streamlit / UI dependency — safe to import from the solver and
 model layers.
 
 Responsibilities:
-  - Generate abc_voltages_deseq with per-phase amplitude and angle adjustments.
+  - Generate abc_voltages_imbalance with per-phase amplitude and angle adjustments.
   - Support phase-loss mode (zero voltage on one phase).
   - Build make_broken_bar_rr_fn — Rr(t, theta_slip) modulation at slip frequency.
 
@@ -25,20 +25,20 @@ import numpy as np
 
 # ── Voltage generation with unbalance/fault ──────────────────────────────────
 
-def abc_voltages_deseq(t, Vl: float, f: float,
-                       deseq_a: float = 0.0,
-                       deseq_b: float = 0.0,
-                       deseq_c: float = 0.0,
-                       falta_fase_a: bool = False,
-                       falta_fase_b: bool = False,
-                       falta_fase_c: bool = False,
+def abc_voltages_imbalance(t, Vl: float, f: float,
+                       imbalance_a: float = 0.0,
+                       imbalance_b: float = 0.0,
+                       imbalance_c: float = 0.0,
+                       phase_loss_a: bool = False,
+                       phase_loss_b: bool = False,
+                       phase_loss_c: bool = False,
                        df_a: float = 0.0,
                        df_b: float = 0.0,
                        df_c: float = 0.0):
     """Generates abc voltages with unbalance and/or phase loss on any phase.
 
-    deseq_a / deseq_b / deseq_c : fractional deviation in Vl (e.g. 0.1 = +10%, -0.1 = -10%).
-    falta_fase_a/b/c             : if True, forces the phase voltage to zero.
+    imbalance_a / imbalance_b / imbalance_c : fractional deviation in Vl (e.g. 0.1 = +10%, -0.1 = -10%).
+    phase_loss_a/b/c             : if True, forces the phase voltage to zero.
     df_a / df_b / df_c           : per-phase frequency deviation in Hz (0 = nominal).
     Accepts t as scalar or np.ndarray; returns the same type.
     """
@@ -51,9 +51,9 @@ def abc_voltages_deseq(t, Vl: float, f: float,
     tetae_b = 2.0 * np.pi * (f + df_b) * t_arr
     tetae_c = 2.0 * np.pi * (f + df_c) * t_arr
 
-    Va = zero if falta_fase_a else k * Vl * (1.0 + deseq_a) * np.sin(tetae_a)
-    Vb = zero if falta_fase_b else k * Vl * (1.0 + deseq_b) * np.sin(tetae_b - 2.0 * np.pi / 3.0)
-    Vc = zero if falta_fase_c else k * Vl * (1.0 + deseq_c) * np.sin(tetae_c + 2.0 * np.pi / 3.0)
+    Va = zero if phase_loss_a else k * Vl * (1.0 + imbalance_a) * np.sin(tetae_a)
+    Vb = zero if phase_loss_b else k * Vl * (1.0 + imbalance_b) * np.sin(tetae_b - 2.0 * np.pi / 3.0)
+    Vc = zero if phase_loss_c else k * Vl * (1.0 + imbalance_c) * np.sin(tetae_c + 2.0 * np.pi / 3.0)
 
     if scalar:
         return float(Va[0]), float(Vb[0]), float(Vc[0])

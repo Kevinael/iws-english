@@ -98,7 +98,7 @@ def _kpis_destaque(
         if _sag > 0:
             out.append(("Sag Magnitude", f"{_sag*100:.1f}", "%Vn"))
 
-    if exp_type == "pulso_carga":
+    if exp_type == "load_pulse":
         _n_pk_drop = res.get("_speed_drop_pct", None)
         if _n_pk_drop is not None:
             out.append(("Speed Drop", f"{float(_n_pk_drop):.{d}f}", "%"))
@@ -170,7 +170,7 @@ def _render_kpi_cards(
         wr_ss   = res["wr_ss"]
         ias_rms = res["ias_rms"]
         s_val   = res.get("s", 0.0)
-        gerador = s_val < 0
+        generator = s_val < 0
 
         u_in,  v_in  = fmt_pot(res.get("P_in",  0.0), d)
         u0,    v0    = fmt_pot(abs(res.get("P_gap",  0.0)), d)
@@ -178,9 +178,9 @@ def _render_kpi_cards(
         u2,    v2    = fmt_pot(res.get("P_cu_r", 0.0), d)
         u_out, v_out = fmt_pot(res.get("P_out", 0.0), d)
 
-        lbl_in  = f"Turbine Mech. Power ({u_in})"    if gerador else f"Input Power ({u_in})"
-        lbl_gap = f"Generated Air-Gap Power ({u0})"  if gerador else f"Air-Gap Power ({u0})"
-        lbl_mec = f"Mechanical Input Power ({u1})"   if gerador else f"Mechanical Power ({u1})"
+        lbl_in  = f"Turbine Mech. Power ({u_in})"    if generator else f"Input Power ({u_in})"
+        lbl_gap = f"Generated Air-Gap Power ({u0})"  if generator else f"Air-Gap Power ({u0})"
+        lbl_mec = f"Mechanical Input Power ({u1})"   if generator else f"Mechanical Power ({u1})"
 
         _op1 = st.columns(3)
         _op1[0].metric("Speed (RPM)",                   f"{n_ss:.{d}f}")
@@ -188,7 +188,7 @@ def _render_kpi_cards(
         _op1[2].metric("RMS Current $i_{as}$ (A)",     f"{ias_rms:.{d}f}")
 
         _op2 = st.columns(3)
-        if gerador:
+        if generator:
             _op2[0].metric(f"Grid Generated Power ({u_out})", v_out)
         else:
             _op2[0].metric(lbl_mec, v1)

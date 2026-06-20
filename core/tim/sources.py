@@ -57,9 +57,9 @@ def torque_step(t: float, Tl_before: float, Tl_after: float, t_switch: float) ->
     return Tl_after if t >= t_switch else Tl_before
 
 
-def torque_pulse(t: float, Tl_base: float, Tl_pulso: float, t_on: float, t_off: float) -> float:
-    """Tl_base fora do pulso; Tl_pulso em [t_on, t_off)."""
-    return Tl_pulso if t_on <= t < t_off else Tl_base
+def torque_pulse(t: float, Tl_base: float, Tl_pulse: float, t_on: float, t_off: float) -> float:
+    """Tl_base fora do pulso; Tl_pulse em [t_on, t_off)."""
+    return Tl_pulse if t_on <= t < t_off else Tl_base
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -81,14 +81,14 @@ def build_fns(config: dict, mp: MachineParams):
     if exp == "dol":
         Ti = config.get("Tl_inicial") or 0.0
         Tl = config["Tl_final"]
-        tc = config.get("t_carga", 0.0)
+        tc = config.get("t_load", 0.0)
         vfn = lambda t: mp.Vl
         tfn = lambda t, _Ti=Ti, _Tl=Tl, _tc=tc: torque_step(t, _Ti, _Tl, _tc)
         t_ev = [tc] if tc > 0 else []
 
     elif exp == "yd":
         Vy = mp.Vl / np.sqrt(3.0)
-        Tl, t2, tc = config["Tl_final"], config["t_2"], config["t_carga"]
+        Tl, t2, tc = config["Tl_final"], config["t_2"], config["t_load"]
         # captura por valor: Vy e t2 sao locais ao if-branch e seriam perdidas por ref
         vfn = lambda t, _Vl=mp.Vl, _Vy=Vy, _t2=t2: voltage_reduced_start(t, _Vl, _Vy, _t2)
         tfn = lambda t, _Tl=Tl, _tc=tc: torque_step(t, 0.0, _Tl, _tc)
@@ -96,7 +96,7 @@ def build_fns(config: dict, mp: MachineParams):
 
     elif exp == "comp":
         Vr = mp.Vl * config["voltage_ratio"]
-        Tl, t2, tc = config["Tl_final"], config["t_2"], config["t_carga"]
+        Tl, t2, tc = config["Tl_final"], config["t_2"], config["t_load"]
         # Vr calculado a partir de voltage_ratio — captura por valor
         vfn = lambda t, _Vl=mp.Vl, _Vr=Vr, _t2=t2: voltage_reduced_start(t, _Vl, _Vr, _t2)
         tfn = lambda t, _Tl=Tl, _tc=tc: torque_step(t, 0.0, _Tl, _tc)
@@ -104,23 +104,23 @@ def build_fns(config: dict, mp: MachineParams):
 
     elif exp == "soft":
         Vi = mp.Vl * config["voltage_ratio"]
-        t2, tp = config["t_2"], config["t_pico"]
-        Tl, tc = config["Tl_final"], config["t_carga"]
+        t2, tp = config["t_2"], config["t_peak"]
+        Tl, tc = config["Tl_final"], config["t_load"]
         # Vi, t2, tp: variaveis locais — captura por valor obrigatoria
         vfn = lambda t, _Vl=mp.Vl, _Vi=Vi, _t2=t2, _tp=tp: voltage_soft_starter(t, _Vl, _Vi, _t2, _tp)
         tfn = lambda t, _Tl=Tl, _tc=tc: torque_step(t, 0.0, _Tl, _tc)
         t_ev = [t2, tc]
 
-    elif exp == "pulso_carga":
+    elif exp == "load_pulse":
         Tb   = config.get("Tl_base", 0.0)
         Tl   = config["Tl_final"]
-        ton  = config["t_carga"]
-        toff = config["t_retirada"]
+        ton  = config["t_load"]
+        toff = config["t_removal"]
         vfn = lambda t: mp.Vl
         tfn = lambda t, _Tb=Tb, _Tl=Tl, _ton=ton, _toff=toff: torque_pulse(t, _Tb, _Tl, _ton, _toff)
         t_ev = [ton, toff]
 
-    elif exp == "gerador":
+    elif exp == "generator":
         Tn = -config["Tl_mec"]
         t2 = config["t_2"]
         vfn = lambda t: mp.Vl
@@ -129,7 +129,7 @@ def build_fns(config: dict, mp: MachineParams):
 
     elif exp == "shutdown":
         Tl    = config["Tl_final"]
-        tc    = config["t_carga"]
+        tc    = config["t_load"]
         t_cut = config["t_cutoff"]
         vfn = lambda t, _Vl=mp.Vl, _tc=t_cut: _Vl if t < _tc else 0.0
         tfn = lambda t, _Tl=Tl, _tc=tc: torque_step(t, 0.0, _Tl, _tc)
@@ -137,7 +137,7 @@ def build_fns(config: dict, mp: MachineParams):
 
     elif exp == "voltage_sag":
         Tl    = config["Tl_final"]
-        tc    = config.get("t_carga", 0.0)
+        tc    = config.get("t_load", 0.0)
         mag   = config["sag_magnitude"]
         t_sag = config["t_start_sag"]
         t_end = config["t_start_sag"] + config["t_duration_sag"]
@@ -145,18 +145,18 @@ def build_fns(config: dict, mp: MachineParams):
         tfn = lambda t, _Tl=Tl, _tc=tc: torque_step(t, 0.0, _Tl, _tc)
         t_ev = sorted(set(v for v in [tc, t_sag, t_end] if v > 0))
 
-    elif exp == "frenagem":
+    elif exp == "braking":
         Tl     = config["Tl_final"]
-        tc     = config.get("t_carga", 0.3)
+        tc     = config.get("t_load", 0.3)
         tb     = config["t_brake"]
         brake  = config.get("brake_method", "plugging")
 
         if brake == "plugging":
             vfn = lambda t, _Vl=mp.Vl, _tb=tb: (-_Vl if t >= _tb else _Vl)
-        elif brake == "injecao_cc":
+        elif brake == "dc_injection":
             Vinj = float(config.get("Vcc_inj", mp.Vl * 0.1))
             vfn = lambda t, _Vl=mp.Vl, _Vi=Vinj, _tb=tb: (_Vi if t >= _tb else _Vl)
-        elif brake == "regenerativo":
+        elif brake == "regenerative":
             Vr = mp.Vl * float(config.get("V_regen", 50)) / 100.0
             vfn = lambda t, _Vl=mp.Vl, _Vr=Vr, _tb=tb: (_Vr if t >= _tb else _Vl)
         else:

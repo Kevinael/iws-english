@@ -44,8 +44,8 @@ class ZoomCtx:
     mp_p:         int     # mp.p
     t_ss:         float   # time where steady-state begins
     tmax_data:    float
-    t_pulso_on:   float   # load-pulse insertion time
-    t_pulso_off:  float   # load-pulse removal time
+    t_pulse_on:   float   # load-pulse insertion time
+    t_pulse_off:  float   # load-pulse removal time
     tl_arr:       Any     # optional TL time array (numpy array or None)
 
 
@@ -72,9 +72,9 @@ def compute_t_window(
             _t_acc  = float(res["t"][int(_above[0])]) if len(_above) > 0 else t_ss
             _tend   = _t_acc + _pad
         elif exp_type in ("yd", "comp"):
-            _tend = max(float(cfg.get("t_carga", 0.0)), float(cfg.get("t_2", 0.0))) + _pad
+            _tend = max(float(cfg.get("t_load", 0.0)), float(cfg.get("t_2", 0.0))) + _pad
         elif exp_type == "soft":
-            _tend = max(float(cfg.get("t_pico", 0.0)), float(cfg.get("t_carga", 0.0))) + _pad
+            _tend = max(float(cfg.get("t_peak", 0.0)), float(cfg.get("t_load", 0.0))) + _pad
         elif exp_type == "voltage_sag":
             _tend = float(cfg.get("t_start_sag", 0.0)) + float(cfg.get("t_duration_sag", 0.1)) + _pad
         else:
@@ -82,11 +82,11 @@ def compute_t_window(
         return (0.0, min(_tend, tmax_data))
 
     if zoom_mode == "Load Pulse":
-        _dur = max(ctx.t_pulso_off - ctx.t_pulso_on, ZOOM_PULSE_MIN_PAD_S)
+        _dur = max(ctx.t_pulse_off - ctx.t_pulse_on, ZOOM_PULSE_MIN_PAD_S)
         _pad = max(ZOOM_PULSE_PAD_FRAC * _dur, ZOOM_PULSE_MIN_PAD_S)
         return (
-            max(0.0, ctx.t_pulso_on - _pad),
-            min(tmax_data, ctx.t_pulso_off + _pad),
+            max(0.0, ctx.t_pulse_on - _pad),
+            min(tmax_data, ctx.t_pulse_off + _pad),
         )
 
     return None  # "Full" or unrecognised

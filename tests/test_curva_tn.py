@@ -41,7 +41,7 @@ def test_curva_tn_has_peak(mp_3hp):
 
 
 def test_curva_tn_negative_torque_generator(mp_3hp):
-    """Na região de gerador (s < 0), torque deve ser negativo."""
+    """Na região de generator (s < 0), torque deve ser negativo."""
     tn = calc_curva_tn(mp_3hp)
     s = np.array(tn["s"])
     T = np.array(tn["Te"])

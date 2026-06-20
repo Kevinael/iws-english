@@ -5,7 +5,7 @@ test_desequilibrio_falta.py
 Unit tests for voltage unbalance and phase-fault functions (core/desequilibrio_falta.py).
 
 Covers:
-  - abc_voltages_deseq: balanced case, per-phase derating, phase loss
+  - abc_voltages_imbalance: balanced case, per-phase derating, phase loss
   - make_broken_bar_rr_fn: None for severity=0, callable otherwise
   - Symmetrical components: V2/V1 ratio increases with unbalance
 """
@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import pytest
 import numpy as np
 
-from core.tim.fault_model import abc_voltages_deseq, make_broken_bar_rr_fn
+from core.tim.fault_model import abc_voltages_imbalance, make_broken_bar_rr_fn
 
 
 VL  = 220.0
@@ -23,13 +23,13 @@ F   = 60.0
 VPH = VL / np.sqrt(3)          # expected peak ≈ 127 V RMS → ×√2 peak
 
 
-# ─── abc_voltages_deseq ──────────────────────────────────────────────────────
+# ─── abc_voltages_imbalance ──────────────────────────────────────────────────────
 
 class TestAbcVoltagesDeseq:
     def test_balanced_peaks_equal(self):
         """No derating → all three phases have equal RMS amplitude."""
         t = np.linspace(0, 2/F, 10000, endpoint=False)
-        Va, Vb, Vc = abc_voltages_deseq(t, VL, F)
+        Va, Vb, Vc = abc_voltages_imbalance(t, VL, F)
         rms = lambda v: np.sqrt(np.mean(v**2))
         assert rms(Va) == pytest.approx(rms(Vb), rel=1e-3)
         assert rms(Vb) == pytest.approx(rms(Vc), rel=1e-3)
@@ -37,44 +37,44 @@ class TestAbcVoltagesDeseq:
     def test_balanced_phase_shifts(self):
         """Phases are separated by 120°."""
         t = np.linspace(0, 2/F, 2000)
-        Va, Vb, Vc = abc_voltages_deseq(t, VL, F)
+        Va, Vb, Vc = abc_voltages_imbalance(t, VL, F)
         # Cross-correlate to find shift — simpler: check Va+Vb+Vc ≈ 0
         assert np.max(np.abs(Va + Vb + Vc)) == pytest.approx(0.0, abs=1e-6)
 
     def test_phase_a_derating(self):
-        """deseq_a=-0.2 → phase A amplitude reduced by 20%."""
+        """imbalance_a=-0.2 → phase A amplitude reduced by 20%."""
         t = np.linspace(0, 2/F, 2000)
-        Va_nom, _, _ = abc_voltages_deseq(t, VL, F)
-        Va_der, Vb_der, Vc_der = abc_voltages_deseq(t, VL, F, deseq_a=-0.2)
+        Va_nom, _, _ = abc_voltages_imbalance(t, VL, F)
+        Va_der, Vb_der, Vc_der = abc_voltages_imbalance(t, VL, F, imbalance_a=-0.2)
         rms = lambda v: np.sqrt(np.mean(v**2))
         assert rms(Va_der) == pytest.approx(rms(Va_nom) * 0.8, rel=0.02)
         assert rms(Vb_der) == pytest.approx(rms(Va_nom), rel=0.01)  # others unchanged
 
     def test_phase_b_loss(self):
-        """falta_fase_b=True → phase B voltage is zero."""
+        """phase_loss_b=True → phase B voltage is zero."""
         t = np.linspace(0, 2/F, 2000)
-        _, Vb, _ = abc_voltages_deseq(t, VL, F, falta_fase_b=True)
+        _, Vb, _ = abc_voltages_imbalance(t, VL, F, phase_loss_b=True)
         assert np.max(np.abs(Vb)) == pytest.approx(0.0, abs=1e-9)
 
     def test_phase_c_loss_others_intact(self):
-        """falta_fase_c=True → A and B unchanged."""
+        """phase_loss_c=True → A and B unchanged."""
         t = np.linspace(0, 2/F, 2000)
-        Va_ref, Vb_ref, _  = abc_voltages_deseq(t, VL, F)
-        Va,     Vb,     Vc = abc_voltages_deseq(t, VL, F, falta_fase_c=True)
+        Va_ref, Vb_ref, _  = abc_voltages_imbalance(t, VL, F)
+        Va,     Vb,     Vc = abc_voltages_imbalance(t, VL, F, phase_loss_c=True)
         assert np.allclose(Va, Va_ref)
         assert np.allclose(Vb, Vb_ref)
         assert np.max(np.abs(Vc)) == pytest.approx(0.0, abs=1e-9)
 
     def test_scalar_t_returns_scalars(self):
-        Va, Vb, Vc = abc_voltages_deseq(0.0, VL, F)
+        Va, Vb, Vc = abc_voltages_imbalance(0.0, VL, F)
         assert np.isscalar(Va) or Va.ndim == 0
 
     def test_deseq_increases_negative_sequence(self):
         """Higher derating → larger negative sequence component (V2)."""
         t = np.linspace(0, 4/F, 4000)
 
-        def negative_seq_rms(deseq):
-            Va, Vb, Vc = abc_voltages_deseq(t, VL, F, deseq_a=deseq)
+        def negative_seq_rms(imbalance):
+            Va, Vb, Vc = abc_voltages_imbalance(t, VL, F, imbalance_a=imbalance)
             a = np.exp(1j * 2 * np.pi / 3)
             V2 = (Va + a**2 * Vb + a * Vc) / 3
             return np.sqrt(np.mean(np.abs(V2)**2))
@@ -85,8 +85,8 @@ class TestAbcVoltagesDeseq:
     def test_phase_angle_offset_df(self):
         """df_a ≠ 0 produces a different waveform for phase A."""
         t = np.linspace(0, 2/F, 2000)
-        Va_ref, _, _ = abc_voltages_deseq(t, VL, F)
-        Va_sh,  _, _ = abc_voltages_deseq(t, VL, F, df_a=10.0)
+        Va_ref, _, _ = abc_voltages_imbalance(t, VL, F)
+        Va_sh,  _, _ = abc_voltages_imbalance(t, VL, F, df_a=10.0)
         assert not np.allclose(Va_sh, Va_ref)  # frequency-shifted → waveforms differ
 
 
