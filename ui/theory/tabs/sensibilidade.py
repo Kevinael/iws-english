@@ -283,58 +283,6 @@ def render_tab_sensibilidade() -> None:
         )
 
     st.divider()
-    st.markdown("### Thermal Parameters")
-    _h4("$R_{th}$ — Thermal Resistance (K/W)")
-    st.markdown(
-        "Represents the resistance to heat flow between the winding and the external environment. "
-        "Defines steady-state temperature as a function of total losses:"
-    )
-    _eq(r"\Delta T_{steady} = R_{th}\,(P_{cu} + P_{fe})")
-    st.markdown(
-        "In automatic mode, $R_{th}$ is estimated from the electrical parameters by imposing "
-        "a rated temperature rise $\\Delta T = 50\\;$K — a typical value for TEFC "
-        "(Totally Enclosed Fan Cooled) motors at rated operation, corresponding to "
-        "$T_{steady} \\approx 75\\;$°C with $T_{amb} = 25\\;$°C."
-    )
-    _div_warn(
-        "Low $R_{th}$ values indicate a well-cooled motor (large frame, "
-        "forced ventilation). High values indicate a small enclosed motor or "
-        "one with compromised ventilation — higher steady-state temperature."
-    )
-
-    st.write("")
-    _h4("$C_{th}$ — Thermal Capacitance (J/K)")
-    st.markdown(
-        "Represents the energy required to raise the motor temperature by 1 K. "
-        "Governs the **heating rate** — the thermal time constant is:"
-    )
-    _eq(r"\tau_{th} = R_{th}\,C_{th}")
-    st.markdown(
-        "In automatic mode, thermal capacitance is estimated from the motor equivalent mass, "
-        "assuming steel with specific heat $c_p = 460\\;$J/(kg·K) and an industrial rule of "
-        "$15\\;$kg/kW of rated power:"
-    )
-    _eq(r"C_{th} \approx \underbrace{15\,P_{nom}}_{\text{estimated mass (kg)}} \times 460\;\frac{\text{J}}{\text{kg·K}}")
-    _div_warn(
-        "The thermal ODE integrated by the simulator is: "
-        "$\\dot{T} = (P_{cu} + P_{fe})/C_{th} - (T - T_{amb})/(R_{th}\\,C_{th})$. "
-        "In steady state, $\\dot{T} = 0$ and $T_{steady} = T_{amb} + R_{th}\\,(P_{cu}+P_{fe})$."
-    )
-
-    st.write("")
-    _h4("$T_{amb}$ — Ambient Temperature (°C)")
-    st.markdown(
-        "External ambient temperature, used as the boundary condition of the thermal ODE "
-        "and as the initial value of $T$ in the simulation. "
-        "Motor temperature at any instant is:"
-    )
-    _eq(r"T(t) = T_{amb} + \Delta T(t), \quad \Delta T(t) = \Delta T_{steady}\!\left(1 - e^{-t/\tau_{th}}\right)")
-    st.markdown(
-        "Changing $T_{amb}$ shifts the entire temperature curve without modifying the dynamics — "
-        "$\\tau_{th}$ and $\\Delta T_{steady}$ remain unchanged."
-    )
-
-    st.divider()
     st.markdown("### Grid Impedance")
     _h4("$R_{grid}$ and $L_{grid}$ — Supply Grid Impedance")
     st.markdown(

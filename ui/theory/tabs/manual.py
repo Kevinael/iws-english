@@ -104,14 +104,6 @@ def render_tab_manual_de_uso() -> None:
         "(cf. `core/machine_model.py:132`)."
     )
 
-    st.markdown("**Thermal parameters** (decoupled heating model):")
-    st.markdown(
-        "- $R_{th}$ — thermal resistance (°C/W).\n"
-        "- $C_{th}$ — thermal capacitance (J/°C).\n"
-        "- $T_{amb}$ — ambient temperature (°C).\n"
-        "When left at zero, they are estimated automatically."
-    )
-
     st.divider()
 
     _h4("Step 3 — Electrical Parameter Acquisition Modes")
