@@ -14,7 +14,7 @@ Responsibilities:
 
 Relationships:
   Imported by : core.tim.machine_model, core.tim.solver, core.tim.facade,
-                core.tim.fault (re-export)
+                ui_components.tim_fault_ui, tests
   Imports     : math, numpy only
 """
 

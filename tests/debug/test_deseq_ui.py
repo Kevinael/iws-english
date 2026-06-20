@@ -1,6 +1,7 @@
 import streamlit as st
 import sys, os; sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from core.tim.fault import render_desequilibrio_ui, abc_voltages_deseq
+from ui_components.tim_fault_ui import render_desequilibrio_ui
+from core.tim.fault_model import abc_voltages_deseq
 import numpy as np
 import plotly.graph_objects as go
 

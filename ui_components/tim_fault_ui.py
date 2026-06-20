@@ -1,27 +1,23 @@
 # -*- coding: utf-8 -*-
 """
-fault.py
-========
+tim_fault_ui.py
+===============
 Streamlit UI blocks for the induction-machine fault models: voltage unbalance /
 phase loss and the broken-bar Digital Twin. The pure-physics functions live in
-core.tim.fault_model and are re-exported here for backwards compatibility.
+core.tim.fault_model — this module only renders the interactive panels.
 
 Responsibilities:
   - render_desequilibrio_ui — interactive voltage unbalance / phase-loss panel.
   - render_broken_bar_ui     — interactive broken-bar fault panel.
-  - Re-export abc_voltages_deseq / make_broken_bar_rr_fn from fault_model.
 
 Relationships:
-  Imported by : ui_components.tim_config, core.tim.__init__
-  Imports     : core.tim.fault_model, streamlit (lazily, inside the UI functions)
+  Imported by : ui_components.tim_config
+  Imports     : streamlit
 """
 from __future__ import annotations
 
-# Re-export pure-physics fault models for backwards compatibility.
-from core.tim.fault_model import abc_voltages_deseq, make_broken_bar_rr_fn  # noqa: F401
+import streamlit as st
 
-
-# ── UI Block ─────────────────────────────────────────────────────────────────
 
 def render_desequilibrio_ui(config: dict, tmax: float = 2.0) -> None:
     """Renders the voltage unbalance / phase-loss expander.
@@ -32,7 +28,6 @@ def render_desequilibrio_ui(config: dict, tmax: float = 2.0) -> None:
       t_deseq.
     Must be called within the experiment configuration block in IWS_UI.py.
     """
-    import streamlit as st
     st.write("")
     with st.expander("Voltage Unbalance / Phase Loss", expanded=False):
         st.info("Simulates supply asymmetry. Useful for fault diagnosis and motor protection studies.")
@@ -177,8 +172,6 @@ def render_broken_bar_ui(config: dict, tmax: float = 2.0, wk: dict | None = None
     Fills config with keys:
       broken_bar_severity, t_broken_bar.
     """
-    import streamlit as st
-
     _wk_key   = wk.broken_bar_severity if wk is not None else "wi_broken_bar_severity"
     _t_ref    = float(config.get("t_carga", 0.0))
 

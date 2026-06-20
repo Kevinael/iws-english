@@ -19,7 +19,7 @@ Relationships:
                 scripts.demo_potencias,
                 tests.conftest, tests.test_physics, core.tim.__init__
   Imports     : core.tim.machine_model, core.tim.solver, core.tim.sources,
-                core.tim.fault, core.transforms
+                core.tim.fault_model, core.transforms
 
 Extending:
   - Add a new simulation mode in core.tim.sources and core.tim.solver; expose it via

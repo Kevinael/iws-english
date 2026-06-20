@@ -12,7 +12,7 @@ Responsibilities:
 
 Relationships:
   Imported by : ui.theory_interactive
-  Imports     : (numpy, plotly, streamlit)
+  Imports     : (numpy, plotly)
 
 Extending:
   - To include the Thévenin simplified model, add _torque_thevenin and
