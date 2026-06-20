@@ -175,7 +175,7 @@ def test_ieee_krause_round_trip_Y_Rfe():
     assert abs(res["Rfe"] - KRAUSE["Rfe_alvo"]) / KRAUSE["Rfe_alvo"] < 0.05
 
 
-def test_ieee_grandezas_positivas():
+def test_ieee_positive_quantities():
     """Todas as grandezas resultantes devem ser positivas."""
     res = estimate_params_ieee_tests(**_gerar_medicoes_krause_Y())
     for k in ("Rs", "Rr", "Xm", "Xls", "Xlr", "Rfe"):
@@ -291,7 +291,7 @@ def test_ieee_delta_connection():
     assert abs(res["Rs"] - KRAUSE["Rs"]) / KRAUSE["Rs"] < 0.02
 
 
-def test_ieee_mesma_interface_que_placa():
+def test_ieee_same_interface_as_nameplate():
     """As chaves comuns devem coincidir entre os dois estimadores."""
     res_ieee = estimate_params_ieee_tests(**_gerar_medicoes_krause_Y())
     res_placa = estimate_params(**BASE)

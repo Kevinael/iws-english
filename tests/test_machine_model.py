@@ -64,7 +64,7 @@ def test_cth_auto_positive(mp_3hp):
     assert mp_3hp.Cth > 0.0
 
 
-def test_thermal_regime_temperature(mp_3hp):
+def test_thermal_steady_state_temperature(mp_3hp):
     """T_regime = T_amb + 50 K por construção do Rth automático (tolerância 5 K)."""
     # Rth foi calibrado para delta_T = 50 K com as perdas do circuito T em s=3%
     # A temperatura de regime exata depende de P_perdas real — tolerância 10 K

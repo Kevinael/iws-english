@@ -99,7 +99,7 @@ def test_3a_harmonica_anotada():
     assert len(marker_traces) >= 1
 
 
-def test_sem_harmonica_abaixo_limiar_sem_marcadores():
+def test_no_harmonic_below_threshold_no_markers():
     """Harmônica de 3ª ordem com 0.5% (abaixo do limiar de 1%) não deve aparecer nos textos."""
     res = _make_res(n=6000, f=60.0, harmonics=[(3, 0.005)])
     fig = build_fig_fft(res, dark=False)

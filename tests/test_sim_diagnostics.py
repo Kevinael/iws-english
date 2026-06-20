@@ -109,7 +109,7 @@ def test_sort_ordem_decrescente():
 
 # ── testes de generate_insights — casos básicos ───────────────────────────────
 
-def test_retorno_vazio_dados_curtos(mp):
+def test_empty_return_short_data(mp):
     res = {"t": [0, 1], "wr": [0, 1], "Te": [0, 1], "n": [0, 1]}
     assert generate_insights(res, mp, load_torque=10.0, tmax=3.0) == []
 
@@ -130,19 +130,19 @@ def test_tipo_info_balanco(mp):
 
 # ── testes de sobrecarga (escorregamento > 5%) ───────────────────────────────
 
-def test_escorregamento_critico_gera_error(mp):
+def test_critical_slip_generates_error(mp):
     res = _make_res(s_ss=0.10, Te_ss=25.0)
     ins = generate_insights(res, mp, load_torque=20.0, tmax=3.0, exp_type="dol")
     assert any(i.level == "error" and "OVERLOAD" in i.title.upper() for i in ins)
 
 
-def test_escorregamento_alerta_gera_warning(mp):
+def test_slip_alert_generates_warning(mp):
     res = _make_res(s_ss=0.06, Te_ss=18.0)
     ins = generate_insights(res, mp, load_torque=15.0, tmax=3.0, exp_type="dol")
     assert any(i.level == "warning" and "Slip" in i.title for i in ins)
 
 
-def test_escorregamento_normal_sem_sobrecarga(mp):
+def test_normal_slip_no_overload(mp):
     res = _make_res(s_ss=0.03, Te_ss=12.0)
     ins = generate_insights(res, mp, load_torque=10.0, tmax=3.0, exp_type="dol")
     assert not any("OVERLOAD" in i.title.upper() for i in ins)
@@ -150,13 +150,13 @@ def test_escorregamento_normal_sem_sobrecarga(mp):
 
 # ── testes de subcarga ────────────────────────────────────────────────────────
 
-def test_subcarga_gera_warning(mp):
+def test_underload_generates_warning(mp):
     res = _make_res(s_ss=0.002, Te_ss=2.0)
     ins = generate_insights(res, mp, load_torque=1.0, tmax=3.0, exp_type="dol")
     assert any("Underload" in i.title for i in ins)
 
 
-def test_sem_subcarga_com_s_normal(mp):
+def test_no_underload_with_normal_slip(mp):
     res = _make_res(s_ss=0.03, Te_ss=12.0)
     ins = generate_insights(res, mp, load_torque=10.0, tmax=3.0, exp_type="dol")
     assert not any("Underload" in i.title for i in ins)
@@ -164,7 +164,7 @@ def test_sem_subcarga_com_s_normal(mp):
 
 # ── testes de reserva de conjugado ───────────────────────────────────────────
 
-def test_ampla_reserva_gera_info(mp):
+def test_ample_reserve_generates_info(mp):
     res = _make_res(s_ss=0.03, Te_ss=12.0)
     # Te_max in array is 24 N·m (2× Te_ss), load = 10 → ratio = 2.4
     ins = generate_insights(res, mp, load_torque=10.0, tmax=3.0, exp_type="dol")
@@ -180,7 +180,7 @@ def test_heavy_start_generates_error(mp):
 
 # ── testes para tipos especiais de experimento ───────────────────────────────
 
-def test_shutdown_sem_balanco(mp):
+def test_shutdown_no_balance(mp):
     res = _make_res(s_ss=0.03, Te_ss=12.0)
     ins = generate_insights(res, mp, load_torque=0.0, tmax=3.0, exp_type="shutdown")
     assert not any("Torque Balance" in i.title for i in ins)

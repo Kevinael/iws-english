@@ -127,8 +127,8 @@ The armature current $i_a(t)$ directly reflects the characteristics of each conf
 Use the interactive tool below to compare waveforms.
 """)
         try:
-            from ui.theory_dc_interactive import render_padrao_corrente_dc
-            render_padrao_corrente_dc()
+            from ui.theory_dc_interactive import render_dc_current_pattern
+            render_dc_current_pattern()
         except Exception:
             st.info("Interactive component unavailable.")
 
@@ -147,8 +147,8 @@ $$\omega_m \propto \frac{1}{i_{fd}}$$
 Valid for $\omega_m > \omega_{base}$ — $T_e$ decreases, constant power.
 """)
         try:
-            from ui.theory_dc_interactive import render_controle_velocidade_dc
-            render_controle_velocidade_dc()
+            from ui.theory_dc_interactive import render_dc_speed_control
+            render_dc_speed_control()
         except Exception:
             st.info("Interactive component unavailable.")
 

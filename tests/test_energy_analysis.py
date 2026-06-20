@@ -49,7 +49,7 @@ def test_keys_present():
 
 # ── testes de valores físicos ─────────────────────────────────────────────────
 
-def test_energia_positiva():
+def test_positive_energy():
     res = compute_energy_metrics(_make_res(), tarifa_brl_kwh=0.75)
     assert res["E_total_kwh"] > 0
 
@@ -94,7 +94,7 @@ def test_fp_entre_zero_e_um():
     assert 0.0 <= res["fp"] <= 1.0
 
 
-def test_fp_positivo_com_carga():
+def test_positive_pf_with_load():
     res = compute_energy_metrics(_make_res(P_in=2500.0, ias_rms=10.0), tarifa_brl_kwh=0.75)
     assert res["fp"] > 0.0
 

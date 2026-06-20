@@ -69,7 +69,7 @@ class TestAbcVoltagesDeseq:
         Va, Vb, Vc = abc_voltages_imbalance(0.0, VL, F)
         assert np.isscalar(Va) or Va.ndim == 0
 
-    def test_deseq_increases_negative_sequence(self):
+    def test_imbalance_increases_negative_sequence(self):
         """Higher derating → larger negative sequence component (V2)."""
         t = np.linspace(0, 4/F, 4000)
 

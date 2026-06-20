@@ -6,8 +6,8 @@ Interactive Plotly components for the DC machine Theory tab — comparative curv
 
 Responsibilities:
   - Render comparative excitation T×ωm curves (render_excitation_comparison_curves).
-  - Render current patterns for DCM excitation types (render_padrao_corrente_dc).
-  - Render speed control strategies (render_controle_velocidade_dc).
+  - Render current patterns for DCM excitation types (render_dc_current_pattern).
+  - Render speed control strategies (render_dc_speed_control).
   - Render parameter estimator UI (render_dc_estimator).
   - Render DCM block diagram (render_dc_block_diagram).
 
@@ -148,7 +148,7 @@ def render_excitation_comparison_curves() -> None:
 # 2. Current patterns
 # ─────────────────────────────────────────────────────────────────────────────
 
-def render_padrao_corrente_dc() -> None:
+def render_dc_current_pattern() -> None:
     st.markdown("### Armature Current $i_a(t)$ by Excitation Type")
 
     exc_opt = st.radio("Excitation", ["sep_motor", "shunt_motor", "series_motor"],
@@ -199,7 +199,7 @@ def render_padrao_corrente_dc() -> None:
 # 3. Speed control
 # ─────────────────────────────────────────────────────────────────────────────
 
-def render_controle_velocidade_dc() -> None:
+def render_dc_speed_control() -> None:
     st.markdown("### Field Weakening — Speed Control")
 
     Va  = 24.0
