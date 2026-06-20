@@ -74,7 +74,7 @@ streamlit run IWS_UI.py
 
 The app opens at `http://localhost:8501`.
 
-To clear bytecode cache and restart with file polling (Windows): `rodar.bat`.
+To clear bytecode cache and restart with file polling (Windows): `run.bat`.
 
 **Dependencies** (`requirements.txt`): numpy, scipy, matplotlib, streamlit, plotly, schemdraw, fpdf2, kaleido, jinja2.
 
@@ -212,7 +212,7 @@ IWS - English/
 │   └── debug/                   Manual Streamlit debug pages (not run by pytest)
 │
 ├── requirements.txt             Python package dependencies
-├── rodar.bat                    Windows launcher (clears __pycache__, starts app)
+├── run.bat                      Windows launcher (clears __pycache__, starts app)
 ├── README.md                    This file
 ├── ARCHITECTURE_HEADLESS.md     How IWS works with and without Streamlit
 └── CLAUDE.md                    Claude Code project instructions
