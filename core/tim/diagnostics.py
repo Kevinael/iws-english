@@ -30,6 +30,7 @@ from core.constants import (
     BBAR_ALPHA_ERROR, BBAR_ALPHA_WARN,
     SAG_ERROR_PCT, SAG_WARN_PCT,
     RELAY_CLASS_10_S, RELAY_CLASS_20_S, RELAY_CLASS_30_S,
+    RAD_TO_RPM,
 )
 
 
@@ -124,7 +125,7 @@ def generate_insights(
 
     # mechanical synchronous speed (rad/s)
     ws_mec = mp.wb / (mp.p / 2.0)
-    n_sync = ws_mec * 60.0 / (2.0 * math.pi)
+    n_sync = ws_mec * RAD_TO_RPM
 
     # ── steady-state check ────────────────────────────────────────────────
     steady = _is_steady_state_reached(wr_arr, t_arr, ss_start)
@@ -466,7 +467,7 @@ def _check_voltage_sag(
 
     Te_sag_min  = float(np.min(Te_arr[mask_sag]))
     wr_sag_min  = float(np.min(wr_arr[mask_sag]))
-    n_sag_min   = wr_sag_min * 60.0 / (2.0 * math.pi)
+    n_sag_min   = wr_sag_min * RAD_TO_RPM
     speed_drop  = (n_sync - n_sag_min) / n_sync * 100.0  # % drop relative to n_sync
 
     # post-recovery window (last 20% of remaining time)

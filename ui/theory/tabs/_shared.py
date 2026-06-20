@@ -52,6 +52,13 @@ def _fig_to_bytes(fig) -> bytes:
     return buf.read()
 
 
+# ── equivalent-circuit helpers ────────────────────────────────────────────────
+
+def _z2(R2: float, s: float, X2: float) -> complex:
+    """Rotor branch impedance Z2 = (R2/s) + jX2."""
+    return (R2 / s) + 1j * X2
+
+
 # ── reference motor parameters for T×s curves ────────────────────────────────
 
 _V1_REF, _f_REF, _p_REF = 220, 60, 4

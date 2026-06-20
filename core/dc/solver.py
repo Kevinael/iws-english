@@ -27,6 +27,7 @@ import numpy as np
 from scipy.integrate import solve_ivp
 
 from core.dc.machine_model import DCMachineParams, _make_rhs_dc, decode_shunt_gen
+from core.constants import RAD_TO_RPM, DC_STEADY_STATE_CONV_THRESHOLD
 
 
 def run_simulation_dc(
@@ -87,7 +88,7 @@ def run_simulation_dc(
     Ea_arr = params.kb * ifd_arr * wm_arr
     Tl_arr = np.array([torque_fn(ti) for ti in t])
     Va_arr = np.array([voltage_fn(ti)[0] for ti in t])
-    n_arr  = wm_arr * 60.0 / (2.0 * np.pi)   # RPM
+    n_arr  = wm_arr * RAD_TO_RPM              # RPM
 
     if exc in ("sep_gen", "shunt_gen"):
         Rla = params.Ra + params.Rl
@@ -95,8 +96,12 @@ def run_simulation_dc(
     else:
         Vt_arr = Va_arr - params.Ra * ia_arr   # Vt = Va − Ra·ia
 
-    # Steady state: average of last 10%
+    # Steady state: average of last 10%; convergence check uses DC_STEADY_STATE_CONV_THRESHOLD
     n_ss = int(max(1, len(t) * 0.1))
+    wm_ss_mean = float(np.mean(wm_arr[-n_ss:]))
+    wm_ss_var  = float(np.std(wm_arr[-n_ss:]))
+    converged  = (wm_ss_mean == 0.0) or (wm_ss_var / abs(wm_ss_mean) < DC_STEADY_STATE_CONV_THRESHOLD)
+
     def ss(arr: np.ndarray) -> float:
         return float(np.mean(arr[-n_ss:]))
 
@@ -122,4 +127,5 @@ def run_simulation_dc(
         "excitation": exc,
         "tmax": tmax,
         "success": bool(sol.success),
+        "converged": converged,
     }

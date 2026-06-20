@@ -22,6 +22,8 @@ from __future__ import annotations
 
 import math
 
+from core.constants import RPM_TO_RAD
+
 
 def estimate_dc_nameplate(
     Pn_W: float,
@@ -45,7 +47,7 @@ def estimate_dc_nameplate(
     if eta <= 0 or eta > 1:
         eta = 0.85
 
-    wm_n  = nn_rpm * 2.0 * math.pi / 60.0
+    wm_n  = nn_rpm * RPM_TO_RAD
     In    = Pn_W / (Vn * eta)           # rated armature current
     Ea_n  = Pn_W / In if In > 1e-9 else Vn * 0.95
 
@@ -138,7 +140,7 @@ def estimate_dc_tests(
     tau_f_ms : Measured field time constant — Lf test (ms)
     """
     Ra = V_dc / max(I_dc, 1e-9)
-    wm_nl = n_nl_rpm * 2.0 * math.pi / 60.0
+    wm_nl = n_nl_rpm * RPM_TO_RAD
     Ea_nl = V_nl - Ra * I_nl
 
     if If_nl > 1e-9 and wm_nl > 1e-9:

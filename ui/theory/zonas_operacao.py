@@ -20,9 +20,27 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from viz.tim_charts import _plot_theme
-from core.tim.torque_speed import _extract_params, _torque_array
+from core.tim import _extract_params, _torque_array
 
 from ui.theory._shared import _get_mp, _dark
+
+
+@st.cache_data(show_spinner=False)
+def _compute_zonas(
+    V1: float, R1: float, X1: float, R2: float, X2: float,
+    Xm: float, ws_mec: float, ns: float,
+) -> dict:
+    s_brake  = np.linspace(1.001, 2.0,  150)
+    s_motor  = np.linspace(1e-4,  1.0,  400)
+    s_gen    = np.linspace(-1.0, -1e-4, 150)
+    return {
+        "n_brake":  ns * (1.0 - s_brake),
+        "n_motor":  ns * (1.0 - s_motor),
+        "n_gen":    ns * (1.0 - s_gen),
+        "Te_brake": _torque_array(s_brake, V1, R1, X1, R2, X2, Xm, ws_mec),
+        "Te_motor": _torque_array(s_motor, V1, R1, X1, R2, X2, Xm, ws_mec),
+        "Te_gen":   _torque_array(s_gen,   V1, R1, X1, R2, X2, Xm, ws_mec),
+    }
 
 
 def render_zonas_operacao() -> None:
@@ -41,18 +59,10 @@ def render_zonas_operacao() -> None:
         key="th_zona_radio",
     )
 
-    # Arrays per region
-    s_brake  = np.linspace(1.001, 2.0,  150)
-    s_motor  = np.linspace(1e-4,  1.0,  400)
-    s_gen    = np.linspace(-1.0, -1e-4, 150)
-
-    Te_brake = _torque_array(s_brake, V1, R1, X1, R2, X2, Xm, ws_mec)
-    Te_motor = _torque_array(s_motor, V1, R1, X1, R2, X2, Xm, ws_mec)
-    Te_gen   = _torque_array(s_gen,   V1, R1, X1, R2, X2, Xm, ws_mec)
-
-    n_brake = ns * (1.0 - s_brake)
-    n_motor = ns * (1.0 - s_motor)
-    n_gen   = ns * (1.0 - s_gen)
+    _z = _compute_zonas(V1, R1, X1, R2, X2, Xm, ws_mec, ns)
+    n_brake  = _z["n_brake"];  Te_brake = _z["Te_brake"]
+    n_motor  = _z["n_motor"];  Te_motor = _z["Te_motor"]
+    n_gen    = _z["n_gen"];    Te_gen   = _z["Te_gen"]
 
     alpha_zone = 0.18
 

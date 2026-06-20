@@ -37,6 +37,16 @@ Adopted assumptions (all documented in the returned dict):
 from __future__ import annotations
 import math
 
+from core.constants import (
+    N_SYNC_FACTOR,
+    NEMA_B_COS_PHI_P,
+    NEMA_B_XLS_FRAC,
+    NEMA_B_XLR_FRAC,
+    NEMA_CORE_LOSS_FRAC,
+    NEMA_MASS_PER_KW,
+    STEEL_SPECIFIC_HEAT,
+)
+
 
 def estimate_params(
     Vl: float,
@@ -94,7 +104,7 @@ def estimate_params(
         # n_s ≥ N_nom: p_pairs = round(f / (N_nom/60)) → p = 2·p_pairs
         p_pares = max(1, round(f / (N_nom / 60.0)))
         p_est   = 2 * p_pares
-        n_s     = 120.0 * f / p_est          # synchronous speed (RPM)
+        n_s     = N_SYNC_FACTOR * f / p_est   # synchronous speed (RPM)
         ws      = 4.0 * math.pi * f / p_est  # mechanical synchronous angular speed (rad/s)
         s_n     = 1.0 - N_nom / n_s          # nominal slip
 
@@ -133,11 +143,10 @@ def estimate_params(
         Rr = (Tp * ws) / (3.0 * Ip_fase ** 2)
 
         # ── 5. Reactances (NEMA B distribution, assumptions 1 and 2) ──────
-        cos_phi_p = 0.20                                # NEMA B assumption
-        Rk  = Zk * cos_phi_p
+        Rk  = Zk * NEMA_B_COS_PHI_P
         Xk  = math.sqrt(max(Zk ** 2 - Rk ** 2, 1e-6))
-        Xls = 0.4 * Xk
-        Xlr = 0.6 * Xk
+        Xls = NEMA_B_XLS_FRAC * Xk
+        Xlr = NEMA_B_XLR_FRAC * Xk
 
         # ── 6. Stator resistance ───────────────────────────────────────────
         Rs = max(Rk - Rr, 1e-3)
@@ -157,15 +166,15 @@ def estimate_params(
         # Pfe is then referred to the air-gap voltage E1 (not Vf) for
         # consistency with the T equivalent-circuit model.
         P_perdas_totais = max(P_in - Pn_W, 1.0)        # W — total losses
-        P_fe_total  = P_perdas_totais * 0.20            # W — 20% to core
+        P_fe_total  = P_perdas_totais * NEMA_CORE_LOSS_FRAC  # W — core losses
         P_fe_fase   = P_fe_total / 3.0                  # W per phase
         Rfe = (E1 ** 2) / P_fe_fase                     # Ω — per phase
 
         # ── 9. Thermal inertia — NEMA/IEC TEFC heuristic ──────────────────
         # Industrial rule: 15 kg per installed kW (frame + windings + rotor).
         # Steel Cp ≈ 460 J/(kg·K) — dominant value of the active mass.
-        Massa = Pn_kW * 15.0                            # kg
-        Cth   = Massa * 460.0                           # J/K
+        Massa = Pn_kW * NEMA_MASS_PER_KW               # kg
+        Cth   = Massa * STEEL_SPECIFIC_HEAT             # J/K
 
         return {
             "success": True,

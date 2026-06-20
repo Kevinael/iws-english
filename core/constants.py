@@ -22,6 +22,33 @@ Extending:
 from __future__ import annotations
 
 # ═══════════════════════════════════════════════════════════════════════════
+# PHYSICAL CONVERSION FACTORS
+# ═══════════════════════════════════════════════════════════════════════════
+
+RAD_TO_RPM        = 60.0 / (2.0 * 3.141592653589793)  # ωr [rad/s] → n [RPM]
+RPM_TO_RAD        = 2.0 * 3.141592653589793 / 60.0     # n [RPM] → ωr [rad/s]
+N_SYNC_FACTOR     = 120.0   # n_s = 120·f/p (RPM) — synchronous speed formula constant
+AMPLITUDE_INVARIANT = 1.5   # 3/2 factor in dq0 power-invariant → amplitude-invariant transform
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PARAMETER ESTIMATION — NEMA MG-1 HEURISTICS
+# ═══════════════════════════════════════════════════════════════════════════
+
+NEMA_B_COS_PHI_P  = 0.20   # NEMA B starting power factor assumption
+NEMA_B_XLS_FRAC   = 0.4    # NEMA B stator leakage reactance fraction of Xk
+NEMA_B_XLR_FRAC   = 0.6    # NEMA B rotor leakage reactance fraction of Xk
+NEMA_CORE_LOSS_FRAC = 0.20  # core losses as fraction of total losses (NEMA/IEC statistical heuristic)
+NEMA_MASS_PER_KW  = 15.0   # kg per installed kW (TEFC frame + windings + rotor rule)
+STEEL_SPECIFIC_HEAT = 460.0 # J/(kg·K) — dominant specific heat of active mass
+
+# ═══════════════════════════════════════════════════════════════════════════
+# FFT WINDOW BOUNDARIES
+# ═══════════════════════════════════════════════════════════════════════════
+
+FFT_WINDOW_LOW    = 0.5     # lower bound multiplier: f_fund × 0.5 (robust to period errors)
+FFT_WINDOW_HIGH   = 1.5     # upper bound multiplier: f_fund × 1.5
+
+# ═══════════════════════════════════════════════════════════════════════════
 # SOLVER CONSTANTS
 # ═══════════════════════════════════════════════════════════════════════════
 

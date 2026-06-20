@@ -20,7 +20,7 @@ Extending:
 
 from __future__ import annotations
 import numpy as np
-from core.constants import J_PER_KWH, HOURS_PER_YEAR
+from core.constants import J_PER_KWH, HOURS_PER_YEAR, FFT_WINDOW_LOW, FFT_WINDOW_HIGH
 
 
 def compute_energy_metrics(res: dict, tarifa_brl_kwh: float) -> dict:
@@ -74,15 +74,15 @@ def compute_energy_metrics(res: dict, tarifa_brl_kwh: float) -> dict:
         if len(ias_ss) >= 16:
             dt_ss = float(t_ss[1] - t_ss[0]) if len(t_ss) > 1 else 1e-4
             N     = len(ias_ss)
-            spec  = np.abs(np.fft.rfft(ias_ss)) / N
-            freqs = np.fft.rfftfreq(N, d=dt_ss)
+            from core.tim.fft_utils import compute_fft
+            freqs, spec = compute_fft(ias_ss, dt_ss, scale="raw")
             f_fund = float(res.get("_f_fund", 60.0)) if "_f_fund" in res else 60.0
             # window [0.5 fe, 1.5 fe]: robust to small period errors in the steady-state window
-            mask_fund = (freqs > 0.5 * f_fund) & (freqs < 1.5 * f_fund)
+            mask_fund = (freqs > FFT_WINDOW_LOW * f_fund) & (freqs < FFT_WINDOW_HIGH * f_fund)
             if mask_fund.any():
                 A1        = float(spec[mask_fund].max())
-                # harmonics: everything above 1.5 fe (avoids including the fundamental itself)
-                mask_harm = freqs > 1.5 * f_fund
+                # harmonics: everything above FFT_WINDOW_HIGH × fe (avoids including the fundamental)
+                mask_harm = freqs > FFT_WINDOW_HIGH * f_fund
                 A_harm    = spec[mask_harm]
                 if A1 > 0 and len(A_harm) > 0:
                     thd_pct = float(np.sqrt(np.sum(A_harm ** 2)) / A1 * 100.0)

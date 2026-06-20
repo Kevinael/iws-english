@@ -34,12 +34,12 @@ def render_comparativo_partidas() -> None:
 
     V1, R1, X1, R2, X2, Xm, ws_mec, ns = _extract_params(mp)
     # Impedance at s=1 (starting)
-    Z2_start  = R2 + 1j * X2
+    Z2_start  = _z2(R2, 1.0, X2)
     Zeq_start = (1j * Xm * Z2_start) / (1j * Xm + Z2_start)
     Ztotal    = R1 + 1j * X1 + Zeq_start
     I_dol     = abs(V1 / Ztotal)           # pico de corrente DOL (A)
     # Nominal current: uses s ≈ 0.04
-    Z2_nom   = (R2 / 0.04) + 1j * X2
+    Z2_nom   = _z2(R2, 0.04, X2)
     Zeq_nom  = (1j * Xm * Z2_nom) / (1j * Xm + Z2_nom)
     Zt_nom   = R1 + 1j * X1 + Zeq_nom
     I_nom    = abs(V1 / Zt_nom)

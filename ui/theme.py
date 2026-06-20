@@ -30,18 +30,36 @@ def _palette(dark: bool) -> dict:
             border="#333333", accent="#ffffff", accent2="#ffffff",
             on_accent="#000000",
             text="#ffffff", muted="#b5b5b5",
-            success="#22eb6c", danger="#ff4444",
+            success="#22eb6c", danger="#ff4444", warning="#fd7e14",
             warn_bg="rgba(255,68,68,0.08)", input_bg="#111111",
             tag="#242424",
+            # semantic: status
+            info="#0dcaf0",
+            # semantic: phases
+            phase_a="#ef4444", phase_b="#22c55e", phase_c="#3b82f6",
+            # semantic: energy flows (Sankey)
+            energy_in="#3b82f6", energy_cu="#ef4444", energy_fe="#f59e0b",
+            energy_fw="#a855f7", energy_mec="#22c55e", energy_out="#22c55e",
+            # semantic: braking methods
+            brake_plug="#ef4444", brake_dc="#3b82f6", brake_regen="#22c55e",
         )
     return dict(
         bg="#ffffff", surface="#ebebeb", surface2="#ebebeb",
         border="#d0d0d0", accent="#000000", accent2="#000000",
         on_accent="#ffffff",
         text="#000000", muted="#555555",
-        success="#22eb6c", danger="#ff0000",
+        success="#198754", danger="#dc3545", warning="#fd7e14",
         warn_bg="rgba(220,38,38,0.06)", input_bg="#ffffff",
         tag="#ffffff",
+        # semantic: status
+        info="#0d6efd",
+        # semantic: phases
+        phase_a="#dc3545", phase_b="#198754", phase_c="#0d6efd",
+        # semantic: energy flows (Sankey)
+        energy_in="#0d6efd", energy_cu="#dc3545", energy_fe="#fd7e14",
+        energy_fw="#6f42c1", energy_mec="#198754", energy_out="#198754",
+        # semantic: braking methods
+        brake_plug="#dc3545", brake_dc="#0d6efd", brake_regen="#198754",
     )
 
 

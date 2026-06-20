@@ -34,9 +34,89 @@ import streamlit as st
 
 from viz.tim_charts import _plot_theme
 from viz.tim_eqcircuit import build_figure
-from core.tim.torque_speed import _extract_params, _torque_array
+from core.tim import _extract_params, _torque_array
 
 from ui.theory._shared import _get_mp, _dark
+from ui.theory.tabs._shared import _z2
+
+@st.cache_data(show_spinner=False)
+def _compute_transitorios(
+    V1: float, R1: float, X1: float, R2: float, X2: float,
+    Xm: float, ws_mec: float, ns: float,
+    wb: float, p: int, J: float, B: float, f: float,
+) -> dict:
+    """Compute all three transient scenarios. Pure numerics, no Streamlit."""
+    Z2s1  = _z2(R2, 1.0, X2)
+    Zeqs1 = (1j * Xm * Z2s1) / (1j * Xm + Z2s1)
+    I_pk  = abs(V1 / (R1 + 1j * X1 + Zeqs1))
+    s_ss  = 0.04
+    Z2ss  = _z2(R2, s_ss, X2)
+    Zeqss = (1j * Xm * Z2ss) / (1j * Xm + Z2ss)
+    I_ss  = abs(V1 / (R1 + 1j * X1 + Zeqss))
+    Te_ss = float(_torque_array(np.array([s_ss]), V1, R1, X1, R2, X2, Xm, ws_mec)[0])
+    Tl    = Te_ss * 0.85
+    n_ss  = ns * (1.0 - s_ss)
+    tau_mec = J * ws_mec / max(Te_ss, 1.0)
+    tau_e   = (X1 + X2) / (2.0 * np.pi * f * max(R1 + R2, 0.01))
+
+    # Scenario A
+    t_max_A = max(tau_mec * 3.5, 4.0)
+    t_A     = np.linspace(0.0, t_max_A, 1200)
+    t_load  = t_max_A * 0.55
+    tau_acc = max(tau_mec * 0.8, 0.5)
+    n_pre   = n_ss * (1.0 - np.exp(-t_A / tau_acc))
+    delta_n = n_ss * 0.025
+    tau_sag = tau_acc * 0.3
+    n_A     = np.where(t_A < t_load, n_pre,
+                       n_ss - delta_n * np.exp(-(t_A - t_load) / tau_sag))
+    s_arr_A = np.maximum(1.0 - n_A / ns, 1e-4)
+    Te_A    = np.clip(_torque_array(s_arr_A, V1, R1, X1, R2, X2, Xm, ws_mec), 0.0, None)
+    env_A   = I_ss + (I_pk - I_ss) * np.exp(-t_A / max(tau_e, 1e-3))
+    env_A   = np.where(t_A < t_load, env_A, np.maximum(env_A, I_ss * 1.18))
+    ias_A   = env_A * np.abs(np.sin(2.0 * np.pi * f * t_A))
+
+    # Scenario B
+    t_sag_start = 1.0; t_sag_dur = 0.20; t_sag_end = t_sag_start + t_sag_dur
+    t_B         = np.linspace(0.0, t_sag_end + 1.5, 1200)
+    sag_depth   = 0.30
+    n_sag_drop  = n_ss * 0.06 * sag_depth / 0.30
+    tau_sag_n   = 0.08
+    n_B = np.where(t_B < t_sag_start, n_ss,
+          np.where(t_B < t_sag_end,
+                   n_ss - n_sag_drop * (1.0 - np.exp(-(t_B - t_sag_start) / tau_sag_n)),
+                   n_ss - n_sag_drop * np.exp(-(t_B - t_sag_end) / tau_sag_n)))
+    Te_sag   = Te_ss * (1.0 - sag_depth) ** 2
+    Te_B = np.where(t_B < t_sag_start, Te_ss,
+           np.where(t_B < t_sag_end,
+                    Te_sag + (Te_ss - Te_sag) * np.exp(-(t_B - t_sag_start) / 0.04),
+                    Te_ss - (Te_ss - Te_sag) * np.exp(-(t_B - t_sag_end) / 0.06)))
+    I_restart   = I_ss * (1.0 + 2.5 * sag_depth)
+    ias_B_env   = np.where(t_B < t_sag_start, I_ss,
+                  np.where(t_B < t_sag_end, I_ss * (1.0 - sag_depth * 0.6),
+                           I_ss + (I_restart - I_ss) * np.exp(-(t_B - t_sag_end) / max(tau_e, 0.05))))
+    ias_B = ias_B_env * np.abs(np.sin(2.0 * np.pi * f * t_B))
+
+    # Scenario C
+    t_cutoff    = 0.5
+    t_C         = np.linspace(0.0, t_cutoff + max(J * ws_mec / max(Tl * 0.5, 1.0), 2.0), 1200)
+    tau_n_off   = J / max(B + Tl / max(float(ws_mec), 1.0), 0.01)
+    n_C  = np.where(t_C < t_cutoff, n_ss,
+                    np.maximum(n_ss * np.exp(-(t_C - t_cutoff) / max(tau_n_off, 0.1)), 0.0))
+    tau_Te_off  = float(Xm / (wb * max(R2, 0.01))) * 0.15
+    Te_C = np.maximum(np.where(t_C < t_cutoff, Te_ss,
+                               Te_ss * np.exp(-(t_C - t_cutoff) / max(tau_Te_off, 0.02))), 0.0)
+    ias_C_env = np.where(t_C < t_cutoff, I_ss,
+                         I_ss * np.exp(-(t_C - t_cutoff) / max(tau_Te_off * 2, 0.05)))
+    ias_C = ias_C_env * np.abs(np.sin(2.0 * np.pi * f * t_C))
+
+    return dict(
+        t_A=t_A, n_A=n_A, Te_A=Te_A, ias_A=ias_A, t_load=t_load,
+        t_B=t_B, n_B=n_B, Te_B=Te_B, ias_B=ias_B,
+        t_sag_start=t_sag_start, t_sag_end=t_sag_end, sag_depth=sag_depth,
+        t_sag_dur=t_sag_dur,
+        t_C=t_C, n_C=n_C, Te_C=Te_C, ias_C=ias_C, t_cutoff=t_cutoff,
+        I_ss=I_ss, I_pk=I_pk, Te_ss=Te_ss, n_ss=n_ss, J=J,
+    )
 
 
 def _palette_theory(dark: bool) -> dict[str, str]:
@@ -82,143 +162,26 @@ def render_transitorios_sincronizados() -> None:
     pt   = _plot_theme(dark)
 
     V1, R1, X1, R2, X2, Xm, ws_mec, ns = _extract_params(mp)
-    wb  = float(mp.wb)
-    p   = int(mp.p)
-    J   = float(mp.J)
-    B   = float(mp.B) if mp.B > 0 else 0.005
-    f   = float(mp.f)
+    wb = float(mp.wb)
+    p  = int(mp.p)
+    J  = float(mp.J)
+    B  = float(mp.B) if mp.B > 0 else 0.005
+    f  = float(mp.f)
 
-    # ── Equivalent circuit parameters ────────────────────────────────────────
-    # Impedance at s=1 → starting current
-    Z2s1  = R2 + 1j * X2
-    Zeqs1 = (1j * Xm * Z2s1) / (1j * Xm + Z2s1)
-    Ztot1 = R1 + 1j * X1 + Zeqs1
-    I_pk  = abs(V1 / Ztot1)           # corrente de pico a s=1 (A)
-    # Steady state (s≈0.04)
-    s_ss  = 0.04
-    Z2ss  = (R2 / s_ss) + 1j * X2
-    Zeqss = (1j * Xm * Z2ss) / (1j * Xm + Z2ss)
-    Ztss  = R1 + 1j * X1 + Zeqss
-    I_ss  = abs(V1 / Ztss)            # corrente nominal (A)
-    # Torque
-    Te_ss = float(_torque_array(np.array([s_ss]), V1, R1, X1, R2, X2, Xm, ws_mec)[0])
-    Tl    = Te_ss * 0.85               # load applied after starting
-    n_ss  = ns * (1.0 - s_ss)
-    # Mechanical time constant for starting
-    tau_mec = J * ws_mec / max(Te_ss, 1.0)
+    _d = _compute_transitorios(V1, R1, X1, R2, X2, Xm, ws_mec, ns, wb, p, J, B, f)
+    t_A = _d["t_A"]; n_A = _d["n_A"]; Te_A = _d["Te_A"]; ias_A = _d["ias_A"]
+    t_B = _d["t_B"]; n_B = _d["n_B"]; Te_B = _d["Te_B"]; ias_B = _d["ias_B"]
+    t_C = _d["t_C"]; n_C = _d["n_C"]; Te_C = _d["Te_C"]; ias_C = _d["ias_C"]
+    t_load = _d["t_load"]; t_sag_start = _d["t_sag_start"]; t_sag_end = _d["t_sag_end"]
+    t_sag_dur = _d["t_sag_dur"]; sag_depth = _d["sag_depth"]; t_cutoff = _d["t_cutoff"]
+    I_ss = _d["I_ss"]; Te_ss = _d["Te_ss"]; n_ss = _d["n_ss"]
+    t_events_A = [t_load]
+    t_events_B = [t_sag_start, t_sag_end]
+    t_events_C = [t_cutoff]
 
     col_n   = "#4f8ef7" if dark else "#1d4ed8"
     col_Te  = "#34d399" if dark else "#059669"
     col_ias = "#f97316"
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # Scenario A — DOL Start + load application
-    # ─────────────────────────────────────────────────────────────────────────
-    t_max_A = max(tau_mec * 3.5, 4.0)
-    t_A = np.linspace(0.0, t_max_A, 1200)
-    t_load = t_max_A * 0.55           # load application instant
-
-    # n(t): exponential starting curve, slight speed dip under load
-    tau_acc = max(tau_mec * 0.8, 0.5)
-    n_pre   = n_ss * (1.0 - np.exp(-t_A / tau_acc))
-    delta_n = n_ss * 0.025            # dip of ~2.5%
-    tau_sag = tau_acc * 0.3
-    n_post  = np.where(
-        t_A < t_load, n_pre,
-        n_ss - delta_n * np.exp(-(t_A - t_load) / tau_sag),
-    )
-    n_A = n_post
-
-    # Te(t): starting peak, decays to steady-state value, second transient at load
-    s_arr_A = np.maximum(1.0 - n_A / ns, 1e-4)
-    Te_A_raw = _torque_array(s_arr_A, V1, R1, X1, R2, X2, Xm, ws_mec)
-    Te_A = np.clip(Te_A_raw, 0.0, None)
-
-    # ias(t): exponential decay envelope of the inrush
-    tau_e = (X1 + X2) / (2.0 * np.pi * f * max(R1 + R2, 0.01))
-    env_A = I_ss + (I_pk - I_ss) * np.exp(-t_A / max(tau_e, 1e-3))
-    env_A = np.where(t_A < t_load, env_A, np.maximum(env_A, I_ss * 1.18))
-    ias_A = env_A * np.abs(np.sin(2.0 * np.pi * f * t_A))
-    # mark event
-    t_events_A = [t_load]
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # Scenario B — Voltage Sag (30% voltage dip for 0.2 s)
-    # ─────────────────────────────────────────────────────────────────────────
-    t_sag_start = 1.0
-    t_sag_dur   = 0.20
-    t_sag_end   = t_sag_start + t_sag_dur
-    t_max_B     = t_sag_end + 1.5
-    t_B = np.linspace(0.0, t_max_B, 1200)
-
-    sag_depth = 0.30                  # 30% drop of nominal voltage
-
-    # n(t): at steady state, slight drop during sag, recovery after
-    n_sag_drop = n_ss * 0.06 * sag_depth / 0.30
-    tau_sag_n  = 0.08
-    n_B = np.where(
-        t_B < t_sag_start, n_ss,
-        np.where(
-            t_B < t_sag_end,
-            n_ss - n_sag_drop * (1.0 - np.exp(-(t_B - t_sag_start) / tau_sag_n)),
-            n_ss - n_sag_drop * np.exp(-(t_B - t_sag_end) / tau_sag_n),
-        ),
-    )
-
-    # Te(t): drops proportionally to V² during sag, recovers afterwards
-    Te_sag = Te_ss * (1.0 - sag_depth) ** 2
-    tau_Te_rec = 0.06
-    Te_B = np.where(
-        t_B < t_sag_start, Te_ss,
-        np.where(
-            t_B < t_sag_end,
-            Te_sag + (Te_ss - Te_sag) * np.exp(-(t_B - t_sag_start) / 0.04),
-            Te_ss - (Te_ss - Te_sag) * np.exp(-(t_B - t_sag_end) / tau_Te_rec),
-        ),
-    )
-
-    # ias(t): re-start current after sag (peak smaller than cold start)
-    I_restart = I_ss * (1.0 + 2.5 * sag_depth)
-    ias_B_env = np.where(
-        t_B < t_sag_start, I_ss,
-        np.where(
-            t_B < t_sag_end,
-            I_ss * (1.0 - sag_depth * 0.6),
-            I_ss + (I_restart - I_ss) * np.exp(-(t_B - t_sag_end) / max(tau_e, 0.05)),
-        ),
-    )
-    ias_B = ias_B_env * np.abs(np.sin(2.0 * np.pi * f * t_B))
-    t_events_B = [t_sag_start, t_sag_end]
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # Scenario C — Shutdown (supply cut at steady state)
-    # ─────────────────────────────────────────────────────────────────────────
-    t_cutoff = 0.5
-    t_max_C  = t_cutoff + max(J * ws_mec / max(Tl * 0.5, 1.0), 2.0)
-    t_C = np.linspace(0.0, t_max_C, 1200)
-
-    # decay tau of n after cut: inertia / load
-    tau_n_off = J / max(B + Tl / max(float(ws_mec), 1.0), 0.01)
-    n_C = np.where(
-        t_C < t_cutoff, n_ss,
-        np.maximum(n_ss * np.exp(-(t_C - t_cutoff) / max(tau_n_off, 0.1)), 0.0),
-    )
-
-    # Te(t): drops rapidly to zero (electrical time constant)
-    tau_Te_off = float(Xm / (wb * max(R2, 0.01))) * 0.15
-    Te_C = np.where(
-        t_C < t_cutoff, Te_ss,
-        Te_ss * np.exp(-(t_C - t_cutoff) / max(tau_Te_off, 0.02)),
-    )
-    Te_C = np.maximum(Te_C, 0.0)
-
-    # ias(t): decays exponentially with the magnetising flux time constant
-    ias_C_env = np.where(
-        t_C < t_cutoff, I_ss,
-        I_ss * np.exp(-(t_C - t_cutoff) / max(tau_Te_off * 2, 0.05)),
-    )
-    ias_C = ias_C_env * np.abs(np.sin(2.0 * np.pi * f * t_C))
-    t_events_C = [t_cutoff]
 
     # ─────────────────────────────────────────────────────────────────────────
     # Figure with subplots — 3 rows (n, Te, ias)
