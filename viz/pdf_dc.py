@@ -23,6 +23,7 @@ import datetime
 import numpy as np
 
 from core.dc.facade import DCMachineParams
+from core.dc.power import compute_losses_dc
 from viz.pdf_commons import (
     safe_text, embed_fig,
     cell_rich, render_rich,
@@ -92,34 +93,8 @@ def _build_losses_bar_dc(losses: dict) -> object:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _compute_losses_dc(res: dict, mp: DCMachineParams) -> dict:
-    ia_ss  = float(res.get("ia_ss",  0.0))
-    ifd_ss = float(res.get("ifd_ss", 0.0))
-    wm_ss  = float(res.get("wm_ss",  0.0))
-    Te_ss  = float(res.get("Te_ss",  0.0))
-    Va     = mp.Va if mp else 0.0
-    Ra     = mp.Ra if mp else 0.0
-    Rf     = mp.Rf if mp else 0.0
-    B      = mp.B  if mp else 0.0
-    exc    = mp.excitation if mp else "sep_motor"
-
-    P_Ra      = ia_ss ** 2 * Ra
-    P_Rf      = ifd_ss ** 2 * Rf if exc not in ("series_motor",) else 0.0
-    P_mec     = B * wm_ss ** 2
-    P_mec_out = abs(Te_ss) * abs(wm_ss)
-    P_elec    = abs(Va) * abs(ia_ss)
-
-    total = max(P_elec, 1e-9)
-    return {
-        "P_Ra":        P_Ra,
-        "P_Rf":        P_Rf,
-        "P_mec":       P_mec,
-        "P_mec_out":   P_mec_out,
-        "P_elec":      P_elec,
-        "pct_Ra":      P_Ra      / total * 100,
-        "pct_Rf":      P_Rf      / total * 100,
-        "pct_mec":     P_mec     / total * 100,
-        "pct_mec_out": P_mec_out / total * 100,
-    }
+    """Delegates to the canonical DC power layer (core.dc.power)."""
+    return compute_losses_dc(res, mp)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -293,11 +268,9 @@ def _pdf_dc_section_steady_state(
     Ea_ss  = float(res.get("Ea_ss",  0.0))
     Vt_ss  = float(res.get("Vt_ss",  0.0))
 
-    is_gen    = exc in ("sep_gen", "shunt_gen")
     P_elec    = losses["P_elec"]
     P_mec_out = losses["P_mec_out"]
-    eta = (P_mec_out / max(P_elec, 1e-9) * 100) if not is_gen \
-        else (P_elec / max(P_mec_out, 1e-9) * 100)
+    eta       = losses["eta"]
 
     rows_ss = [
         ("Steady-state speed (n)",                                f"{n_ss:.3f}",  "RPM"),

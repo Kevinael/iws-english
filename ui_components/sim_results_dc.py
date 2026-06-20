@@ -25,6 +25,7 @@ import streamlit as st
 import plotly.graph_objects as go
 
 from core.dc.facade import DCMachineParams
+from core.dc.power import compute_losses_dc
 from data.experiment_modes import DC_EXC_LABELS
 from core.constants import (
     DC_OVERCURRENT_WARN_RATIO,
@@ -388,21 +389,15 @@ def _render_dc_tab_assets(
 
     st.markdown('<p class="slabel">Efficiency and Loss Analysis</p>', unsafe_allow_html=True)
 
-    Ra   = mp.Ra if mp else 1.0
-    Rf   = mp.Rf if mp else 0.0
-    B    = mp.B  if mp else 0.0
     Va   = mp.Va if mp else 24.0
 
-    P_Ra   = float(ia_ss ** 2 * Ra)
-    P_Rf   = float(ifd_ss ** 2 * Rf) if exc not in ("series_motor",) else 0.0
-    P_mec  = float(B * wm_ss ** 2)
-    P_elec = float(abs(Va) * abs(ia_ss)) if not is_gen else 0.0
-    P_mec_out = float(abs(Te_ss) * abs(wm_ss))
-
-    if is_gen:
-        eta = P_elec / max(P_mec_out, 1e-9) * 100 if P_mec_out > 0 else 0.0
-    else:
-        eta = P_mec_out / max(P_elec, 1e-9) * 100 if P_elec > 0 else 0.0
+    losses    = compute_losses_dc(res, mp)
+    P_Ra      = losses["P_Ra"]
+    P_Rf      = losses["P_Rf"]
+    P_mec     = losses["P_mec"]
+    P_elec    = losses["P_elec"]
+    P_mec_out = losses["P_mec_out"]
+    eta       = losses["eta"]
 
     a1, a2, a3, a4 = st.columns(4)
     a1.metric("Efficiency η (%)",         f"{eta:.1f}")
