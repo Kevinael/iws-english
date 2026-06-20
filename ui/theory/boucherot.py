@@ -20,7 +20,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from viz.tim_charts import _plot_theme
-from core.tim.torque_speed import _extract_params, _torque_array
+from core.tim import _extract_params, _torque_array
 
 from ui.theory._shared import _get_mp, _dark
 

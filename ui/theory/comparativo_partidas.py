@@ -20,9 +20,10 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from viz.tim_charts import _plot_theme
-from core.tim.torque_speed import _extract_params
+from core.tim import _extract_params
 
 from ui.theory._shared import _get_mp, _dark
+from ui.theory.tabs._shared import _z2
 
 
 def render_comparativo_partidas() -> None:

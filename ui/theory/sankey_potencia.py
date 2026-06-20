@@ -20,7 +20,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from viz.tim_charts import _plot_theme
-from core.tim.torque_speed import calc_fluxo_potencia
+from core.tim import calc_fluxo_potencia
 
 from ui.theory._shared import _get_mp, _dark
 
