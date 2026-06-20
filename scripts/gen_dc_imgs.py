@@ -46,8 +46,8 @@ def _circuit_png(excitation: str) -> None:
         "sep_motor":    "separate_motor.png",
         "shunt_motor":  "shunt_motor.png",
         "series_motor": "serie_motor.png",
-        "sep_gen":      "separate_gerador.png",
-        "shunt_gen":    "shunt_gerador.png",
+        "sep_gen":      "separate_generator.png",
+        "shunt_gen":    "shunt_generator.png",
     }[excitation]
     dest.write_bytes(png_bytes)
     print(f"  saved {dest.name}")
@@ -104,10 +104,10 @@ _save(fig, "wm_x_T.png")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 3. gerador_comparativo.png — Vt×Ia for sep/shunt generator
+# 3. generator_comparison.png — Vt×Ia for sep/shunt generator
 # ─────────────────────────────────────────────────────────────────────────────
 
-print("Generating gerador_comparativo.png...")
+print("Generating generator_comparison.png...")
 
 Ia = np.linspace(0, 30, 300)
 
@@ -132,7 +132,7 @@ ax.set_xlim(0, 30)
 ax.set_ylim(0)
 ax.grid(True, alpha=0.3)
 fig.tight_layout()
-_save(fig, "gerador_comparativo.png")
+_save(fig, "generator_comparison.png")
 
 
 # ─────────────────────────────────────────────────────────────────────────────

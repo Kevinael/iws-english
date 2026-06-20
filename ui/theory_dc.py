@@ -79,9 +79,9 @@ where $T_e = k_b \, i_{fd} \, i_a$ and $E_a = k_b \, i_{fd} \, \omega_m$.
 
         cols2 = st.columns(2)
         with cols2[0]:
-            _show_png("separate_gerador.png", "Separately Excited — Generator")
+            _show_png("separate_generator.png", "Separately Excited — Generator")
         with cols2[1]:
-            _show_png("shunt_gerador.png", "Shunt — Generator")
+            _show_png("shunt_generator.png", "Shunt — Generator")
 
         try:
             from ui.theory_dc_interactive import render_dc_block_diagram
@@ -167,7 +167,7 @@ $$V_t = R_l \, i_a$$
 
 **Separately excited generator:** $V_f$ is an independent source — does not depend on $V_t$.
 """)
-        _show_png("gerador_comparativo.png", "Characteristic curves Vt×Ia")
+        _show_png("generator_comparison.png", "Characteristic curves Vt×Ia")
 
     # ── Sub-tab 6: Parameter Estimator ───────────────────────────────────
     with tabs[5]:

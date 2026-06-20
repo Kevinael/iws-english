@@ -223,8 +223,8 @@ with schemdraw.Drawing() as d:
     d.move(dx=-0.4 * d.unit, dy=-0.125 * d.unit)
     elm.Label().label('$P_{in}$', ofst=(.125, -.125))
     d.pop()
-    d.save(os.path.join(OUT, 'fluxo_P_motor.png'), dpi=150)
-print("fluxo_P_motor.png OK")
+    d.save(os.path.join(OUT, 'power_flow_motor.png'), dpi=150)
+print("power_flow_motor.png OK")
 
 # ── Generator ─────────────────────────────────────────────────────────────
 with schemdraw.Drawing() as d:
@@ -266,8 +266,8 @@ with schemdraw.Drawing() as d:
     d.move(dx=-0.4 * d.unit, dy=0)
     elm.Label().label('$P_{out}$', ofst=(.125, -.125))
     d.pop()
-    d.save(os.path.join(OUT, 'fluxo_P_gerador.png'), dpi=150)
-print("fluxo_P_gerador.png OK")
+    d.save(os.path.join(OUT, 'power_flow_generator.png'), dpi=150)
+print("power_flow_generator.png OK")
 
 # ── Braking ───────────────────────────────────────────────────────────────
 with schemdraw.Drawing() as d:
@@ -311,8 +311,8 @@ with schemdraw.Drawing() as d:
     d.move(dx=-0.4 * d.unit, dy=0)
     elm.Label().label('$P_{terminal}$', ofst=(-.25, -.125))
     d.pop()
-    d.save(os.path.join(OUT, 'fluxo_P_frenagem.png'), dpi=150)
-print("fluxo_P_frenagem.png OK")
+    d.save(os.path.join(OUT, 'power_flow_braking.png'), dpi=150)
+print("power_flow_braking.png OK")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # TORQUE × SLIP CURVES

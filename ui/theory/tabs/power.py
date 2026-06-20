@@ -42,7 +42,7 @@ def render_tab_power() -> None:
     c1, c2, c3 = st.columns(3)
     with c1:
         _h4("Motor Mode")
-        _show_img("imgs/fluxo_P_motor.png")
+        _show_img("imgs/power_flow_motor.png")
         _eq(r"P_{in} \xrightarrow{-P_{cu,1}} P_{ag} \xrightarrow{-P_{cu,2}} P_{mec} \xrightarrow{-P_{rot}} P_{out}")
         st.markdown(
             "Key relation: $P_{cu,2} = s\\,P_{ag}$ and $P_{mec} = (1-s)P_{ag}$. "
@@ -50,7 +50,7 @@ def render_tab_power() -> None:
         )
     with c2:
         _h4("Generator Mode")
-        _show_img("imgs/fluxo_P_gerador.png")
+        _show_img("imgs/power_flow_generator.png")
         _eq(r"P_{in,mec} \xrightarrow{-P_{rot}} P_{mec} \xrightarrow{-P_{cu,2}} P_{ag} \xrightarrow{-P_{cu,1}} P_{out}")
         st.markdown(
             "Reversed direction: mechanical power enters via the shaft; "
@@ -58,7 +58,7 @@ def render_tab_power() -> None:
         )
     with c3:
         _h4("Braking Mode ($s > 1$)")
-        _show_img("imgs/fluxo_P_frenagem.png")
+        _show_img("imgs/power_flow_braking.png")
         _eq(r"P_{ele} + P_{cin} \longrightarrow P_{cu,2}")
         st.markdown(
             "Electrical energy from the grid *and* kinetic energy from the shaft "
