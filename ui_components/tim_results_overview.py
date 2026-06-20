@@ -25,9 +25,6 @@ from core.constants import (
     STARTING_SPEED_THRESHOLD,
     RELAY_CLASS_10_S,
     RELAY_CLASS_20_S,
-    INSULATION_CLASS_F_C,
-    INSULATION_CLASS_H_C,
-    INSULATION_CLASS_C_C,
     MPCB_THERMAL_LO_RATIO,
     MPCB_THERMAL_HI_RATIO,
     MPCB_ICU_MULTIPLIER,
@@ -295,24 +292,6 @@ def _render_protection_summary(
                             f"**Class II SPD (Surge)** — Uc ≥ **{_uc} V**; "
                             f"protection level Up ≤ **{_up_max} V**. "
                             f"Install in control panel, between phase and earth. (IEC 61643-11)"
-                        )
-
-                    _T_max = None
-                    for _k in ("T_s", "Ts", "T_stator", "theta_s", "theta_stator"):
-                        if _k in res:
-                            _T_max = float(np.max(res[_k]))
-                            break
-                    if _T_max is not None:
-                        if _T_max < INSULATION_CLASS_F_C:
-                            _prot_fn, _prot_iso = st.success, f"F ({INSULATION_CLASS_F_C} °C)"
-                        elif _T_max < INSULATION_CLASS_H_C:
-                            _prot_fn, _prot_iso = st.warning, f"H ({INSULATION_CLASS_H_C} °C)"
-                        else:
-                            _prot_fn, _prot_iso = st.error, f"C (> {INSULATION_CLASS_C_C} °C) — review insulation"
-                        _prot_fn(
-                            f"**PTC Thermistor / RTD** — maximum simulated temperature: "
-                            f"**{_T_max:.1f} °C** → recommended insulation class: **{_prot_iso}**. "
-                            f"(IEC 60085 / IEC 60034-1)"
                         )
 
             except Exception:

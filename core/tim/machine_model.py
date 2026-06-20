@@ -27,7 +27,6 @@ import math
 import numpy as np
 from dataclasses import dataclass, field
 
-from core.tim.thermal import estimate_rth_cth
 from core.transforms import abc_voltages, clarke_park_transform
 from core.tim.fault_model import abc_voltages_imbalance
 from core.constants import N_SYNC_FACTOR
@@ -63,13 +62,6 @@ class MachineParams:
     # ── Network impedance ──────────────────────────────────────────────────
     Rgrid: float = 0.0    # Ohm per phase
     Lgrid: float = 0.0    # H per phase
-
-    # ── Thermal Model ──────────────────────────────────────────────────────
-    # Rth=0 -> auto: calibrated for T_ss = T_amb + 50 K (nominal TEFC operation)
-    # Cth=0 -> auto: estimated by motor mass (P_mec_kW x 15 kg/kW x 460 J/kg.K)
-    Rth:   float = 0.0    # K/W
-    Cth:   float = 0.0    # J/K
-    T_amb: float = 25.0   # degrees C
 
     # ── Magnetic parameter input mode ─────────────────────────────────────
     input_mode: str   = "X"    # "X" = reactances (Ohm) | "L" = inductances (H)
@@ -112,20 +104,6 @@ class MachineParams:
             _Vfase     = self.Vl / np.sqrt(3.0)
             _Im0       = _Vfase / (self.wb * self.Lm) if self.Lm > 0 else 5.0
             self.Im_sat = 2.0 * _Im0
-
-        # Automatic Rth/Cth via T-circuit at nominal slip.
-        # Uses wb*Lm as magnetizing branch (not Xml — T-circuit, not pi).
-        # Must occur BEFORE Xls_a_eff is modified by Lgrid.
-        if self.Rth == 0.0 or self.Cth == 0.0:
-            _Xm_a_th = self.wb * self.Lm
-            _Rth_est, _Cth_est = estimate_rth_cth(
-                Vl=self.Vl, Rs=self.Rs, Rr=self.Rr,
-                Xls_a=self.Xls_a, Xlr_a=self.Xlr_a, Xm_a=_Xm_a_th,
-            )
-            if self.Rth == 0.0:
-                self.Rth = _Rth_est
-            if self.Cth == 0.0:
-                self.Cth = _Cth_est
 
         # Lgrid absorbed into Xls_a_eff (series impedance seen by stator)
         # Xml recalculated for consistency with new Xls_a_eff
@@ -202,12 +180,11 @@ def _make_rhs(mp: MachineParams, voltage_fn, torque_fn, ref_code: int,
     Rfe   = mp.Rfe
     Rgrid    = mp.Rgrid
     use_grid = (Rgrid != 0.0)   # evaluated once; branch in rhs is predictable
-    Rth   = mp.Rth;  Cth = mp.Cth;  T_amb = mp.T_amb
 
     def rhs(t: float, y: list) -> list:
         # _tetar (rotor position) is a state but does not enter Krause equations
         # in synchronous reference — only integrated for post-processing
-        PSIqs, PSIds, PSIqr, PSIdr, wr, _tetar, Temp, theta_slip = y
+        PSIqs, PSIds, PSIqr, PSIdr, wr, _tetar, theta_slip = y
 
         # voltage source: unbalance activated conditionally by t_imbalance
         Vl_a = voltage_fn(t)
@@ -266,9 +243,6 @@ def _make_rhs(mp: MachineParams, voltage_fn, torque_fn, ref_code: int,
 
         # theta_slip integrated as state for broken bar model (rr_fn)
         d_theta_slip = wb - wr
-        # state 7 (Temp) integrated in post-processing over vectorized P_joule;
-        # dTemp=0 here prevents inrush peak (P_joule>>nominal at t<50ms)
-        # from contaminating temperature via discretization error with h=1e-3.
-        return [dPSIqs, dPSIds, dPSIqr, dPSIdr, dwr, dtetar, 0.0, d_theta_slip]
+        return [dPSIqs, dPSIds, dPSIqr, dPSIdr, dwr, dtetar, d_theta_slip]
 
     return rhs

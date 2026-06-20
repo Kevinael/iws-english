@@ -5,7 +5,6 @@ from core.tim import (
     estimate_params, estimate_params_ieee_tests,
     compute_energy_metrics, build_fig_fft, generate_insights,
     calc_torque_speed, calc_power_flow, _extract_params, _torque_array,
-    dTemp_dt, estimate_rth_cth,
 )
 from core.dc import (
     DCMachineParams, _make_rhs_dc, decode_shunt_gen,

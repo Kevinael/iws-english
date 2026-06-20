@@ -94,9 +94,6 @@ SAG_WARN_PCT                = 20.0   # sag ≥ 20 %: warning voltage sag
 RELAY_CLASS_30_S            = 30.0   # Class 30 upper limit [s]
 RELAY_CLASS_10_S            = 10.0   # IEC 60947-4-1 Class 10 upper limit [s]
 RELAY_CLASS_20_S            = 20.0   # IEC 60947-4-1 Class 20 upper limit [s]
-INSULATION_CLASS_F_C     = 155    # IEC 60085 Class F max temperature [°C]
-INSULATION_CLASS_H_C     = 180    # IEC 60085 Class H max temperature [°C]
-INSULATION_CLASS_C_C     = 180    # IEC 60085 Class C min temperature (above H) [°C]
 
 # MIT PROTECTION SIZING (IEC)
 MPCB_THERMAL_LO_RATIO    = 0.80   # IEC 60947-2 MPCB thermal setting lower bound (× In)
@@ -133,13 +130,6 @@ HOURS_PER_YEAR           = 8760   # hours per year (24 h × 365 d)
 W_TO_KW                  = 1000   # conversion factor W → kW
 P_NOM_MIN_KW             = 0.5    # minimum nominal power fallback [kW] — avoids zero-division in T×n KPI
 J_PER_KWH                = 3_600_000.0  # joules per kilowatt-hour
-
-# THERMAL
-THERMAL_DELTA_T_NOMINAL_K = 50.0    # nominal ΔT for well-sized TEFC motors [K]
-THERMAL_TAU_REF_S         = 1500.0  # τ_th reference for P_ref = 2.2 kW [s]
-THERMAL_TAU_P_REF_KW      = 2.2     # reference power for τ scaling [kW]
-THERMAL_TAU_EXPONENT      = 0.25    # τ ∝ P^0.25 sublinear exponent
-THERMAL_MIN_LOSSES_W      = 10.0    # minimum losses guard (avoids zero-division) [W]
 
 # DC MACHINE PROTECTION & DIAGNOSTIC THRESHOLDS
 DC_OVERCURRENT_WARN_RATIO       = 10.0   # peak/steady-state ratio → warning

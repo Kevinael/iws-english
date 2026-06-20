@@ -69,7 +69,6 @@ def run_simulation(
       arr["wr"]     — mechanical angular velocity (rad/s)
       arr["n"]      — mechanical speed (RPM)
       arr["Te"]     — electromagnetic torque (N.m)
-      arr["Temp"]   — motor temperature (degrees C)
       arr["Te_ss"], arr["wr_ss"], arr["s"], arr["eta"], ... — steady state
     """
     if mp.f * h > NYQUIST_LIMIT:
@@ -89,11 +88,11 @@ def run_simulation(
 
     rr_fn     = make_broken_bar_rr_fn(mp.Rr, broken_bar_severity, mp.wb, t_start=t_broken_bar)
     rhs       = _make_rhs(mp, voltage_fn, torque_fn, ref_code, imbalance, t_imbalance, imbalance_active, rr_fn)
-    y0        = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, mp.T_amb, 0.0]
+    y0        = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
     y_history = _solve(rhs, t_values, y0, mp, clamp_wr_at_zero, t_cutoff=t_cutoff)
 
 
-    PSIqs, PSIds, PSIqr, PSIdr, wr_e, tetar, _unused_temp, _theta_slip_arr = y_history
+    PSIqs, PSIds, PSIqr, PSIdr, wr_e, tetar, _theta_slip_arr = y_history
     tetae = mp.wb * t_values
 
     Vl_arr = np.fromiter(
@@ -109,9 +108,6 @@ def run_simulation(
     wr_mec = np.maximum(wr_e / (mp.p / 2.0), 0.0)
     n_rpm  = np.maximum(wr_e * 60.0 / (np.pi * mp.p), 0.0)
 
-    # TEMP DISABLED: thermal model under revision — returns constant T_amb
-    Temp_arr = np.full(len(t_values), mp.T_amb)
-
     arr = {
         "t":    t_values,
         "wr":   wr_mec,
@@ -122,7 +118,6 @@ def run_simulation(
         "iar":  iar,  "ibr": ibr,  "icr": icr,
         "Va":   Va,   "Vb":  Vb,   "Vc":  Vc,
         "Vds":  Vds,  "Vqs": Vqs,
-        "Temp": Temp_arr,
         "_broken_bar_severity": broken_bar_severity,
         "_t_broken_bar":        t_broken_bar,
     }

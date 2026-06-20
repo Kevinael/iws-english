@@ -85,7 +85,7 @@ def _solve(rhs, t_values, y0, mp: MachineParams, clamp_wr_at_zero: bool, t_cutof
             arr[row] = r[idx]
 
     # NaN as sentinel: positions not filled by LSODA will be ffill'd later
-    y_history = np.full((8, N), np.nan)
+    y_history = np.full((7, N), np.nan)
 
     if not clamp_wr_at_zero:
         if t_cutoff is not None and t_cutoff < tmax:
@@ -274,64 +274,6 @@ def _detect_steady_state(t_arr, wr_arr, mp: MachineParams) -> int:
     ss_len   = max(ss_len // lcm_samples, 1) * lcm_samples
     ss_start = max(0, N - ss_len)
     return ss_start
-
-
-def _compute_thermal(
-    t_arr: np.ndarray,
-    ias: np.ndarray, ibs: np.ndarray, ics: np.ndarray,
-    iar: np.ndarray, ibr: np.ndarray, icr: np.ndarray,
-    PSImq: np.ndarray, PSImd: np.ndarray,
-    mp: MachineParams,
-    rr_arr: np.ndarray | None = None,
-) -> np.ndarray:
-    """Integrates the thermal ODE in post-processing over the already-integrated current arrays.
-
-    Uses phase abc currents (not dq leakage) for P_joule, which is correct
-    for the loss model in induction motors with amplitude-invariant convention.
-    Separating thermal from the electromagnetic ODE eliminates the discretization error
-    caused by the inrush peak: LSODA solves the ODE with adaptive step, and the thermal ODE
-    (tau_th ~ 1500 s) is integrated via implicit Euler over those arrays.
-
-    Args:
-        rr_arr: array of effective Rr over time (broken bar). None = constant Rr.
-    """
-    N      = len(t_arr)
-    h      = float(t_arr[1] - t_arr[0]) if N > 1 else 1e-3
-    Rr_arr = rr_arr if rr_arr is not None else np.full(N, mp.Rr)
-
-    # P_joule via abc currents with amplitude-invariant convention scaling factor:
-    # ias = sqrt(3/2)*iafs => ias² = (3/2)*iafs²  => P_abc = (3/2)*P_dq
-    # Correct factor: P = (2/3)*sum_abc = P_dq
-    P_joule = (2.0 / 3.0) * (
-        mp.Rs * (ias**2 + ibs**2 + ics**2)
-        + Rr_arr * (iar**2 + ibr**2 + icr**2)
-    )
-    P_fe = (mp.wb * (PSImq**2 + PSImd**2) / mp.Rfe
-            if mp.Rfe > 0.0 else np.zeros(N))
-    P_total = P_joule + P_fe
-
-    # The first ~5 electrical cycles concentrate the magnetization inrush peak
-    # (fluxes start from zero): real energy is negligible (< 0.5°C) but instantaneous P
-    # is very high. Treating these points as P = estimated_P_nom avoids artificial
-    # heating without affecting the relevant thermal dynamics (tau_th ~ 1500 s >> 5/f).
-    n_skip = max(0, int(round(5.0 / (mp.f * h))))   # 5 electrical cycles in samples
-    if n_skip > 0 and n_skip < N:
-        # reference value: mean P in the window just after the inrush peak
-        win_ref = min(n_skip, N - n_skip)
-        P_ref   = float(np.mean(P_total[n_skip: n_skip + win_ref])) if win_ref > 0 else 0.0
-        P_total[:n_skip] = P_ref
-
-    # implicit Euler: stable for any dt, correct for tau_th >> dt
-    #   T[k+1] = (T[k] + dt*(P[k+1]/Cth + T_amb/(Rth*Cth))) / (1 + dt/(Rth*Cth))
-    Rth = mp.Rth; Cth = mp.Cth; T_amb = mp.T_amb
-    Temp = np.empty(N)
-    Temp[0] = T_amb
-    for k in range(N - 1):
-        dt    = float(t_arr[k + 1] - t_arr[k])
-        alpha = dt / (Rth * Cth)
-        Temp[k + 1] = (Temp[k] + dt * (P_total[k + 1] / Cth + T_amb / (Rth * Cth))) / (1.0 + alpha)
-
-    return np.where(np.isfinite(Temp), Temp, T_amb)
 
 
 def _compute_steady_state(arr: dict, mp: MachineParams) -> dict:

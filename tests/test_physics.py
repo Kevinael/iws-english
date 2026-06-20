@@ -61,7 +61,7 @@ def test_efficiency_reasonable(dol_result):
 
 def test_no_nan_in_results(dol_result):
     """No time series may contain NaN."""
-    keys = ["wr", "n", "Te", "ias", "ibs", "ics", "Va", "Temp"]
+    keys = ["wr", "n", "Te", "ias", "ibs", "ics", "Va"]
     for k in keys:
         assert not np.any(np.isnan(dol_result[k])), f"NaN found in '{k}'"
 
@@ -69,11 +69,6 @@ def test_no_nan_in_results(dol_result):
 def test_wr_non_negative(dol_result):
     """Mechanical angular speed cannot be negative in motor mode."""
     assert np.all(dol_result["wr"] >= 0.0)
-
-
-def test_temp_above_ambient(dol_result, mp_3hp):
-    """Temperature must always be >= T_amb."""
-    assert np.all(dol_result["Temp"] >= mp_3hp.T_amb - 0.01)
 
 
 def test_wr_monotone_during_startup(dol_result):
@@ -86,25 +81,6 @@ def test_wr_monotone_during_startup(dol_result):
     diffs = np.diff(wr_startup)
     # Allow small oscillations (< 0.5 rad/s backward)
     assert np.all(diffs >= -0.5)
-
-
-# ── Thermal model ─────────────────────────────────────────────────────────────
-
-@pytest.mark.xfail(reason="thermal model disabled at IWS_PY.py:107 (under review)", strict=True)
-def test_temp_increases_under_load(dol_result, mp_3hp):
-    """Final temperature must be greater than T_amb (motor heated up)."""
-    assert dol_result["Temp"][-1] > mp_3hp.T_amb
-
-
-def test_temp_converges_direction(mp_3hp):
-    """In a long simulation, temperature must approach T_amb + Rth*P (correct direction)."""
-    config = {"exp_type": "dol", "Tl_final": 12.0, "t_load": 1.0}
-    vfn, tfn, _ = build_fns(config, mp_3hp)
-    res = run_simulation(mp_3hp, tmax=5.0, h=5e-4, voltage_fn=vfn, torque_fn=tfn)
-    # Temperature at the end must be greater than at the start
-    T_start = res["Temp"][len(res["Temp"])//4]
-    T_end = res["Temp"][-1]
-    assert T_end >= T_start
 
 
 # ── Slip and speed ──────────────────────────────────────────────────────────
