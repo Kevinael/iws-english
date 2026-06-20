@@ -28,6 +28,7 @@ from contextlib import contextmanager
 
 import numpy as np
 from core.tim.facade import MachineParams
+from core.tim.power import compute_power_flow, compute_losses_pct
 from viz.tim_eqcircuit import build_figure as _build_circuit_figure
 from ui.theme import _palette
 
@@ -263,32 +264,19 @@ def _mp_get(mp, key: str, default=0.0):
 
 
 def compute_losses(res: dict, mp: dict) -> dict:
-    P_in   = float(res.get("P_in",   0.0))
-    P_gap  = float(res.get("P_gap",  0.0))
-    P_mec  = float(res.get("P_mec",  0.0))
-    P_cu_r = float(res.get("P_cu_r", 0.0))
-    iqs_ss = np.asarray(res["iqs"], dtype=float)
-    ids_ss = np.asarray(res["ids"], dtype=float)
-    ss     = int(res.get("_ss_start", max(0, len(iqs_ss) - 1)))
-    iqs_m  = float(np.sqrt(np.mean(iqs_ss[ss:]**2))) if ss < len(iqs_ss) else 0.0
-    ids_m  = float(np.sqrt(np.mean(ids_ss[ss:]**2))) if ss < len(ids_ss) else 0.0
-    P_cu_s = (3.0 / 2.0) * _mp_get(mp, "Rs", 0.435) * (iqs_m**2 + ids_m**2)
-    Vqs_ss = np.asarray(res["Vqs"][ss:], dtype=float)
-    Vds_ss = np.asarray(res["Vds"][ss:], dtype=float)
-    if _mp_get(mp, "Rfe", 500.0) > 0 and len(Vqs_ss) > 0:
-        V_rms_sq = float(np.mean(Vqs_ss**2)) + float(np.mean(Vds_ss**2))
-        P_fe = (3.0 / 2.0) * V_rms_sq / _mp_get(mp, "Rfe", 500.0)
-    else:
-        P_fe = max(abs(P_in - P_gap - P_cu_s), 0.0) if P_in > 0 else 0.0
-    P_loss = P_cu_s + P_cu_r + P_fe
-    denom  = P_in if abs(P_in) > 1.0 else 1.0
+    """Power-loss breakdown for the PDF reports.
+
+    Delegates to the canonical power layer (``core.tim.power``) so the values
+    match the solver exactly. Uses ABC formulas (textbook ``3*Rs*I_rms^2``).
+    """
+    power = compute_power_flow(res, mp)
+    pct   = compute_losses_pct(power)
     return {
-        "P_in": P_in, "P_mec": P_mec,
-        "P_cu_s": P_cu_s, "P_cu_r": P_cu_r, "P_fe": P_fe, "P_loss": P_loss,
-        "pct_cu_s": P_cu_s / denom * 100.0,
-        "pct_cu_r": P_cu_r / denom * 100.0,
-        "pct_fe":   P_fe   / denom * 100.0,
-        "pct_mec":  P_mec  / denom * 100.0,
+        "P_in":   power["P_in"],   "P_mec":  power["P_mec"],
+        "P_cu_s": power["P_cu_s"], "P_cu_r": power["P_cu_r"],
+        "P_fe":   power["P_fe"],   "P_loss": pct["P_loss"],
+        "pct_cu_s": pct["pct_cu_s"], "pct_cu_r": pct["pct_cu_r"],
+        "pct_fe":   pct["pct_fe"],   "pct_mec":  pct["pct_mec"],
     }
 
 
