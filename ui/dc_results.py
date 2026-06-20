@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-sim_results_dc.py
+dc_results.py
 =================
 Renders the four DC machine result sub-tabs: Overview, Dynamic Analysis, Diagnostics & Faults, and Asset Management.
 

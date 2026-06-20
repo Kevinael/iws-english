@@ -10,7 +10,7 @@ Responsibilities:
   - compute_losses_dc(res, mp): full DC power balance + percentage breakdown
 
 Relationships:
-  Imported by : viz.pdf_dc, ui.sim_results_dc
+  Imported by : viz.pdf_dc, ui.dc_results
   Imports     : (none — pure numeric, no streamlit/plotly)
 """
 

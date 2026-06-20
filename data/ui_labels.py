@@ -4,7 +4,7 @@ data/ui_labels.py
 =================
 Single source of truth for UI selector labels and machine registry.
 
-All UI modules (tim_config, sim_config_dc, IWS_UI) import from here so that
+All UI modules (tim_config, dc_config, IWS_UI) import from here so that
 label changes propagate automatically without touching widget code.
 
 CONTENTS

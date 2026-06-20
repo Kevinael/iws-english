@@ -9,7 +9,7 @@ Responsibilities:
   - _ibox  : render an info-box div with CSS class "ibox"
 
 Relationships:
-  Imported by : ui.tim_config, ui.sim_config_dc
+  Imported by : ui.tim_config, ui.dc_config
   Imports     : streamlit
 """
 

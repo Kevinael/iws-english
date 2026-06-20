@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 """
-sim_config_dc_keys.py
+dc_config_keys.py
 =====================
 Shared widget-key registry and session-state helper for the DC configuration
-modules. Lives in a neutral module so the orchestrator (sim_config_dc.py) and
-its sub-renderers (sim_config_dc_params.py, exp_renderers_dc.py) can all import
+modules. Lives in a neutral module so the orchestrator (dc_config.py) and
+its sub-renderers (dc_config_params.py, exp_renderers_dc.py) can all import
 _WK_DC / _wi without creating an import cycle.
 
 Relationships:
-  Imported by : ui.sim_config_dc, ui.sim_config_dc_params,
+  Imported by : ui.dc_config, ui.dc_config_params,
                 ui.exp_renderers_dc
   Imports     : streamlit
 """

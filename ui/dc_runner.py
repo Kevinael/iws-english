@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-sim_runner_dc.py
+dc_runner.py
 ================
 Orchestrates DC machine simulation execution — validates parameters, calls dc_solver, and persists results to session_state.
 
@@ -51,7 +51,7 @@ def execute_simulation_flow_dc(
 
     mode = exp_config.get("exp_type", "dol_dc")
 
-    # sentinel tmax==0 → use automatic value computed in sim_config_dc
+    # sentinel tmax==0 → use automatic value computed in dc_config
     if tmax == 0.0:
         tmax = float(exp_config.get("_tmax_auto_val", 12.0))
 

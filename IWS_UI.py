@@ -14,8 +14,8 @@ Relationships:
   Imported by : (entry point — not imported by any project module)
   Imports     : ui.theme, ui.clean_view, ui.theory_view,
                 ui.tim_config, ui.tim_results,
-                ui.tim_runner, ui.sim_config_dc,
-                ui.sim_results_dc, ui.sim_runner_dc
+                ui.tim_runner, ui.dc_config,
+                ui.dc_results, ui.dc_runner
 
 Extending:
   - To add a new machine type, write its sim-tab renderer and theory renderer,
@@ -49,9 +49,9 @@ from ui.tim_results import render_results, render_ref_panel
 from ui.tim_runner import execute_simulation_flow
 
 # MCC
-from ui.sim_config_dc import render_dc_machine_params, render_experiment_config_dc
-from ui.sim_runner_dc import execute_simulation_flow_dc
-from ui.sim_results_dc import render_results_dc
+from ui.dc_config import render_dc_machine_params, render_experiment_config_dc
+from ui.dc_runner import execute_simulation_flow_dc
+from ui.dc_results import render_results_dc
 from viz.eqcircuit_plotter_dc_v2 import render_circuit_dc_v2 as _render_circuit_dc_v2
 
 

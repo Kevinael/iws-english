@@ -8,10 +8,10 @@ compatible with render_results_dc.
 Responsibilities:
   - Run time integration via LSODA (scipy)
   - Reconstruct derived quantities (Ea, Pem, η)
-  - Format output as a dict compatible with ui.sim_results_dc
+  - Format output as a dict compatible with ui.dc_results
 
 Relationships:
-  Imported by : ui.sim_runner_dc
+  Imported by : ui.dc_runner
   Imports     : core.dc_machine_model
 
 Extending:

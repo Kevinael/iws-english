@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-sim_config_dc_params.py
+dc_config_params.py
 =======================
 Parameter-source sub-renderers for the DC machine configuration panel:
 Nameplate (NEMA), IEEE 113 tests, and Manual (locked/editable).
@@ -12,9 +12,9 @@ Responsibilities:
   - Expose _PARAM_SOURCE_RENDERERS dispatch table for the orchestrator.
 
 Relationships:
-  Imported by : ui.sim_config_dc
+  Imported by : ui.dc_config
   Imports     : core.dc.facade, data.experiment_modes, data.ui_labels,
-                ui.sim_config_dc_keys, ui._shared_widgets
+                ui.dc_config_keys, ui._shared_widgets
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ import streamlit as st
 from core.dc.facade import DCMachineParams
 from data.experiment_modes import DC_EXC_LABELS
 from data.ui_labels import DC_PARAM_SOURCE_LABELS
-from ui.sim_config_dc_keys import _WK_DC, _wi
+from ui.dc_config_keys import _WK_DC, _wi
 from ui._shared_widgets import _pgroup, _ibox
 
 

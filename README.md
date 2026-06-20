@@ -163,12 +163,12 @@ IWS - English/
 │   ├── tim_results_dynamics.py  Results sub-tab: waveforms
 │   ├── tim_results_diagnostics.py Results sub-tab: diagnostics + MCSA
 │   ├── tim_results_asset.py     Results sub-tab: asset management
-│   ├── sim_config_dc.py         DCM machine selector + experiment config (orchestrator)
-│   ├── sim_config_dc_keys.py    DCM widget-key registry (cycle-free)
-│   ├── sim_config_dc_params.py  DCM parameter sub-renderers (Nameplate, IEEE 113, Manual)
+│   ├── dc_config.py         DCM machine selector + experiment config (orchestrator)
+│   ├── dc_config_keys.py    DCM widget-key registry (cycle-free)
+│   ├── dc_config_params.py  DCM parameter sub-renderers (Nameplate, IEEE 113, Manual)
 │   ├── exp_renderers_dc.py      DCM experiment sub-renderers (one per mode)
-│   ├── sim_runner_dc.py         DCM simulation orchestrator + cache
-│   ├── sim_results_dc.py        DCM result tabs
+│   ├── dc_runner.py         DCM simulation orchestrator + cache
+│   ├── dc_results.py        DCM result tabs
 │   ├── chart_notes.py           Chart annotation helpers
 │   ├── reference_manager.py     Save/clear simulation references
 │   └── theory_view.py           Re-export wrapper for the Theory tab
@@ -294,11 +294,11 @@ Config and results are split into orchestrators + sub-renderers (mirrored for TI
 
 | Concern | TIM | DCM |
 |---|---|---|
-| Config orchestrator | `tim_config.py` | `sim_config_dc.py` |
-| Parameter sub-renderers | `tim_config_params.py` | `sim_config_dc_params.py` |
+| Config orchestrator | `tim_config.py` | `dc_config.py` |
+| Parameter sub-renderers | `tim_config_params.py` | `dc_config_params.py` |
 | Experiment sub-renderers | `exp_renderers_tim.py` | `exp_renderers_dc.py` |
-| Runner | `tim_runner.py` | `sim_runner_dc.py` |
-| Results | `tim_results*.py` (4 sub-tabs) | `sim_results_dc.py` |
+| Runner | `tim_runner.py` | `dc_runner.py` |
+| Results | `tim_results*.py` (4 sub-tabs) | `dc_results.py` |
 
 ### `viz/` — Charts and Reports
 
@@ -352,15 +352,15 @@ tim_results.py: render_results()  ──▶  Overview / Dynamics / Diagnostics /
 ### DCM
 
 ```
-User inputs (sim_config_dc.py) ──▶ DCMachineParams + cfg
+User inputs (dc_config.py) ──▶ DCMachineParams + cfg
          │
          ▼
-sim_runner_dc.py: execute_simulation_flow_dc()
+dc_runner.py: execute_simulation_flow_dc()
   ├─ make_voltage_fn_dc(...) / make_torque_fn_dc(...)   ── core.dc.facade
   └─ run_simulation_dc(...)                             ── core.dc.facade ──▶ result dict
          │
          ▼
-session_state["sim_result"] ──▶ sim_results_dc.py: render_results_dc()
+session_state["sim_result"] ──▶ dc_results.py: render_results_dc()
 ```
 
 ---

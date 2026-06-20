@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-sim_config_dc.py
+dc_config.py
 ================
 DC machine selector, parameter inputs, and experiment configuration widgets.
 
@@ -12,12 +12,12 @@ Responsibilities:
 Relationships:
   Imported by : IWS_UI
   Imports     : core.dc.facade, data.machines_dc,
-                ui.sim_config_dc_keys, ui.sim_config_dc_params,
+                ui.dc_config_keys, ui.dc_config_params,
                 ui.exp_renderers_dc
 
 Sub-modules:
-  sim_config_dc_keys.py    — _WidgetKeysDC / _WK_DC / _wi (shared, cycle-free)
-  sim_config_dc_params.py  — parameter-source sub-renderers (Nameplate, IEEE, Manual)
+  dc_config_keys.py    — _WidgetKeysDC / _WK_DC / _wi (shared, cycle-free)
+  dc_config_params.py  — parameter-source sub-renderers (Nameplate, IEEE, Manual)
   exp_renderers_dc.py      — six _render_exp_dc_* functions (one per experiment type)
 
 Extending:
@@ -47,10 +47,10 @@ from data.variable_labels import (
     DC_DEFAULT_VARS,
 )
 from ui._shared_widgets import _pgroup, _ibox
-from ui.sim_config_dc_keys import _WidgetKeysDC, _WK_DC, _wi  # noqa: F401
+from ui.dc_config_keys import _WidgetKeysDC, _WK_DC, _wi  # noqa: F401
 
-# re-export parameter-source sub-renderers so callers need only import from sim_config_dc
-from ui.sim_config_dc_params import (  # noqa: F401
+# re-export parameter-source sub-renderers so callers need only import from dc_config
+from ui.dc_config_params import (  # noqa: F401
     _render_dc_nameplate,
     _render_dc_ieee,
     _render_dc_manual_locked,

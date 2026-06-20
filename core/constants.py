@@ -176,7 +176,7 @@ MIT_DEFAULTS: dict[str, float | int] = dict(
 # ═══════════════════════════════════════════════════════════════════════════
 # DC MACHINE DEFAULT SESSION-STATE VALUES
 # ═══════════════════════════════════════════════════════════════════════════
-# Keys match st.session_state widget keys used in sim_config_dc.py.
+# Keys match st.session_state widget keys used in dc_config.py.
 # Units: voltages [V], resistances [Ω], inductances [H],
 #        J [kg·m²], B [N·m·s/rad], Tload [N·m]
 
@@ -198,7 +198,7 @@ MIT_SESSION_DEFAULTS: dict[str, object] = {
 # ═══════════════════════════════════════════════════════════════════════════
 # DC MACHINE DEFAULT SESSION-STATE VALUES
 # ═══════════════════════════════════════════════════════════════════════════
-# Keys match st.session_state widget keys used in sim_config_dc.py.
+# Keys match st.session_state widget keys used in dc_config.py.
 # Units: voltages [V], resistances [Ω], inductances [H],
 #        J [kg·m²], B [N·m·s/rad], Tload [N·m]
 

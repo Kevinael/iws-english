@@ -57,7 +57,7 @@ HOW TO ADD A NEW PRESET
        "dol_vazio":    False,                             # start under load
 
 4. That is all. No other file needs to be touched.
-   - The UI selector (ui/sim_config_dc.py) picks it up automatically.
+   - The UI selector (ui/dc_config.py) picks it up automatically.
    - Scripts (analysis/, utils/) should import DC_PRESETS_BY_EXC directly.
 """
 from __future__ import annotations
