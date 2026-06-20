@@ -6,7 +6,7 @@ DC machine Theory tab with 7 pedagogical sub-tabs covering modelling, dynamics, 
 
 Responsibilities:
   - Render 7 sub-tabs for DCM theory content in a structured Streamlit layout.
-  - Load PNG images from docs/bases para simulação via _show_png.
+  - Load PNG images from imgs/ via _show_png.
   - Call interactive components from theory_dc_interactive for each sub-tab.
 
 Relationships:
@@ -23,7 +23,7 @@ from pathlib import Path
 
 import streamlit as st
 
-_PNG_DIR = Path(__file__).parent.parent / "docs" / "bases para simulação" / "cc" / "imgs"
+_PNG_DIR = Path(__file__).parent.parent / "imgs"
 
 
 def _png(name: str):
