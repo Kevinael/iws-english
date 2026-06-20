@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-ui/theory/tabs/circuitos.py
-===========================
+ui/theory/tabs/circuits.py
+==========================
 Theory Tab 1 — Modeling and Equivalent Circuits.
 """
 

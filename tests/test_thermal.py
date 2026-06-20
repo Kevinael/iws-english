@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-"""Testes de core/thermal.py — dTemp_dt e estimate_rth_cth."""
+"""Tests for core/thermal.py — dTemp_dt and estimate_rth_cth."""
 import numpy as np
 import pytest
 from core.tim.thermal import dTemp_dt, estimate_rth_cth
 
 
 def test_dTemp_dt_equilibrio():
-    """Em equilíbrio (T = T_amb + Rth*P), dT/dt deve ser zero."""
+    """At equilibrium (T = T_amb + Rth*P), dT/dt must be zero."""
     Rth, Cth, T_amb = 1.0, 5000.0, 25.0
     P = 100.0
     T_eq = T_amb + Rth * P
@@ -15,19 +15,19 @@ def test_dTemp_dt_equilibrio():
 
 
 def test_dTemp_dt_aquecimento():
-    """Partindo de T_amb, dT/dt deve ser positivo quando há perdas."""
+    """Starting from T_amb, dT/dt must be positive when there are losses."""
     result = dTemp_dt(25.0, 100.0, 0.0, 1.0, 5000.0, 25.0)
     assert result > 0.0
 
 
 def test_dTemp_dt_resfriamento():
-    """Sem perdas e T > T_amb, motor deve esfriar (dT/dt < 0)."""
+    """Without losses and T > T_amb, motor must cool down (dT/dt < 0)."""
     result = dTemp_dt(80.0, 0.0, 0.0, 1.0, 5000.0, 25.0)
     assert result < 0.0
 
 
 def test_dTemp_dt_regime_convergencia():
-    """Integração Euler simples deve convergir para T_amb + Rth*P."""
+    """Simple Euler integration must converge to T_amb + Rth*P."""
     Rth, Cth, T_amb = 0.5, 10000.0, 25.0
     P_total = 200.0
     T_target = T_amb + Rth * P_total
@@ -39,7 +39,7 @@ def test_dTemp_dt_regime_convergencia():
 
 
 def test_estimate_rth_cth_positive():
-    """Rth e Cth estimados devem ser positivos."""
+    """Estimated Rth and Cth must be positive."""
     Xm_a = 2.0 * np.pi * 60.0 * (26.13 / (2.0 * np.pi * 60.0))
     Rth, Cth = estimate_rth_cth(
         Vl=220, Rs=0.435, Rr=0.816,
@@ -50,7 +50,7 @@ def test_estimate_rth_cth_positive():
 
 
 def test_estimate_rth_cth_delta_T():
-    """T_regime resultante deve ser T_amb + 50 K (tolerância 1 K)."""
+    """Resulting steady-state T must be T_amb + 50 K (tolerance 1 K)."""
     import math
     wb = 2.0 * np.pi * 60.0
     Xm_a = wb * (26.13 / wb)
@@ -72,7 +72,7 @@ def test_estimate_rth_cth_delta_T():
 
 
 def test_estimate_rth_cth_maior_motor():
-    """Motor maior (2250 HP) deve ter Rth menor que motor menor (3 HP)."""
+    """Larger motor (2250 HP) must have smaller Rth than smaller motor (3 HP)."""
     wb = 2.0 * np.pi * 60.0
     Rth_3hp, _ = estimate_rth_cth(
         Vl=220, Rs=0.435, Rr=0.816,

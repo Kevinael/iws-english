@@ -41,14 +41,14 @@ def _render_dc_nameplate(exc: str) -> None:
     _pgroup("Nameplate Data (NEMA)")
     p1, p2, p3, p4 = st.columns(4)
     _wi(_WK_DC.Pn_kW, 0.5)
-    _wi(_WK_DC.Vn_placa, 24.0)
+    _wi(_WK_DC.Vn_nameplate, 24.0)
     _wi(_WK_DC.nn_rpm, 6500.0)
-    _wi(_WK_DC.eta_placa, 0.85)
+    _wi(_WK_DC.eta_nameplate, 0.85)
     Pn_kW  = p1.number_input("$P_n$ (kW)",  min_value=0.001, key=_WK_DC.Pn_kW,    format="%.3f")
-    Vn_p   = p2.number_input("$V_n$ (V)",   min_value=1.0,   key=_WK_DC.Vn_placa, format="%.1f")
+    Vn_p   = p2.number_input("$V_n$ (V)",   min_value=1.0,   key=_WK_DC.Vn_nameplate, format="%.1f")
     nn_rpm = p3.number_input("$n_n$ (RPM)", min_value=1.0,   key=_WK_DC.nn_rpm,   format="%.0f")
     eta_p  = p4.number_input("$\\eta$",     min_value=0.01, max_value=1.0,
-                               key=_WK_DC.eta_placa, format="%.3f")
+                               key=_WK_DC.eta_nameplate, format="%.3f")
     est = estimate_dc_nameplate(Pn_kW * 1000, Vn_p, nn_rpm, eta_p, exc)
     for fld, wk in [("Ra", _WK_DC.Ra), ("La", _WK_DC.La), ("kb", _WK_DC.kb),
                     ("Va", _WK_DC.Va), ("Vf", _WK_DC.Vf), ("Rf", _WK_DC.Rf),
@@ -57,7 +57,7 @@ def _render_dc_nameplate(exc: str) -> None:
             st.session_state[wk] = est[fld]
 
     with st.expander("How were these parameters estimated? (NEMA heuristic)", expanded=False):
-        is_shunt_placa = exc == "shunt_motor"
+        is_shunt_nameplate = exc == "shunt_motor"
         st.info(
             f"**Method:** NEMA heuristic — estimation from nameplate data.  \n"
             f"**Excitation:** {DC_EXC_LABELS.get(exc, exc)}  \n"
@@ -72,7 +72,7 @@ def _render_dc_nameplate(exc: str) -> None:
         if exc != "series_motor":
             _mc1, _mc2, _mc3 = st.columns(3)
             _Vf_est = est.get("Vf", est["Va"])
-            if is_shunt_placa:
+            if is_shunt_nameplate:
                 _mc1.metric("Vf = Va (V)", f"{_Vf_est:.2f}")
             else:
                 _mc1.metric("Vf (V)", f"{_Vf_est:.2f}")

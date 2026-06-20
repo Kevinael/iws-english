@@ -37,7 +37,7 @@ def render_startup_comparison() -> None:
     Z2_start  = _z2(R2, 1.0, X2)
     Zeq_start = (1j * Xm * Z2_start) / (1j * Xm + Z2_start)
     Ztotal    = R1 + 1j * X1 + Zeq_start
-    I_dol     = abs(V1 / Ztotal)           # pico de corrente DOL (A)
+    I_dol     = abs(V1 / Ztotal)           # DOL current peak (A)
     # Nominal current: uses s ≈ 0.04
     Z2_nom   = _z2(R2, 0.04, X2)
     Zeq_nom  = (1j * Xm * Z2_nom) / (1j * Xm + Z2_nom)
@@ -99,7 +99,7 @@ def render_startup_comparison() -> None:
         fig.add_trace(go.Scatter(x=t, y=i_ss, mode="lines", name="Soft-Starter",
                                  line=dict(color=col_ss, width=2.5, dash="longdash")))
 
-    # Linha de corrente nominal
+    # Nominal current line
     fig.add_hline(y=I_nom, line_dash="dot", line_color=pt["fg"], line_width=1.2,
                   annotation_text=f"I_nom ≈ {I_nom:.1f} A",
                   annotation_font_color=pt["fg"])

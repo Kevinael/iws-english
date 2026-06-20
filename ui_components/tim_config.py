@@ -110,7 +110,7 @@ class _WidgetKeys:
     Pn_kW:        str = "wi_Pn_kW"
     N_nom:        str = "wi_N_nom"
     rend:         str = "wi_rend"
-    fp_placa:     str = "wi_fp_placa"
+    pf_nameplate:     str = "wi_fp_nameplate"
     Ip_In:        str = "wi_Ip_In"
     Tp_Tn:        str = "wi_Tp_Tn"
     is_delta:     str = "wi_is_delta"
@@ -344,7 +344,7 @@ def render_experiment_config(
         _critical_raw = MIT_CRITICAL_EVENTS.get(_etype, [])
         if _etype == "dol":
             _tc_dol = config.get("t_load", 0)
-            _critical = [("load application", r"t_{carga}", _tc_dol)] if _tc_dol > 0 else []
+            _critical = [("load application", r"t_{load}", _tc_dol)] if _tc_dol > 0 else []
         else:
             _critical = [(lbl, sym, float(config.get(key, 0))) for lbl, sym, key in _critical_raw]
         if not _tmax_auto:

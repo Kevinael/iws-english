@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-"""Testes de core/transforms.py — Clarke-Park e geração abc."""
+"""Tests for core/transforms.py — Clarke-Park and abc generation."""
 import numpy as np
 import pytest
 from core.transforms import abc_voltages, clarke_park_transform
 
 
 def test_abc_voltages_amplitude():
-    """Amplitude de cada fase deve ser sqrt(2/3) * Vl."""
+    """Amplitude of each phase must be sqrt(2/3) * Vl."""
     Vl, f = 220.0, 60.0
     t = np.linspace(0, 1/f, 1000, endpoint=False)
     Va, Vb, Vc = abc_voltages(t, Vl, f)
@@ -15,7 +15,7 @@ def test_abc_voltages_amplitude():
 
 
 def test_abc_voltages_balance():
-    """Soma instantânea Va + Vb + Vc deve ser zero (sistema equilibrado)."""
+    """Instantaneous sum Va + Vb + Vc must be zero (balanced system)."""
     Vl, f = 220.0, 60.0
     t = np.linspace(0, 1/f, 1000, endpoint=False)
     Va, Vb, Vc = abc_voltages(t, Vl, f)
@@ -23,9 +23,9 @@ def test_abc_voltages_balance():
 
 
 def test_abc_voltages_phase_shift():
-    """Vb deve estar defasado 120° de Va (atraso)."""
+    """Vb must be phase-shifted 120° from Va (lag)."""
     Vl, f = 220.0, 60.0
-    # Pico de Va em t=T/4, pico de Vb em t=T/4 + T/3
+    # Peak of Va at t=T/4, peak of Vb at t=T/4 + T/3
     T = 1.0 / f
     t_Va_peak = T / 4.0
     t_Vb_peak = T / 4.0 + T / 3.0
@@ -35,7 +35,7 @@ def test_abc_voltages_phase_shift():
 
 
 def test_abc_voltages_scalar_vs_array():
-    """Resultado escalar e vetorial devem ser idênticos."""
+    """Scalar and vector results must be identical."""
     Vl, f = 380.0, 50.0
     t_arr = np.array([0.0, 0.001, 0.005])
     Va_arr, Vb_arr, Vc_arr = abc_voltages(t_arr, Vl, f)
@@ -46,28 +46,28 @@ def test_abc_voltages_scalar_vs_array():
 
 
 def test_clarke_park_dc_in_sync_frame():
-    """No referencial síncrono, Vds deve ser zero e Vqs constante (tensão DC).
+    """In the synchronous reference, Vds must be zero and Vqs constant (DC voltage).
 
-    Isso confirma que Clarke-Park remove a componente oscilatória fundamental.
+    This confirms that Clarke-Park removes the fundamental oscillatory component.
     """
     Vl, f = 220.0, 60.0
-    t = np.linspace(0, 5/f, 50000, endpoint=False)  # 5 ciclos
+    t = np.linspace(0, 5/f, 50000, endpoint=False)  # 5 cycles
     Va, Vb, Vc = abc_voltages(t, Vl, f)
     tetae = 2.0 * np.pi * f * t
     Vds, Vqs = clarke_park_transform(Va, Vb, Vc, tetae)
-    # Vds deve ser zero (tolerância numérica)
+    # Vds must be zero (numerical tolerance)
     assert abs(np.mean(Vds)) < 1e-6
-    # Vqs deve ser constante (desvio padrão << média)
+    # Vqs must be constant (standard deviation << mean)
     assert Vqs.std() / abs(Vqs.mean()) < 1e-4
 
 
 def test_clarke_park_magnitude():
-    """Magnitude dq deve ser constante em regime estacionário."""
+    """dq magnitude must be constant at steady state."""
     Vl, f = 220.0, 60.0
     t = np.linspace(0, 1/f, 500, endpoint=False)
     Va, Vb, Vc = abc_voltages(t, Vl, f)
     tetae = 2.0 * np.pi * f * t
     Vds, Vqs = clarke_park_transform(Va, Vb, Vc, tetae)
     magnitude = np.sqrt(Vds**2 + Vqs**2)
-    # Magnitude deve ser constante (tensão DC no referencial síncrono)
+    # Magnitude must be constant (DC voltage in synchronous reference)
     assert magnitude.std() / magnitude.mean() < 0.001

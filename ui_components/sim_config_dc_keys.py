@@ -42,9 +42,9 @@ class _WidgetKeysDC:
     input_mode:    str = "wi_dc_input_mode"
     # nameplate estimator
     Pn_kW:         str = "wi_dc_Pn_kW"
-    Vn_placa:      str = "wi_dc_Vn_placa"
+    Vn_nameplate:      str = "wi_dc_Vn_nameplate"
     nn_rpm:        str = "wi_dc_nn_rpm"
-    eta_placa:     str = "wi_dc_eta_placa"
+    eta_nameplate:     str = "wi_dc_eta_nameplate"
     # DC resistance tests
     V_dc_test:     str = "wi_dc_V_dc_test"
     I_dc_test:     str = "wi_dc_I_dc_test"

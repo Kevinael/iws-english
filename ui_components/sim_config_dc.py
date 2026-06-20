@@ -251,7 +251,7 @@ def _render_dc_numerical_params(
             _tmax_check   = tmax
             _critical_dc: list[tuple[str, str, float]] = []
             if mode == "dol_dc" and config.get("start_no_load"):
-                _critical_dc = [("load application", "t_{carga}", config.get("t_load", 0))]
+                _critical_dc = [("load application", "t_{load}", config.get("t_load", 0))]
             elif mode == "resistance_dc":
                 _critical_dc = [("resistance removal", "t_{ramp}", config.get("t_ramp", 0))]
             elif mode == "braking_dc":

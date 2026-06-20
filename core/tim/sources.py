@@ -25,7 +25,7 @@ from core.tim.machine_model import MachineParams
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# FONTES DE TENSAO
+# VOLTAGE SOURCES
 # ═══════════════════════════════════════════════════════════════════════════
 
 def voltage_reduced_start(t: float, Vl_nominal: float, Vl_reduced: float, t_switch: float) -> float:
@@ -43,14 +43,14 @@ def voltage_soft_starter(t: float, Vl_nominal: float, Vl_initial: float,
 
 def voltage_sag(t: float, Vl_nominal: float, sag_magnitude: float,
                 t_start: float, t_end: float) -> float:
-    """Afundamento retangular: Vl cai para sag_magnitude*Vl em [t_start, t_end)."""
+    """Rectangular sag: Vl drops to sag_magnitude*Vl within [t_start, t_end)."""
     if t_start <= t < t_end:
         return Vl_nominal * sag_magnitude
     return Vl_nominal
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# FONTES DE TORQUE
+# TORQUE SOURCES
 # ═══════════════════════════════════════════════════════════════════════════
 
 def torque_step(t: float, Tl_before: float, Tl_after: float, t_switch: float) -> float:
@@ -58,22 +58,22 @@ def torque_step(t: float, Tl_before: float, Tl_after: float, t_switch: float) ->
 
 
 def torque_pulse(t: float, Tl_base: float, Tl_pulse: float, t_on: float, t_off: float) -> float:
-    """Tl_base fora do pulso; Tl_pulse em [t_on, t_off)."""
+    """Tl_base outside the pulse; Tl_pulse within [t_on, t_off)."""
     return Tl_pulse if t_on <= t < t_off else Tl_base
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# FABRICA DE EXPERIMENTOS
+# EXPERIMENT FACTORY
 # ═══════════════════════════════════════════════════════════════════════════
 
 def build_fns(config: dict, mp: MachineParams):
-    """Constroi (voltage_fn, torque_fn, t_eventos) para o experimento selecionado.
+    """Builds (voltage_fn, torque_fn, t_events) for the selected experiment.
 
-    Todas as funcoes retornadas sao escalares: recebem e retornam float.
-    O LSODA chama voltage_fn(t) e torque_fn(t) com escalar a cada passo.
+    All returned functions are scalar: they receive and return float.
+    LSODA calls voltage_fn(t) and torque_fn(t) with a scalar at each step.
 
     Returns:
-        (vfn, tfn, t_ev) — callables escalares e lista de instantes de evento.
+        (vfn, tfn, t_ev) — scalar callables and list of event instants.
     """
     exp  = config["exp_type"]
     t_ev: list = []
@@ -89,7 +89,7 @@ def build_fns(config: dict, mp: MachineParams):
     elif exp == "yd":
         Vy = mp.Vl / np.sqrt(3.0)
         Tl, t2, tc = config["Tl_final"], config["t_2"], config["t_load"]
-        # captura por valor: Vy e t2 sao locais ao if-branch e seriam perdidas por ref
+        # capture by value: Vy and t2 are local to the if-branch and would be lost by ref
         vfn = lambda t, _Vl=mp.Vl, _Vy=Vy, _t2=t2: voltage_reduced_start(t, _Vl, _Vy, _t2)
         tfn = lambda t, _Tl=Tl, _tc=tc: torque_step(t, 0.0, _Tl, _tc)
         t_ev = [t2, tc]
@@ -97,7 +97,7 @@ def build_fns(config: dict, mp: MachineParams):
     elif exp == "comp":
         Vr = mp.Vl * config["voltage_ratio"]
         Tl, t2, tc = config["Tl_final"], config["t_2"], config["t_load"]
-        # Vr calculado a partir de voltage_ratio — captura por valor
+        # Vr computed from voltage_ratio — capture by value
         vfn = lambda t, _Vl=mp.Vl, _Vr=Vr, _t2=t2: voltage_reduced_start(t, _Vl, _Vr, _t2)
         tfn = lambda t, _Tl=Tl, _tc=tc: torque_step(t, 0.0, _Tl, _tc)
         t_ev = [t2, tc]
@@ -106,7 +106,7 @@ def build_fns(config: dict, mp: MachineParams):
         Vi = mp.Vl * config["voltage_ratio"]
         t2, tp = config["t_2"], config["t_peak"]
         Tl, tc = config["Tl_final"], config["t_load"]
-        # Vi, t2, tp: variaveis locais — captura por valor obrigatoria
+        # Vi, t2, tp: local variables — capture by value required
         vfn = lambda t, _Vl=mp.Vl, _Vi=Vi, _t2=t2, _tp=tp: voltage_soft_starter(t, _Vl, _Vi, _t2, _tp)
         tfn = lambda t, _Tl=Tl, _tc=tc: torque_step(t, 0.0, _Tl, _tc)
         t_ev = [t2, tc]

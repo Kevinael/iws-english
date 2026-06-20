@@ -1,28 +1,28 @@
 # -*- coding: utf-8 -*-
-"""Testes para core/energy_analysis.py — compute_energy_metrics."""
+"""Tests for core/energy_analysis.py — compute_energy_metrics."""
 import numpy as np
 import pytest
 from core.tim.energy_analysis import compute_energy_metrics
 
 
-# ── fixtures locais ───────────────────────────────────────────────────────────
+# ── local fixtures ───────────────────────────────────────────────────────────
 
 def _make_res(n=2000, f=60.0, P_in=2500.0, eta=88.0, ias_rms=10.0):
-    """Resultado sintético com forma de onda senoidal pura (sem harmônicas)."""
+    """Synthetic result with pure sinusoidal waveform (no harmonics)."""
     t   = np.linspace(0, 2.0, n)
     dt  = t[1] - t[0]
     w   = 2.0 * np.pi * f
 
-    # tensão e corrente em regime permanente — fase arbitrária
-    Vqs = np.full(n, np.sqrt(2.0) * 127.0)   # constante no ref. síncrono (aprox.)
+    # voltage and current at steady state — arbitrary phase
+    Vqs = np.full(n, np.sqrt(2.0) * 127.0)   # constant in synchronous ref. (approx.)
     Vds = np.zeros(n)
     iqs = np.full(n, np.sqrt(2.0) * ias_rms)
     ids = np.zeros(n)
 
-    # ias senoidal pura → THD deve ser ≈ 0
+    # pure sinusoidal ias → THD must be ≈ 0
     ias = np.sqrt(2.0) * ias_rms * np.sin(w * t)
 
-    ss_start = n // 2   # regime a partir da metade
+    ss_start = n // 2   # steady state from the midpoint
     return {
         "t":        t,
         "Vqs":      Vqs,
@@ -38,7 +38,7 @@ def _make_res(n=2000, f=60.0, P_in=2500.0, eta=88.0, ias_rms=10.0):
     }
 
 
-# ── testes de chaves do retorno ───────────────────────────────────────────────
+# ── return key tests ───────────────────────────────────────────────
 
 def test_keys_present():
     res = compute_energy_metrics(_make_res(), tarifa_brl_kwh=0.75)
@@ -47,7 +47,7 @@ def test_keys_present():
     assert expected <= res.keys()
 
 
-# ── testes de valores físicos ─────────────────────────────────────────────────
+# ── physical value tests ─────────────────────────────────────────────────
 
 def test_positive_energy():
     res = compute_energy_metrics(_make_res(), tarifa_brl_kwh=0.75)
@@ -81,12 +81,12 @@ def test_P_in_ss_kw_conversao():
     assert res["P_in_ss_kw"] == pytest.approx(3.0)
 
 
-# ── testes de THD e FP ───────────────────────────────────────────────────────
+# ── THD and PF tests───────────────────────────────────────────────────────
 
 def test_thd_senoidal_pura_baixo():
-    """Sinal senoidal puro deve ter THD próximo de zero."""
+    """Pure sinusoidal signal must have THD close to zero."""
     res = compute_energy_metrics(_make_res(), tarifa_brl_kwh=0.75)
-    assert res["thd_pct"] < 5.0   # margem generosa por janela finita
+    assert res["thd_pct"] < 5.0   # generous margin due to finite window
 
 
 def test_fp_entre_zero_e_um():
@@ -99,18 +99,18 @@ def test_positive_pf_with_load():
     assert res["fp"] > 0.0
 
 
-# ── robustez com janela de regime curta ──────────────────────────────────────
+# ── robustness with short steady-state window──────────────────────────────────────
 
 def test_janela_curta_nao_levanta_excecao():
-    """Janela de regime < 16 amostras: thd e fp ficam em 0, sem exceção."""
+    """Steady-state window < 16 samples: thd and fp stay at 0, without exception."""
     res = _make_res(n=20)
-    res["_ss_start"] = 10   # apenas 10 amostras em regime
+    res["_ss_start"] = 10   # only 10 samples at steady state
     out = compute_energy_metrics(res, tarifa_brl_kwh=0.75)
     assert out["thd_pct"] == 0.0
     assert out["fp"] == 0.0
 
 
 def test_P_in_zero_custo_zero():
-    """Sem potência de entrada, custo anual deve ser zero."""
+    """Without input power, annual cost must be zero."""
     res = compute_energy_metrics(_make_res(P_in=0.0), tarifa_brl_kwh=0.75)
     assert res["custo_ano_brl"] == pytest.approx(0.0)

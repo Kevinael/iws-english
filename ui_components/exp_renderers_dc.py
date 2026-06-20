@@ -43,7 +43,7 @@ def _render_exp_dc_dol(mp: DCMachineParams, config: dict) -> tuple[float, float]
     if start_no_load:
         _wi(_WK_DC.dol_t_load, 2.0)
         config["t_load"] = st.number_input(
-            "Load application instant — $t_{carga}$ (s)",
+            "Load application instant — $t_{load}$ (s)",
             min_value=0.0, key=_WK_DC.dol_t_load, format="%.2f",
         )
         config["Tl_inicial"] = 0.0

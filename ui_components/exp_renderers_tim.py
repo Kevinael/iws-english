@@ -45,7 +45,7 @@ def _render_exp_dol(
         )
         config["Tl_inicial"] = 0.0
         config["Tl_final"]   = Tl_nom * pct_fin / 100.0
-        config["t_load"]    = st.number_input("Load application instant — $t_{carga}$ (s)", value=1.0, min_value=0.0, key=wk.t_load)
+        config["t_load"]    = st.number_input("Load application instant — $t_{load}$ (s)", value=1.0, min_value=0.0, key=wk.t_load)
         _ibox(
             f"<strong>t = 0 s</strong> — rated voltage ({mp.Vl:.0f} V) applied; motor accelerates unloaded (T<sub>l</sub> = 0).<br>"
             f"<strong>t = {config['t_load']:.2f} s</strong> — load of "
@@ -71,7 +71,7 @@ def _render_exp_yd(
 ) -> None:
     config["Tl_final"] = st.number_input("Load torque — $T_l$ (N·m)", value=_Tl_ref, min_value=0.0, key=wk.Tl_final)
     config["t_2"]      = st.number_input("Y → D switching instant — $t_2$ (s)", value=0.5, min_value=0.0001, key="wi_yd_t2")
-    config["t_load"]  = st.number_input("Load application instant — $t_{carga}$ (s)", value=1.0, min_value=0.0, key=wk.t_load)
+    config["t_load"]  = st.number_input("Load application instant — $t_{load}$ (s)", value=1.0, min_value=0.0, key=wk.t_load)
     _ibox(
         f"<strong>t = 0 s</strong> — motor starts in star (Y) with reduced voltage of "
         f"{mp.Vl/np.sqrt(3):.1f} V ({100/np.sqrt(3):.0f}% of V<sub>l</sub>); starting current and torque reduced to ≈ 1/3.<br>"
@@ -92,7 +92,7 @@ def _render_exp_comp(
     config["Tl_final"]      = st.number_input("Load torque — $T_l$ (N·m)", value=_Tl_ref, min_value=0.0, key=wk.Tl_final)
     config["voltage_ratio"] = st.slider("Autotransformer tap — $k$ (%)", 10, 95, 50, key="wi_comp_tap") / 100.0
     config["t_2"]           = st.number_input("Switching instant — $t_2$ (s)", value=0.5, min_value=0.0001, key="wi_comp_t2")
-    config["t_load"]       = st.number_input("Load application instant — $t_{carga}$ (s)", value=1.0, min_value=0.0, key=wk.t_load)
+    config["t_load"]       = st.number_input("Load application instant — $t_{load}$ (s)", value=1.0, min_value=0.0, key=wk.t_load)
     _ibox(
         f"<strong>t = 0 s</strong> — motor starts with reduced voltage of "
         f"{config['voltage_ratio']*100:.0f}% of V<sub>l</sub> "
@@ -116,7 +116,7 @@ def _render_exp_soft(
     config["t_2"]           = st.number_input("Voltage ramp start — $t_2$ (s)", value=0.0, min_value=0.0, key="wi_soft_t2")
     config["t_peak"]        = st.number_input("Time to reach rated voltage — $t_{peak}$ (s)", value=5.0, min_value=0.0001, key="wi_soft_t_pico")
     config["Tl_final"]      = st.number_input("Load torque — $T_l$ (N·m)", value=_Tl_ref, min_value=0.0, key=wk.Tl_final)
-    config["t_load"]       = st.number_input("Load application instant — $t_{carga}$ (s)", value=1.0, min_value=0.0, key=wk.t_load)
+    config["t_load"]       = st.number_input("Load application instant — $t_{load}$ (s)", value=1.0, min_value=0.0, key=wk.t_load)
     _ibox(
         f"<strong>t = 0 s</strong> — motor starts with initial voltage of "
         f"{config['voltage_ratio']*100:.0f}% of V<sub>l</sub> "
@@ -196,7 +196,7 @@ def _render_exp_shutdown(
     wk: Any,
 ) -> None:
     config["Tl_final"]  = st.number_input("Load torque — $T_l$ (N·m)", value=_Tl_ref, min_value=0.0, key=wk.Tl_final)
-    config["t_load"]   = st.number_input("Load application instant — $t_{carga}$ (s)", value=0.3, min_value=0.0, key=wk.t_load)
+    config["t_load"]   = st.number_input("Load application instant — $t_{load}$ (s)", value=0.3, min_value=0.0, key=wk.t_load)
     config["t_cutoff"]  = st.number_input("Shutdown instant — $t_{off}$ (s)", value=1.5, min_value=0.0001, key="wi_sd_t_cutoff")
     if config["t_load"] >= config["t_cutoff"]:
         st.error(f"t_load ({config['t_load']:.2f} s) must be less than t_off ({config['t_cutoff']:.2f} s). Apply load before shutdown.")
@@ -310,7 +310,7 @@ def _render_exp_braking(
         "Load torque — $T_l$ (N·m)", value=_Tl_ref, min_value=0.0, key=wk.Tl_final,
     )
     config["t_load"] = st.number_input(
-        "Load application instant — $t_{carga}$ (s)", value=0.3, min_value=0.0, key=wk.t_load,
+        "Load application instant — $t_{load}$ (s)", value=0.3, min_value=0.0, key=wk.t_load,
     )
     config["t_brake"] = st.number_input(
         "Braking instant — $t_{brake}$ (s)", value=1.5, min_value=0.001, key="wi_brake_t_freia",

@@ -28,7 +28,7 @@ from data.machines_mit import KRAUSE_3HP, KRAUSE_50HP, KRAUSE_2250HP
 
 @pytest.fixture
 def mp_3hp():
-    """Krause 3 HP — parâmetros de referência do livro."""
+    """Krause 3 HP — reference parameters from the textbook."""
     return MachineParams(**KRAUSE_3HP)
 
 
@@ -46,7 +46,7 @@ def mp_2250hp():
 
 @pytest.fixture
 def dol_result(mp_3hp):
-    """Simulação DOL completa do 3HP para reuso entre testes."""
+    """Full DOL simulation of the 3HP for reuse across tests."""
     from core.tim.facade import run_simulation, build_fns
     config = {"exp_type": "dol", "Tl_final": 12.0, "t_load": 1.5}
     vfn, tfn, _ = build_fns(config, mp_3hp)

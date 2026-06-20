@@ -30,7 +30,7 @@ def abc_voltages(t, Vl: float, f: float):
 
     Args:
         t:   instante(s) em segundos — escalar ou array NumPy.
-        Vl:  tensao de linha pico-a-pico (V).
+        Vl:  peak-to-peak line voltage (V).
         f:   frequencia (Hz).
 
     Returns:

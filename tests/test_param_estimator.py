@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Testes de core/param_estimator.py — estimação por dados de placa e ensaios IEEE 112."""
+"""Tests for core/param_estimator.py — estimation from nameplate data and IEEE 112 tests."""
 import math
 
 import pytest
@@ -42,21 +42,21 @@ def test_estimate_Xlr_positive():
 
 
 def test_estimate_Xm_greater_than_leakage():
-    """Xm deve ser maior que as reatâncias de dispersão."""
+    """Xm must be greater than the leakage reactances."""
     res = estimate_params(**BASE)
     assert res["Xm"] > res["Xls"]
     assert res["Xm"] > res["Xlr"]
 
 
 def test_estimate_nema_b_ratio():
-    """Distribuição NEMA B: Xls/Xlr ≈ 0.4/0.6 = 2/3."""
+    """NEMA B distribution: Xls/Xlr ≈ 0.4/0.6 = 2/3."""
     res = estimate_params(**BASE)
     ratio = res["Xls"] / res["Xlr"]
     assert abs(ratio - 2.0/3.0) < 0.05
 
 
 def test_estimate_delta_connection():
-    """Ligação delta deve retornar sucesso e parâmetros coerentes."""
+    """Delta connection must return success and coherent parameters."""
     params = {**BASE, "is_delta": True}
     res = estimate_params(**params)
     assert res.get("success") is True
@@ -64,7 +64,7 @@ def test_estimate_delta_connection():
 
 
 def test_estimate_large_motor():
-    """Motor de grande porte (2250 HP) deve convergir."""
+    """Large motor (2250 HP) must converge."""
     res = estimate_params(
         Vl=2300, f=60, p=4, Pn_kW=1678, N_nom=1786,
         rend=0.965, fp=0.89, Ip_In=5.5, Tp_Tn=1.3, is_delta=False,
@@ -75,48 +75,48 @@ def test_estimate_large_motor():
 
 
 # ═════════════════════════════════════════════════════════════════════════════
-# Testes para estimate_params_ieee_tests() — IEEE Std 112-2017
+# Tests for estimate_params_ieee_tests() — IEEE Std 112-2017
 # ═════════════════════════════════════════════════════════════════════════════
 
-# Parâmetros conhecidos do preset Krause 3 HP — usados para round-trip
+# Known parameters of the Krause 3 HP preset — used for round-trip
 KRAUSE = dict(
     Rs=0.435, Rr=0.816, Xm=26.13, Xls=0.754, Xlr=0.754,
     Vl_nom=220.0, f_nom=60.0, Rfe_alvo=400.0,
 )
 
 
-def _gerar_medicoes_krause_Y(f_lr: float = 15.0):
-    """Gera medições sintéticas a partir dos parâmetros do Krause 3 HP (ligação Y).
+def _make_krause_measurements_Y(f_lr: float = 15.0):
+    """Generate synthetic measurements from the Krause 3 HP parameters (Y connection).
 
-    Retorna kwargs prontos para estimate_params_ieee_tests().
+    Returns kwargs ready for estimate_params_ieee_tests().
     """
     Rs, Rr, Xls, Xlr = KRAUSE["Rs"], KRAUSE["Rr"], KRAUSE["Xls"], KRAUSE["Xlr"]
     Xm, Rfe = KRAUSE["Xm"], KRAUSE["Rfe_alvo"]
     Vl_nom, f_nom = KRAUSE["Vl_nom"], KRAUSE["f_nom"]
     Vf_nom = Vl_nom / math.sqrt(3.0)
 
-    # ── Ensaio CC: V_dc/I_dc = 2·Rs (ligação Y) ────────────────────────────
+    # ── DC test: V_dc/I_dc = 2·Rs (Y connection) ──────────────────────────
     I_dc = 11.5
     V_dc = 2.0 * Rs * I_dc
 
-    # ── Ensaio em vazio (s ≈ 0): I_mu via Xm+Xls, I_fe via Rfe ─────────────
-    # Aproximação: tensão sobre o ramo de magnetização ≈ Vf_nom (queda em Rs+jXls pequena)
+    # ── No-load test (s ≈ 0): I_mu via Xm+Xls, I_fe via Rfe ───────────────
+    # Approximation: voltage across the magnetization branch ≈ Vf_nom (small drop in Rs+jXls)
     E1_aprox = Vf_nom
     I_fe = E1_aprox / Rfe
     I_mu = E1_aprox / (Xm + Xls)
     I_nl = math.sqrt(I_fe ** 2 + I_mu ** 2)
 
-    # Potência em vazio: Joule no estator + perdas no ferro + perdas mecânicas
-    # Adotamos Pfw = 0 (a função usará 0,8% de P_nl como heurística)
+    # No-load power: stator Joule + iron losses + mechanical losses
+    # We adopt Pfw = 0 (the function will use 0.8% of P_nl as a heuristic)
     # P_nl·(1 - 0.008) = 3·Rs·I_nl² + 3·E1²/Rfe
     Pfe_3ph = 3.0 * E1_aprox ** 2 / Rfe
     P_joule_st = 3.0 * Rs * I_nl ** 2
     P_nl = (P_joule_st + Pfe_3ph) / (1.0 - 0.008)
 
-    # ── Ensaio bloqueado (s = 1, Xm >> Xlr): Zk = (Rs+Rr) + j·(Xls+Xlr) ────
+    # ── Locked-rotor test (s = 1, Xm >> Xlr): Zk = (Rs+Rr) + j·(Xls+Xlr) ──
     Rk = Rs + Rr
     Xk_60 = Xls + Xlr
-    # Escala linear para a frequência reduzida do ensaio
+    # Linear scaling to the reduced test frequency
     Xk_lr = Xk_60 * (f_lr / f_nom)
     Zk_lr = math.sqrt(Rk ** 2 + Xk_lr ** 2)
     I_lr = 14.0
@@ -133,20 +133,20 @@ def _gerar_medicoes_krause_Y(f_lr: float = 15.0):
 
 
 def test_ieee_returns_success():
-    """Medições sintéticas Krause 3 HP devem produzir success=True."""
-    res = estimate_params_ieee_tests(**_gerar_medicoes_krause_Y())
+    """Synthetic Krause 3 HP measurements must produce success=True."""
+    res = estimate_params_ieee_tests(**_make_krause_measurements_Y())
     assert res.get("success") is True, res.get("error")
 
 
 def test_ieee_krause_round_trip_Y_Rs():
-    """Round-trip Y: Rs estimado deve bater com Rs do preset (±2%)."""
-    res = estimate_params_ieee_tests(**_gerar_medicoes_krause_Y())
+    """Round-trip Y: estimated Rs must match the preset Rs (±2%)."""
+    res = estimate_params_ieee_tests(**_make_krause_measurements_Y())
     assert abs(res["Rs"] - KRAUSE["Rs"]) / KRAUSE["Rs"] < 0.02
 
 
 def test_ieee_krause_round_trip_Y_Rr():
-    """Round-trip Y: Rr estimado deve bater com Rr do preset (±5%)."""
-    res = estimate_params_ieee_tests(**_gerar_medicoes_krause_Y())
+    """Round-trip Y: estimated Rr must match the preset Rr (±5%)."""
+    res = estimate_params_ieee_tests(**_make_krause_measurements_Y())
     assert abs(res["Rr"] - KRAUSE["Rr"]) / KRAUSE["Rr"] < 0.05
 
 
@@ -156,7 +156,7 @@ def test_ieee_krause_round_trip_Y_Xls_Xlr():
     The E1 iteration moves X1 away from frac·Xk (fraction is not preserved
     after convergence), so we only verify the conservation identity and signs.
     """
-    res = estimate_params_ieee_tests(**_gerar_medicoes_krause_Y())
+    res = estimate_params_ieee_tests(**_make_krause_measurements_Y())
     Xk = res["Xk"]
     assert abs(res["Xls"] + res["Xlr"] - Xk) < 1e-3
     assert res["Xls"] > 0.0
@@ -165,21 +165,21 @@ def test_ieee_krause_round_trip_Y_Xls_Xlr():
 
 def test_ieee_krause_round_trip_Y_Xm():
     """Round-trip Y: Xm estimated within 10% of preset (E1 iteration shifts Xls slightly)."""
-    res = estimate_params_ieee_tests(**_gerar_medicoes_krause_Y())
+    res = estimate_params_ieee_tests(**_make_krause_measurements_Y())
     assert abs(res["Xm"] - KRAUSE["Xm"]) / KRAUSE["Xm"] < 0.10
 
 
 def test_ieee_krause_round_trip_Y_Rfe():
-    """Round-trip Y: Rfe estimado deve bater com Rfe-alvo (±5%)."""
-    res = estimate_params_ieee_tests(**_gerar_medicoes_krause_Y())
+    """Round-trip Y: estimated Rfe must match the target Rfe (±5%)."""
+    res = estimate_params_ieee_tests(**_make_krause_measurements_Y())
     assert abs(res["Rfe"] - KRAUSE["Rfe_alvo"]) / KRAUSE["Rfe_alvo"] < 0.05
 
 
 def test_ieee_positive_quantities():
-    """Todas as grandezas resultantes devem ser positivas."""
-    res = estimate_params_ieee_tests(**_gerar_medicoes_krause_Y())
+    """All resulting quantities must be positive."""
+    res = estimate_params_ieee_tests(**_make_krause_measurements_Y())
     for k in ("Rs", "Rr", "Xm", "Xls", "Xlr", "Rfe"):
-        assert res[k] > 0.0, f"{k} = {res[k]} não é positivo"
+        assert res[k] > 0.0, f"{k} = {res[k]} is not positive"
 
 
 @pytest.mark.parametrize("classe,frac_esperada", [
@@ -191,7 +191,7 @@ def test_ieee_split_classes(classe, frac_esperada):
     The E1 iteration moves the final Xls away from frac·Xk, so we verify the
     reported fraction and the conservation identity Xls + Xlr = Xk instead.
     """
-    args = _gerar_medicoes_krause_Y()
+    args = _make_krause_measurements_Y()
     args["split"] = classe
     res = estimate_params_ieee_tests(**args)
     assert res["success"] is True
@@ -202,7 +202,7 @@ def test_ieee_split_classes(classe, frac_esperada):
 
 def test_ieee_split_custom():
     """split='custom' uses the provided Xls_frac; conservation holds."""
-    args = _gerar_medicoes_krause_Y()
+    args = _make_krause_measurements_Y()
     args["split"] = "custom"
     args["Xls_frac"] = 0.35
     res = estimate_params_ieee_tests(**args)
@@ -213,8 +213,8 @@ def test_ieee_split_custom():
 
 
 def test_ieee_pfw_zero_usa_heuristica():
-    """Pfw = 0 → função adota Pfw_used = 0,8% de P_nl."""
-    args = _gerar_medicoes_krause_Y()
+    """Pfw = 0 → function adopts Pfw_used = 0.8% of P_nl."""
+    args = _make_krause_measurements_Y()
     args["Pfw"] = 0.0
     res = estimate_params_ieee_tests(**args)
     assert res["success"] is True
@@ -223,8 +223,8 @@ def test_ieee_pfw_zero_usa_heuristica():
 
 
 def test_ieee_pfw_informado_usa_valor_dado():
-    """Pfw informado deve ser usado integralmente (sem heurística)."""
-    args = _gerar_medicoes_krause_Y()
+    """Provided Pfw must be used in full (no heuristic)."""
+    args = _make_krause_measurements_Y()
     args["Pfw"] = 25.0
     res = estimate_params_ieee_tests(**args)
     assert res["success"] is True
@@ -232,8 +232,8 @@ def test_ieee_pfw_informado_usa_valor_dado():
 
 
 def test_ieee_freq_lr_correcao():
-    """Xk a 60 Hz deve ser escalado linearmente de Xk_lr a f_lr."""
-    args = _gerar_medicoes_krause_Y(f_lr=15.0)
+    """Xk at 60 Hz must be linearly scaled from Xk_lr at f_lr."""
+    args = _make_krause_measurements_Y(f_lr=15.0)
     res = estimate_params_ieee_tests(**args)
     assert res["success"] is True
     # Xk_lr · (f_nl / f_lr) = Xk
@@ -241,9 +241,9 @@ def test_ieee_freq_lr_correcao():
 
 
 def test_ieee_rr_negativo_retorna_erro():
-    """Rs > Rk deve retornar success=False com mensagem descritiva."""
-    args = _gerar_medicoes_krause_Y()
-    # Inflar Rs via ensaio CC: V_dc alto, I_dc baixo → Rs imenso
+    """Rs > Rk must return success=False with a descriptive message."""
+    args = _make_krause_measurements_Y()
+    # Inflate Rs via DC test: high V_dc, low I_dc → huge Rs
     args["V_dc"] = 200.0
     args["I_dc"] = 1.0
     res = estimate_params_ieee_tests(**args)
@@ -251,40 +251,40 @@ def test_ieee_rr_negativo_retorna_erro():
     assert "Rr" in res["error"] or "Rs" in res["error"]
 
 
-def test_ieee_rejeita_v_dc_invalido():
+def test_ieee_rejects_invalid_v_dc():
     """V_dc <= 0 must return success=False with a DC-test error message."""
-    args = _gerar_medicoes_krause_Y()
+    args = _make_krause_measurements_Y()
     args["V_dc"] = 0.0
     res = estimate_params_ieee_tests(**args)
     assert res["success"] is False
     assert "DC" in res["error"] or "V_dc" in res["error"]
 
 
-def test_ieee_rejeita_pnl_invalido():
+def test_ieee_rejects_invalid_pnl():
     """P_nl <= 0 must return success=False with a no-load error message."""
-    args = _gerar_medicoes_krause_Y()
+    args = _make_krause_measurements_Y()
     args["P_nl"] = -1.0
     res = estimate_params_ieee_tests(**args)
     assert res["success"] is False
     assert "No-load" in res["error"] or "P_nl" in res["error"]
 
 
-def test_ieee_rejeita_zk_inconsistente():
-    """Rk ≥ Zk (fator de potência > 1) deve retornar success=False."""
-    args = _gerar_medicoes_krause_Y()
-    # Inflar P_lr além do possível: Rk > Zk
+def test_ieee_rejects_inconsistent_zk():
+    """Rk ≥ Zk (power factor > 1) must return success=False."""
+    args = _make_krause_measurements_Y()
+    # Inflate P_lr beyond the possible: Rk > Zk
     args["P_lr"] = 10000.0
     res = estimate_params_ieee_tests(**args)
     assert res["success"] is False
-    assert "bloqueado" in res["error"] or "Rk" in res["error"]
+    assert "Locked-rotor" in res["error"] or "Rk" in res["error"]
 
 
 def test_ieee_delta_connection():
-    """Ligação Δ deve produzir Rs coerente (Rs_Y = Rs_Δ · 3) com V_dc/I_dc ajustados."""
-    args = _gerar_medicoes_krause_Y()
-    # Em Δ: Rs_fase = (V_dc/I_dc)·1,5 → para Rs = 0.435, V_dc/I_dc = 0.29
+    """Δ connection must produce a coherent Rs (Rs_Y = Rs_Δ · 3) with adjusted V_dc/I_dc."""
+    args = _make_krause_measurements_Y()
+    # In Δ: Rs_phase = (V_dc/I_dc)·1.5 → for Rs = 0.435, V_dc/I_dc = 0.29
     args["is_delta"] = True
-    # Ajustar V_dc para obter mesmo Rs em Δ: V_dc = Rs · I_dc / 1,5
+    # Adjust V_dc to obtain the same Rs in Δ: V_dc = Rs · I_dc / 1.5
     args["V_dc"] = KRAUSE["Rs"] * args["I_dc"] / 1.5
     res = estimate_params_ieee_tests(**args)
     assert res["success"] is True
@@ -292,18 +292,18 @@ def test_ieee_delta_connection():
 
 
 def test_ieee_same_interface_as_nameplate():
-    """As chaves comuns devem coincidir entre os dois estimadores."""
-    res_ieee = estimate_params_ieee_tests(**_gerar_medicoes_krause_Y())
-    res_placa = estimate_params(**BASE)
-    # Chaves de parâmetros do circuito equivalente que populam MachineParams
-    chaves_obrigatorias = {"success", "Rs", "Rr", "Xm", "Xls", "Xlr", "Rfe"}
-    assert chaves_obrigatorias.issubset(res_ieee.keys())
-    assert chaves_obrigatorias.issubset(res_placa.keys())
+    """The common keys must match between the two estimators."""
+    res_ieee = estimate_params_ieee_tests(**_make_krause_measurements_Y())
+    res_nameplate = estimate_params(**BASE)
+    # Equivalent-circuit parameter keys that populate MachineParams
+    required_keys = {"success", "Rs", "Rr", "Xm", "Xls", "Xlr", "Rfe"}
+    assert required_keys.issubset(res_ieee.keys())
+    assert required_keys.issubset(res_nameplate.keys())
 
 
 def test_ieee_split_invalido_cai_para_b():
     """Unknown split key must fall back to NEMA B (40%) and report split_used='B'."""
-    args = _gerar_medicoes_krause_Y()
+    args = _make_krause_measurements_Y()
     args["split"] = "Z_INEXISTENTE"
     res = estimate_params_ieee_tests(**args)
     assert res["success"] is True
@@ -312,8 +312,8 @@ def test_ieee_split_invalido_cai_para_b():
 
 
 def test_ieee_xm_maior_que_dispersoes():
-    """Xm deve ser muito maior que Xls e Xlr (motor saudável)."""
-    res = estimate_params_ieee_tests(**_gerar_medicoes_krause_Y())
+    """Xm must be much greater than Xls and Xlr (healthy motor)."""
+    res = estimate_params_ieee_tests(**_make_krause_measurements_Y())
     assert res["Xm"] > res["Xls"]
     assert res["Xm"] > res["Xlr"]
     assert res["Xm"] > 5.0 * res["Xls"]

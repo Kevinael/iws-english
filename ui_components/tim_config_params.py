@@ -203,16 +203,16 @@ def _render_params_nameplate(wk: object, dis: bool) -> _ElecParams:
         key=wk.N_nom, disabled=dis,
         help="Full-load rated speed. Number of poles is deduced automatically.",
     )
-    rend_placa = st.number_input(
+    eff_nameplate = st.number_input(
         "Rated efficiency η (e.g. 0.91)",
         min_value=0.01, max_value=0.999, value=0.85, step=0.01, format="%.3f",
         key=wk.rend, disabled=dis,
         help="Full-load efficiency — η = P_shaft / P_electrical.",
     )
-    fp_placa = st.number_input(
+    pf_nameplate = st.number_input(
         "Rated power factor cos(φ) (e.g. 0.85)",
         min_value=0.01, max_value=0.999, value=0.85, step=0.01, format="%.3f",
-        key=wk.fp_placa, disabled=dis,
+        key=wk.pf_nameplate, disabled=dis,
         help="cos(φ) at full rated load.",
     )
     Ip_In = st.number_input(
@@ -229,42 +229,42 @@ def _render_params_nameplate(wk: object, dis: bool) -> _ElecParams:
     )
     st.markdown('</div>', unsafe_allow_html=True)
 
-    resultado = _cached_estimate_params(Vl, f, Pn_kW, N_nom, rend_placa, fp_placa, Ip_In, Tp_Tn, is_delta)
+    result = _cached_estimate_params(Vl, f, Pn_kW, N_nom, eff_nameplate, pf_nameplate, Ip_In, Tp_Tn, is_delta)
 
-    if not resultado["success"]:
-        st.error(f"Inconsistent nameplate data: {resultado['error']}  Default parameters (Krause 3 HP) will be used.")
+    if not result["success"]:
+        st.error(f"Inconsistent nameplate data: {result['error']}  Default parameters (Krause 3 HP) will be used.")
         Rs, Rr, Xm, Xls, Xlr = 0.435, 0.816, 26.13, 0.754, 0.754
         Rfe = _DEFAULTS["Rfe"]
     else:
-        Rs, Rr    = resultado["Rs"],  resultado["Rr"]
-        Xm        = resultado["Xm"]
-        Xls       = resultado["Xls"]
-        Xlr       = resultado["Xlr"]
-        Rfe       = resultado["Rfe"]
+        Rs, Rr    = result["Rs"],  result["Rr"]
+        Xm        = result["Xm"]
+        Xls       = result["Xls"]
+        Xlr       = result["Xlr"]
+        Rfe       = result["Rfe"]
         ligacao = "Delta (Δ)" if is_delta else "Star (Y)"
         with st.expander("How were these parameters estimated?", expanded=True):
             st.info(
                 f"**Method:** IEEE T-equivalent circuit — steady-state.\n\n"
                 f"**Assumed connection:** {ligacao}  "
-                f"| **Poles deduced from nameplate:** {resultado['p_est']}\n\n"
+                f"| **Poles deduced from nameplate:** {result['p_est']}\n\n"
                 f"**Electrical assumptions:**\n"
                 f"- NEMA B distribution: $X_{{ls}}$ = 40% · $X_k$, $X_{{lr}}$ = 60% · $X_k$\n"
                 f"- Starting power factor: cos(φₚ) = 0.20\n"
                 f"- Air-gap voltage: $E_1 \\approx V_f - I_n \\cdot |Z_s|$ "
-                f"= {resultado['E1']:.2f} V (stator drop subtracted)\n"
+                f"= {result['E1']:.2f} V (stator drop subtracted)\n"
                 f"- $R_{{fe}}$ estimated heuristically: core losses ≈ 20% of total losses "
-                f"({resultado['P_fe_total']:.1f} W) referred to $E_1$ → $R_{{fe}}$ = {Rfe:.1f} Ω"
+                f"({result['P_fe_total']:.1f} W) referred to $E_1$ → $R_{{fe}}$ = {Rfe:.1f} Ω"
             )
             c1, c2, c3, c4 = st.columns(4)
-            c1.metric("Synchronous speed (Estimated)",    f"{resultado['n_s']:.1f} RPM")
-            c2.metric("Rated slip sₙ (Estimated)",        f"{resultado['s_n']*100:.2f}%")
-            c3.metric("Rated current Iₙ (Estimated)",     f"{resultado['In_lin']:.2f} A")
-            c4.metric("Rated torque Tₙ (Estimated)",      f"{resultado['Tn']:.2f} N·m")
+            c1.metric("Synchronous speed (Estimated)",    f"{result['n_s']:.1f} RPM")
+            c2.metric("Rated slip sₙ (Estimated)",        f"{result['s_n']*100:.2f}%")
+            c3.metric("Rated current Iₙ (Estimated)",     f"{result['In_lin']:.2f} A")
+            c4.metric("Rated torque Tₙ (Estimated)",      f"{result['Tn']:.2f} N·m")
             c5, c6, c7, c8 = st.columns(4)
-            c5.metric("Starting current Iₚ (Estimated)",  f"{resultado['Ip_fase']:.2f} A")
-            c6.metric("Starting torque Tₚ (Estimated)",   f"{resultado['Tp']:.2f} N·m")
-            c7.metric("Zₖ (Estimated)",                   f"{resultado['Zk']:.4f} Ω")
-            c8.metric("Xₖ (Estimated)",                   f"{resultado['Xk']:.4f} Ω")
+            c5.metric("Starting current Iₚ (Estimated)",  f"{result['Ip_fase']:.2f} A")
+            c6.metric("Starting torque Tₚ (Estimated)",   f"{result['Tp']:.2f} N·m")
+            c7.metric("Zₖ (Estimated)",                   f"{result['Zk']:.4f} Ω")
+            c8.metric("Xₖ (Estimated)",                   f"{result['Xk']:.4f} Ω")
             st.markdown("**Estimated equivalent circuit parameters:**")
             p1, p2, p3, p4, p5, p6 = st.columns(6)
             p1.metric("Rₛ (Estimated)",  f"{Rs:.4f} Ω")
@@ -530,7 +530,7 @@ def _render_ieee_test_inputs(
 
 
 def _render_ieee_results(
-    resultado: dict,
+    result: dict,
     f_nl: float, f_lr: float,
     V_dc: float, I_dc: float,
     Pfw: float,
@@ -543,8 +543,8 @@ def _render_ieee_results(
         st.markdown(
             f"**Method:** IEEE Std 112-2017 — three physical tests. "
             f"**Connection:** {ligacao}. "
-            f"**Distribution:** {MIT_IEEE_SPLIT_LABELS[resultado['split_used']]} "
-            f"(fraction $X_{{ls}}/X_k$ = {resultado['Xls_frac']:.2f})."
+            f"**Distribution:** {MIT_IEEE_SPLIT_LABELS[result['split_used']]} "
+            f"(fraction $X_{{ls}}/X_k$ = {result['Xls_frac']:.2f})."
         )
 
         st.markdown("##### Physical tests")
@@ -556,9 +556,9 @@ def _render_ieee_results(
         with t2:
             st.markdown("**No-Load Test**")
             st.markdown(
-                f"$E_{{1,NL}}$ = **{resultado['E1_nl']:.2f} V**  \n"
-                f"$P_{{fe,3φ}}$ = **{resultado['Pfe_3ph']:.2f} W**  \n"
-                f"$P_{{fw}}$ = **{resultado['Pfw_used']:.2f} W**"
+                f"$E_{{1,NL}}$ = **{result['E1_nl']:.2f} V**  \n"
+                f"$P_{{fe,3φ}}$ = **{result['Pfe_3ph']:.2f} W**  \n"
+                f"$P_{{fw}}$ = **{result['Pfw_used']:.2f} W**"
             )
             st.caption(
                 "Pfw measured" if Pfw > 0
@@ -567,12 +567,12 @@ def _render_ieee_results(
         with t3:
             st.markdown("**Locked Rotor Test**")
             st.markdown(
-                f"$Z_k$ = **{resultado['Zk']:.4f} Ω**  \n"
-                f"$R_k$ = **{resultado['Rk']:.4f} Ω**  \n"
-                f"$X_k$ @ {f_nl:.0f} Hz = **{resultado['Xk']:.4f} Ω**"
+                f"$Z_k$ = **{result['Zk']:.4f} Ω**  \n"
+                f"$R_k$ = **{result['Rk']:.4f} Ω**  \n"
+                f"$X_k$ @ {f_nl:.0f} Hz = **{result['Xk']:.4f} Ω**"
             )
             st.caption(
-                f"$X_{{k,LR}}$ = {resultado['Xk_lr']:.4f} Ω · "
+                f"$X_{{k,LR}}$ = {result['Xk_lr']:.4f} Ω · "
                 f"correction $f_{{NL}}/f_{{LR}}$ = {(f_nl/f_lr):.2f}"
             )
 
@@ -580,10 +580,10 @@ def _render_ieee_results(
 
         st.markdown("##### Intermediate indicators")
         c1, c2, c3, c4 = st.columns(4)
-        c1.metric("E₁ (no-load)",          f"{resultado['E1_nl']:.2f} V")
-        c2.metric("Iμ magnetizing current", f"{resultado['I_mu']:.3f} A")
-        c3.metric("Pfe three-phase",        f"{resultado['Pfe_3ph']:.1f} W")
-        c4.metric("Pfw used",               f"{resultado['Pfw_used']:.1f} W")
+        c1.metric("E₁ (no-load)",          f"{result['E1_nl']:.2f} V")
+        c2.metric("Iμ magnetizing current", f"{result['I_mu']:.3f} A")
+        c3.metric("Pfe three-phase",        f"{result['Pfe_3ph']:.1f} W")
+        c4.metric("Pfw used",               f"{result['Pfw_used']:.1f} W")
 
         st.markdown("##### Estimated parameters (equivalent circuit)")
         r1 = st.columns(3)
@@ -615,28 +615,28 @@ def _render_params_ieee(wk: object, dis: bool) -> _ElecParams:
         _render_ieee_test_inputs(wk, dis, Vl, f, is_delta)
     )
 
-    resultado = _cached_estimate_ieee(
+    result = _cached_estimate_ieee(
         V_dc, I_dc, is_delta,
         Vl_nl, I_nl, P_nl, f_nl,
         Vl_lr, I_lr, P_lr, f_lr,
         Pfw, split_code, Xls_frac,
     )
 
-    if not resultado["success"]:
+    if not result["success"]:
         st.error(
-            f"Inconsistent IEEE tests: {resultado['error']}  "
+            f"Inconsistent IEEE tests: {result['error']}  "
             "Default parameters (Krause 3 HP) will be used."
         )
         Rs, Rr, Xm, Xls, Xlr = 0.435, 0.816, 26.13, 0.754, 0.754
         Rfe = _DEFAULTS["Rfe"]
     else:
-        Rs  = resultado["Rs"]
-        Rr  = resultado["Rr"]
-        Xm  = resultado["Xm"]
-        Xls = resultado["Xls"]
-        Xlr = resultado["Xlr"]
-        Rfe = resultado["Rfe"]
-        _render_ieee_results(resultado, f_nl, f_lr, V_dc, I_dc, Pfw, Rs, Rr, Xm, Xls, Xlr, Rfe, is_delta)
+        Rs  = result["Rs"]
+        Rr  = result["Rr"]
+        Xm  = result["Xm"]
+        Xls = result["Xls"]
+        Xlr = result["Xlr"]
+        Rfe = result["Rfe"]
+        _render_ieee_results(result, f_nl, f_lr, V_dc, I_dc, Pfw, Rs, Rr, Xm, Xls, Xlr, Rfe, is_delta)
 
         st.divider()
         if st.button(
@@ -829,10 +829,10 @@ def _render_params_editable(wk: object) -> tuple[MachineParams, int, float]:
         horizontal=True,
     )
     st.session_state["_param_source_idx"] = MIT_PARAM_SOURCE_LABELS.index(param_source_label)
-    use_placa = param_source_label.startswith("Estimate")
+    use_nameplate = param_source_label.startswith("Estimate")
     use_ieee  = param_source_label.startswith("Determine")
 
-    if use_placa:
+    if use_nameplate:
         ep = _render_params_nameplate(wk, dis)
     elif use_ieee:
         ep = _render_params_ieee(wk, dis)

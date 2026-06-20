@@ -65,15 +65,15 @@ MIT_EXP_OPTIONS: dict[str, str] = {
 
 MIT_CRITICAL_EVENTS: dict[str, list[tuple[str, str, str]]] = {
     "yd":         [("Y→D switching",                  r"t_2",       "t_2"),
-                   ("load application",               r"t_{carga}", "t_load")],
+                   ("load application",               r"t_{load}", "t_load")],
     "comp":       [("autotransformer switching",      r"t_2",       "t_2"),
-                   ("load application",               r"t_{carga}", "t_load")],
+                   ("load application",               r"t_{load}", "t_load")],
     "soft":       [("ramp start",                     r"t_2",       "t_2"),
                    ("rated voltage reached",          r"t_{pico}",  "t_peak"),
-                   ("load application",               r"t_{carga}", "t_load")],
+                   ("load application",               r"t_{load}", "t_load")],
     "load_pulse":[("load application",               r"t_{on}",    "t_load"),
                    ("load removal",                   r"t_{off}",   "t_removal")],
     "generator":    [("prime mover torque application", r"t_2",       "t_2")],
-    "shutdown":   [("load application",               r"t_{carga}", "t_load"),
+    "shutdown":   [("load application",               r"t_{load}", "t_load"),
                    ("shutdown",                       r"t_{des}",   "t_cutoff")],
 }

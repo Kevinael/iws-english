@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Testes para core/sim_diagnostics.py — Insight e generate_insights."""
+"""Tests for core/sim_diagnostics.py — Insight and generate_insights."""
 import numpy as np
 import pytest
 from core.tim.diagnostics import (
@@ -10,10 +10,10 @@ from core.tim.diagnostics import (
 )
 
 
-# ── fixture de MachineParams mínimo (não depende de simulação completa) ───────
+# ── minimal MachineParams fixture (does not depend on full simulation) ───────
 
 class _MP:
-    """Substituto mínimo de MachineParams para os testes de diagnóstico."""
+    """Minimal MachineParams substitute for the diagnostic tests."""
     def __init__(self):
         self.wb  = 2 * np.pi * 60
         self.p   = 4
@@ -26,16 +26,16 @@ def mp():
     return _MP()
 
 
-# ── resultado sintético em regime permanente ──────────────────────────────────
+# ── synthetic steady-state result ──────────────────────────────────
 
 def _make_res(n=500, s_ss=0.03, n_sync=1800.0, Te_ss=12.0, steady=True):
-    """Cria dict de resultado compatível com generate_insights."""
+    """Creates a result dict compatible with generate_insights."""
     t     = np.linspace(0, 3.0, n)
     ws    = n_sync * 2 * np.pi / 60.0
     wr_ss = ws * (1.0 - s_ss)
     n_ss  = n_sync * (1.0 - s_ss)
 
-    # trajetória: parte de 0, estabiliza no segundo terço
+    # trajectory: starts from 0, stabilizes in the second third
     ss_start = n // 3
     wr = np.concatenate([
         np.linspace(0, wr_ss, ss_start),
@@ -56,7 +56,7 @@ def _make_res(n=500, s_ss=0.03, n_sync=1800.0, Te_ss=12.0, steady=True):
     }
 
 
-# ── testes de Insight ─────────────────────────────────────────────────────────
+# ── Insight tests ─────────────────────────────────────────────────────────
 
 def test_insight_niveis_validos():
     for lvl in ("info", "warning", "error"):
@@ -70,12 +70,12 @@ def test_insight_nivel_invalido():
 
 
 def test_insight_repr():
-    i = Insight("info", "Título", "Corpo")
+    i = Insight("info", "Title", "Body")
     assert "info" in repr(i)
-    assert "Título" in repr(i)
+    assert "Title" in repr(i)
 
 
-# ── testes de _is_steady_state_reached ───────────────────────────────────────
+# ── _is_steady_state_reached tests ───────────────────────────────────────
 
 def test_steady_state_constante():
     t  = np.linspace(0, 2.0, 300)
@@ -95,7 +95,7 @@ def test_steady_state_ss_start_no_fim():
     assert _is_steady_state_reached(wr, t, ss_start=299) is False
 
 
-# ── testes de _sort_insights ──────────────────────────────────────────────────
+# ── _sort_insights tests ──────────────────────────────────────────────────
 
 def test_sort_ordem_decrescente():
     ins = [
@@ -107,7 +107,7 @@ def test_sort_ordem_decrescente():
     assert [i.level for i in s] == ["error", "warning", "info"]
 
 
-# ── testes de generate_insights — casos básicos ───────────────────────────────
+# ── generate_insights tests — basic cases ───────────────────────────────
 
 def test_empty_return_short_data(mp):
     res = {"t": [0, 1], "wr": [0, 1], "Te": [0, 1], "n": [0, 1]}
@@ -128,7 +128,7 @@ def test_tipo_info_balanco(mp):
     assert info[0].level == "info"
 
 
-# ── testes de sobrecarga (escorregamento > 5%) ───────────────────────────────
+# ── overload tests (slip > 5%) ───────────────────────────────
 
 def test_critical_slip_generates_error(mp):
     res = _make_res(s_ss=0.10, Te_ss=25.0)
@@ -148,7 +148,7 @@ def test_normal_slip_no_overload(mp):
     assert not any("OVERLOAD" in i.title.upper() for i in ins)
 
 
-# ── testes de subcarga ────────────────────────────────────────────────────────
+# ── underload tests ────────────────────────────────────────────────────────
 
 def test_underload_generates_warning(mp):
     res = _make_res(s_ss=0.002, Te_ss=2.0)
@@ -162,7 +162,7 @@ def test_no_underload_with_normal_slip(mp):
     assert not any("Underload" in i.title for i in ins)
 
 
-# ── testes de reserva de conjugado ───────────────────────────────────────────
+# ── torque reserve tests ───────────────────────────────────────────
 
 def test_ample_reserve_generates_info(mp):
     res = _make_res(s_ss=0.03, Te_ss=12.0)
@@ -178,7 +178,7 @@ def test_heavy_start_generates_error(mp):
     assert any("STALL" in i.title.upper() or "Heavy" in i.title for i in ins)
 
 
-# ── testes para tipos especiais de experimento ───────────────────────────────
+# ── tests for special experiment types ───────────────────────────────
 
 def test_shutdown_no_balance(mp):
     res = _make_res(s_ss=0.03, Te_ss=12.0)
@@ -192,7 +192,7 @@ def test_generator_no_overload(mp):
     assert not any("OVERLOAD" in i.title.upper() for i in ins)
 
 
-# ── testes de ordenação de severidade ────────────────────────────────────────
+# ── severity ordering tests ────────────────────────────────────────
 
 def test_insights_ordenados_por_severidade(mp):
     res = _make_res(s_ss=0.10, Te_ss=25.0)
