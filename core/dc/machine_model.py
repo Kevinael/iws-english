@@ -12,7 +12,7 @@ Responsibilities:
 
 Relationships:
   Imported by : core.dc_solver, core.dc_sources, core.dc_estimator,
-                ui_components.sim_config_dc, ui_components.sim_results_dc,
+                ui.sim_config_dc, ui.sim_results_dc,
                 viz.pdf_dc, viz.pdf_commons
   Imports     : (dataclasses, typing only)
 

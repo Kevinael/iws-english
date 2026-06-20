@@ -12,8 +12,8 @@ Responsibilities:
 Relationships:
   Imported by : IWS_UI
   Imports     : core.dc.facade, data.machines_dc,
-                ui_components.sim_config_dc_keys, ui_components.sim_config_dc_params,
-                ui_components.exp_renderers_dc
+                ui.sim_config_dc_keys, ui.sim_config_dc_params,
+                ui.exp_renderers_dc
 
 Sub-modules:
   sim_config_dc_keys.py    — _WidgetKeysDC / _WK_DC / _wi (shared, cycle-free)
@@ -46,11 +46,11 @@ from data.variable_labels import (
     DC_DEFAULT_VARS_ELE,
     DC_DEFAULT_VARS,
 )
-from ui_components._shared_widgets import _pgroup, _ibox
-from ui_components.sim_config_dc_keys import _WidgetKeysDC, _WK_DC, _wi  # noqa: F401
+from ui._shared_widgets import _pgroup, _ibox
+from ui.sim_config_dc_keys import _WidgetKeysDC, _WK_DC, _wi  # noqa: F401
 
 # re-export parameter-source sub-renderers so callers need only import from sim_config_dc
-from ui_components.sim_config_dc_params import (  # noqa: F401
+from ui.sim_config_dc_params import (  # noqa: F401
     _render_dc_nameplate,
     _render_dc_ieee,
     _render_dc_manual_locked,
@@ -58,7 +58,7 @@ from ui_components.sim_config_dc_params import (  # noqa: F401
     _render_dc_manual,
     _PARAM_SOURCE_RENDERERS,
 )
-from ui_components.exp_renderers_dc import (  # noqa: F401
+from ui.exp_renderers_dc import (  # noqa: F401
     _render_exp_dc_dol,
     _render_exp_dc_resistance,
     _render_exp_dc_braking,

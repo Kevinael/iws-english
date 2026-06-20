@@ -183,7 +183,7 @@ def render_tab_estimators() -> None:
     st.markdown(
         "The fields corresponding to this estimator are located in the simulator "
         "sidebar, under the **IEEE Std 112-2017** mode "
-        "(cf. `ui_components/sim_config.py:763–862`)."
+        "(cf. `ui/sim_config.py:763–862`)."
     )
     st.markdown("**DC Test** — three values:")
     st.markdown(
@@ -217,7 +217,7 @@ def render_tab_estimators() -> None:
     st.markdown(
         "After execution, the estimator automatically validates each output against "
         "physical criteria. Warnings displayed in the **Calculation Details** panel "
-        "(cf. `ui_components/sim_config.py:886`) indicate violations:"
+        "(cf. `ui/sim_config.py:886`) indicate violations:"
     )
     st.markdown(
         "| Criterion | Physical meaning | Implementation |\n"

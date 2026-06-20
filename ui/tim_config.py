@@ -14,7 +14,7 @@ Relationships:
   Imported by : IWS_UI
   Imports     : core.tim.facade, core.tim.param_estimator,
                 core.constants, data.machines_mit, ui.theme,
-                ui_components.tim_runner, ui_components.tim_fault_ui
+                ui.tim_runner, ui.tim_fault_ui
 
 Sub-modules:
   tim_config_params.py  — parameter-source sub-renderers (Nameplate, IEEE, Manual, locked/editable)
@@ -36,15 +36,15 @@ from data.experiment_modes import MIT_EXP_OPTIONS, MIT_CRITICAL_EVENTS
 from data.machines_mit import MIT_PRESETS
 from data.ui_labels import MACHINES
 from data.variable_labels import MIT_VAR_MECANICAS, MIT_VAR_ELETRICAS, MIT_VAR_CATALOG
-from ui_components.tim_fault_ui import render_imbalance_ui, render_broken_bar_ui
+from ui.tim_fault_ui import render_imbalance_ui, render_broken_bar_ui
 from ui.theme import _palette
-from ui_components.tim_runner import calc_tmax_auto
-from ui_components._shared_widgets import _pgroup, _ibox
+from ui.tim_runner import calc_tmax_auto
+from ui._shared_widgets import _pgroup, _ibox
 
 # re-export render_machine_params so callers need only import from tim_config
-from ui_components.tim_config_params import render_machine_params  # noqa: F401
+from ui.tim_config_params import render_machine_params  # noqa: F401
 
-from ui_components.exp_renderers_tim import (
+from ui.exp_renderers_tim import (
     _render_exp_dol,
     _render_exp_yd,
     _render_exp_comp,
@@ -167,7 +167,7 @@ def _init_default_preset() -> None:
 
 def _tl_sugerido(mp: MachineParams) -> float:
     """Estimates rated motor torque from electrical parameters (s=5%)."""
-    from ui_components.tim_config_params import _tl_sugerido as _tls
+    from ui.tim_config_params import _tl_sugerido as _tls
     return _tls(mp)
 
 
@@ -252,7 +252,7 @@ def render_experiment_config(
     _pgroup("Load and Voltage Parameters")
 
     # Reference torque from loaded preset — ensures switching experiments doesn't reset to hardcoded 80 N·m.
-    from ui_components.tim_config_params import _tl_sugerido
+    from ui.tim_config_params import _tl_sugerido
     _Tl_ref = float(st.session_state.get(wk.Tl_final, _tl_sugerido(mp)))
     st.caption(f"Estimated rated torque from electrical parameters (s = 5%): **{_tl_sugerido(mp):.2f} N·m**")
 

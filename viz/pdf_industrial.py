@@ -11,7 +11,7 @@ Responsibilities:
   - Omit detailed equations to keep the report concise for decision-makers.
 
 Relationships:
-  Imported by : ui_components.sim_results
+  Imported by : ui.sim_results
   Imports     : viz.pdf_commons
 
 Extending:

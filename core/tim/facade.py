@@ -11,8 +11,8 @@ Responsibilities:
   - Expose build_fns from core.tim.sources for experiment construction
 
 Relationships:
-  Imported by : ui_components.tim_config, ui_components.tim_runner,
-                ui_components.tim_results, ui_components.chart_notes,
+  Imported by : ui.tim_config, ui.tim_runner,
+                ui.tim_results, ui.chart_notes,
                 viz.pdf_commons, viz.pdf_academico, viz.pdf_industrial,
                 scripts.gen_figures, scripts.gen_results_web,
                 scripts.demo_power_flows,

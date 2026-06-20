@@ -10,9 +10,9 @@ Responsibilities:
   - Render Torque × Speed expander.
 
 Relationships:
-  Imported by : ui_components.tim_results
+  Imported by : ui.tim_results
   Imports     : viz.tim_charts, viz.zoom_helpers, viz.plotly_config,
-                ui_components.chart_notes, core.tim.facade, numpy, streamlit
+                ui.chart_notes, core.tim.facade, numpy, streamlit
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ from viz.tim_charts import (
 )
 from viz.plotly_config import MIT_PLOT_CFG as _PLOT_CFG
 from viz.zoom_helpers import ZoomCtx, compute_t_window, apply_zoom, apply_zoom_overlay
-from ui_components.chart_notes import emit_mit_note, MITNoteCtx
+from ui.chart_notes import emit_mit_note, MITNoteCtx
 
 
 @st.cache_data(show_spinner=False)

@@ -18,7 +18,7 @@ import numpy as np
 import streamlit as st
 
 from core.tim.facade import MachineParams
-from ui_components._shared_widgets import _ibox
+from ui._shared_widgets import _ibox
 
 
 def _render_exp_dol(
@@ -79,7 +79,7 @@ def _render_exp_yd(
         f"re-starting current transient.<br>"
         f"<strong>t = {config['t_load']:.2f} s</strong> — load of <strong>{config['Tl_final']:.2f} N·m</strong> applied to shaft."
     )
-    from ui_components.tim_config_params import _reduced_start_warning
+    from ui.tim_config_params import _reduced_start_warning
     _reduced_start_warning(mp, 1.0 / np.sqrt(3.0), config["Tl_final"])
 
 
@@ -102,7 +102,7 @@ def _render_exp_comp(
         f"rated voltage {mp.Vl:.0f} V applied directly; re-starting current transient.<br>"
         f"<strong>t = {config['t_load']:.2f} s</strong> — load of <strong>{config['Tl_final']:.2f} N·m</strong> applied to shaft."
     )
-    from ui_components.tim_config_params import _reduced_start_warning
+    from ui.tim_config_params import _reduced_start_warning
     _reduced_start_warning(mp, config["voltage_ratio"], config["Tl_final"])
 
 
@@ -126,7 +126,7 @@ def _render_exp_soft(
         f"motor in direct operation (ramp duration: {config['t_peak'] - config['t_2']:.2f} s).<br>"
         f"<strong>t = {config['t_load']:.2f} s</strong> — load of <strong>{config['Tl_final']:.2f} N·m</strong> applied to shaft."
     )
-    from ui_components.tim_config_params import _reduced_start_warning
+    from ui.tim_config_params import _reduced_start_warning
     _reduced_start_warning(mp, config["voltage_ratio"], config["Tl_final"])
 
 

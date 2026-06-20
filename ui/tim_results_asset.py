@@ -9,7 +9,7 @@ Responsibilities:
   - Render consumption details expander.
 
 Relationships:
-  Imported by : ui_components.tim_results
+  Imported by : ui.tim_results
   Imports     : streamlit
 """
 

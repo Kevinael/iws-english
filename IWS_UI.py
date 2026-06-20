@@ -12,10 +12,10 @@ Responsibilities:
 
 Relationships:
   Imported by : (entry point — not imported by any project module)
-  Imports     : ui.theme, ui.clean_view, ui_components.theory_view,
-                ui_components.tim_config, ui_components.tim_results,
-                ui_components.tim_runner, ui_components.sim_config_dc,
-                ui_components.sim_results_dc, ui_components.sim_runner_dc
+  Imports     : ui.theme, ui.clean_view, ui.theory_view,
+                ui.tim_config, ui.tim_results,
+                ui.tim_runner, ui.sim_config_dc,
+                ui.sim_results_dc, ui.sim_runner_dc
 
 Extending:
   - To add a new machine type, write its sim-tab renderer and theory renderer,
@@ -31,27 +31,27 @@ from typing import Callable
 import streamlit as st
 
 from ui.theme import apply_css
-from ui_components.reference_manager import save_reference
+from ui.reference_manager import save_reference
 from core.constants import DC_SESSION_DEFAULTS, MIT_SESSION_DEFAULTS
 from ui.clean_view import render_clean_view
 from viz.tim_eqcircuit import render_circuit as _render_circuit_eqcircuit_plotter
 
-from ui_components.theory_view import render_theory_tab
+from ui.theory_view import render_theory_tab
 from data.ui_labels import MACHINES
-from ui_components.tim_config import (
+from ui.tim_config import (
     _WK,
     _init_default_preset,
     render_machine_selector,
     render_machine_params,
     render_experiment_config,
 )
-from ui_components.tim_results import render_results, render_ref_panel
-from ui_components.tim_runner import execute_simulation_flow
+from ui.tim_results import render_results, render_ref_panel
+from ui.tim_runner import execute_simulation_flow
 
 # MCC
-from ui_components.sim_config_dc import render_dc_machine_params, render_experiment_config_dc
-from ui_components.sim_runner_dc import execute_simulation_flow_dc
-from ui_components.sim_results_dc import render_results_dc
+from ui.sim_config_dc import render_dc_machine_params, render_experiment_config_dc
+from ui.sim_runner_dc import execute_simulation_flow_dc
+from ui.sim_results_dc import render_results_dc
 from viz.eqcircuit_plotter_dc_v2 import render_circuit_dc_v2 as _render_circuit_dc_v2
 
 

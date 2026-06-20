@@ -13,8 +13,8 @@ Responsibilities:
   - Expose estimate_dc_nameplate / estimate_dc_tests from core.dc.estimator
 
 Relationships:
-  Imported by : ui_components.sim_runner_dc, ui_components.sim_config_dc,
-                ui_components.sim_results_dc, ui.theory_dc_interactive,
+  Imported by : ui.sim_runner_dc, ui.sim_config_dc,
+                ui.sim_results_dc, ui.theory_dc_interactive,
                 viz.pdf_dc, scripts.gen_dc_imgs,
                 utils.gen_okoro_comparison, tests.*, core.dc.__init__
   Imports     : core.dc.machine_model, core.dc.solver, core.dc.sources,

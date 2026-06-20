@@ -40,7 +40,7 @@ def render_tab_manual_de_uso() -> None:
     _h4("Step 1 — Equipment Selection")
     st.markdown(
         "In the sidebar, the `render_machine_selector` selector "
-        "(`ui_components/sim_config.py`) offers two paths:"
+        "(`ui/sim_config.py`) offers two paths:"
     )
     st.markdown(
         "- **NEMA motor catalog** — pre-fills the `MachineParams` dataclass with "
@@ -155,7 +155,7 @@ def render_tab_manual_de_uso() -> None:
     st.markdown(
         "The simulator offers a catalog of pre-configured tests. The simulation time "
         "$t_{max}$ is estimated automatically in "
-        "`ui_components/sim_runner.py:calc_tmax_auto` for each type:"
+        "`ui/sim_runner.py:calc_tmax_auto` for each type:"
     )
     st.markdown(
         "| Experiment | Description | Typical $t_{max}$ |\n"
@@ -224,7 +224,7 @@ def render_tab_manual_de_uso() -> None:
     _h4("Step 7 — Result Export")
     st.markdown(
         "Three PDF report formats are available "
-        "(cf. `ui_components/sim_results.py:904–963`):"
+        "(cf. `ui/sim_results.py:904–963`):"
     )
     st.markdown(
         "- **PDF v1** — summary report with main plots and parameter table.\n"

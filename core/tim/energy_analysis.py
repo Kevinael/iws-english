@@ -10,7 +10,7 @@ Responsibilities:
   - Compute η, P_in, P_out, THD, power factor, and estimated annual cost
 
 Relationships:
-  Imported by : ui_components.sim_results
+  Imported by : ui.sim_results
   Imports     : (numpy only)
 
 Extending:

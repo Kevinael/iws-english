@@ -11,7 +11,7 @@ Responsibilities:
     data (IEEE Std 112-2017)
 
 Relationships:
-  Imported by : ui_components.sim_config
+  Imported by : ui.sim_config
   Imports     : (math only)
 
 Extending:

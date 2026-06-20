@@ -10,7 +10,7 @@ Responsibilities:
   - Expose REF_COLORS and REF_DASHES constants for consistent chart theming across the project.
 
 Relationships:
-  Imported by : ui_components.sim_config, ui_components.sim_results, viz.pdf_commons,
+  Imported by : ui.sim_config, ui.sim_results, viz.pdf_commons,
                 viz.pdf_report_v2, IWS_UI
   Imports     : streamlit
 

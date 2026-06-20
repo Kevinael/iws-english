@@ -10,7 +10,7 @@ Responsibilities:
   - Render DC machine parameters, waveform figures, and diagnostic summary.
 
 Relationships:
-  Imported by : ui_components.sim_results_dc
+  Imported by : ui.sim_results_dc
   Imports     : core.dc_machine_model, viz.pdf_commons
 
 Extending:

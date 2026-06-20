@@ -8,7 +8,7 @@ Responsibilities:
   - Single source of truth for Plotly modebar/export settings.
 
 Relationships:
-  Imported by : ui_components.tim_results, ui_components.sim_results_dc
+  Imported by : ui.tim_results, ui.sim_results_dc
   Imports     : (none)
 """
 

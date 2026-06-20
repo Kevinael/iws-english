@@ -10,7 +10,7 @@ Responsibilities:
   - Strip $...$ delimiters and replace commands via _strip_latex(s).
 
 Relationships:
-  Imported by : core.harmonica_analysis, ui_components.sim_results
+  Imported by : core.harmonica_analysis, ui.sim_results
   Imports     : (re only)
 
 Extending:

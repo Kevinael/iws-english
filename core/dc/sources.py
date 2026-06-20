@@ -10,7 +10,7 @@ Responsibilities:
   - Build callable(t) → Tl for load torque
 
 Relationships:
-  Imported by : ui_components.sim_runner_dc
+  Imported by : ui.sim_runner_dc
   Imports     : core.dc_machine_model
 
 Extending:

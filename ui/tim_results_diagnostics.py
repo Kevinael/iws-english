@@ -10,7 +10,7 @@ Responsibilities:
   - Render Current Signature Analysis (FFT / MCSA) expander.
 
 Relationships:
-  Imported by : ui_components.tim_results
+  Imported by : ui.tim_results
   Imports     : core.tim.harmonic_analysis, core.constants, utils.text_utils,
                 viz.plotly_config, core.tim.facade, numpy, streamlit
 """

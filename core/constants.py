@@ -11,7 +11,7 @@ Responsibilities:
   - Single source of truth — no magic numbers scattered across modules.
 
 Relationships:
-  Imported by : core.solver, ui_components.sim_config, IWS_UI
+  Imported by : core.solver, ui.sim_config, IWS_UI
   Imports     : (none)
 
 Extending:

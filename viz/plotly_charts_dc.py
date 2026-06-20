@@ -12,7 +12,7 @@ Responsibilities:
   - Build torque-speed (build_fig_torque_speed_dc) characteristic figures.
 
 Relationships:
-  Imported by : ui_components.sim_results_dc
+  Imported by : ui.sim_results_dc
   Imports     : viz.plotly_charts
 
 Extending:

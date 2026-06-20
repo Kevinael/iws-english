@@ -10,7 +10,7 @@ Responsibilities:
   - Store the result dict in st.session_state["sim_result"] for downstream consumers.
 
 Relationships:
-  Imported by : IWS_UI, ui_components.tim_config
+  Imported by : IWS_UI, ui.tim_config
   Imports     : core.tim.facade
 
 Extending:

@@ -30,7 +30,7 @@ from core.constants import MIT_DEFAULTS
 from data.machines_mit import MIT_PRESETS
 from data.ui_labels import MIT_INPUT_MODE_LABELS, MIT_PARAM_SOURCE_LABELS, MIT_IEEE_SPLIT_LABELS
 from core.tim import estimate_params, estimate_params_ieee_tests
-from ui_components._shared_widgets import _pgroup, _ibox
+from ui._shared_widgets import _pgroup, _ibox
 
 if TYPE_CHECKING:
     pass

@@ -11,7 +11,7 @@ Responsibilities:
   - Render economic summary block.
 
 Relationships:
-  Imported by : ui_components.tim_results
+  Imported by : ui.tim_results
   Imports     : core.tim.facade, core.constants, numpy, streamlit
 """
 

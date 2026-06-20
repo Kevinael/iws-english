@@ -9,7 +9,7 @@ Responsibilities:
   - Apply x/y axis ranges to a Plotly figure in-place.
 
 Relationships:
-  Imported by : ui_components.tim_results
+  Imported by : ui.tim_results
   Imports     : numpy, plotly
 """
 

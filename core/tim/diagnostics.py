@@ -11,7 +11,7 @@ Responsibilities:
   - Return a list of Insight objects (info / warning / error)
 
 Relationships:
-  Imported by : ui_components.sim_results
+  Imported by : ui.sim_results
   Imports     : (math, numpy only)
 
 Extending:

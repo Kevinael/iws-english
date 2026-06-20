@@ -8,7 +8,7 @@ Responsibilities:
   - Emit an st.caption() note relevant to a given variable key and experiment context.
 
 Relationships:
-  Imported by : ui_components.tim_results
+  Imported by : ui.tim_results
   Imports     : streamlit, numpy, core.tim.facade
 """
 

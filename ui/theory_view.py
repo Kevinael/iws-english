@@ -2,11 +2,11 @@
 """
 theory_view.py
 ==============
-Thin re-export wrapper providing a uniform interface for the Theory tab within ui_components.
+Thin re-export wrapper providing a uniform interface for the Theory tab within ui.
 
 Responsibilities:
-  - Re-export render_theory_tab from ui.theory so IWS_UI imports only from ui_components.
-  - Keep the ui_components package interface stable regardless of internal ui/ restructuring.
+  - Re-export render_theory_tab from ui.theory.
+  - Keep the ui package interface stable regardless of internal ui/ restructuring.
 
 Relationships:
   Imported by : IWS_UI

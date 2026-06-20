@@ -12,7 +12,7 @@ Responsibilities:
   - Pre-compute animation frames to eliminate render lag in Streamlit.
 
 Relationships:
-  Imported by : ui_components.sim_results, core.harmonica_analysis,
+  Imported by : ui.sim_results, core.harmonica_analysis,
                 ui.theory_interactive, viz.plotly_charts_dc
   Imports     : (numpy, plotly only)
 

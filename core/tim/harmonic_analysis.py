@@ -10,7 +10,7 @@ Responsibilities:
   - Build a Plotly FFT figure (build_fig_fft)
 
 Relationships:
-  Imported by : ui_components.sim_results
+  Imported by : ui.sim_results
   Imports     : viz.plotly_charts, utils.text_utils
 
 Extending:

@@ -9,7 +9,7 @@ Responsibilities:
   - Expose render_theory_tab as the package public entry point.
 
 Relationships:
-  Imported by : ui_components.theory_view
+  Imported by : ui.theory_view
   Imports     : ui.theory.tabs.*
 """
 

@@ -11,7 +11,7 @@ Responsibilities:
   - Map experiment type to a (voltage_fn, torque_fn) pair via build_fns
 
 Relationships:
-  Imported by : core.IWS_PY, ui_components.sim_runner, scripts.*
+  Imported by : core.IWS_PY, ui.sim_runner, scripts.*
   Imports     : core.machine_model
 
 Extending:

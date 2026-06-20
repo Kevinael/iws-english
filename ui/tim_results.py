@@ -12,7 +12,7 @@ Responsibilities:
 
 Relationships:
   Imported by : IWS_UI
-  Imports     : ui_components.tim_results_overview, tim_results_dynamics,
+  Imports     : ui.tim_results_overview, tim_results_dynamics,
                 tim_results_diagnostics, tim_results_asset,
                 core.tim.facade, core.tim.energy_analysis, core.tim.diagnostics,
                 viz.pdf_academico, viz.pdf_industrial, utils.text_utils, ui.theme,
@@ -33,10 +33,10 @@ from viz.pdf_industrial import generate_industrial
 from utils.text_utils import _strip_latex
 from ui.theme import REF_COLORS, REF_DASHES
 
-from ui_components.tim_results_overview     import render_tab_overview
-from ui_components.tim_results_dynamics     import render_tab_dynamic
-from ui_components.tim_results_diagnostics  import render_tab_diagnosis
-from ui_components.tim_results_asset        import render_tab_assets
+from ui.tim_results_overview     import render_tab_overview
+from ui.tim_results_dynamics     import render_tab_dynamic
+from ui.tim_results_diagnostics  import render_tab_diagnosis
+from ui.tim_results_asset        import render_tab_assets
 
 
 @st.cache_data(show_spinner=False)

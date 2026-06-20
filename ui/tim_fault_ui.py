@@ -11,7 +11,7 @@ Responsibilities:
   - render_broken_bar_ui     — interactive broken-bar fault panel.
 
 Relationships:
-  Imported by : ui_components.tim_config
+  Imported by : ui.tim_config
   Imports     : streamlit
 """
 from __future__ import annotations

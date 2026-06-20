@@ -31,7 +31,7 @@ HOW TO ADD A NEW PRESET
        },
 
 2. That is all. No other file needs to be touched for the UI.
-   - The UI selector (ui_components/sim_config.py) picks it up automatically.
+   - The UI selector (ui/sim_config.py) picks it up automatically.
    - get_mit_preset() and mit_preset_names() also update automatically.
 
 3. OPTIONAL — only if the preset will be used frequently in tests:

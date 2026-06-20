@@ -12,7 +12,7 @@ Responsibilities:
 
 Relationships:
   Imported by : core.IWS_PY, core.solver, core.sources, core.tim.torque_speed,
-                ui_components.sim_config, viz.pdf_commons,
+                ui.sim_config, viz.pdf_commons,
                 tests.conftest, tests.test_machine_model
   Imports     : core.thermal, core.transforms, core.tim.fault_model
 

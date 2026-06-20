@@ -252,7 +252,7 @@ def _render_dc_tab_dynamic(
 ) -> None:
     if ref_list:
         try:
-            from ui_components.tim_results import render_ref_panel
+            from ui.tim_results import render_ref_panel
             render_ref_panel(ref_list)
         except Exception:
             pass

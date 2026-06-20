@@ -8,8 +8,8 @@ its sub-renderers (sim_config_dc_params.py, exp_renderers_dc.py) can all import
 _WK_DC / _wi without creating an import cycle.
 
 Relationships:
-  Imported by : ui_components.sim_config_dc, ui_components.sim_config_dc_params,
-                ui_components.exp_renderers_dc
+  Imported by : ui.sim_config_dc, ui.sim_config_dc_params,
+                ui.exp_renderers_dc
   Imports     : streamlit
 """
 
