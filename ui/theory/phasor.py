@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-fasorial.py
+phasor.py
 ===========
 Voltage unbalance component — Va/Vb/Vc waveforms + animated phasor diagram.
 
@@ -28,7 +28,7 @@ from ui.theory._shared import _get_mp, _dark
 
 
 @st.fragment
-def render_fasorial_desequilibrio() -> None:
+def render_imbalance_phasor() -> None:
     """Va/Vb/Vc waveforms + animated phasor diagram with per-phase unbalance.
 
     Isolated in @st.fragment: Streamlit sliders rerun only this component.
@@ -54,31 +54,31 @@ def render_fasorial_desequilibrio() -> None:
     with col_a:
         st.markdown(f"<b style='color:{col_Va};font-size:15px'>● Va</b>",
                     unsafe_allow_html=True)
-        ativa_a = st.checkbox("Active", value=True, key="_fdeseq_ativa_a")
-        delta_a = st.slider("Amplitude δ (%)", -30, 30, 0, key="_fdeseq_da",
+        ativa_a = st.checkbox("Active", value=True, key="_fimbalance_ativa_a")
+        delta_a = st.slider("Amplitude δ (%)", -30, 30, 0, key="_fimbalance_da",
                              disabled=not ativa_a, format="%+d%%")
         freq_a  = st.slider("Frequency (Hz)", 50.0, 70.0, float(np.clip(f0, 50.0, 70.0)),
-                             key="_fdeseq_fa", step=0.5, disabled=not ativa_a,
+                             key="_fimbalance_fa", step=0.5, disabled=not ativa_a,
                              format="%.1f Hz")
 
     with col_b:
         st.markdown(f"<b style='color:{col_Vb};font-size:15px'>● Vb</b>",
                     unsafe_allow_html=True)
-        ativa_b = st.checkbox("Active", value=True, key="_fdeseq_ativa_b")
-        delta_b = st.slider("Amplitude δ (%)", -30, 30, 0, key="_fdeseq_db",
+        ativa_b = st.checkbox("Active", value=True, key="_fimbalance_ativa_b")
+        delta_b = st.slider("Amplitude δ (%)", -30, 30, 0, key="_fimbalance_db",
                              disabled=not ativa_b, format="%+d%%")
         freq_b  = st.slider("Frequency (Hz)", 50.0, 70.0, float(np.clip(f0, 50.0, 70.0)),
-                             key="_fdeseq_fb", step=0.5, disabled=not ativa_b,
+                             key="_fimbalance_fb", step=0.5, disabled=not ativa_b,
                              format="%.1f Hz")
 
     with col_c:
         st.markdown(f"<b style='color:{col_Vc};font-size:15px'>● Vc</b>",
                     unsafe_allow_html=True)
-        ativa_c = st.checkbox("Active", value=True, key="_fdeseq_ativa_c")
-        delta_c = st.slider("Amplitude δ (%)", -30, 30, 0, key="_fdeseq_dc",
+        ativa_c = st.checkbox("Active", value=True, key="_fimbalance_ativa_c")
+        delta_c = st.slider("Amplitude δ (%)", -30, 30, 0, key="_fimbalance_dc",
                              disabled=not ativa_c, format="%+d%%")
         freq_c  = st.slider("Frequency (Hz)", 50.0, 70.0, float(np.clip(f0, 50.0, 70.0)),
-                             key="_fdeseq_fc", step=0.5, disabled=not ativa_c,
+                             key="_fimbalance_fc", step=0.5, disabled=not ativa_c,
                              format="%.1f Hz")
 
     with col_vel:
@@ -86,7 +86,7 @@ def render_fasorial_desequilibrio() -> None:
         cycle_sec_pre = st.slider(
             "Cycle duration (s/cycle)",
             min_value=1, max_value=20, value=5, step=1,
-            key="_fdeseq_vel", format="%d s",
+            key="_fimbalance_vel", format="%d s",
         )
 
     amp_a = (1.0 + delta_a / 100.0) if ativa_a else 0.0

@@ -85,22 +85,22 @@ def execute_simulation_flow(
     else:
         _tmax_run = tmax
 
-    _deseq_a      = exp_config.get("imbalance_a",      0.0)
-    _deseq_b      = exp_config.get("imbalance_b",      0.0)
-    _deseq_c      = exp_config.get("imbalance_c",      0.0)
-    _falta_fase_a = exp_config.get("phase_loss_a", False)
-    _falta_fase_b = exp_config.get("phase_loss_b", False)
-    _falta_fase_c = exp_config.get("phase_loss_c", False)
-    _t_deseq      = exp_config.get("t_imbalance",      0.0)
+    _imbalance_a      = exp_config.get("imbalance_a",      0.0)
+    _imbalance_b      = exp_config.get("imbalance_b",      0.0)
+    _imbalance_c      = exp_config.get("imbalance_c",      0.0)
+    _phase_loss_a = exp_config.get("phase_loss_a", False)
+    _phase_loss_b = exp_config.get("phase_loss_b", False)
+    _phase_loss_c = exp_config.get("phase_loss_c", False)
+    _t_imbalance      = exp_config.get("t_imbalance",      0.0)
     _df_a         = exp_config.get("df_a",          0.0)
     _df_b         = exp_config.get("df_b",          0.0)
     _df_c         = exp_config.get("df_c",          0.0)
 
     if (
-        (_deseq_a or _deseq_b or _deseq_c or _falta_fase_a or _falta_fase_b or _falta_fase_c)
-        and _t_deseq > 0.0
+        (_imbalance_a or _imbalance_b or _imbalance_c or _phase_loss_a or _phase_loss_b or _phase_loss_c)
+        and _t_imbalance > 0.0
     ):
-        t_events = t_events + [_t_deseq]
+        t_events = t_events + [_t_imbalance]
 
     _broken_bar   = float(exp_config.get("broken_bar_severity", 0.0))
     _t_broken_bar = float(exp_config.get("t_broken_bar", 0.0))
@@ -114,9 +114,9 @@ def execute_simulation_flow(
                 mp=mp, tmax=_tmax_run, h=h,
                 voltage_fn=vfn, torque_fn=tfn,
                 ref_code=ref_code,
-                imbalance_a=_deseq_a, imbalance_b=_deseq_b, imbalance_c=_deseq_c,
-                phase_loss_a=_falta_fase_a, phase_loss_b=_falta_fase_b,
-                phase_loss_c=_falta_fase_c, t_imbalance=_t_deseq,
+                imbalance_a=_imbalance_a, imbalance_b=_imbalance_b, imbalance_c=_imbalance_c,
+                phase_loss_a=_phase_loss_a, phase_loss_b=_phase_loss_b,
+                phase_loss_c=_phase_loss_c, t_imbalance=_t_imbalance,
                 df_a=_df_a, df_b=_df_b, df_c=_df_c,
                 clamp_wr_at_zero=(exp_config.get("exp_type") == "shutdown"),
                 t_cutoff=exp_config.get("t_cutoff") if exp_config.get("exp_type") == "shutdown" else None,

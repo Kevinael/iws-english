@@ -79,8 +79,8 @@ def _render_exp_yd(
         f"re-starting current transient.<br>"
         f"<strong>t = {config['t_load']:.2f} s</strong> — load of <strong>{config['Tl_final']:.2f} N·m</strong> applied to shaft."
     )
-    from ui_components.tim_config_params import _aviso_partida_reduzida
-    _aviso_partida_reduzida(mp, 1.0 / np.sqrt(3.0), config["Tl_final"])
+    from ui_components.tim_config_params import _reduced_start_warning
+    _reduced_start_warning(mp, 1.0 / np.sqrt(3.0), config["Tl_final"])
 
 
 def _render_exp_comp(
@@ -102,8 +102,8 @@ def _render_exp_comp(
         f"rated voltage {mp.Vl:.0f} V applied directly; re-starting current transient.<br>"
         f"<strong>t = {config['t_load']:.2f} s</strong> — load of <strong>{config['Tl_final']:.2f} N·m</strong> applied to shaft."
     )
-    from ui_components.tim_config_params import _aviso_partida_reduzida
-    _aviso_partida_reduzida(mp, config["voltage_ratio"], config["Tl_final"])
+    from ui_components.tim_config_params import _reduced_start_warning
+    _reduced_start_warning(mp, config["voltage_ratio"], config["Tl_final"])
 
 
 def _render_exp_soft(
@@ -126,11 +126,11 @@ def _render_exp_soft(
         f"motor in direct operation (ramp duration: {config['t_peak'] - config['t_2']:.2f} s).<br>"
         f"<strong>t = {config['t_load']:.2f} s</strong> — load of <strong>{config['Tl_final']:.2f} N·m</strong> applied to shaft."
     )
-    from ui_components.tim_config_params import _aviso_partida_reduzida
-    _aviso_partida_reduzida(mp, config["voltage_ratio"], config["Tl_final"])
+    from ui_components.tim_config_params import _reduced_start_warning
+    _reduced_start_warning(mp, config["voltage_ratio"], config["Tl_final"])
 
 
-def _render_exp_pulso_carga(
+def _render_exp_load_pulse(
     mp: MachineParams,
     config: dict[str, Any],
     _Tl_ref: float,
@@ -174,14 +174,14 @@ def _render_exp_pulso_carga(
             )
 
 
-def _render_exp_gerador(
+def _render_exp_generator(
     mp: MachineParams,
     config: dict[str, Any],
     _Tl_ref: float,
     wk: Any,
 ) -> None:
     config["Tl_mec"] = st.number_input("Prime mover torque — $T_{mec}$ (N·m)", value=_Tl_ref, min_value=1.0, key=wk.Tl_mec)
-    config["t_2"]    = st.number_input("Torque application instant — $t_2$ (s)", value=1.0, min_value=0.0, key=wk.t_2_gerador)
+    config["t_2"]    = st.number_input("Torque application instant — $t_2$ (s)", value=1.0, min_value=0.0, key=wk.t_2_generator)
     _ibox(
         f"<strong>t = 0 s</strong> — machine connected to the grid ({mp.Vl:.0f} V) and accelerated by inertia to near synchronous speed.<br>"
         f"<strong>t = {config['t_2']:.2f} s</strong> — mechanical torque of <strong>{config['Tl_mec']:.2f} N·m</strong> applied by prime mover; "
@@ -268,7 +268,7 @@ def _render_exp_voltage_sag(
         st.warning("Deep sag (≤ 10%) — the motor may decelerate significantly and the re-starting current may exceed the locked-rotor current.")
 
 
-def _render_exp_frenagem(
+def _render_exp_braking(
     mp: MachineParams,
     config: dict[str, Any],
     _Tl_ref: float,

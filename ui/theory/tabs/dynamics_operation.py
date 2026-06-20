@@ -16,12 +16,12 @@ from ui.theory.tabs._shared import (
 )
 from ui.theory_interactive import (
     render_park_dinamico,
-    render_transitorios_sincronizados,
-    render_comparador_frenagem,
+    render_synchronized_transients,
+    render_braking_comparator,
 )
 
 
-def render_tab_dinamica_operacao() -> None:
+def render_tab_dynamics_operation() -> None:
     st.markdown(
         "Understanding the operating dynamics of the three-phase induction motor requires "
         "analyzing each phase of the electromechanical cycle — from initial energization to "
@@ -249,7 +249,7 @@ def render_tab_dinamica_operacao() -> None:
         "all three quantities: current reacts first (electrical time constant $\\tau_e$), "
         "torque follows immediately, and speed responds last (mechanical inertia $J$)."
     )
-    render_transitorios_sincronizados()
+    render_synchronized_transients()
 
     # ── CARD 3 — Braking and Controlled Stop ───────────────────────────────────────────
     st.divider()
@@ -332,4 +332,4 @@ def render_tab_dinamica_operacao() -> None:
     st.image(_fig_to_bytes(fig3))
 
     st.markdown("**Interactive comparator:** adjust the initial speed and intensity of each method.")
-    render_comparador_frenagem()
+    render_braking_comparator()

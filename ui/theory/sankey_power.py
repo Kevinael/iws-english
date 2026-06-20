@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-sankey_potencia.py
+sankey_power.py
 ==================
 Power flow chart with native Plotly slider — zero latency.
 
@@ -20,12 +20,12 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from viz.tim_charts import _plot_theme
-from core.tim import calc_fluxo_potencia
+from core.tim import calc_power_flow
 
 from ui.theory._shared import _get_mp, _dark
 
 
-def render_sankey_potencia() -> None:
+def render_sankey_power() -> None:
     """Power flow with native Plotly slider (zero latency).
 
     go.Sankey does not support Plotly frames; replaced by horizontal bars
@@ -55,7 +55,7 @@ def render_sankey_potencia() -> None:
               "P_cu2 (rotor copper)", "P_mec (conv.)", "P_output"]
 
     def _make_frame_data(s: float):
-        fp     = calc_fluxo_potencia(s, mp)
+        fp     = calc_power_flow(s, mp)
         P_in   = fp["P_in"]
         P_cu1  = fp["P_cu1"]
         P_ag   = fp["P_ag"]

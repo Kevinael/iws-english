@@ -5,11 +5,11 @@ theory_dc_interactive.py
 Interactive Plotly components for the DC machine Theory tab — comparative curves, current patterns, speed control, estimator, and block diagrams.
 
 Responsibilities:
-  - Render comparative excitation T×ωm curves (render_curvas_comparativas_excitacao).
+  - Render comparative excitation T×ωm curves (render_excitation_comparison_curves).
   - Render current patterns for DCM excitation types (render_padrao_corrente_dc).
   - Render speed control strategies (render_controle_velocidade_dc).
-  - Render parameter estimator UI (render_estimador_dc).
-  - Render DCM block diagram (render_diagrama_blocos_mcc).
+  - Render parameter estimator UI (render_dc_estimator).
+  - Render DCM block diagram (render_dc_block_diagram).
 
 Relationships:
   Imported by : ui.theory_dc
@@ -136,7 +136,7 @@ def _build_fig_txwm_dc(dark: bool) -> go.Figure:
     return fig
 
 
-def render_curvas_comparativas_excitacao() -> None:
+def render_excitation_comparison_curves() -> None:
     st.markdown("### Interactive T×ωm Curves")
     st.caption("Drag the Va slider — curves update instantly with no page reload. Fixed: Ra = 0.013 Ω, kb = 0.004, Rf = 1.43 Ω.")
     dark = st.session_state.get("dark_mode", False)
@@ -234,7 +234,7 @@ def render_controle_velocidade_dc() -> None:
 # 4. DC Estimator
 # ─────────────────────────────────────────────────────────────────────────────
 
-def render_estimador_dc() -> None:
+def render_dc_estimator() -> None:
     st.markdown("### Parameter Estimator from Tests")
 
     with st.form("form_estimador_dc"):
@@ -269,7 +269,7 @@ def render_estimador_dc() -> None:
 # 5. Block diagram
 # ─────────────────────────────────────────────────────────────────────────────
 
-def render_diagrama_blocos_mcc() -> None:
+def render_dc_block_diagram() -> None:
     st.markdown("### State-Space Block Diagram")
     st.markdown(r"""
 ```

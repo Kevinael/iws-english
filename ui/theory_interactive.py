@@ -2,27 +2,27 @@
 """Re-exports all public render_* functions from ui.theory submodules."""
 
 from ui.theory.boucherot import render_boucherot
-from ui.theory.zonas_operacao import render_zonas_operacao
-from ui.theory.comparativo_partidas import render_comparativo_partidas
+from ui.theory.operating_zones import render_operating_zones
+from ui.theory.startup_comparison import render_startup_comparison
 from ui.theory.park_dinamico import render_park_dinamico
-from ui.theory.sankey_potencia import render_sankey_potencia
-from ui.theory.transitorios import render_transitorios_sincronizados
-from ui.theory.fasorial import render_fasorial_desequilibrio
-from ui.theory.circuito_alternavel import render_circuito_alternavel
+from ui.theory.sankey_power import render_sankey_power
+from ui.theory.transients import render_synchronized_transients
+from ui.theory.phasor import render_imbalance_phasor
+from ui.theory.switchable_circuit import render_switchable_circuit
 from ui.theory.mcsa import render_mcsa
-from ui.theory.braking import render_comparador_frenagem
-from ui.theory.blocos_krause import render_blocos_krause
+from ui.theory.braking import render_braking_comparator
+from ui.theory.krause_blocks import render_krause_blocks
 
 __all__ = [
     "render_boucherot",
-    "render_zonas_operacao",
-    "render_comparativo_partidas",
+    "render_operating_zones",
+    "render_startup_comparison",
     "render_park_dinamico",
-    "render_sankey_potencia",
-    "render_transitorios_sincronizados",
-    "render_fasorial_desequilibrio",
-    "render_circuito_alternavel",
+    "render_sankey_power",
+    "render_synchronized_transients",
+    "render_imbalance_phasor",
+    "render_switchable_circuit",
     "render_mcsa",
-    "render_comparador_frenagem",
-    "render_blocos_krause",
+    "render_braking_comparator",
+    "render_krause_blocks",
 ]

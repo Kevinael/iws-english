@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-transitorios.py
+transients.py
 ===============
 Synchronised transient plots — n(t), Te(t) and ias(t) for three scenarios.
 
@@ -8,11 +8,11 @@ Responsibilities:
   - Build analytical models for DOL start, voltage sag and shutdown.
   - Render Plotly figure with updatemenus (scenario buttons, zero latency).
   - Provide _palette_theory() and _build_circuit_png() helpers used by
-    render_circuito_alternavel (circuito_alternavel.py).
+    render_switchable_circuit (switchable_circuit.py).
 
 Relationships:
   Imported by : ui.theory_interactive (re-export)
-               ui.theory.circuito_alternavel (_palette_theory, _build_circuit_png)
+               ui.theory.switchable_circuit (_palette_theory, _build_circuit_png)
   Imports     : ui.theory._shared, viz.tim_charts, viz.tim_eqcircuit,
                 core.tim.torque_speed
 """
@@ -40,7 +40,7 @@ from ui.theory._shared import _get_mp, _dark
 from ui.theory.tabs._shared import _z2
 
 @st.cache_data(show_spinner=False)
-def _compute_transitorios(
+def _compute_transients(
     V1: float, R1: float, X1: float, R2: float, X2: float,
     Xm: float, ws_mec: float, ns: float,
     wb: float, p: int, J: float, B: float, f: float,
@@ -146,7 +146,7 @@ def _build_circuit_png(mp_key: tuple, dark: bool, simplified: bool) -> bytes:
     return buf.getvalue()
 
 
-def render_transitorios_sincronizados() -> None:
+def render_synchronized_transients() -> None:
     """Synchronised plots of n(t), Te(t) and ias(t) for three transient scenarios.
 
     Uses updatemenus (Plotly buttons) to switch between scenarios without rerun:
@@ -168,7 +168,7 @@ def render_transitorios_sincronizados() -> None:
     B  = float(mp.B) if mp.B > 0 else 0.005
     f  = float(mp.f)
 
-    _d = _compute_transitorios(V1, R1, X1, R2, X2, Xm, ws_mec, ns, wb, p, J, B, f)
+    _d = _compute_transients(V1, R1, X1, R2, X2, Xm, ws_mec, ns, wb, p, J, B, f)
     t_A = _d["t_A"]; n_A = _d["n_A"]; Te_A = _d["Te_A"]; ias_A = _d["ias_A"]
     t_B = _d["t_B"]; n_B = _d["n_B"]; Te_B = _d["Te_B"]; ias_B = _d["ias_B"]
     t_C = _d["t_C"]; n_C = _d["n_C"]; Te_C = _d["Te_C"]; ias_C = _d["ias_C"]

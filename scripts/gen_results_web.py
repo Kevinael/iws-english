@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-gen_resultados_web.py
+gen_results_web.py
 =====================
 Generates web-ready article figures from a 50 Hz MIT simulation for the
 Overleaf project.

@@ -11,7 +11,7 @@ Responsibilities:
   - Build the RHS of the 8-state ODE system via _make_rhs
 
 Relationships:
-  Imported by : core.IWS_PY, core.solver, core.sources, core.curva_tn,
+  Imported by : core.IWS_PY, core.solver, core.sources, core.tim.torque_speed,
                 ui_components.sim_config, viz.pdf_commons,
                 tests.conftest, tests.test_machine_model
   Imports     : core.thermal, core.transforms, core.tim.fault_model

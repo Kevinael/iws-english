@@ -9,8 +9,8 @@ from __future__ import annotations
 import streamlit as st
 from ui.theory.tabs._shared import _h4, _eq, _div_warn
 from ui.theory_interactive import (
-    render_comparativo_partidas,
-    render_fasorial_desequilibrio,
+    render_startup_comparison,
+    render_imbalance_phasor,
     render_mcsa,
 )
 
@@ -109,7 +109,7 @@ def render_tab_experimentos() -> None:
 
     st.divider()
     _h4("Starting Current Comparison — Interactive Visualization")
-    render_comparativo_partidas()
+    render_startup_comparison()
 
     st.divider()
     st.markdown("### Load Tests")
@@ -267,7 +267,7 @@ def render_tab_experimentos() -> None:
     _eq(r"V_c = \sqrt{\tfrac{2}{3}}\,V_l\,(1 + \delta_c)\sin\!\left(\omega_e t + \tfrac{2\pi}{3}\right)")
     st.markdown("where $\\delta_a,\\,\\delta_b,\\,\\delta_c \\in [-0{,}30,\\;+0{,}30]$ are the deviations set via sliders.")
 
-    render_fasorial_desequilibrio()
+    render_imbalance_phasor()
 
     st.write("")
     _h4("Phase Loss — Two-Phase Operation")

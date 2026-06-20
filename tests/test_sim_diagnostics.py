@@ -171,7 +171,7 @@ def test_ampla_reserva_gera_info(mp):
     assert any("Ample" in i.title for i in ins)
 
 
-def test_partida_pesada_gera_error(mp):
+def test_heavy_start_generates_error(mp):
     # Te_max ≈ 2×Te_ss = 12, load = 11 → ratio ≈ 1.09 < 1.2
     res = _make_res(s_ss=0.03, Te_ss=6.0)
     ins = generate_insights(res, mp, load_torque=11.0, tmax=3.0, exp_type="dol")
@@ -186,7 +186,7 @@ def test_shutdown_sem_balanco(mp):
     assert not any("Torque Balance" in i.title for i in ins)
 
 
-def test_gerador_sem_sobrecarga(mp):
+def test_generator_no_overload(mp):
     res = _make_res(s_ss=-0.02, Te_ss=-10.0)
     ins = generate_insights(res, mp, load_torque=0.0, tmax=3.0, exp_type="generator")
     assert not any("OVERLOAD" in i.title.upper() for i in ins)

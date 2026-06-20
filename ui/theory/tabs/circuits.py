@@ -8,10 +8,10 @@ Theory Tab 1 — Modeling and Equivalent Circuits.
 from __future__ import annotations
 import streamlit as st
 from ui.theory.tabs._shared import _h4, _eq, _div_warn, _show_img
-from ui.theory_interactive import render_blocos_krause
+from ui.theory_interactive import render_krause_blocks
 
 
-def render_tab_circuitos() -> None:
+def render_tab_circuits() -> None:
     st.markdown(
         "The **single-phase equivalent circuit** transforms the three-phase electromagnetic "
         "problem into a steady-state electrical circuit. From it, the torque and power "
@@ -146,7 +146,7 @@ def render_tab_circuitos() -> None:
     )
 
     st.markdown("**Interactive Block Diagram:**")
-    render_blocos_krause()
+    render_krause_blocks()
 
     st.divider()
 

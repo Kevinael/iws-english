@@ -10,7 +10,7 @@ import streamlit as st
 from ui.theory.tabs._shared import _h4, _eq, _div_warn
 
 
-def render_tab_estimadores() -> None:
+def render_tab_estimators() -> None:
     st.markdown(
         "This tab documents the **two parameter estimators** available in the "
         "simulator. Both are legitimate T-equivalent circuit methods in steady state, "

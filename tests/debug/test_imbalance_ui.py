@@ -1,6 +1,6 @@
 import streamlit as st
 import sys, os; sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from ui_components.tim_fault_ui import render_desequilibrio_ui
+from ui_components.tim_fault_ui import render_imbalance_ui
 from core.tim.fault_model import abc_voltages_imbalance
 import numpy as np
 import plotly.graph_objects as go
@@ -9,7 +9,7 @@ st.set_page_config(page_title="Test — Voltage Unbalance", layout="wide")
 st.title("Test: Voltage Unbalance / Phase Loss")
 
 config = {}
-render_desequilibrio_ui(config, tmax=2.0)
+render_imbalance_ui(config, tmax=2.0)
 
 if st.button("Simular"):
     t = np.linspace(0.0, 2.0, 4000)

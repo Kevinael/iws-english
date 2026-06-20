@@ -8,10 +8,10 @@ Theory Tab 2 — Dynamic Behavior and Torque.
 from __future__ import annotations
 import streamlit as st
 from ui.theory.tabs._shared import _h4, _eq
-from ui.theory_interactive import render_zonas_operacao, render_boucherot
+from ui.theory_interactive import render_operating_zones, render_boucherot
 
 
-def render_tab_dinamica() -> None:
+def render_tab_dynamics() -> None:
     st.markdown(
         "The **slip** $s = (n_s - n_r)/n_s$ governs the machine's operating mode. "
         "Three physically distinct regions divide the $T_e \\times n$ curve, "
@@ -19,7 +19,7 @@ def render_tab_dinamica() -> None:
     )
 
     _h4("T×n Curve — Interactive Operating Zones")
-    render_zonas_operacao()
+    render_operating_zones()
 
     st.divider()
 

@@ -31,7 +31,7 @@ class MITNoteCtx:
     exp_config: dict[str, Any]
     bb_sev:    float    # broken-bar severity α
     s_val:     float    # slip (signed)
-    deseq_on:  bool     # any voltage-unbalance / phase-fault flag active
+    imbalance_on:  bool     # any voltage-unbalance / phase-fault flag active
     is_yd:     bool
     is_gen:    bool
     is_sd:     bool
@@ -69,7 +69,7 @@ def _note_te_sd(ctx: MITNoteCtx) -> str:
     )
 
 
-def _note_va_deseq(ctx: MITNoteCtx) -> str:
+def _note_va_imbalance(ctx: MITNoteCtx) -> str:
     cfg = ctx.exp_config
     _falta = any(cfg.get(k, 0) for k in ("phase_loss_a", "phase_loss_b", "phase_loss_c"))
     if _falta:
@@ -91,11 +91,11 @@ def _note_va_deseq(ctx: MITNoteCtx) -> str:
 # ---------------------------------------------------------------------------
 
 def _bb(ctx: MITNoteCtx)       -> bool: return ctx.bb_sev > 0
-def _deseq(ctx: MITNoteCtx)    -> bool: return ctx.deseq_on
+def _imbalance(ctx: MITNoteCtx)    -> bool: return ctx.imbalance_on
 def _yd(ctx: MITNoteCtx)       -> bool: return ctx.is_yd
 def _autotrafo(ctx: MITNoteCtx)-> bool: return ctx.exp_type == "autotrafo"
 def _soft(ctx: MITNoteCtx)     -> bool: return ctx.is_soft
-def _pulso(ctx: MITNoteCtx)    -> bool: return ctx.exp_type == "load_pulse"
+def _pulse(ctx: MITNoteCtx)    -> bool: return ctx.exp_type == "load_pulse"
 def _gen(ctx: MITNoteCtx)      -> bool: return ctx.is_gen
 def _sd(ctx: MITNoteCtx)       -> bool: return ctx.is_sd
 def _vsag(ctx: MITNoteCtx)     -> bool: return ctx.exp_type == "voltage_sag"
@@ -120,7 +120,7 @@ _NOTES: dict[str, list[_NoteEntry]] = {
             f"The spectral signature appears in current as sidebands at $(1\\pm2s)f_e$ Hz — "
             f"see the **Diagnostics & Faults** tab."
         )),
-        (_deseq,    lambda _: (
+        (_imbalance,    lambda _: (
             "**Voltage unbalance / Phase fault** — the negative-sequence component "
             "establishes a rotating field opposing $\\omega_s$, with effective slip "
             "$s^- = 2 - s^+$, generating pulsating braking torque at frequency $2f$ and reducing "
@@ -139,7 +139,7 @@ _NOTES: dict[str, list[_NoteEntry]] = {
             f"voltage a second transient occurs analogous to Y-$\\Delta$ mode."
         )),
         (_soft,     _note_te_soft),
-        (_pulso,    lambda _: (
+        (_pulse,    lambda _: (
             "**Load Pulse** — sudden insertion of $T_L$ causes transient drop in "
             "$\\omega_r$ and increase in slip $s$. Electromagnetic torque $T_e$ "
             "rises in response, with oscillations damped by time constant $\\tau_m = J/B$, "
@@ -174,7 +174,7 @@ _NOTES: dict[str, list[_NoteEntry]] = {
             f"{(1.0 + 2.0 * abs(ctx.s_val)) * ctx.mp.f:.1f} Hz visible in the MCSA spectrum "
             f"— see the **Diagnostics & Faults** tab."
         )),
-        (_deseq,    lambda _: (
+        (_imbalance,    lambda _: (
             "**Voltage unbalance / Phase fault** — asymmetric phase currents "
             "indicate negative-sequence component $I_2$ circulating in the stator. "
             "The phase with lower voltage tends to carry higher current, accelerating "
@@ -214,7 +214,7 @@ _NOTES: dict[str, list[_NoteEntry]] = {
             f"indicate that one or more bars have elevated resistance ($R_{{bar}} \\gg R_r$). "
             f"Non-uniform distribution generates $T_e$ pulsation and localized heating."
         )),
-        (_deseq,    lambda _: (
+        (_imbalance,    lambda _: (
             "**Voltage unbalance** — the negative-sequence component induces "
             "rotor current at frequency $(2-s)f_e$, much larger than $sf_e$ of "
             "balanced operation, increasing rotor Joule losses."
@@ -229,7 +229,7 @@ _NOTES: dict[str, list[_NoteEntry]] = {
             f"Abrupt recovery after the sag may generate "
             f"a re-excitation transient in stator flux."
         )),
-        (_deseq,    _note_va_deseq),
+        (_imbalance,    _note_va_imbalance),
     ],
     "n": [
         (_gen,      lambda ctx: (
@@ -244,7 +244,7 @@ _NOTES: dict[str, list[_NoteEntry]] = {
             f"is sufficient, the motor recovers rated speed after voltage restoration; "
             f"otherwise it stalls ($s \\to 1$)."
         )),
-        (_pulso,    lambda ctx: (
+        (_pulse,    lambda ctx: (
             f"**Load Pulse** — sudden insertion of $T_L$ causes transient drop "
             f"in $n$, increasing $s$ and consequently $T_e$. The system "
             f"damps and converges to the new equilibrium point with mechanical "
@@ -285,7 +285,7 @@ _NOTES: dict[str, list[_NoteEntry]] = {
             f"is sufficient, the motor recovers rated speed after voltage restoration; "
             f"otherwise it stalls ($s \\to 1$)."
         )),
-        (_pulso,    lambda ctx: (
+        (_pulse,    lambda ctx: (
             f"**Load Pulse** — sudden insertion of $T_L$ causes transient drop "
             f"in $\\omega_r$, increasing $s$ and consequently $T_e$. The system "
             f"damps and converges to the new equilibrium point with mechanical "

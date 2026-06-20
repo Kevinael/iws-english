@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-test_desequilibrio_falta.py
+test_imbalance_fault.py
 ===========================
 Unit tests for voltage unbalance and phase-fault functions (core/desequilibrio_falta.py).
 

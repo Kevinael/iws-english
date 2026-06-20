@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-circuito_alternavel.py
+switchable_circuit.py
 ======================
 Switchable equivalent circuit: Full (with Rfe) vs IEEE simplified (without Rfe).
 
@@ -10,7 +10,7 @@ Responsibilities:
 
 Relationships:
   Imported by : ui.theory_interactive (re-export)
-  Imports     : ui.theory._shared, ui.theory.transitorios (_build_circuit_png,
+  Imports     : ui.theory._shared, ui.theory.transients (_build_circuit_png,
                 _palette_theory)
 """
 
@@ -19,10 +19,10 @@ from __future__ import annotations
 import streamlit as st
 
 from ui.theory._shared import _get_mp, _dark
-from ui.theory.transitorios import _build_circuit_png
+from ui.theory.transients import _build_circuit_png
 
 
-def render_circuito_alternavel() -> None:
+def render_switchable_circuit() -> None:
     """Switchable equivalent circuit: Full (with Rfe) ↔ IEEE simplified (without Rfe)."""
     mp   = _get_mp()
     dark = _dark()

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-zonas_operacao.py
+operating_zones.py
 =================
 T×n chart with three colored operating zones and animated vector diagram.
 
@@ -26,7 +26,7 @@ from ui.theory._shared import _get_mp, _dark
 
 
 @st.cache_data(show_spinner=False)
-def _compute_zonas(
+def _compute_zones(
     V1: float, R1: float, X1: float, R2: float, X2: float,
     Xm: float, ws_mec: float, ns: float,
 ) -> dict:
@@ -43,7 +43,7 @@ def _compute_zonas(
     }
 
 
-def render_zonas_operacao() -> None:
+def render_operating_zones() -> None:
     """T×n chart with three colored zones and ωs/ωm vector diagram."""
     mp   = _get_mp()
     dark = _dark()
@@ -59,7 +59,7 @@ def render_zonas_operacao() -> None:
         key="th_zona_radio",
     )
 
-    _z = _compute_zonas(V1, R1, X1, R2, X2, Xm, ws_mec, ns)
+    _z = _compute_zones(V1, R1, X1, R2, X2, Xm, ws_mec, ns)
     n_brake  = _z["n_brake"];  Te_brake = _z["Te_brake"]
     n_motor  = _z["n_motor"];  Te_motor = _z["Te_motor"]
     n_gen    = _z["n_gen"];    Te_gen   = _z["Te_gen"]
@@ -110,11 +110,11 @@ def render_zonas_operacao() -> None:
     st.plotly_chart(fig, width="stretch", config={"displaylogo": False})
 
     # Animated phasor diagram
-    _render_diagrama_vetorial(zona, dark, ns)
+    _render_phasor_diagram(zona, dark, ns)
 
 
 @st.fragment
-def _render_diagrama_vetorial(zona: str, dark: bool, ns: float) -> None:
+def _render_phasor_diagram(zona: str, dark: bool, ns: float) -> None:
     """Animated vector diagram via requestAnimationFrame in HTML iframe.
 
     θs rotates continuously. θm = θs − s·2π (fixed phase shift).

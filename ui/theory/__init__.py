@@ -16,13 +16,13 @@ Relationships:
 from __future__ import annotations
 import streamlit as st
 
-from ui.theory.tabs.circuitos         import render_tab_circuitos
-from ui.theory.tabs.dinamica          import render_tab_dinamica
-from ui.theory.tabs.potencia          import render_tab_potencia
+from ui.theory.tabs.circuits         import render_tab_circuits
+from ui.theory.tabs.dynamics          import render_tab_dynamics
+from ui.theory.tabs.power          import render_tab_power
 from ui.theory.tabs.sensibilidade     import render_tab_sensibilidade
-from ui.theory.tabs.dinamica_operacao import render_tab_dinamica_operacao
+from ui.theory.tabs.dynamics_operation import render_tab_dynamics_operation
 from ui.theory.tabs.manual            import render_tab_manual_de_uso
-from ui.theory.tabs.estimadores       import render_tab_estimadores
+from ui.theory.tabs.estimators       import render_tab_estimators
 from ui.theory.tabs.config            import render_tab_config
 from ui.theory.tabs.experimentos      import render_tab_experimentos
 
@@ -48,15 +48,15 @@ def render_theory_tab() -> None:
 
     with tab1:
         st.markdown("## Modeling and Equivalent Circuits")
-        render_tab_circuitos()
+        render_tab_circuits()
 
     with tab2:
         st.markdown("## Dynamic Behavior and Torque")
-        render_tab_dinamica()
+        render_tab_dynamics()
 
     with tab3:
         st.markdown("## Energy Balance and Power Flow")
-        render_tab_potencia()
+        render_tab_power()
 
     with tab4:
         st.markdown("## Parameter Sensitivity Guide")
@@ -64,7 +64,7 @@ def render_theory_tab() -> None:
 
     with tab5:
         st.markdown("## Operating Dynamics")
-        render_tab_dinamica_operacao()
+        render_tab_dynamics_operation()
 
     with tab6:
         st.markdown("## Simulator User Manual")
@@ -72,7 +72,7 @@ def render_theory_tab() -> None:
 
     with tab7:
         st.markdown("## Parameter Estimators")
-        render_tab_estimadores()
+        render_tab_estimators()
 
     with tab8:
         st.markdown("## Settings, Alerts, and Experiments")

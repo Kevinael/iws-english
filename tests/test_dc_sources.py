@@ -55,14 +55,14 @@ class TestVoltageSourcesDC:
         results = [fn(t) for t in times]
         assert all(r[0] == pytest.approx(sep_motor.Va) for r in results)
 
-    def test_resistencia_reduced_at_t0(self, sep_motor):
+    def test_resistance_reduced_at_t0(self, sep_motor):
         """Series resistance start: Va at t=0 must be < nominal."""
         cfg = {"t_resistencia": 1.0, "Va_red_frac": 0.5}
         fn = make_voltage_fn_dc("resistance_dc", sep_motor, cfg)
         Va0, _ = fn(0.0)
         assert Va0 < sep_motor.Va
 
-    def test_resistencia_full_after_ramp(self, sep_motor):
+    def test_resistance_full_after_ramp(self, sep_motor):
         """Series resistance start: Va after t_resistencia = nominal."""
         cfg = {"t_resistencia": 1.0, "Va_red_frac": 0.5}
         fn = make_voltage_fn_dc("resistance_dc", sep_motor, cfg)
@@ -75,7 +75,7 @@ class TestVoltageSourcesDC:
         Va, _ = fn(4.0)
         assert Va < 0
 
-    def test_campo_fraco_reduces_vf(self, sep_motor):
+    def test_field_weakening_reduces_vf(self, sep_motor):
         """Field weakening: Vf after t_campo < nominal Vf."""
         cfg = {"t_campo": 0.5, "Vf_fraco": sep_motor.Vf * 0.6}
         fn = make_voltage_fn_dc("field_weakening_dc", sep_motor, cfg)
@@ -83,7 +83,7 @@ class TestVoltageSourcesDC:
         _, Vf_late  = fn(2.0)
         assert Vf_late < Vf_early
 
-    def test_gerador_returns_tuple(self, sep_motor):
+    def test_generator_returns_tuple(self, sep_motor):
         fn = make_voltage_fn_dc("generator_dc", sep_motor, {})
         result = fn(0.5)
         assert isinstance(result, tuple) and len(result) == 2
@@ -103,14 +103,14 @@ class TestTorqueSourcesDC:
         assert fn(0.0) == pytest.approx(25.0)
         assert fn(1.5) == pytest.approx(25.0)
 
-    def test_pulso_applies_step(self, sep_motor):
+    def test_pulse_applies_step(self, sep_motor):
         cfg = {"Tl_nom": 25.0, "t_pulso": 1.0, "Tl_extra": 20.0}
         fn = make_torque_fn_dc("pulse_dc", sep_motor, cfg)
         assert fn(0.5) == pytest.approx(25.0)   # before pulse
         assert fn(1.5) == pytest.approx(45.0)   # Tl_nom + Tl_extra
         assert fn(1.5) > fn(0.5)
 
-    def test_gerador_torque_negative(self, sep_motor):
+    def test_generator_torque_negative(self, sep_motor):
         """Generator mechanical traction torque is positive."""
         fn = make_torque_fn_dc("generator_dc", sep_motor, {"Tl_nom": -25.0})
         assert fn(1.0) > 0

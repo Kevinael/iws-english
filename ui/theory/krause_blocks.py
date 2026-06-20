@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-blocos_krause.py
+krause_blocks.py
 ================
 Block diagram of the Krause 0dq model with expandable equation cards.
 
@@ -23,7 +23,7 @@ from viz.tim_charts import _plot_theme
 from ui.theory._shared import _dark
 
 
-def render_blocos_krause() -> None:
+def render_krause_blocks() -> None:
     """Block diagram of the Krause 0dq model, with expandable cards per equation.
 
     Layout: 6 main cards (Vqs/Vds → ψqs/ψds, ψqr/ψdr, ψmq/ψmd, iqs/ids,

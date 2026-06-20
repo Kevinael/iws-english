@@ -7,7 +7,7 @@ MIT parameter-source sub-renderers and the public render_machine_params() functi
 Exports:
     _ElecParams                    — dataclass returned by each param sub-renderer
     _Te_rotor_bloqueado            — locked-rotor torque helper
-    _aviso_partida_reduzida        — starting feasibility warning
+    _reduced_start_warning        — starting feasibility warning
     _validate_params               — UI range checks
     _render_params_nameplate       — NEMA Nameplate estimation panel
     _render_params_ieee            — IEEE Std 112-2017 test panel
@@ -93,7 +93,7 @@ def _Te_rotor_bloqueado(mp: MachineParams, voltage_ratio: float) -> float:
     return (3.0 * (mp.p / 2) / mp.wb) * (Vf_r ** 2) * mp.Rr / Zr2
 
 
-def _aviso_partida_reduzida(mp: MachineParams, voltage_ratio: float, Tl: float) -> None:
+def _reduced_start_warning(mp: MachineParams, voltage_ratio: float, Tl: float) -> None:
     """Displays reduced-voltage starting feasibility warning."""
     Te_bloq = _Te_rotor_bloqueado(mp, voltage_ratio)
     Te_nom  = _Te_rotor_bloqueado(mp, 1.0)

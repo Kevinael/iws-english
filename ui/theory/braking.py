@@ -24,7 +24,7 @@ from viz.tim_charts import _plot_theme
 from ui.theory._shared import _get_mp, _dark
 
 
-def render_comparador_frenagem() -> None:
+def render_braking_comparator() -> None:
     """Interactive comparator of the 3 braking methods: Regenerative, Plugging, DC.
 
     Zero latency via Plotly frames:
@@ -42,11 +42,11 @@ def render_comparador_frenagem() -> None:
     # Streamlit checkboxes (rerun is acceptable — changes structure)
     c3, c4, c5 = st.columns(3)
     with c3:
-        show_reg  = st.checkbox("Regenerative",              value=True, key="_frenagem_reg")
+        show_reg  = st.checkbox("Regenerative",              value=True, key="_braking_reg")
     with c4:
-        show_plug = st.checkbox("Counter-current (Plugging)", value=True, key="_frenagem_plug")
+        show_plug = st.checkbox("Counter-current (Plugging)", value=True, key="_braking_plug")
     with c5:
-        show_dc   = st.checkbox("DC Injection",               value=True, key="_frenagem_dc")
+        show_dc   = st.checkbox("DC Injection",               value=True, key="_braking_dc")
 
     col_reg  = "#34d399" if dark else "#059669"
     col_plug = "#f87171"

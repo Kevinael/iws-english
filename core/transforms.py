@@ -11,7 +11,7 @@ Responsibilities:
   - Provide the _SQRT3_2 constant for internal use
 
 Relationships:
-  Imported by : core.machine_model, core.solver, core.desequilibrio_falta
+  Imported by : core.machine_model, core.solver, core.tim.fault_model
   Imports     : (numpy only)
 
 Extending:

@@ -65,7 +65,7 @@ class _WidgetKeysDC:
     energy_tariff: str = "wi_dc_energy_tariff"
     # experiment — DOL
     dol_vazio:     str = "wi_dc_dol_vazio"
-    dol_t_carga:   str = "wi_dc_dol_t_carga"
+    dol_t_load:   str = "wi_dc_dol_t_load"
     # experiment — series resistance
     R_ini:         str = "wi_dc_R_ini"
     t_ramp:        str = "wi_dc_t_ramp"

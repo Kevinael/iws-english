@@ -124,7 +124,7 @@ def render_tab_dynamic(
         exp_config= _cfg,
         bb_sev    = float(res.get("_broken_bar_severity", 0.0)),
         s_val     = float(res.get("s", 0.0)),
-        deseq_on  = any(_cfg.get(k, 0) for k in
+        imbalance_on  = any(_cfg.get(k, 0) for k in
                         ("imbalance_a", "imbalance_b", "imbalance_c", "phase_loss_a", "phase_loss_b", "phase_loss_c")),
         is_yd     = (exp_type == "yd"),
         is_gen    = (exp_type == "generator"),

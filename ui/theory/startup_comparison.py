@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-comparativo_partidas.py
+startup_comparison.py
 =======================
 Analytical phase current vs. time curves for starting method comparison.
 
@@ -26,7 +26,7 @@ from ui.theory._shared import _get_mp, _dark
 from ui.theory.tabs._shared import _z2
 
 
-def render_comparativo_partidas() -> None:
+def render_startup_comparison() -> None:
     """Analytical phase current vs. time curves for DOL, Y-D and Soft-Starter."""
     mp   = _get_mp()
     dark = _dark()

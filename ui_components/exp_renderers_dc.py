@@ -41,10 +41,10 @@ def _render_exp_dc_dol(mp: DCMachineParams, config: dict) -> tuple[float, float]
     )
     config["start_no_load"] = start_no_load
     if start_no_load:
-        _wi(_WK_DC.dol_t_carga, 2.0)
+        _wi(_WK_DC.dol_t_load, 2.0)
         config["t_load"] = st.number_input(
             "Load application instant — $t_{carga}$ (s)",
-            min_value=0.0, key=_WK_DC.dol_t_carga, format="%.2f",
+            min_value=0.0, key=_WK_DC.dol_t_load, format="%.2f",
         )
         config["Tl_inicial"] = 0.0
         config["Tl_final"]   = _Tl_ref
@@ -68,7 +68,7 @@ def _render_exp_dc_dol(mp: DCMachineParams, config: dict) -> tuple[float, float]
     return tmax_def, h_def
 
 
-def _render_exp_dc_resistencia(mp: DCMachineParams, config: dict) -> tuple[float, float]:
+def _render_exp_dc_resistance(mp: DCMachineParams, config: dict) -> tuple[float, float]:
     _Tl_ref = config["_Tl_ref"]
     c1, c2  = st.columns(2)
     _wi(_WK_DC.R_ini, 5.0)
@@ -100,7 +100,7 @@ _BRAKE_DESC_DC: dict[str, str] = {
 }
 
 
-def _render_exp_dc_frenagem(mp: DCMachineParams, config: dict) -> tuple[float, float]:
+def _render_exp_dc_braking(mp: DCMachineParams, config: dict) -> tuple[float, float]:
     _Tl_ref      = config["_Tl_ref"]
     brake_labels = list(DC_BRAKE_LABELS.values())
     brake_keys   = list(DC_BRAKE_LABELS.keys())
@@ -176,7 +176,7 @@ def _render_exp_dc_frenagem(mp: DCMachineParams, config: dict) -> tuple[float, f
     return tmax_def, 1e-3
 
 
-def _render_exp_dc_campo_fraco(mp: DCMachineParams, config: dict) -> tuple[float, float]:
+def _render_exp_dc_field_weakening(mp: DCMachineParams, config: dict) -> tuple[float, float]:
     _Tl_ref    = config["_Tl_ref"]
     c1, c2, c3 = st.columns(3)
     _wi(_WK_DC.Vf_fraco, mp.Vf * 0.5 if mp.Vf > 0 else mp.Va * 0.5)
@@ -199,7 +199,7 @@ def _render_exp_dc_campo_fraco(mp: DCMachineParams, config: dict) -> tuple[float
     return tmax_def, 1e-3
 
 
-def _render_exp_dc_pulso(mp: DCMachineParams, config: dict) -> tuple[float, float]:
+def _render_exp_dc_pulse(mp: DCMachineParams, config: dict) -> tuple[float, float]:
     _Tl_ref = config["_Tl_ref"]
     c1, c2  = st.columns(2)
     _wi(_WK_DC.t_pulso,  4.0)
@@ -217,7 +217,7 @@ def _render_exp_dc_pulso(mp: DCMachineParams, config: dict) -> tuple[float, floa
     return tmax_def, 1e-3
 
 
-def _render_exp_dc_gerador(mp: DCMachineParams, config: dict) -> tuple[float, float]:
+def _render_exp_dc_generator(mp: DCMachineParams, config: dict) -> tuple[float, float]:
     _wi(_WK_DC.Tl_gen, abs(mp.Tload))
     config["Tl_gen"] = st.number_input("Prime mover torque — $T_{mec}$ (N·m)", min_value=0.0, key=_WK_DC.Tl_gen, format="%.3f")
     _ibox(
@@ -230,9 +230,9 @@ def _render_exp_dc_gerador(mp: DCMachineParams, config: dict) -> tuple[float, fl
 
 _EXP_RENDERERS_DC: dict[str, Any] = {
     "dol_dc":          _render_exp_dc_dol,
-    "resistance_dc":  _render_exp_dc_resistencia,
-    "braking_dc":     _render_exp_dc_frenagem,
-    "field_weakening_dc":  _render_exp_dc_campo_fraco,
-    "pulse_dc":        _render_exp_dc_pulso,
-    "generator_dc":      _render_exp_dc_gerador,
+    "resistance_dc":  _render_exp_dc_resistance,
+    "braking_dc":     _render_exp_dc_braking,
+    "field_weakening_dc":  _render_exp_dc_field_weakening,
+    "pulse_dc":        _render_exp_dc_pulse,
+    "generator_dc":      _render_exp_dc_generator,
 }

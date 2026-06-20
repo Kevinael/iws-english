@@ -84,8 +84,8 @@ where $T_e = k_b \, i_{fd} \, i_a$ and $E_a = k_b \, i_{fd} \, \omega_m$.
             _show_png("shunt_gerador.png", "Shunt — Generator")
 
         try:
-            from ui.theory_dc_interactive import render_diagrama_blocos_mcc
-            render_diagrama_blocos_mcc()
+            from ui.theory_dc_interactive import render_dc_block_diagram
+            render_dc_block_diagram()
         except Exception:
             pass
 
@@ -109,8 +109,8 @@ Reducing $V_f$ → $i_{fd}$ decreases → $E_a = k_b i_{fd} \omega_m$ reduces �
             _show_png("wm_x_T.png", "T×ωm curves for the three excitation types")
 
         try:
-            from ui.theory_dc_interactive import render_curvas_comparativas_excitacao
-            render_curvas_comparativas_excitacao()
+            from ui.theory_dc_interactive import render_excitation_comparison_curves
+            render_excitation_comparison_curves()
         except Exception:
             pass
 
@@ -182,8 +182,8 @@ $$V_t = R_l \, i_a$$
         _show_png("curva_magnetizacao_simples_pb.png", "Magnetization Curve")
 
         try:
-            from ui.theory_dc_interactive import render_estimador_dc
-            render_estimador_dc()
+            from ui.theory_dc_interactive import render_dc_estimator
+            render_dc_estimator()
         except Exception:
             st.info("Interactive component unavailable.")
 

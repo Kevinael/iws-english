@@ -36,7 +36,7 @@ from data.experiment_modes import MIT_EXP_OPTIONS, MIT_CRITICAL_EVENTS
 from data.machines_mit import MIT_PRESETS
 from data.ui_labels import MACHINES
 from data.variable_labels import MIT_VAR_MECANICAS, MIT_VAR_ELETRICAS, MIT_VAR_CATALOG
-from ui_components.tim_fault_ui import render_desequilibrio_ui, render_broken_bar_ui
+from ui_components.tim_fault_ui import render_imbalance_ui, render_broken_bar_ui
 from ui.theme import _palette
 from ui_components.tim_runner import calc_tmax_auto
 from ui_components._shared_widgets import _pgroup, _ibox
@@ -49,11 +49,11 @@ from ui_components.exp_renderers_tim import (
     _render_exp_yd,
     _render_exp_comp,
     _render_exp_soft,
-    _render_exp_pulso_carga,
-    _render_exp_gerador,
+    _render_exp_load_pulse,
+    _render_exp_generator,
     _render_exp_shutdown,
     _render_exp_voltage_sag,
-    _render_exp_frenagem,
+    _render_exp_braking,
 )
 
 
@@ -83,13 +83,13 @@ class _WidgetKeys:
     # experiment
     exp_type:     str = "exp_select"
     Tl_final:     str = "wi_Tl_final"
-    t_load:      str = "wi_t_carga"
-    Tl_pulse:     str = "wi_Tl_pulso"
-    Tl_pulse_abs: str = "wi_Tl_pulso_abs"
-    t_pulse_on:   str = "wi_t_pulso_on"
-    t_pulse_off:  str = "wi_t_pulso_off"
+    t_load:      str = "wi_t_load"
+    Tl_pulse:     str = "wi_Tl_pulse"
+    Tl_pulse_abs: str = "wi_Tl_pulse_abs"
+    t_pulse_on:   str = "wi_t_pulse_on"
+    t_pulse_off:  str = "wi_t_pulse_off"
     Tl_mec:       str = "wi_Tl_mec"
-    t_2_gerador:  str = "wi_t_2_gerador"
+    t_2_generator:  str = "wi_t_2_generator"
     tmax:         str = "wi_tmax"
     h:            str = "wi_h"
     # advanced models
@@ -261,11 +261,11 @@ def render_experiment_config(
         "yd":           _render_exp_yd,
         "comp":         _render_exp_comp,
         "soft":         _render_exp_soft,
-        "load_pulse":  _render_exp_pulso_carga,
-        "generator":      _render_exp_gerador,
+        "load_pulse":  _render_exp_load_pulse,
+        "generator":      _render_exp_generator,
         "shutdown":     _render_exp_shutdown,
         "voltage_sag":  _render_exp_voltage_sag,
-        "braking":     _render_exp_frenagem,
+        "braking":     _render_exp_braking,
     }
     h_def = _EXP_RENDERERS[exp_type](mp, config, _Tl_ref, wk)
 
@@ -363,7 +363,7 @@ def render_experiment_config(
         )
     st.markdown('</div>', unsafe_allow_html=True)
 
-    render_desequilibrio_ui(config, tmax=tmax)
+    render_imbalance_ui(config, tmax=tmax)
     render_broken_bar_ui(config, tmax=tmax, wk=wk)
 
     return config, var_keys, var_labels, tmax, h

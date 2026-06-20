@@ -60,11 +60,11 @@ from ui_components.sim_config_dc_params import (  # noqa: F401
 )
 from ui_components.exp_renderers_dc import (  # noqa: F401
     _render_exp_dc_dol,
-    _render_exp_dc_resistencia,
-    _render_exp_dc_frenagem,
-    _render_exp_dc_campo_fraco,
-    _render_exp_dc_pulso,
-    _render_exp_dc_gerador,
+    _render_exp_dc_resistance,
+    _render_exp_dc_braking,
+    _render_exp_dc_field_weakening,
+    _render_exp_dc_pulse,
+    _render_exp_dc_generator,
     _EXP_RENDERERS_DC,
 )
 

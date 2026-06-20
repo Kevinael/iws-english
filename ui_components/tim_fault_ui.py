@@ -7,7 +7,7 @@ phase loss and the broken-bar Digital Twin. The pure-physics functions live in
 core.tim.fault_model — this module only renders the interactive panels.
 
 Responsibilities:
-  - render_desequilibrio_ui — interactive voltage unbalance / phase-loss panel.
+  - render_imbalance_ui — interactive voltage unbalance / phase-loss panel.
   - render_broken_bar_ui     — interactive broken-bar fault panel.
 
 Relationships:
@@ -19,7 +19,7 @@ from __future__ import annotations
 import streamlit as st
 
 
-def render_desequilibrio_ui(config: dict, tmax: float = 2.0) -> None:
+def render_imbalance_ui(config: dict, tmax: float = 2.0) -> None:
     """Renders the voltage unbalance / phase-loss expander.
 
     Fills config with keys:
@@ -141,11 +141,11 @@ $$\\text{VUF}_{\\%} = \\frac{\\text{maximum deviation of }V_l\\text{ from the me
             st.warning("One phase lost: two-phase operation — very high currents. "
                        "Reduce simulation time.")
 
-        _tmax_deseq = float(tmax) if tmax > 0.0 else None
-        _val_deseq  = min(1.0, float(tmax) - 0.1) if (tmax > 0.0 and tmax <= 1.0) else 1.0
+        _tmax_imbalance = float(tmax) if tmax > 0.0 else None
+        _val_imbalance  = min(1.0, float(tmax) - 0.1) if (tmax > 0.0 and tmax <= 1.0) else 1.0
         t_imbalance = st.number_input(
             "Unbalance onset instant (s)",
-            min_value=0.0, max_value=_tmax_deseq, value=_val_deseq, step=0.1, format="%.2f",
+            min_value=0.0, max_value=_tmax_imbalance, value=_val_imbalance, step=0.1, format="%.2f",
             help="The unbalance begins to act at this instant. Use 0 to apply from the start.",
         )
 

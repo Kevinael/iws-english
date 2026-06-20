@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-curva_tn.py
+torque_speed.py
 ===========
 Computes the torque-speed curve (T×n) and power flow of the induction machine
 via the full complex-impedance equivalent circuit.
@@ -8,7 +8,7 @@ via the full complex-impedance equivalent circuit.
 Responsibilities:
   - Extract circuit parameters from MachineParams (_extract_params)
   - Compute torque as a function of slip s (_torque_array)
-  - Compute input, air-gap, mechanical, and loss power (calc_fluxo_potencia)
+  - Compute input, air-gap, mechanical, and loss power (calc_power_flow)
 
 Relationships:
   Imported by : ui.theory_interactive
@@ -66,7 +66,7 @@ def _torque_array(s_arr: np.ndarray, V1, R1, X1, R2, X2, Xm, ws_mec) -> np.ndarr
     return P2 / ws_mec
 
 
-def calc_curva_tn(mp, n_points: int = 600) -> dict:
+def calc_torque_speed(mp, n_points: int = 600) -> dict:
     """Computes the T×n curve via the full equivalent circuit.
 
     Covers all 3 regions: generator (s<0), motor (0<s≤1) and braking (s>1).
@@ -107,7 +107,7 @@ def calc_curva_tn(mp, n_points: int = 600) -> dict:
     }
 
 
-def calc_fluxo_potencia(s: float, mp) -> dict:
+def calc_power_flow(s: float, mp) -> dict:
     """Computes the power flow at the operating point.
 
     Parameters extracted from mp (user parameters).
@@ -263,7 +263,7 @@ def build_fig_tn(tn: dict, dark: bool,
     return fig
 
 
-def build_fig_fluxo_potencia(fp: dict, dark: bool) -> go.Figure:
+def build_fig_power_flow(fp: dict, dark: bool) -> go.Figure:
     """Horizontal bar chart showing the power flow."""
     pt = _plot_theme(dark)
 

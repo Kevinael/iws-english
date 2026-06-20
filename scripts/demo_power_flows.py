@@ -1,6 +1,6 @@
 ﻿# -*- coding: utf-8 -*-
 """
-demo_potencias.py
+demo_power_flows.py
 =================
 Demonstration script that runs a DOL simulation and prints steady-state
 power metrics to stdout.

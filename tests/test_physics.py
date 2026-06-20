@@ -163,7 +163,7 @@ def test_voltage_sag_wr_recovers(mp_3hp):
     assert res["wr"][-1] > 0.90 * ws
 
 
-def test_gerador_negative_slip(mp_3hp):
+def test_generator_negative_slip(mp_3hp):
     """Operação como generator deve resultar em escorregamento negativo."""
     config = {"exp_type": "generator", "Tl_mec": 15.0, "t_2": 1.0}
     vfn, tfn, _ = build_fns(config, mp_3hp)

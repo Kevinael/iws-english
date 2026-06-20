@@ -8,10 +8,10 @@ Theory Tab 3 — Energy Balance and Power Flow.
 from __future__ import annotations
 import streamlit as st
 from ui.theory.tabs._shared import _h4, _eq, _div_warn, _show_img
-from ui.theory_interactive import render_sankey_potencia
+from ui.theory_interactive import render_sankey_power
 
 
-def render_tab_potencia() -> None:
+def render_tab_power() -> None:
     st.markdown(
         "Power flows in a **cascaded** manner, with each stage dissipating or converting "
         "a fraction determined by $s$, $R$, $X$ and $\\omega$. "
@@ -86,4 +86,4 @@ def render_tab_potencia() -> None:
 
     st.divider()
     _h4("Interactive Power Flow")
-    render_sankey_potencia()
+    render_sankey_power()
