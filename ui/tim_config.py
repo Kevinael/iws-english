@@ -210,17 +210,17 @@ def render_machine_selector(dark: bool) -> None:
     gap:8px;
 ">
   <div style="font-size:2.4rem;">{m['icon']}</div>
-  <div style="font-weight:700;font-size:1.05rem;color:{c['text']}">{m['label']}</div>
-  <div style="font-size:0.82rem;color:{c['muted']};line-height:1.4">{m['desc']}</div>
+  <div style="font-weight:700;font-size:1.05rem;color:{c['text']}">{m['name']}</div>
+  <div style="font-size:0.82rem;color:{c['muted']};line-height:1.4">{m['tag']}</div>
 </div>"""
             st.markdown(card_html, unsafe_allow_html=True)
             st.write("")
             if st.button(
-                f"Select {m['label']}",
-                key=f"btn_select_{m['id']}",
+                f"Select {m['name']}",
+                key=f"btn_select_{m['key']}",
                 use_container_width=True,
             ):
-                st.session_state["selected_machine"] = m["id"]
+                st.session_state["selected_machine"] = m["key"]
                 st.rerun()
 
 

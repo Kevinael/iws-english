@@ -39,7 +39,7 @@ MIT_IEEE_SPLIT_LABELS: dict[str, str] = {
 }
 
 MACHINES: list[dict] = [
-    {"key": "tim",  "name": "Three-Phase Induction Motor", "icon": "TIM", "tag": "Available",         "disabled": False},
+    {"key": "mit",  "name": "Three-Phase Induction Motor", "icon": "TIM", "tag": "Available",         "disabled": False},
     {"key": "dc",   "name": "DC Motor",                    "icon": "DCM", "tag": "Available",         "disabled": False},
     {"key": "sync", "name": "Synchronous Generator",       "icon": "SG",  "tag": "Under development", "disabled": True},
     {"key": "tr",   "name": "Transformer",                 "icon": "TR",  "tag": "Under development", "disabled": True},
